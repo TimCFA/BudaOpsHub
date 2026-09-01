@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: buda-ops-hub
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn server:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
+    routes:
+      - path: /
+        matchType: prefix
+        dest: /index.html
