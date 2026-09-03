@@ -3310,11 +3310,11 @@ function renderNumbersContent(){
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
           <div class="field">
             <label>Projected Sales</label>
-            <input type="text" value="${entry.projectedSales || ''}" placeholder="$0" onchange="updateNumbersField('${dayName}','${escapedDp}','projectedSales',this.value)" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+            <input type="text" inputmode="decimal" value="${entry.projectedSales || ''}" placeholder="$0.00" onchange="formatAndUpdateCurrency(this,'${dayName}','${escapedDp}','projectedSales')" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
           </div>
           <div class="field">
             <label>Productivity Goal</label>
-            <input type="text" value="${entry.productivityGoal || ''}" placeholder="e.g. 8.5" onchange="updateNumbersField('${dayName}','${escapedDp}','productivityGoal',this.value)" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+            <input type="text" inputmode="decimal" value="${entry.productivityGoal || ''}" placeholder="$0.00" onchange="formatAndUpdateCurrency(this,'${dayName}','${escapedDp}','productivityGoal')" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
           </div>
         </div>
         <div class="field">
@@ -3331,6 +3331,21 @@ window.updateNumbersField = async function(dayName, dpName, field, value){
   if(!numbersData[dayName][dpName]) numbersData[dayName][dpName] = {};
   numbersData[dayName][dpName][field] = value.trim();
   await saveState();
+};
+
+function formatAsCurrency(raw){
+  if(!raw) return '';
+  const cleaned = String(raw).replace(/[^0-9.]/g, ''); // strip $, commas, letters, etc.
+  if(cleaned === '' || cleaned === '.') return '';
+  const num = parseFloat(cleaned);
+  if(isNaN(num)) return '';
+  return num.toLocaleString('en-US', {style: 'currency', currency: 'USD'});
+}
+
+window.formatAndUpdateCurrency = async function(inputEl, dayName, dpName, field){
+  const formatted = formatAsCurrency(inputEl.value);
+  inputEl.value = formatted;
+  await updateNumbersField(dayName, dpName, field, formatted);
 };
 
 // Looks up the Numbers entry for a given daypart, whether it's a FOH daypart (exact name
