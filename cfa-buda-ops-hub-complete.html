@@ -14,7 +14,7 @@
     --cfa-light:#FAFAFA;
     --text-primary:#000000;
     --text-secondary:#666666;
-    --text-tertiary:#999999;
+    --text-tertiary:#767676;
     --border:#E0E0E0;
     --radius:8px;
     --success:#4CAF50;
@@ -25,6 +25,20 @@
 
   .app{max-width:1100px;margin:0 auto;padding:24px 20px 60px;min-height:100vh;}
 
+  /* Set Ups view uses the extra horizontal room on wide screens instead of sitting in a narrow
+     column with empty margins on either side — bounded so it doesn't get absurdly wide either */
+  @media(min-width:1160px){
+    #positionsView{
+      width:100vw;
+      max-width:none;
+      margin-left:calc(50% - 50vw);
+      margin-right:calc(50% - 50vw);
+      padding-left:max(20px, calc((100vw - 1600px) / 2));
+      padding-right:max(20px, calc((100vw - 1600px) / 2));
+      box-sizing:border-box;
+    }
+  }
+
   .hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:16px;}
   .hdr-title{display:flex;align-items:baseline;gap:12px;}
   .hdr-title h1{font-family:'Outfit',sans-serif;font-weight:700;font-size:28px;letter-spacing:-0.01em;margin:0;text-transform:uppercase;color:var(--text-primary);}
@@ -33,16 +47,64 @@
   .clock{font-family:'Inter',sans-serif;font-size:13px;color:var(--text-secondary);font-weight:500;}
 
   .tabs-wrap{margin-bottom:24px;}
-  .tabs{display:flex;gap:2px;background:transparent;border-bottom:2px solid var(--border);padding:0;margin-bottom:12px;overflow-x:auto;}
+  .tabs{display:flex;gap:2px;background:transparent;border-bottom:2px solid var(--border);padding:0;margin-bottom:12px;overflow-x:auto;overflow-y:visible;}
   .tab{flex:1;text-align:center;padding:14px 12px;border-radius:0;font-family:'Outfit',sans-serif;font-size:13px;letter-spacing:0.02em;text-transform:uppercase;color:var(--text-secondary);cursor:pointer;user-select:none;transition:all .2s ease;border-bottom:3px solid transparent;margin-bottom:-2px;font-weight:600;white-space:nowrap;min-width:100px;}
   .tab .sub{display:block;font-size:9px;font-style:italic;margin-top:2px;font-family:'Inter';font-weight:400;}
   .tab.active{color:var(--cfa-red);border-bottom-color:var(--cfa-red);}
   .tab:hover{color:var(--text-primary);}
 
+  .tab-group{flex:1;min-width:100px;position:relative;}
+  .tab-group-label{text-align:center;padding:14px 12px;font-family:'Outfit',sans-serif;font-size:13px;letter-spacing:0.02em;text-transform:uppercase;color:var(--text-secondary);cursor:pointer;user-select:none;transition:all .2s ease;border-bottom:3px solid transparent;margin-bottom:-2px;font-weight:600;white-space:nowrap;}
+  .tab-group-label:hover{color:var(--text-primary);}
+  .tab-group.active .tab-group-label{color:var(--cfa-red);border-bottom-color:var(--cfa-red);}
+  .chevron-mini{font-size:10px;display:inline-block;transition:transform .15s ease;}
+  .tab-group.open .chevron-mini{transform:rotate(180deg);}
+  .tab-dropdown{display:none;position:absolute;top:100%;left:0;min-width:180px;background:var(--cfa-white);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:50;overflow:hidden;margin-top:4px;}
+  .tab-group.open .tab-dropdown{display:block;}
+  .tab-dropdown-item{padding:12px 16px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:var(--text-primary);cursor:pointer;transition:background .15s ease;text-align:left;}
+  .tab-dropdown-item:hover{background:var(--cfa-bg);}
+  .tab-dropdown-item .sub-inline{display:block;font-size:10px;font-style:italic;color:var(--text-tertiary);font-weight:400;text-transform:none;margin-top:2px;}
+
   .foh-boh-toggle{display:flex;gap:8px;background:transparent;border-radius:8px;padding:0;margin-bottom:20px;}
   .toggle-btn{flex:1;text-align:center;padding:12px 16px;border-radius:var(--radius);font-family:'Outfit',sans-serif;font-size:12px;letter-spacing:0.02em;text-transform:uppercase;color:var(--text-secondary);cursor:pointer;user-select:none;transition:all .2s ease;border:2px solid var(--border);background:var(--cfa-white);font-weight:600;}
   .toggle-btn .sub{display:block;font-size:8px;font-style:italic;margin-top:1px;font-family:'Inter';font-weight:400;}
   .toggle-btn.active{background:var(--cfa-red);color:var(--cfa-white);border-color:var(--cfa-red);}
+
+  .day-picker{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:20px;-webkit-overflow-scrolling:touch;}
+  .day-pill{flex:0 0 auto;padding:10px 18px;border-radius:20px;border:1.5px solid var(--border);background:var(--cfa-white);font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:var(--text-secondary);cursor:pointer;white-space:nowrap;transition:all .15s ease;user-select:none;}
+  .day-pill:hover{border-color:var(--cfa-red);color:var(--cfa-red);}
+  .day-pill.active{background:var(--cfa-red);color:var(--cfa-white);border-color:var(--cfa-red);}
+
+  .setups-layout{display:grid;grid-template-columns:minmax(0,3fr) minmax(280px,380px);gap:24px;}
+  @media(max-width:720px){.setups-layout{grid-template-columns:1fr;}}
+
+  .pos-tile{cursor:pointer;border-radius:var(--radius);padding:12px 10px;min-height:76px;background:var(--cfa-white);border:1.5px solid var(--border);border-left:4px solid var(--border);display:flex;align-items:center;justify-content:center;text-align:center;transition:all .15s ease;}
+  .pos-tile:hover{border-color:var(--cfa-red);box-shadow:0 2px 8px rgba(227,28,35,0.08);}
+  .pos-tile.assigned{border-left-color:var(--cfa-red);}
+  .pos-tile .pos-name{font-size:11px;color:var(--text-secondary);margin-bottom:4px;}
+  .pos-tile .pos-assigned-name{font-weight:700;color:var(--cfa-red);font-size:13px;}
+  .pos-tile .pos-empty{font-size:11px;color:var(--text-tertiary);}
+  .pos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;}
+
+  .daypart-card{background:var(--cfa-white);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05);}
+  .daypart-header{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;cursor:pointer;user-select:none;}
+  .daypart-title{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .daypart-name{font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;color:var(--text-primary);}
+  .daypart-fill{font-size:11px;font-weight:600;color:var(--text-secondary);background:var(--cfa-bg);padding:3px 8px;border-radius:10px;}
+  .daypart-fill.full{color:var(--success);background:#E8F5E9;}
+  .chevron{color:var(--text-tertiary);transition:transform .2s ease;font-size:14px;}
+  .daypart-card.expanded .chevron{transform:rotate(180deg);}
+  .daypart-body{display:none;padding:0 18px 18px;}
+  .daypart-card.expanded .daypart-body{display:block;}
+
+  .daypart-numbers{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+  .num-chip{background:var(--cfa-bg);border-radius:8px;padding:6px 12px;display:flex;flex-direction:column;gap:1px;}
+  .num-chip .num-label{font-size:9px;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-tertiary);font-weight:600;}
+  .num-chip .num-value{font-size:13px;font-weight:700;color:var(--text-primary);}
+  .num-chip.num-event{background:#FFF3E0;}
+  .num-chip.num-event .num-value{color:#B85C00;font-weight:600;}
+
+  .roster-item{background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px;font-size:12px;}
   .toggle-btn:hover{border-color:var(--cfa-red);}
 
   .view{display:none;}
@@ -92,6 +154,18 @@
   .btn-primary:hover{background:#C91A1F;box-shadow:0 4px 12px rgba(227,28,35,0.2);}
   .btn-primary:active{transform:scale(0.98);}
   .btn-ghost{background:transparent;color:var(--text-secondary);margin-top:12px;border:1px solid var(--border);}
+  .btn-add-tm{background:var(--cfa-white);color:var(--cfa-red);border:1.5px solid var(--cfa-red);border-radius:var(--radius);padding:8px 14px;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s ease;}
+  .btn-add-tm:hover{background:var(--cfa-red);color:var(--cfa-white);}
+  .zone-btn-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px;}
+  .zone-btn{background:var(--cfa-white);border:1px solid var(--border);border-radius:20px;padding:9px 15px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;color:var(--text-primary);cursor:pointer;white-space:nowrap;transition:all .15s ease;}
+  .zone-btn:hover{border-color:var(--cfa-red);color:var(--cfa-red);}
+  .btn-checklist-edit{background:transparent;border:1px solid var(--border);border-radius:var(--radius);width:34px;height:34px;color:var(--text-tertiary);cursor:pointer;transition:all .15s ease;}
+  .btn-checklist-edit:hover{border-color:var(--cfa-red);color:var(--cfa-red);}
+  .break-complete-badge{display:inline-block;font-size:10px;font-weight:700;color:var(--success);background:#E8F5E9;padding:2px 7px;border-radius:8px;margin-left:6px;vertical-align:middle;}
+  .btn-complete-break{width:100%;margin-top:6px;background:var(--cfa-white);color:var(--success);border:1.5px solid var(--success);padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;transition:all .15s ease;}
+  .btn-complete-break:hover{background:var(--success);color:var(--cfa-white);}
+  .roster-remove{position:absolute;top:10px;right:10px;background:transparent;border:none;color:var(--text-tertiary);font-size:14px;cursor:pointer;padding:2px 6px;line-height:1;}
+  .roster-remove:hover{color:var(--cfa-red);}
   .btn-ghost:hover{color:var(--text-primary);border-color:var(--text-primary);}
   .btn-secondary{background:var(--cfa-white);color:var(--text-primary);border:1px solid var(--border);}
   .btn-secondary:hover{border-color:var(--cfa-red);color:var(--cfa-red);}
@@ -140,11 +214,7 @@
   .who-chip:hover{border-color:var(--cfa-red);color:var(--cfa-red);}
   .who-chip.sel{background:var(--cfa-red);color:var(--cfa-white);border-color:var(--cfa-red);font-weight:600;}
 
-  .pos-tile{background:var(--cfa-white);border:2px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s ease;min-height:80px;display:flex;align-items:center;justify-content:center;}
-  .pos-tile:hover{box-shadow:0 4px 12px rgba(227,28,35,0.1);border-color:var(--cfa-red);}
-  .pos-tile.filled{border-color:var(--cfa-red);color:var(--cfa-red);}
-
-  .roster-item{background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px;font-size:12px;}
+  .roster-item{background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px;font-size:12px;position:relative;}
   .roster-name{font-weight:600;color:var(--text-primary);margin-bottom:4px;}
   .roster-time{font-size:11px;color:var(--text-secondary);margin-bottom:8px;}
   .break-btn{background:var(--cfa-white);border:1px solid var(--border);padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;transition:all .15s ease;width:100%;}
@@ -339,13 +409,34 @@
   <div class="tabs-wrap">
     <div class="tabs">
       <div class="tab active" data-view="home">Home <span class="sub"><i>Inicio</i></span></div>
-      <div class="tab" data-view="positions">Set Ups <span class="sub"><i>Configuración</i></span></div>
-      <div class="tab" data-view="gx">GX <span class="sub"><i>Experiencia</i></span></div>
-      <div class="tab" data-view="tx">TX <span class="sub"><i>Talento</i></span></div>
-      <div class="tab" data-view="lx">LX <span class="sub"><i>Liderazgo</i></span></div>
+
+      <div class="tab-group" data-group="setups">
+        <div class="tab-group-label">Set Ups <span class="chevron-mini">▾</span></div>
+        <div class="tab-dropdown">
+          <div class="tab-dropdown-item" data-view="positions">Positions <span class="sub-inline">Configuración</span></div>
+          <div class="tab-dropdown-item" data-view="numbers">📊 Numbers <span class="sub-inline">Números</span></div>
+        </div>
+      </div>
+
       <div class="tab" data-view="log">Log Waste <span class="sub"><i>Registrar</i></span></div>
-      <div class="tab" data-view="boh">BOH OE <span class="sub"><i>Excelencia</i></span></div>
-      <div class="tab" data-view="fohoe">FOH OE <span class="sub"><i>Excelencia</i></span></div>
+
+      <div class="tab-group" data-group="excellence">
+        <div class="tab-group-label">Excellence <span class="chevron-mini">▾</span></div>
+        <div class="tab-dropdown">
+          <div class="tab-dropdown-item" data-view="gx">GX <span class="sub-inline">Experiencia</span></div>
+          <div class="tab-dropdown-item" data-view="tx">TX <span class="sub-inline">Talento</span></div>
+          <div class="tab-dropdown-item" data-view="lx">LX <span class="sub-inline">Liderazgo</span></div>
+        </div>
+      </div>
+
+      <div class="tab-group" data-group="oe">
+        <div class="tab-group-label">OE <span class="chevron-mini">▾</span></div>
+        <div class="tab-dropdown">
+          <div class="tab-dropdown-item" data-view="fohoe">FOH OE <span class="sub-inline">Excelencia</span></div>
+          <div class="tab-dropdown-item" data-view="boh">BOH OE <span class="sub-inline">Excelencia</span></div>
+        </div>
+      </div>
+
       <div class="tab" data-view="manage">Manage <span class="sub"><i>Gestionar</i></span></div>
     </div>
   </div>
@@ -357,20 +448,34 @@
       <div class="toggle-btn" data-section="boh">BOH <span class="sub"><i>Atrás</i></span></div>
     </div>
 
-    <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
-      <label style="font-family:'Outfit';font-size:11px;text-transform:uppercase;font-weight:600;color:var(--text-secondary);letter-spacing:0.05em;">Select Day</label>
-      <select id="daySelect" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';background:var(--cfa-white);">
-        <option value="">Choose a day</option>
-        <option value="Monday">Monday</option>
-        <option value="Tuesday">Tuesday</option>
-        <option value="Wednesday">Wednesday</option>
-        <option value="Thursday">Thursday</option>
-        <option value="Friday">Friday</option>
-        <option value="Saturday">Saturday</option>
-      </select>
+    <div class="day-picker" id="dayPicker">
+      <div class="day-pill" data-day="Monday">Mon</div>
+      <div class="day-pill" data-day="Tuesday">Tue</div>
+      <div class="day-pill" data-day="Wednesday">Wed</div>
+      <div class="day-pill" data-day="Thursday">Thu</div>
+      <div class="day-pill" data-day="Friday">Fri</div>
+      <div class="day-pill" data-day="Saturday">Sat</div>
+    </div>
+    <select id="daySelect" style="display:none;">
+      <option value="">Choose a day</option>
+      <option value="Monday">Monday</option>
+      <option value="Tuesday">Tuesday</option>
+      <option value="Wednesday">Wednesday</option>
+      <option value="Thursday">Thursday</option>
+      <option value="Friday">Friday</option>
+      <option value="Saturday">Saturday</option>
+    </select>
+
+    <div class="zone-btn-row" id="zoneButtonRow">
+      <button class="zone-btn" onclick="openZoneChecklist('Bagging')">🛍️ Bagging</button>
+      <button class="zone-btn" onclick="openZoneChecklist('Drinks')">🥤 Drinks</button>
+      <button class="zone-btn" onclick="openZoneChecklist('Host')">👋 Host</button>
+      <button class="zone-btn" onclick="openZoneChecklist('IPOS')">📱 IPOS</button>
+      <button class="zone-btn" onclick="openZoneChecklist('OMD')">👟 OMD</button>
+      <button class="btn-checklist-edit" onclick="editZoneChecklists()" title="Set or update zone checklist links">✎</button>
     </div>
 
-    <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;">
+    <div class="setups-layout">
       <!-- All Dayparts - Scrollable -->
       <div id="daypartContainer" style="display:none;">
         <div id="allDayparts"></div>
@@ -379,7 +484,10 @@
       <!-- Roster Panel -->
       <div id="rosterContainer" style="display:none;">
         <div class="standup-card">
-          <h3>Roster</h3>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <h3 style="margin:0;">Roster</h3>
+            <button class="btn-add-tm" id="btnAddTeamMember">+ Add Team Member</button>
+          </div>
           <div id="rosterPanel" style="max-height:600px;overflow-y:auto;"></div>
         </div>
       </div>
@@ -403,6 +511,82 @@
       <button id="btnAssignPos" class="btn btn-primary">Assign</button>
       <button id="btnCancelPos" class="btn btn-ghost">Cancel</button>
     </div>
+  </div>
+
+  <!-- Add Team Member to Roster Modal -->
+  <div class="overlay" id="addTMModal">
+    <div class="sheet">
+      <h2>Add Team Member</h2>
+      <div class="sub" id="addTMContext"></div>
+      <div class="field">
+        <label>Name</label>
+        <input type="text" id="addTMName" placeholder="Full name" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+      </div>
+      <div style="display:flex;gap:12px;">
+        <div class="field" style="flex:1;">
+          <label>Start Time</label>
+          <input type="text" id="addTMStart" placeholder="e.g. 5:30a" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+        </div>
+        <div class="field" style="flex:1;">
+          <label>End Time</label>
+          <input type="text" id="addTMEnd" placeholder="e.g. 1:30p" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+        </div>
+      </div>
+      <button id="btnConfirmAddTM" class="btn btn-primary">Add to Roster</button>
+      <button id="btnCancelAddTM" class="btn btn-ghost">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Zone Checklist Links Modal -->
+  <div class="overlay" id="zoneChecklistModal">
+    <div class="sheet">
+      <h2>Zone Reset Checklists</h2>
+      <div class="sub">Paste a link for each zone (Google Doc, PDF, etc.)</div>
+      <div class="field">
+        <label>🛍️ Bagging</label>
+        <input type="text" id="zoneLink_Bagging" placeholder="https://..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+      </div>
+      <div class="field">
+        <label>🥤 Drinks</label>
+        <input type="text" id="zoneLink_Drinks" placeholder="https://..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+      </div>
+      <div class="field">
+        <label>👋 Host</label>
+        <input type="text" id="zoneLink_Host" placeholder="https://..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+      </div>
+      <div class="field">
+        <label>📱 IPOS</label>
+        <input type="text" id="zoneLink_IPOS" placeholder="https://..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+      </div>
+      <div class="field">
+        <label>👟 OMD</label>
+        <input type="text" id="zoneLink_OMD" placeholder="https://..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+      </div>
+      <button id="btnSaveZoneChecklists" class="btn btn-primary">Save Links</button>
+      <button id="btnCancelZoneChecklists" class="btn btn-ghost">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Know the Numbers View -->
+  <div class="view" id="numbersView">
+    <div class="day-picker" id="numbersDayPicker">
+      <div class="day-pill" data-day="Monday">Mon</div>
+      <div class="day-pill" data-day="Tuesday">Tue</div>
+      <div class="day-pill" data-day="Wednesday">Wed</div>
+      <div class="day-pill" data-day="Thursday">Thu</div>
+      <div class="day-pill" data-day="Friday">Fri</div>
+      <div class="day-pill" data-day="Saturday">Sat</div>
+    </div>
+    <select id="numbersDaySelect" style="display:none;">
+      <option value="">Choose a day</option>
+      <option value="Monday">Monday</option>
+      <option value="Tuesday">Tuesday</option>
+      <option value="Wednesday">Wednesday</option>
+      <option value="Thursday">Thursday</option>
+      <option value="Friday">Friday</option>
+      <option value="Saturday">Saturday</option>
+    </select>
+    <div id="numbersContent"></div>
   </div>
 
   <!-- LX Scoreboard View -->
@@ -1104,6 +1288,10 @@ const bohRoster = {
 
 let currentPosSection = 'foh';
 let breakCountdowns = {};
+let completedBreaks = {}; // persisted: marks a break as done, whether by timer expiry or manual completion
+let activeCountdownTimers = {}; // runtime-only: interval IDs, never persisted
+let zoneChecklistUrls = {}; // persisted: link per zone (Bagging, Drinks, Host, IPOS, OMD)
+let numbersData = {}; // persisted: numbersData[day][daypartName] = {projectedSales, productivityGoal, specialEvents}
 let posAssignments = {};
 
 // LX SCOREBOARD DATA
@@ -1332,12 +1520,12 @@ async function dbWrite(path, data){
 async function saveState(){
   const snapshot = {
     entries, products, teamMembers, wasteTarget, managerPin, formDone,
-    formDoneDate: formDone ? today : null, foodSafetyDays, wasteDays, breakCountdowns, posAssignments,
+    formDoneDate: formDone ? today : null, foodSafetyDays, wasteDays, breakCountdowns, completedBreaks, posAssignments,
     fohRoster, bohRoster, lxPillars, lxMetrics, lxLastUpdated, gxData, txData, homeData,
     fohOEDays, fohOEChecked, fohOECheckedDate,
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     fohPositionTransitionChecked, fohPositionTransitionDate,
-    eoiSubmissions
+    eoiSubmissions, zoneChecklistUrls, numbersData
   };
   const serialized = JSON.stringify(snapshot);
   // Local cache first, so the app still works instantly / offline even if the network write below fails
@@ -1381,6 +1569,7 @@ async function loadState(){
     foodSafetyDays = data.foodSafetyDays || [];
     wasteDays = data.wasteDays || [];
     breakCountdowns = data.breakCountdowns || {};
+    completedBreaks = data.completedBreaks || {};
     posAssignments = data.posAssignments || {};
     lxPillars = data.lxPillars || defaultPillars;
     lxMetrics = data.lxMetrics || defaultMetrics;
@@ -1399,6 +1588,8 @@ async function loadState(){
     fohPositionTransitionDate = data.fohPositionTransitionDate || null;
     fohPositionTransitionChecked = (fohPositionTransitionDate === today) ? (data.fohPositionTransitionChecked || {}) : {};
     eoiSubmissions = data.eoiSubmissions || [];
+    zoneChecklistUrls = data.zoneChecklistUrls || {};
+    numbersData = data.numbersData || {};
     calcStreak();
   }
 }
@@ -2250,21 +2441,57 @@ function renderHomeScoreboard(){
   `).join('');
 }
 
-document.querySelectorAll('.tab').forEach(t=>{
-  t.addEventListener('click',()=>{
-    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-    document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
-    t.classList.add('active');
-    const view = t.dataset.view;
-    document.getElementById(view+'View').classList.add('active');
-    if(view === 'positions') renderPositionsTab();
-    if(view === 'boh') renderDashboard();
-    if(view === 'lx') renderLXScoreboard();
-    if(view === 'gx') renderGXScoreboard();
-    if(view === 'tx') renderTXScoreboard();
-    if(view === 'home') renderHomeScoreboard();
-    if(view === 'fohoe') renderFOHOE();
-  });
+function activateView(view){
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  document.getElementById(view+'View').classList.add('active');
+  if(view === 'positions') renderPositionsTab();
+  if(view === 'numbers') renderNumbersTab();
+  if(view === 'boh') renderDashboard();
+  if(view === 'lx') renderLXScoreboard();
+  if(view === 'gx') renderGXScoreboard();
+  if(view === 'tx') renderTXScoreboard();
+  if(view === 'home') renderHomeScoreboard();
+  if(view === 'fohoe') renderFOHOE();
+}
+
+function clearActiveTabs(){
+  document.querySelectorAll('.tab, .tab-group').forEach(x=>x.classList.remove('active'));
+}
+
+function closeAllTabDropdowns(){
+  document.querySelectorAll('.tab-group').forEach(g=>g.classList.remove('open'));
+}
+
+document.querySelector('.tabs').addEventListener('click', (e)=>{
+  const dropdownItem = e.target.closest('.tab-dropdown-item');
+  if(dropdownItem){
+    closeAllTabDropdowns();
+    clearActiveTabs();
+    dropdownItem.closest('.tab-group').classList.add('active');
+    activateView(dropdownItem.dataset.view);
+    return;
+  }
+  
+  const groupLabel = e.target.closest('.tab-group-label');
+  if(groupLabel){
+    const group = groupLabel.closest('.tab-group');
+    const wasOpen = group.classList.contains('open');
+    closeAllTabDropdowns();
+    if(!wasOpen) group.classList.add('open');
+    return;
+  }
+  
+  const plainTab = e.target.closest('.tab');
+  if(plainTab){
+    closeAllTabDropdowns();
+    clearActiveTabs();
+    plainTab.classList.add('active');
+    activateView(plainTab.dataset.view);
+  }
+});
+
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('.tab-group')) closeAllTabDropdowns();
 });
 
 document.querySelectorAll('.toggle-btn').forEach(t=>{
@@ -2610,10 +2837,49 @@ document.querySelectorAll('#posToggle .toggle-btn').forEach(t=>{
     t.classList.add('active');
     currentPosSection = t.dataset.section;
     document.getElementById('daySelect').value = '';
+    document.querySelectorAll('#dayPicker .day-pill').forEach(p=>p.classList.remove('active'));
     document.getElementById('daypartContainer').style.display = 'none';
     document.getElementById('rosterContainer').style.display = 'none';
   });
 });
+
+document.querySelectorAll('#dayPicker .day-pill').forEach(pill=>{
+  pill.addEventListener('click', ()=>{
+    document.querySelectorAll('#dayPicker .day-pill').forEach(p=>p.classList.remove('active'));
+    pill.classList.add('active');
+    document.getElementById('daySelect').value = pill.dataset.day;
+    renderAllDayparts();
+  });
+});
+
+let expandedDayparts = new Set(); // runtime-only UI state, not persisted
+
+function parseShiftTimeToMinutes(str){
+  if(!str) return null;
+  const m = String(str).trim().toLowerCase().match(/^(\d{1,2}):(\d{2})\s*([ap])/);
+  if(!m) return null;
+  let hour = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  if(m[3] === 'a'){
+    if(hour === 12) hour = 0;
+  } else {
+    if(hour !== 12) hour += 12;
+  }
+  return hour * 60 + min;
+}
+
+function parseDaypartTimeToMinutes(str){
+  const parts = String(str).split(':').map(Number);
+  return parts[0] * 60 + (parts[1] || 0);
+}
+
+function daypartTimeWindow(dayparts, index){
+  const startMin = parseDaypartTimeToMinutes(dayparts[index].time);
+  const endMin = (index + 1 < dayparts.length)
+    ? parseDaypartTimeToMinutes(dayparts[index + 1].time)
+    : startMin + 120; // last daypart of the day: assume a 2-hour block
+  return {startMin, endMin};
+}
 
 function renderPositionsTab(){
   document.getElementById('daySelect').addEventListener('change', renderAllDayparts);
@@ -2637,22 +2903,47 @@ function renderAllDayparts(){
   let html = '';
   dayparts.forEach(dp=>{
     const positions = posMap[dp.name] || [];
+    const isExpanded = expandedDayparts.has(dp.name);
+    const filledCount = positions.filter(pos=>{
+      const key = currentPosSection + '||' + dayName + '||' + dp.name + '||' + pos;
+      return !!posAssignments[key];
+    }).length;
+    
     html += `
-      <div class="standup-card" style="margin-bottom:20px;">
-        <h3>${dp.name}</h3>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;">
-          ${positions.map(pos=>{
-            const key = currentPosSection + '||' + dayName + '||' + dp.name + '||' + pos;
-            const assigned = posAssignments[key] || '';
+      <div class="daypart-card ${isExpanded ? 'expanded' : ''}">
+        <div class="daypart-header" onclick="toggleDaypart('${dp.name.replace(/'/g, "\\'")}')">
+          <div class="daypart-title">
+            <span class="daypart-name">${dp.name}</span>
+            <span class="daypart-fill ${filledCount === positions.length ? 'full' : ''}">${filledCount}/${positions.length} filled</span>
+          </div>
+          <span class="chevron">▾</span>
+        </div>
+        <div class="daypart-body">
+          ${(()=>{
+            const nums = getNumbersForDaypart(dayName, dp);
+            if(!nums || (!nums.projectedSales && !nums.productivityGoal && !nums.specialEvents)) return '';
             return `
-              <div class="pos-tile" style="cursor:pointer;border:2px solid ${assigned ? 'var(--cfa-red)' : 'var(--border)'};min-height:80px;" onclick="openPosModal('${key}', '${pos.replace(/'/g, "\\'")}', '${dp.name.replace(/'/g, "\\'")}')">
-                <div style="text-align:center;">
-                  <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">${pos}</div>
-                  ${assigned ? `<div style="font-weight:700;color:var(--cfa-red);font-size:12px;">${assigned}</div>` : '<div style="font-size:10px;color:var(--text-tertiary);font-style:italic;">Click to assign</div>'}
-                </div>
+              <div class="daypart-numbers">
+                ${nums.projectedSales ? `<div class="num-chip"><span class="num-label">Projected Sales</span><span class="num-value">${nums.projectedSales}</span></div>` : ''}
+                ${nums.productivityGoal ? `<div class="num-chip"><span class="num-label">Productivity Goal</span><span class="num-value">${nums.productivityGoal}</span></div>` : ''}
+                ${nums.specialEvents ? `<div class="num-chip num-event"><span class="num-label">📅 Event</span><span class="num-value">${nums.specialEvents}</span></div>` : ''}
               </div>
             `;
-          }).join('')}
+          })()}
+          <div class="pos-grid">
+            ${positions.map(pos=>{
+              const key = currentPosSection + '||' + dayName + '||' + dp.name + '||' + pos;
+              const assigned = posAssignments[key] || '';
+              return `
+                <div class="pos-tile ${assigned ? 'assigned' : ''}" onclick="openPosModal('${key}', '${pos.replace(/'/g, "\\'")}', '${dp.name.replace(/'/g, "\\'")}')">
+                  <div>
+                    <div class="pos-name">${pos}</div>
+                    ${assigned ? `<div class="pos-assigned-name">${assigned}</div>` : '<div class="pos-empty">Tap to assign</div>'}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
         </div>
       </div>
     `;
@@ -2661,6 +2952,12 @@ function renderAllDayparts(){
   document.getElementById('allDayparts').innerHTML = html;
   renderRoster();
 }
+
+window.toggleDaypart = function(dpName){
+  if(expandedDayparts.has(dpName)) expandedDayparts.delete(dpName);
+  else expandedDayparts.add(dpName);
+  renderAllDayparts();
+};
 
 let currentPosKey = '';
 let currentPosName = '';
@@ -2671,9 +2968,35 @@ window.openPosModal = function(key, pos, daypart){
   document.getElementById('posModalTitle').textContent = daypart;
   document.getElementById('posModalPos').textContent = pos;
   
+  const dayName = document.getElementById('daySelect').value;
   const roster = currentPosSection === 'foh' ? fohRoster : bohRoster;
+  const dayRoster = roster[dayName] || []; // scoped to the selected day only, not the whole week
+  
+  const dayparts = currentPosSection === 'foh' ? fohDayparts : bohDayparts;
+  const dpIndex = dayparts.findIndex(d => d.name === daypart);
+  
+  let eligible = dayRoster;
+  if(dpIndex !== -1){
+    const {startMin, endMin} = daypartTimeWindow(dayparts, dpIndex);
+    eligible = dayRoster.filter(p=>{
+      const s = parseShiftTimeToMinutes(p.start);
+      const e = parseShiftTimeToMinutes(p.end);
+      if(s === null || e === null) return true; // if we can't parse their shift, don't hide them
+      return s < endMin && e > startMin; // shift overlaps this daypart's window
+    });
+  }
+  
+  // Always keep the currently-assigned person visible even if their shift doesn't
+  // technically overlap, so an existing assignment never silently vanishes from view
+  const currentlyAssigned = posAssignments[key];
+  if(currentlyAssigned && !eligible.some(p=>p.name === currentlyAssigned)){
+    eligible = [{name: currentlyAssigned, offShift: true}, ...eligible];
+  }
+  
   const select = document.getElementById('posModalSelect');
-  select.innerHTML = '<option value="">Unassign</option>' + Object.values(roster).flat().map(p=>`<option value="${p.name}" ${posAssignments[key] === p.name ? 'selected' : ''}>${p.name}</option>`).join('');
+  select.innerHTML = '<option value="">Unassign</option>' + eligible.map(p=>
+    `<option value="${p.name}" ${posAssignments[key] === p.name ? 'selected' : ''}>${p.name}${p.offShift ? ' (off shift)' : ''}</option>`
+  ).join('');
   
   document.getElementById('posModal').classList.add('active');
 };
@@ -2705,15 +3028,37 @@ function renderRoster(){
   }
   
   const roster = currentPosSection === 'foh' ? (fohRoster[dayName] || []) : (bohRoster[dayName] || []);
+  let expiredSomething = false;
+  
   const html = roster.map(person=>{
     const key = person.name + today;
-    const onBreak = breakCountdowns[key];
+    const escapedName = person.name.replace(/'/g, "\\'");
+    let remaining = 0;
+    if(breakCountdowns[key]){
+      remaining = Math.round((breakCountdowns[key] - Date.now()) / 1000);
+      if(remaining <= 0){
+        delete breakCountdowns[key];
+        completedBreaks[key] = true;
+        expiredSomething = true;
+        remaining = 0;
+      }
+    }
+    const onBreak = remaining > 0;
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    const isCompleted = !!completedBreaks[key];
     return `
       <div class="roster-item">
-        <div class="roster-name">${person.name}</div>
+        <button class="roster-remove" onclick="removeFromRoster('${escapedName}')" title="Remove from today's roster">✕</button>
+        <div class="roster-name">${person.name}${(isCompleted && !onBreak) ? '<span class="break-complete-badge">✓ Break Complete</span>' : ''}</div>
         <div class="roster-time">${person.start} - ${person.end}</div>
-        <button class="break-btn ${onBreak ? 'onbreak' : ''}" onclick="toggleBreak('${person.name}')">${onBreak ? 'On Break' : 'Start Break'}</button>
-        ${onBreak ? `<div class="countdown" id="timer-${person.name}"></div>` : ''}
+        ${onBreak ? `
+          <div class="countdown" id="timer-${person.name}">${mins}:${secs<10?'0':''}${secs}</div>
+          <button class="break-btn onbreak" disabled>On Break</button>
+          <button class="btn-complete-break" onclick="completeBreakNow('${escapedName}')">Mark Break Complete</button>
+        ` : `
+          <button class="break-btn" onclick="toggleBreak('${escapedName}')">Start Break</button>
+        `}
       </div>
     `;
   }).join('');
@@ -2730,43 +3075,270 @@ function renderRoster(){
       }
     });
   }
+  
+  if(expiredSomething) saveState();
 }
+
+window.removeFromRoster = async function(name){
+  const dayName = document.getElementById('daySelect').value;
+  if(!dayName) return;
+  if(!confirm(`Remove ${name} from ${dayName}'s roster?`)) return;
+  
+  const roster = currentPosSection === 'foh' ? fohRoster : bohRoster;
+  if(roster[dayName]){
+    roster[dayName] = roster[dayName].filter(p => p.name !== name);
+  }
+  // Also clear any break timer and position assignments tied to this person for the day,
+  // so a removed team member doesn't linger as "on break" or still shown assigned to a position
+  const breakKey = name + today;
+  if(breakCountdowns[breakKey]){
+    delete breakCountdowns[breakKey];
+    if(activeCountdownTimers[name]){
+      clearInterval(activeCountdownTimers[name]);
+      delete activeCountdownTimers[name];
+    }
+  }
+  delete completedBreaks[breakKey];
+  Object.keys(posAssignments).forEach(k=>{
+    if(posAssignments[k] === name && k.startsWith(currentPosSection + '||' + dayName + '||')){
+      delete posAssignments[k];
+    }
+  });
+  
+  await saveState();
+  renderRoster();
+  renderAllDayparts();
+  showToast(`✓ ${name} removed from roster`);
+};
+
+document.getElementById('btnAddTeamMember').addEventListener('click', ()=>{
+  const dayName = document.getElementById('daySelect').value;
+  if(!dayName){
+    showToast('Select a day first');
+    return;
+  }
+  document.getElementById('addTMContext').textContent = `Adding to ${dayName} • ${currentPosSection === 'foh' ? 'FOH' : 'BOH'}`;
+  document.getElementById('addTMName').value = '';
+  document.getElementById('addTMStart').value = '';
+  document.getElementById('addTMEnd').value = '';
+  document.getElementById('addTMModal').classList.add('active');
+});
+
+document.getElementById('btnCancelAddTM').addEventListener('click', ()=>{
+  document.getElementById('addTMModal').classList.remove('active');
+});
+
+document.getElementById('addTMModal').addEventListener('click', (e)=>{
+  if(e.target === document.getElementById('addTMModal')) document.getElementById('addTMModal').classList.remove('active');
+});
+
+document.getElementById('btnConfirmAddTM').addEventListener('click', async ()=>{
+  const dayName = document.getElementById('daySelect').value;
+  const name = document.getElementById('addTMName').value.trim();
+  const start = document.getElementById('addTMStart').value.trim();
+  const end = document.getElementById('addTMEnd').value.trim();
+  
+  if(!name || !start || !end){
+    showToast('Fill in name, start, and end time');
+    return;
+  }
+  if(parseShiftTimeToMinutes(start) === null || parseShiftTimeToMinutes(end) === null){
+    showToast('Times should look like 5:30a or 1:30p');
+    return;
+  }
+  
+  const roster = currentPosSection === 'foh' ? fohRoster : bohRoster;
+  if(!roster[dayName]) roster[dayName] = [];
+  
+  // If this name is already on the roster (e.g. a shift-time correction), replace rather than duplicate
+  const existingIndex = roster[dayName].findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+  if(existingIndex !== -1){
+    roster[dayName][existingIndex] = {name, start, end};
+  } else {
+    roster[dayName].push({name, start, end});
+  }
+  
+  await saveState();
+  renderRoster();
+  renderAllDayparts();
+  document.getElementById('addTMModal').classList.remove('active');
+  showToast(`✓ ${name} added to ${dayName}'s roster`);
+});
 
 window.toggleBreak = async function(name){
   const key = name + today;
   if(breakCountdowns[key]){
     delete breakCountdowns[key];
+    if(activeCountdownTimers[name]){
+      clearInterval(activeCountdownTimers[name]);
+      delete activeCountdownTimers[name];
+    }
   } else {
-    breakCountdowns[key] = 1800;
+    breakCountdowns[key] = Date.now() + (30 * 60 * 1000); // absolute end-time, survives refresh
   }
   await saveState();
   renderRoster();
 };
 
+window.completeBreakNow = async function(name){
+  const key = name + today;
+  delete breakCountdowns[key];
+  completedBreaks[key] = true;
+  if(activeCountdownTimers[name]){
+    clearInterval(activeCountdownTimers[name]);
+    delete activeCountdownTimers[name];
+  }
+  await saveState();
+  renderRoster();
+  showToast('✓ Break marked complete');
+};
+
 function startCountdown(name){
+  // Guard against duplicate intervals: clear any timer already running for this person first
+  if(activeCountdownTimers[name]){
+    clearInterval(activeCountdownTimers[name]);
+  }
+  
   const timer = setInterval(async ()=>{
     const key = name + today;
     if(!breakCountdowns[key]){
       clearInterval(timer);
-      renderRoster();
+      delete activeCountdownTimers[name];
       return;
     }
-    breakCountdowns[key]--;
+    const remaining = Math.round((breakCountdowns[key] - Date.now()) / 1000);
     const el = document.getElementById('timer-'+name);
-    if(el){
-      const mins = Math.floor(breakCountdowns[key] / 60);
-      const secs = breakCountdowns[key] % 60;
-      el.textContent = `${mins}:${secs<10?'0':''}${secs}`;
-    }
-    if(breakCountdowns[key] <= 0){
+    if(remaining <= 0){
       delete breakCountdowns[key];
+      completedBreaks[key] = true;
       clearInterval(timer);
+      delete activeCountdownTimers[name];
       await saveState();
       renderRoster();
       showToast('✓ Break time expired!');
+      return;
+    }
+    if(el){
+      const mins = Math.floor(remaining / 60);
+      const secs = remaining % 60;
+      el.textContent = `${mins}:${secs<10?'0':''}${secs}`;
     }
   }, 1000);
+  
+  activeCountdownTimers[name] = timer;
 };
+
+const ZONE_LIST = ['Bagging', 'Drinks', 'Host', 'IPOS', 'OMD'];
+
+window.openZoneChecklist = function(zone){
+  const url = zoneChecklistUrls[zone];
+  if(url){
+    window.open(url, '_blank');
+  } else {
+    showToast(`No link set for ${zone} yet — tap ✎ to add one`);
+  }
+};
+
+window.editZoneChecklists = function(){
+  ZONE_LIST.forEach(zone=>{
+    document.getElementById('zoneLink_' + zone).value = zoneChecklistUrls[zone] || '';
+  });
+  document.getElementById('zoneChecklistModal').classList.add('active');
+};
+
+document.getElementById('btnCancelZoneChecklists').addEventListener('click', ()=>{
+  document.getElementById('zoneChecklistModal').classList.remove('active');
+});
+
+document.getElementById('zoneChecklistModal').addEventListener('click', (e)=>{
+  if(e.target === document.getElementById('zoneChecklistModal')) document.getElementById('zoneChecklistModal').classList.remove('active');
+});
+
+document.getElementById('btnSaveZoneChecklists').addEventListener('click', async ()=>{
+  ZONE_LIST.forEach(zone=>{
+    const val = document.getElementById('zoneLink_' + zone).value.trim();
+    if(val){
+      zoneChecklistUrls[zone] = val;
+    } else {
+      delete zoneChecklistUrls[zone];
+    }
+  });
+  await saveState();
+  document.getElementById('zoneChecklistModal').classList.remove('active');
+  showToast('✓ Checklist links updated');
+});
+
+// KNOW THE NUMBERS
+document.querySelectorAll('#numbersDayPicker .day-pill').forEach(pill=>{
+  pill.addEventListener('click', ()=>{
+    document.querySelectorAll('#numbersDayPicker .day-pill').forEach(p=>p.classList.remove('active'));
+    pill.classList.add('active');
+    document.getElementById('numbersDaySelect').value = pill.dataset.day;
+    renderNumbersContent();
+  });
+});
+
+function renderNumbersTab(){
+  renderNumbersContent();
+}
+
+function renderNumbersContent(){
+  const dayName = document.getElementById('numbersDaySelect').value;
+  const container = document.getElementById('numbersContent');
+  if(!dayName){
+    container.innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:40px 0;">Select a day to view or edit numbers</div>';
+    return;
+  }
+  if(!numbersData[dayName]) numbersData[dayName] = {};
+  
+  container.innerHTML = fohDayparts.map(dp=>{
+    const entry = numbersData[dayName][dp.name] || {};
+    const escapedDp = dp.name.replace(/'/g, "\\'");
+    return `
+      <div class="standup-card" style="margin-bottom:14px;">
+        <h3 style="margin-bottom:12px;">${dp.name}</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+          <div class="field">
+            <label>Projected Sales</label>
+            <input type="text" value="${entry.projectedSales || ''}" placeholder="$0" onchange="updateNumbersField('${dayName}','${escapedDp}','projectedSales',this.value)" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+          </div>
+          <div class="field">
+            <label>Productivity Goal</label>
+            <input type="text" value="${entry.productivityGoal || ''}" placeholder="e.g. 8.5" onchange="updateNumbersField('${dayName}','${escapedDp}','productivityGoal',this.value)" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+          </div>
+        </div>
+        <div class="field">
+          <label>Special Events</label>
+          <input type="text" value="${entry.specialEvents || ''}" placeholder="e.g. Football watch party, large catering pickup at 2pm" onchange="updateNumbersField('${dayName}','${escapedDp}','specialEvents',this.value)" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+window.updateNumbersField = async function(dayName, dpName, field, value){
+  if(!numbersData[dayName]) numbersData[dayName] = {};
+  if(!numbersData[dayName][dpName]) numbersData[dayName][dpName] = {};
+  numbersData[dayName][dpName][field] = value.trim();
+  await saveState();
+};
+
+// Looks up the Numbers entry for a given daypart, whether it's a FOH daypart (exact name
+// match, since Numbers is entered against the FOH list) or a BOH daypart (matched by
+// whichever start time overlaps, since BOH's daypart names/boundaries differ from FOH's)
+function getNumbersForDaypart(dayName, dp){
+  const dayNums = numbersData[dayName];
+  if(!dayNums) return null;
+  if(dayNums[dp.name]) return dayNums[dp.name];
+  
+  const targetMin = parseDaypartTimeToMinutes(dp.time);
+  let match = null;
+  fohDayparts.forEach((ndp, i)=>{
+    const {startMin, endMin} = daypartTimeWindow(fohDayparts, i);
+    if(targetMin >= startMin && targetMin < endMin) match = ndp.name;
+  });
+  return match ? (dayNums[match] || null) : null;
+}
 
 // Manage
 document.getElementById('btnPinGo').addEventListener('click',checkPin);
