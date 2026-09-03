@@ -20,7 +20,7 @@
     --success:#4CAF50;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{margin:0;padding:0;background:var(--cfa-bg);color:var(--text-primary);font-family:'Inter',sans-serif;height:100%;overflow-x:hidden;}
+  html,body{margin:0;padding:0;background:var(--cfa-bg);color:var(--text-primary);font-family:'Inter',sans-serif;height:100%;overflow-x:hidden;overflow-y:visible;}
   ::selection{background:var(--cfa-red);color:var(--cfa-white);}
 
   .app{max-width:1100px;margin:0 auto;padding:24px 20px 60px;min-height:100vh;}
@@ -59,7 +59,7 @@
   .tab-group.active .tab-group-label{color:var(--cfa-red);border-bottom-color:var(--cfa-red);}
   .chevron-mini{font-size:10px;display:inline-block;transition:transform .15s ease;}
   .tab-group.open .chevron-mini{transform:rotate(180deg);}
-  .tab-dropdown{display:none;position:absolute;top:100%;left:0;min-width:180px;background:var(--cfa-white);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:50;overflow:hidden;margin-top:4px;}
+  .tab-dropdown{display:none;position:fixed;min-width:180px;background:var(--cfa-white);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:9999;overflow:hidden;}
   .tab-group.open .tab-dropdown{display:block;}
   .tab-dropdown-item{padding:12px 16px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:var(--text-primary);cursor:pointer;transition:background .15s ease;text-align:left;}
   .tab-dropdown-item:hover{background:var(--cfa-bg);}
@@ -2477,7 +2477,15 @@ document.querySelector('.tabs').addEventListener('click', (e)=>{
     const group = groupLabel.closest('.tab-group');
     const wasOpen = group.classList.contains('open');
     closeAllTabDropdowns();
-    if(!wasOpen) group.classList.add('open');
+    if(!wasOpen){
+      // Fixed positioning calculated from the label's actual on-screen position,
+      // so the dropdown can never be silently clipped by an ancestor's overflow
+      const rect = groupLabel.getBoundingClientRect();
+      const menu = group.querySelector('.tab-dropdown');
+      menu.style.top = (rect.bottom + 4) + 'px';
+      menu.style.left = rect.left + 'px';
+      group.classList.add('open');
+    }
     return;
   }
   
@@ -2493,6 +2501,8 @@ document.querySelector('.tabs').addEventListener('click', (e)=>{
 document.addEventListener('click', (e)=>{
   if(!e.target.closest('.tab-group')) closeAllTabDropdowns();
 });
+
+window.addEventListener('scroll', closeAllTabDropdowns, true);
 
 document.querySelectorAll('.toggle-btn').forEach(t=>{
   t.addEventListener('click',()=>{
