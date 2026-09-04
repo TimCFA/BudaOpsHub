@@ -162,12 +162,35 @@
   .btn-ghost{background:transparent;color:var(--text-secondary);margin-top:12px;border:1px solid var(--border);}
   .btn-add-tm{background:var(--cfa-white);color:var(--cfa-red);border:1.5px solid var(--cfa-red);border-radius:var(--radius);padding:8px 14px;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s ease;}
   .btn-add-tm:hover{background:var(--cfa-red);color:var(--cfa-white);}
-  .zone-btn-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px;}
-  .zone-btn{background:var(--cfa-white);border:1px solid var(--border);border-radius:20px;padding:9px 15px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;color:var(--text-primary);cursor:pointer;white-space:nowrap;transition:all .15s ease;}
+  .zone-btn-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .zone-btn{background:var(--cfa-white);border:1.5px solid var(--border);border-radius:20px;padding:9px 15px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;color:var(--text-primary);cursor:pointer;white-space:nowrap;transition:all .15s ease;}
   .zone-btn:hover{border-color:var(--cfa-red);color:var(--cfa-red);}
-  .btn-checklist-edit{background:transparent;border:1px solid var(--border);border-radius:var(--radius);width:34px;height:34px;color:var(--text-tertiary);cursor:pointer;transition:all .15s ease;}
-  .btn-checklist-edit:hover{border-color:var(--cfa-red);color:var(--cfa-red);}
+  .zone-btn.zone-btn-done{border-color:var(--success);color:var(--success);}
+  .zone-btn-count{font-size:10px;color:var(--text-tertiary);margin-left:5px;}
+  .zone-btn.zone-btn-done .zone-btn-count{color:var(--success);}
+  .zone-overall-pct{font-family:'Outfit',sans-serif;font-weight:800;font-size:22px;color:var(--text-primary);}
+  .zone-overall-pct.high{color:var(--success);}
+  .zone-reset-scoreboard{display:flex;gap:8px;margin-top:18px;align-items:flex-end;height:80px;}
+  .scoreboard-day{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative;}
+  .scoreboard-day-label{font-size:9px;color:var(--text-tertiary);text-transform:uppercase;margin-bottom:4px;}
+  .scoreboard-day-bar-wrap{flex:1;width:100%;display:flex;align-items:flex-end;background:var(--cfa-bg);border-radius:4px;overflow:hidden;}
+  .scoreboard-day-bar{width:100%;background:var(--cfa-red);border-radius:4px 4px 0 0;transition:height .3s ease;}
+  .scoreboard-day.star .scoreboard-day-bar{background:#FFB300;}
+  .scoreboard-day-pct{font-size:9px;font-weight:700;color:var(--text-secondary);margin-top:3px;}
+  .scoreboard-star{position:absolute;top:-13px;font-size:11px;}
   .break-complete-badge{display:inline-block;font-size:10px;font-weight:700;color:var(--success);background:#E8F5E9;padding:2px 7px;border-radius:8px;margin-left:6px;vertical-align:middle;}
+  .pos-option-list{max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);}
+  .pos-option{padding:12px 14px;font-family:'Inter',sans-serif;font-size:14px;color:var(--text-primary);cursor:pointer;transition:background .12s ease;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+  .pos-option:last-child{border-bottom:none;}
+  .pos-option:hover{background:var(--cfa-bg);}
+  .pos-option.selected{background:var(--cfa-red);color:var(--cfa-white);}
+  .pos-option.unassign-option{color:var(--text-tertiary);font-style:italic;font-size:13px;}
+  .pos-option.unassign-option.selected{background:var(--text-tertiary);color:var(--cfa-white);font-style:normal;}
+  .pos-option .pos-option-check{font-size:15px;opacity:0;}
+  .pos-option.selected .pos-option-check{opacity:1;}
+  .pos-option .pos-option-tag{font-size:10px;color:var(--text-tertiary);font-weight:600;}
+  .pos-option.selected .pos-option-tag{color:rgba(255,255,255,0.8);}
+  .pos-option-empty{padding:20px;text-align:center;color:var(--text-tertiary);font-size:13px;}
   .btn-complete-break{width:100%;margin-top:6px;background:var(--cfa-white);color:var(--success);border:1.5px solid var(--success);padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;transition:all .15s ease;}
   .btn-complete-break:hover{background:var(--success);color:var(--cfa-white);}
   .roster-remove{position:absolute;top:10px;right:10px;background:transparent;border:none;color:var(--text-tertiary);font-size:14px;cursor:pointer;padding:2px 6px;line-height:1;}
@@ -459,18 +482,18 @@
       <div class="week-toggle-btn" data-offset="1">Next Week</div>
     </div>
 
+    <div class="standup-card" style="margin-bottom:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <h3 style="margin:0;">🎯 Zone Reset — Today</h3>
+        <span class="zone-overall-pct" id="zoneOverallPct">0%</span>
+      </div>
+      <div class="zone-btn-row" id="zoneButtonRow"></div>
+      <div class="zone-reset-scoreboard" id="zoneResetScoreboard"></div>
+    </div>
+
     <div class="day-picker" id="dayPicker"></div>
     <select id="daySelect" style="display:none;"></select>
     <div id="daySelectedInfo" class="day-info-bar"></div>
-
-    <div class="zone-btn-row" id="zoneButtonRow">
-      <button class="zone-btn" onclick="openZoneChecklist('Bagging')">🛍️ Bagging</button>
-      <button class="zone-btn" onclick="openZoneChecklist('Drinks')">🥤 Drinks</button>
-      <button class="zone-btn" onclick="openZoneChecklist('Host')">👋 Host</button>
-      <button class="zone-btn" onclick="openZoneChecklist('IPOS')">📱 IPOS</button>
-      <button class="zone-btn" onclick="openZoneChecklist('OMD')">👟 OMD</button>
-      <button class="btn-checklist-edit" onclick="editZoneChecklists()" title="Set or update zone checklist links">✎</button>
-    </div>
 
     <div class="setups-layout">
       <!-- All Dayparts - Scrollable -->
@@ -501,9 +524,8 @@
       </div>
       <div class="field">
         <label>Team Member</label>
-        <select id="posModalSelect" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
-          <option value="">Unassign</option>
-        </select>
+        <input type="text" id="posModalSearch" placeholder="Search team members..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';margin-bottom:8px;">
+        <div id="posModalOptions" class="pos-option-list"></div>
       </div>
       <button id="btnAssignPos" class="btn btn-primary">Assign</button>
       <button id="btnCancelPos" class="btn btn-ghost">Cancel</button>
@@ -535,36 +557,18 @@
   </div>
 
   <!-- Zone Checklist Links Modal -->
-  <div class="overlay" id="zoneChecklistModal">
-    <div class="sheet">
-      <h2>Zone Reset Checklists</h2>
-      <div class="sub">Paste a link for each zone (Google Doc, PDF, etc.)</div>
-      <div class="field">
-        <label>🛍️ Bagging</label>
-        <input type="text" id="zoneLink_Bagging" placeholder="https://..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
-      </div>
-      <div class="field">
-        <label>🥤 Drinks</label>
-        <input type="text" id="zoneLink_Drinks" placeholder="https://..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
-      </div>
-      <div class="field">
-        <label>👋 Host</label>
-        <input type="text" id="zoneLink_Host" placeholder="https://..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
-      </div>
-      <div class="field">
-        <label>📱 IPOS</label>
-        <input type="text" id="zoneLink_IPOS" placeholder="https://..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
-      </div>
-      <div class="field">
-        <label>👟 OMD</label>
-        <input type="text" id="zoneLink_OMD" placeholder="https://..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
-      </div>
-      <button id="btnSaveZoneChecklists" class="btn btn-primary">Save Links</button>
-      <button id="btnCancelZoneChecklists" class="btn btn-ghost">Cancel</button>
+
+  <!-- Know the Numbers View -->
+  <!-- Zone Reset Checklist Modal -->
+  <div class="overlay" id="zoneChecklistTaskModal">
+    <div class="sheet" style="max-width:480px;">
+      <h2 id="zcTaskModalTitle">Zone</h2>
+      <div class="sub" id="zcTaskModalProgress"></div>
+      <div id="zcTaskModalList" style="max-height:400px;overflow-y:auto;margin:16px 0;"></div>
+      <button id="zcTaskModalClose" class="btn btn-ghost">Close</button>
     </div>
   </div>
 
-  <!-- Know the Numbers View -->
   <div class="view" id="numbersView">
     <div class="week-toggle">
       <div class="week-toggle-btn active" data-offset="0">This Week</div>
@@ -1175,6 +1179,157 @@ function pruneOldDateData(){
   return pruned;
 }
 
+// ===== ZONE RESET CHECKLISTS =====
+const ZONE_CHECKLISTS = {
+  'Dining Room': ['Take out trash', 'Sweep floor mats', 'Clean glass & windows', 'Wipe tables & chairs', 'Sweep playscape', 'Wipe high chairs', 'Sweep & mop floors', 'Restock condiment bins', 'Align tables + place flowers', 'Ensure TVs are on'],
+  'Restrooms': ['Wipe sinks & counters', 'Clean mirrors', 'Restock paper towels & toilet paper', 'Check soap & sanitizer', 'Restock seat covers', 'Wipe toilets', 'Take out trash', 'Sweep & mop'],
+  'Front Counter': ['Restock cubbies', 'Fill ice bins', 'Refill teas & lemonades', 'Take out trash', 'Clean hand sink', 'Wipe surfaces', 'Clean/reset trays', 'Wipe stainless door', 'Clear clutter', 'Sweep & mop'],
+  'Bagging Station': ['Restock fridges, bags, toys', 'Open all boxes (bags, toys, etc.)', 'Stock sauces', 'Clear clutter', 'Prep printer paper', 'Refill cubbies', 'Stock hospitality cart', 'Empty trash bins', 'Wipe counters', 'Sweep & mop'],
+  'Drinks Zone': ['Wipe staging table', 'Clean ice cream machine', 'Wipe counters', 'Refill teas/lemonades', 'Refill ice cream & shake base', 'Restock lowboys', 'Prep cups & lemonades', 'Take out trash', 'Clean sugar bin', 'Organize shelves', 'Clean lemonade fridge', 'Restock cups', 'Sweep & mop', 'Ensure wallboard displayed'],
+  'Outside': ['Sweep lot', 'Remove trash from iPOS areas', 'Check equipment charging', 'Clean OMD trash bin', 'Clean patio tables', 'Sweep patio', 'Empty large trash bins', 'Ensure iPOS coverage'],
+  'Soda Room / Tea Station': ['Stock sodas', 'Clean lemonade table', 'Remake lemonades (if needed)', 'Ensure tea lids are on', 'Clean sugar bin', 'Clean sinks'],
+  'The Spot': ['Clear clutter', 'Sweep & mop', 'Take out trash']
+};
+const FINAL_CHECK_ITEMS = ['Floors cleaned', 'Trash taken out', 'Surfaces wiped', 'Fully restocked', 'Smooth transition to next leader?'];
+const ZONE_ICONS = {
+  'Dining Room': '🍽️', 'Restrooms': '🚻', 'Front Counter': '🛎️', 'Bagging Station': '🛍️',
+  'Drinks Zone': '🥤', 'Outside': '🅿️', 'Soda Room / Tea Station': '🫖', 'The Spot': '📍', 'Final Check': '✅'
+};
+const ALL_ZONE_NAMES = Object.keys(ZONE_CHECKLISTS).concat(['Final Check']);
+
+function getZoneItems(zoneName){
+  return zoneName === 'Final Check' ? FINAL_CHECK_ITEMS : (ZONE_CHECKLISTS[zoneName] || []);
+}
+
+function getZoneCompletion(dateISO, zoneName){
+  const items = getZoneItems(zoneName);
+  const state = (zoneChecklistState[dateISO] && zoneChecklistState[dateISO][zoneName]) || {};
+  const checked = items.filter(item => state[item]).length;
+  return {checked, total: items.length};
+}
+
+function getOverallCompletion(dateISO){
+  let checked = 0, total = 0;
+  ALL_ZONE_NAMES.forEach(zone=>{
+    const c = getZoneCompletion(dateISO, zone);
+    checked += c.checked;
+    total += c.total;
+  });
+  return total > 0 ? Math.round((checked / total) * 100) : 0;
+}
+
+function recomputeChecklistHistory(dateISO){
+  const zones = {};
+  ALL_ZONE_NAMES.forEach(zone=>{
+    const c = getZoneCompletion(dateISO, zone);
+    zones[zone] = c.total > 0 ? Math.round((c.checked / c.total) * 100) : 0;
+  });
+  zoneChecklistHistory[dateISO] = {overall: getOverallCompletion(dateISO), zones};
+}
+
+// Zone checklists don't need long history (raw checkbox state prunes with everything
+// else after 14 days), but the scoreboard needs the completion percentages to stick
+// around longer to actually show a trend — keep those for 60 days instead
+function pruneZoneChecklistData(){
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 60);
+  const cutoffISO = toLocalISODate(cutoff);
+  let pruned = false;
+  Object.keys(zoneChecklistHistory).forEach(key=>{
+    if(key < cutoffISO){
+      delete zoneChecklistHistory[key];
+      pruned = true;
+    }
+  });
+  return pruned;
+}
+
+let currentChecklistZone = '';
+
+window.openZoneChecklistTasks = function(zoneName){
+  currentChecklistZone = zoneName;
+  renderZoneChecklistModal();
+  document.getElementById('zoneChecklistTaskModal').classList.add('active');
+};
+
+function renderZoneChecklistModal(){
+  const zoneName = currentChecklistZone;
+  if(!zoneName) return;
+  const items = getZoneItems(zoneName);
+  const state = (zoneChecklistState[today] && zoneChecklistState[today][zoneName]) || {};
+  const {checked, total} = getZoneCompletion(today, zoneName);
+  
+  document.getElementById('zcTaskModalTitle').textContent = (ZONE_ICONS[zoneName] || '') + ' ' + zoneName;
+  document.getElementById('zcTaskModalProgress').textContent = `${checked}/${total} complete • ${formatVerboseDate(today)}`;
+  document.getElementById('zcTaskModalList').innerHTML = items.map(item=>{
+    const isChecked = !!state[item];
+    const escapedItem = item.replace(/'/g, "\\'");
+    const escapedZone = zoneName.replace(/'/g, "\\'");
+    return `
+      <label style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--border);cursor:pointer;">
+        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleChecklistItem('${escapedZone}','${escapedItem}')" style="width:18px;height:18px;flex-shrink:0;">
+        <span style="${isChecked ? 'text-decoration:line-through;color:var(--text-tertiary);' : ''}font-size:13px;">${item}</span>
+      </label>
+    `;
+  }).join('');
+}
+
+window.toggleChecklistItem = async function(zoneName, itemText){
+  if(!zoneChecklistState[today]) zoneChecklistState[today] = {};
+  if(!zoneChecklistState[today][zoneName]) zoneChecklistState[today][zoneName] = {};
+  zoneChecklistState[today][zoneName][itemText] = !zoneChecklistState[today][zoneName][itemText];
+  recomputeChecklistHistory(today);
+  await saveState();
+  renderZoneChecklistModal();
+  renderZoneResetCard();
+};
+
+function renderZoneResetCard(){
+  const buttonsHtml = ALL_ZONE_NAMES.map(zone=>{
+    const {checked, total} = getZoneCompletion(today, zone);
+    const done = total > 0 && checked === total;
+    const escapedZone = zone.replace(/'/g, "\\'");
+    return `
+      <button class="zone-btn ${done ? 'zone-btn-done' : ''}" onclick="openZoneChecklistTasks('${escapedZone}')">
+        ${ZONE_ICONS[zone] || ''} ${zone}<span class="zone-btn-count">${checked}/${total}</span>
+      </button>
+    `;
+  }).join('');
+  document.getElementById('zoneButtonRow').innerHTML = buttonsHtml;
+  
+  const overall = getOverallCompletion(today);
+  const pctEl = document.getElementById('zoneOverallPct');
+  pctEl.textContent = overall + '%';
+  pctEl.classList.toggle('high', overall >= 95);
+}
+
+function renderZoneResetScoreboard(){
+  const container = document.getElementById('zoneResetScoreboard');
+  const days = [];
+  for(let i = 6; i >= 0; i--){
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const iso = toLocalISODate(d);
+    const pct = zoneChecklistHistory[iso] ? zoneChecklistHistory[iso].overall : null;
+    days.push({label: d.toLocaleDateString('en-US', {weekday: 'short'}).slice(0, 1), pct});
+  }
+  container.innerHTML = days.map(d=>`
+    <div class="scoreboard-day ${d.pct !== null && d.pct >= 95 ? 'star' : ''}">
+      ${d.pct !== null && d.pct >= 95 ? '<div class="scoreboard-star">⭐</div>' : ''}
+      <div class="scoreboard-day-bar-wrap"><div class="scoreboard-day-bar" style="height:${d.pct || 0}%"></div></div>
+      <div class="scoreboard-day-pct">${d.pct !== null ? d.pct + '%' : '—'}</div>
+      <div class="scoreboard-day-label">${d.label}</div>
+    </div>
+  `).join('');
+}
+
+document.getElementById('zcTaskModalClose').addEventListener('click', ()=>{
+  document.getElementById('zoneChecklistTaskModal').classList.remove('active');
+});
+document.getElementById('zoneChecklistTaskModal').addEventListener('click', (e)=>{
+  if(e.target === document.getElementById('zoneChecklistTaskModal')) document.getElementById('zoneChecklistTaskModal').classList.remove('active');
+});
+
 const fohLeads = ['Carlos', 'Nestor', 'Aurora', 'Kaiya', 'Jacob', 'Dom', 'Luke', 'Vanessa'];
 const bohLeads = ['Doris', 'Nansi', 'Bessie', 'Jason', 'Angeles', 'Alex', 'Jenny', 'Grecia'];
 
@@ -1387,7 +1542,8 @@ let currentPosSection = 'foh';
 let breakCountdowns = {};
 let completedBreaks = {}; // persisted: marks a break as done, whether by timer expiry or manual completion
 let activeCountdownTimers = {}; // runtime-only: interval IDs, never persisted
-let zoneChecklistUrls = {}; // persisted: link per zone (Bagging, Drinks, Host, IPOS, OMD)
+let zoneChecklistState = {}; // persisted: zoneChecklistState[dateISO][zoneName][itemText] = true (only today's date is ever written to)
+let zoneChecklistHistory = {}; // persisted: zoneChecklistHistory[dateISO] = {overall: pct, zones: {zoneName: pct}} — kept longer than the raw state, for the scoreboard
 let numbersData = {}; // persisted: numbersData[dateISO][daypartName] = {projectedSales, productivityGoal, specialEvents}
 let lastUpdated = {}; // persisted: lastUpdated[dateISO] = timestamp (ms) of last roster/positions/numbers edit
 let posAssignments = {};
@@ -1623,7 +1779,7 @@ async function saveState(){
     fohOEDays, fohOEChecked, fohOECheckedDate,
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     fohPositionTransitionChecked, fohPositionTransitionDate,
-    eoiSubmissions, zoneChecklistUrls, numbersData, lastUpdated
+    eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated
   };
   const serialized = JSON.stringify(snapshot);
   // Local cache first, so the app still works instantly / offline even if the network write below fails
@@ -1686,12 +1842,14 @@ async function loadState(){
     fohPositionTransitionDate = data.fohPositionTransitionDate || null;
     fohPositionTransitionChecked = (fohPositionTransitionDate === today) ? (data.fohPositionTransitionChecked || {}) : {};
     eoiSubmissions = data.eoiSubmissions || [];
-    zoneChecklistUrls = data.zoneChecklistUrls || {};
+    zoneChecklistState = data.zoneChecklistState || {};
+    zoneChecklistHistory = data.zoneChecklistHistory || {};
     numbersData = data.numbersData || {};
     lastUpdated = data.lastUpdated || {};
     const migrated = migrateLegacyWeekdayKeys();
-    const pruned = pruneOldDateData();
-    if(migrated || pruned) await saveState();
+    const prunedDates = pruneOldDateData();
+    const prunedChecklists = pruneZoneChecklistData();
+    if(migrated || prunedDates || prunedChecklists) await saveState();
     calcStreak();
   }
 }
@@ -2967,9 +3125,14 @@ function renderDayPicker(pickerId, selectId, offsetWeeks, onSelect){
   const previousValue = select.value;
   const stillValid = days.some(d => d.date === previousValue);
   
-  picker.innerHTML = days.map(d=>`<div class="day-pill ${stillValid && d.date === previousValue ? 'active' : ''}" data-date="${d.date}">${d.label}</div>`).join('');
+  let targetValue = stillValid ? previousValue : '';
+  if(!targetValue && offsetWeeks === 0 && days.some(d => d.date === today)){
+    targetValue = today; // default to today's set up instead of leaving the page blank
+  }
+  
+  picker.innerHTML = days.map(d=>`<div class="day-pill ${d.date === targetValue ? 'active' : ''}" data-date="${d.date}">${d.label}</div>`).join('');
   select.innerHTML = '<option value="">Choose a day</option>' + days.map(d=>`<option value="${d.date}">${d.weekday}</option>`).join('');
-  select.value = stillValid ? previousValue : '';
+  select.value = targetValue;
   
   picker.querySelectorAll('.day-pill').forEach(pill=>{
     pill.addEventListener('click', ()=>{
@@ -2996,11 +3159,10 @@ function setWeekOffset(offset){
   });
   renderDayPicker('dayPicker', 'daySelect', offset, ()=>{ renderAllDayparts(); updateSelectedDayInfo('daySelect', 'daySelectedInfo'); });
   renderDayPicker('numbersDayPicker', 'numbersDaySelect', offset, ()=>{ renderNumbersContent(); updateSelectedDayInfo('numbersDaySelect', 'numbersSelectedInfo'); });
-  document.getElementById('daySelectedInfo').innerHTML = '';
-  document.getElementById('numbersSelectedInfo').innerHTML = '';
-  document.getElementById('daypartContainer').style.display = 'none';
-  document.getElementById('rosterContainer').style.display = 'none';
-  document.getElementById('numbersContent').innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:40px 0;">Select a day to view or edit numbers</div>';
+  renderAllDayparts();
+  updateSelectedDayInfo('daySelect', 'daySelectedInfo');
+  renderNumbersContent();
+  updateSelectedDayInfo('numbersDaySelect', 'numbersSelectedInfo');
 }
 
 document.querySelectorAll('.week-toggle-btn').forEach(btn=>{
@@ -3042,6 +3204,8 @@ function renderPositionsTab(){
   renderDayPicker('dayPicker', 'daySelect', currentWeekOffset, ()=>{ renderAllDayparts(); updateSelectedDayInfo('daySelect', 'daySelectedInfo'); });
   renderAllDayparts();
   updateSelectedDayInfo('daySelect', 'daySelectedInfo');
+  renderZoneResetCard();
+  renderZoneResetScoreboard();
 }
 
 function renderAllDayparts(){
@@ -3120,11 +3284,14 @@ window.toggleDaypart = function(dpName){
 let currentPosKey = '';
 let currentPosName = '';
 
+let pendingPosSelection = ''; // tracks the tapped row in the custom option list, read by btnAssignPos
+
 window.openPosModal = function(key, pos, daypart){
   currentPosKey = key;
   currentPosName = pos;
   document.getElementById('posModalTitle').textContent = daypart;
   document.getElementById('posModalPos').textContent = pos;
+  document.getElementById('posModalSearch').value = '';
   
   const dayName = document.getElementById('daySelect').value;
   const roster = currentPosSection === 'foh' ? fohRoster : bohRoster;
@@ -3144,6 +3311,17 @@ window.openPosModal = function(key, pos, daypart){
     });
   }
   
+  // Exclude anyone already placed in a DIFFERENT position within this same daypart,
+  // so a name disappears from the list the moment it's used elsewhere for this daypart
+  const daypartPrefix = currentPosSection + '||' + dayName + '||' + daypart + '||';
+  const takenElsewhere = new Set();
+  Object.keys(posAssignments).forEach(k=>{
+    if(k !== key && k.startsWith(daypartPrefix) && posAssignments[k]){
+      takenElsewhere.add(posAssignments[k]);
+    }
+  });
+  eligible = eligible.filter(p => !takenElsewhere.has(p.name));
+  
   // Always keep the currently-assigned person visible even if their shift doesn't
   // technically overlap, so an existing assignment never silently vanishes from view
   const currentlyAssigned = posAssignments[key];
@@ -3151,13 +3329,54 @@ window.openPosModal = function(key, pos, daypart){
     eligible = [{name: currentlyAssigned, offShift: true}, ...eligible];
   }
   
-  const select = document.getElementById('posModalSelect');
-  select.innerHTML = '<option value="">Unassign</option>' + eligible.map(p=>
-    `<option value="${p.name}" ${posAssignments[key] === p.name ? 'selected' : ''}>${p.name}${p.offShift ? ' (off shift)' : ''}</option>`
-  ).join('');
+  pendingPosSelection = currentlyAssigned || '';
+  window.currentPosModalEligible = eligible; // stashed for the search filter to re-render against
+  renderPosOptionList(eligible);
   
   document.getElementById('posModal').classList.add('active');
 };
+
+function renderPosOptionList(eligible, filterText){
+  const container = document.getElementById('posModalOptions');
+  const filtered = filterText
+    ? eligible.filter(p => p.name.toLowerCase().includes(filterText.toLowerCase()))
+    : eligible;
+  
+  let html = `
+    <div class="pos-option unassign-option ${pendingPosSelection === '' ? 'selected' : ''}" onclick="selectPosOption('')">
+      <span>Unassign</span><span class="pos-option-check">✓</span>
+    </div>
+  `;
+  
+  if(filtered.length === 0 && filterText){
+    html += '<div class="pos-option-empty">No matches</div>';
+  } else {
+    html += filtered.map(p=>{
+      const escapedName = p.name.replace(/'/g, "\\'");
+      const isSelected = pendingPosSelection === p.name;
+      return `
+        <div class="pos-option ${isSelected ? 'selected' : ''}" onclick="selectPosOption('${escapedName}')">
+          <span>${p.name}</span>
+          <span style="display:flex;align-items:center;gap:8px;">
+            ${p.offShift ? '<span class="pos-option-tag">off shift</span>' : ''}
+            <span class="pos-option-check">✓</span>
+          </span>
+        </div>
+      `;
+    }).join('');
+  }
+  
+  container.innerHTML = html;
+}
+
+window.selectPosOption = function(name){
+  pendingPosSelection = name;
+  renderPosOptionList(window.currentPosModalEligible || [], document.getElementById('posModalSearch').value);
+};
+
+document.getElementById('posModalSearch').addEventListener('input', (e)=>{
+  renderPosOptionList(window.currentPosModalEligible || [], e.target.value);
+});
 
 document.getElementById('posModal').addEventListener('click',(e)=>{
   if(e.target===document.getElementById('posModal')) document.getElementById('posModal').classList.remove('active');
@@ -3166,7 +3385,7 @@ document.getElementById('posModal').addEventListener('click',(e)=>{
 document.getElementById('btnCancelPos').addEventListener('click',()=>document.getElementById('posModal').classList.remove('active'));
 
 document.getElementById('btnAssignPos').addEventListener('click', async ()=>{
-  const selected = document.getElementById('posModalSelect').value;
+  const selected = pendingPosSelection;
   if(selected){
     posAssignments[currentPosKey] = selected;
   } else {
@@ -3392,46 +3611,6 @@ function startCountdown(name){
   
   activeCountdownTimers[name] = timer;
 };
-
-const ZONE_LIST = ['Bagging', 'Drinks', 'Host', 'IPOS', 'OMD'];
-
-window.openZoneChecklist = function(zone){
-  const url = zoneChecklistUrls[zone];
-  if(url){
-    window.open(url, '_blank');
-  } else {
-    showToast(`No link set for ${zone} yet — tap ✎ to add one`);
-  }
-};
-
-window.editZoneChecklists = function(){
-  ZONE_LIST.forEach(zone=>{
-    document.getElementById('zoneLink_' + zone).value = zoneChecklistUrls[zone] || '';
-  });
-  document.getElementById('zoneChecklistModal').classList.add('active');
-};
-
-document.getElementById('btnCancelZoneChecklists').addEventListener('click', ()=>{
-  document.getElementById('zoneChecklistModal').classList.remove('active');
-});
-
-document.getElementById('zoneChecklistModal').addEventListener('click', (e)=>{
-  if(e.target === document.getElementById('zoneChecklistModal')) document.getElementById('zoneChecklistModal').classList.remove('active');
-});
-
-document.getElementById('btnSaveZoneChecklists').addEventListener('click', async ()=>{
-  ZONE_LIST.forEach(zone=>{
-    const val = document.getElementById('zoneLink_' + zone).value.trim();
-    if(val){
-      zoneChecklistUrls[zone] = val;
-    } else {
-      delete zoneChecklistUrls[zone];
-    }
-  });
-  await saveState();
-  document.getElementById('zoneChecklistModal').classList.remove('active');
-  showToast('✓ Checklist links updated');
-});
 
 // KNOW THE NUMBERS
 function renderNumbersTab(){
