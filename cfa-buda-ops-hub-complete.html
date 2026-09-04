@@ -71,6 +71,12 @@
   .toggle-btn.active{background:var(--cfa-red);color:var(--cfa-white);border-color:var(--cfa-red);}
 
   .day-picker{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:20px;-webkit-overflow-scrolling:touch;}
+  .week-toggle{display:inline-flex;gap:4px;background:var(--cfa-bg);border-radius:20px;padding:3px;margin-bottom:14px;}
+  .week-toggle-btn{padding:7px 16px;border-radius:16px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;transition:all .15s ease;user-select:none;}
+  .week-toggle-btn.active{background:var(--cfa-white);color:var(--cfa-red);box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+  .day-info-bar{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:14px;min-height:20px;}
+  .day-info-date{font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;color:var(--text-primary);}
+  .day-info-updated{font-size:10px;color:var(--text-tertiary);}
   .day-pill{flex:0 0 auto;padding:10px 18px;border-radius:20px;border:1.5px solid var(--border);background:var(--cfa-white);font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:var(--text-secondary);cursor:pointer;white-space:nowrap;transition:all .15s ease;user-select:none;}
   .day-pill:hover{border-color:var(--cfa-red);color:var(--cfa-red);}
   .day-pill.active{background:var(--cfa-red);color:var(--cfa-white);border-color:var(--cfa-red);}
@@ -448,23 +454,14 @@
       <div class="toggle-btn" data-section="boh">BOH <span class="sub"><i>Atrás</i></span></div>
     </div>
 
-    <div class="day-picker" id="dayPicker">
-      <div class="day-pill" data-day="Monday">Mon</div>
-      <div class="day-pill" data-day="Tuesday">Tue</div>
-      <div class="day-pill" data-day="Wednesday">Wed</div>
-      <div class="day-pill" data-day="Thursday">Thu</div>
-      <div class="day-pill" data-day="Friday">Fri</div>
-      <div class="day-pill" data-day="Saturday">Sat</div>
+    <div class="week-toggle">
+      <div class="week-toggle-btn active" data-offset="0">This Week</div>
+      <div class="week-toggle-btn" data-offset="1">Next Week</div>
     </div>
-    <select id="daySelect" style="display:none;">
-      <option value="">Choose a day</option>
-      <option value="Monday">Monday</option>
-      <option value="Tuesday">Tuesday</option>
-      <option value="Wednesday">Wednesday</option>
-      <option value="Thursday">Thursday</option>
-      <option value="Friday">Friday</option>
-      <option value="Saturday">Saturday</option>
-    </select>
+
+    <div class="day-picker" id="dayPicker"></div>
+    <select id="daySelect" style="display:none;"></select>
+    <div id="daySelectedInfo" class="day-info-bar"></div>
 
     <div class="zone-btn-row" id="zoneButtonRow">
       <button class="zone-btn" onclick="openZoneChecklist('Bagging')">🛍️ Bagging</button>
@@ -569,23 +566,14 @@
 
   <!-- Know the Numbers View -->
   <div class="view" id="numbersView">
-    <div class="day-picker" id="numbersDayPicker">
-      <div class="day-pill" data-day="Monday">Mon</div>
-      <div class="day-pill" data-day="Tuesday">Tue</div>
-      <div class="day-pill" data-day="Wednesday">Wed</div>
-      <div class="day-pill" data-day="Thursday">Thu</div>
-      <div class="day-pill" data-day="Friday">Fri</div>
-      <div class="day-pill" data-day="Saturday">Sat</div>
+    <div class="week-toggle">
+      <div class="week-toggle-btn active" data-offset="0">This Week</div>
+      <div class="week-toggle-btn" data-offset="1">Next Week</div>
     </div>
-    <select id="numbersDaySelect" style="display:none;">
-      <option value="">Choose a day</option>
-      <option value="Monday">Monday</option>
-      <option value="Tuesday">Tuesday</option>
-      <option value="Wednesday">Wednesday</option>
-      <option value="Thursday">Thursday</option>
-      <option value="Friday">Friday</option>
-      <option value="Saturday">Saturday</option>
-    </select>
+
+    <div class="day-picker" id="numbersDayPicker"></div>
+    <select id="numbersDaySelect" style="display:none;"></select>
+    <div id="numbersSelectedInfo" class="day-info-bar"></div>
     <div id="numbersContent"></div>
   </div>
 
@@ -970,15 +958,7 @@
         
         <div class="field">
           <label>Select Day to Import</label>
-          <select id="importDaySelect" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
-            <option value="">Choose a day</option>
-            <option value="Monday">Monday</option>
-            <option value="Tuesday">Tuesday</option>
-            <option value="Wednesday">Wednesday</option>
-            <option value="Thursday">Thursday</option>
-            <option value="Friday">Friday</option>
-            <option value="Saturday">Saturday</option>
-          </select>
+          <select id="importDaySelect" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';"></select>
         </div>
 
         <div class="field">
@@ -1076,7 +1056,124 @@ let wasteDays = [];
 let foodSafetyStreak = 0;
 let wasteStreak = 0;
 
-const today = new Date().toISOString().split('T')[0];
+function toLocalISODate(d){
+  // Avoids the classic toISOString() UTC-shift bug, where a local date can
+  // silently become the next/previous calendar day depending on timezone
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+const today = toLocalISODate(new Date());
+
+const WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function getWeekStartDate(offsetWeeks){
+  // Returns the Monday of "this week" (or +offsetWeeks weeks from it) as a Date
+  const now = new Date();
+  const dow = now.getDay(); // 0=Sun..6=Sat
+  const diffToMonday = (dow === 0) ? -6 : (1 - dow);
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday + offsetWeeks * 7);
+}
+
+function getWeekDays(offsetWeeks){
+  const monday = getWeekStartDate(offsetWeeks);
+  return WEEKDAY_NAMES.map((name, i)=>{
+    const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+    const iso = toLocalISODate(d);
+    const shortDate = d.toLocaleDateString('en-US', {month: 'numeric', day: 'numeric'});
+    return {weekday: name, date: iso, label: name.slice(0, 3) + ' ' + shortDate};
+  });
+}
+
+function formatVerboseDate(dateISO){
+  const d = new Date(dateISO + 'T00:00:00');
+  return d.toLocaleDateString('en-US', {weekday: 'long', month: 'long', day: 'numeric'});
+}
+
+function formatLastUpdated(ts){
+  if(!ts) return '';
+  const d = new Date(ts);
+  return d.toLocaleDateString('en-US', {month: 'short', day: 'numeric'}) + ' at ' + d.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'});
+}
+
+let currentWeekOffset = 0; // runtime-only: 0 = this week, 1 = next week
+
+function touchLastUpdated(dateISO){
+  if(!dateISO) return;
+  lastUpdated[dateISO] = Date.now();
+}
+
+// One-time migration: earlier versions of this app stored rosters/positions/numbers
+// under generic weekday names ("Monday") that got overwritten every week. This maps
+// any leftover weekday-named data onto this week's actual dates, once, so nothing
+// already entered gets silently lost when the app switches to date-based keys.
+function migrateLegacyWeekdayKeys(){
+  const nameToDate = {};
+  getWeekDays(0).forEach(d=>{ nameToDate[d.weekday] = d.date; });
+  
+  let migrated = false;
+  [fohRoster, bohRoster, numbersData].forEach(obj=>{
+    WEEKDAY_NAMES.forEach(name=>{
+      if(obj[name] !== undefined){
+        const dateKey = nameToDate[name];
+        if(!obj[dateKey]) obj[dateKey] = obj[name];
+        delete obj[name];
+        migrated = true;
+      }
+    });
+  });
+  
+  const remapped = {};
+  let posMigrated = false;
+  Object.keys(posAssignments).forEach(key=>{
+    const parts = key.split('||');
+    if(parts.length === 4 && WEEKDAY_NAMES.includes(parts[1])){
+      parts[1] = nameToDate[parts[1]];
+      remapped[parts.join('||')] = posAssignments[key];
+      posMigrated = true;
+    } else {
+      remapped[key] = posAssignments[key];
+    }
+  });
+  if(posMigrated){
+    posAssignments = remapped;
+    migrated = true;
+  }
+  
+  return migrated;
+}
+
+// Set Ups/Numbers don't need long-term history, so anything older than 2 weeks
+// is quietly cleaned up rather than accumulating forever
+function pruneOldDateData(){
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 14);
+  const cutoffISO = toLocalISODate(cutoff);
+  const isDateKey = k => /^\d{4}-\d{2}-\d{2}$/.test(k);
+  
+  let pruned = false;
+  [fohRoster, bohRoster, numbersData, lastUpdated].forEach(obj=>{
+    Object.keys(obj).forEach(key=>{
+      if(isDateKey(key) && key < cutoffISO){
+        delete obj[key];
+        pruned = true;
+      }
+    });
+  });
+  
+  Object.keys(posAssignments).forEach(key=>{
+    const parts = key.split('||');
+    const dateStr = parts[1];
+    if(dateStr && isDateKey(dateStr) && dateStr < cutoffISO){
+      delete posAssignments[key];
+      pruned = true;
+    }
+  });
+  
+  return pruned;
+}
 
 const fohLeads = ['Carlos', 'Nestor', 'Aurora', 'Kaiya', 'Jacob', 'Dom', 'Luke', 'Vanessa'];
 const bohLeads = ['Doris', 'Nansi', 'Bessie', 'Jason', 'Angeles', 'Alex', 'Jenny', 'Grecia'];
@@ -1291,7 +1388,8 @@ let breakCountdowns = {};
 let completedBreaks = {}; // persisted: marks a break as done, whether by timer expiry or manual completion
 let activeCountdownTimers = {}; // runtime-only: interval IDs, never persisted
 let zoneChecklistUrls = {}; // persisted: link per zone (Bagging, Drinks, Host, IPOS, OMD)
-let numbersData = {}; // persisted: numbersData[day][daypartName] = {projectedSales, productivityGoal, specialEvents}
+let numbersData = {}; // persisted: numbersData[dateISO][daypartName] = {projectedSales, productivityGoal, specialEvents}
+let lastUpdated = {}; // persisted: lastUpdated[dateISO] = timestamp (ms) of last roster/positions/numbers edit
 let posAssignments = {};
 
 // LX SCOREBOARD DATA
@@ -1525,7 +1623,7 @@ async function saveState(){
     fohOEDays, fohOEChecked, fohOECheckedDate,
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     fohPositionTransitionChecked, fohPositionTransitionDate,
-    eoiSubmissions, zoneChecklistUrls, numbersData
+    eoiSubmissions, zoneChecklistUrls, numbersData, lastUpdated
   };
   const serialized = JSON.stringify(snapshot);
   // Local cache first, so the app still works instantly / offline even if the network write below fails
@@ -1590,6 +1688,10 @@ async function loadState(){
     eoiSubmissions = data.eoiSubmissions || [];
     zoneChecklistUrls = data.zoneChecklistUrls || {};
     numbersData = data.numbersData || {};
+    lastUpdated = data.lastUpdated || {};
+    const migrated = migrateLegacyWeekdayKeys();
+    const pruned = pruneOldDateData();
+    if(migrated || pruned) await saveState();
     calcStreak();
   }
 }
@@ -2848,17 +2950,62 @@ document.querySelectorAll('#posToggle .toggle-btn').forEach(t=>{
     currentPosSection = t.dataset.section;
     document.getElementById('daySelect').value = '';
     document.querySelectorAll('#dayPicker .day-pill').forEach(p=>p.classList.remove('active'));
+    document.getElementById('daySelectedInfo').innerHTML = '';
     document.getElementById('daypartContainer').style.display = 'none';
     document.getElementById('rosterContainer').style.display = 'none';
   });
 });
 
-document.querySelectorAll('#dayPicker .day-pill').forEach(pill=>{
-  pill.addEventListener('click', ()=>{
-    document.querySelectorAll('#dayPicker .day-pill').forEach(p=>p.classList.remove('active'));
-    pill.classList.add('active');
-    document.getElementById('daySelect').value = pill.dataset.day;
-    renderAllDayparts();
+// Builds a week's worth of date-based pills into pickerId, wires their clicks, and
+// keeps selectId's hidden <select> in sync so all existing dayName-keyed lookups
+// throughout the app keep working unchanged (they now just receive an ISO date
+// instead of a weekday name)
+function renderDayPicker(pickerId, selectId, offsetWeeks, onSelect){
+  const days = getWeekDays(offsetWeeks);
+  const picker = document.getElementById(pickerId);
+  const select = document.getElementById(selectId);
+  const previousValue = select.value;
+  const stillValid = days.some(d => d.date === previousValue);
+  
+  picker.innerHTML = days.map(d=>`<div class="day-pill ${stillValid && d.date === previousValue ? 'active' : ''}" data-date="${d.date}">${d.label}</div>`).join('');
+  select.innerHTML = '<option value="">Choose a day</option>' + days.map(d=>`<option value="${d.date}">${d.weekday}</option>`).join('');
+  select.value = stillValid ? previousValue : '';
+  
+  picker.querySelectorAll('.day-pill').forEach(pill=>{
+    pill.addEventListener('click', ()=>{
+      picker.querySelectorAll('.day-pill').forEach(p=>p.classList.remove('active'));
+      pill.classList.add('active');
+      select.value = pill.dataset.date;
+      onSelect();
+    });
+  });
+}
+
+function updateSelectedDayInfo(selectId, infoContainerId){
+  const dateISO = document.getElementById(selectId).value;
+  const el = document.getElementById(infoContainerId);
+  if(!dateISO){ el.innerHTML = ''; return; }
+  const stamp = lastUpdated[dateISO] ? formatLastUpdated(lastUpdated[dateISO]) : '';
+  el.innerHTML = `<span class="day-info-date">${formatVerboseDate(dateISO)}</span>${stamp ? `<span class="day-info-updated">Updated ${stamp}</span>` : ''}`;
+}
+
+function setWeekOffset(offset){
+  currentWeekOffset = offset;
+  document.querySelectorAll('.week-toggle-btn').forEach(b=>{
+    b.classList.toggle('active', parseInt(b.dataset.offset, 10) === offset);
+  });
+  renderDayPicker('dayPicker', 'daySelect', offset, ()=>{ renderAllDayparts(); updateSelectedDayInfo('daySelect', 'daySelectedInfo'); });
+  renderDayPicker('numbersDayPicker', 'numbersDaySelect', offset, ()=>{ renderNumbersContent(); updateSelectedDayInfo('numbersDaySelect', 'numbersSelectedInfo'); });
+  document.getElementById('daySelectedInfo').innerHTML = '';
+  document.getElementById('numbersSelectedInfo').innerHTML = '';
+  document.getElementById('daypartContainer').style.display = 'none';
+  document.getElementById('rosterContainer').style.display = 'none';
+  document.getElementById('numbersContent').innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:40px 0;">Select a day to view or edit numbers</div>';
+}
+
+document.querySelectorAll('.week-toggle-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    setWeekOffset(parseInt(btn.dataset.offset, 10));
   });
 });
 
@@ -2892,8 +3039,9 @@ function daypartTimeWindow(dayparts, index){
 }
 
 function renderPositionsTab(){
-  document.getElementById('daySelect').addEventListener('change', renderAllDayparts);
+  renderDayPicker('dayPicker', 'daySelect', currentWeekOffset, ()=>{ renderAllDayparts(); updateSelectedDayInfo('daySelect', 'daySelectedInfo'); });
   renderAllDayparts();
+  updateSelectedDayInfo('daySelect', 'daySelectedInfo');
 }
 
 function renderAllDayparts(){
@@ -3024,8 +3172,11 @@ document.getElementById('btnAssignPos').addEventListener('click', async ()=>{
   } else {
     delete posAssignments[currentPosKey];
   }
+  const keyDate = currentPosKey.split('||')[1];
+  touchLastUpdated(keyDate);
   await saveState();
   renderAllDayparts();
+  updateSelectedDayInfo('daySelect', 'daySelectedInfo');
   document.getElementById('posModal').classList.remove('active');
   showToast('✓ Assignment Saved!');
 });
@@ -3074,7 +3225,7 @@ function renderRoster(){
   }).join('');
   
   if(roster.length === 0){
-    document.getElementById('rosterPanel').innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:20px;">No roster for ' + dayName + ' yet. Import a screenshot to populate.</div>';
+    document.getElementById('rosterPanel').innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:20px;">No roster for ' + formatVerboseDate(dayName) + ' yet. Import a screenshot to populate.</div>';
   } else {
     document.getElementById('rosterPanel').innerHTML = html;
     
@@ -3092,7 +3243,7 @@ function renderRoster(){
 window.removeFromRoster = async function(name){
   const dayName = document.getElementById('daySelect').value;
   if(!dayName) return;
-  if(!confirm(`Remove ${name} from ${dayName}'s roster?`)) return;
+  if(!confirm(`Remove ${name} from ${formatVerboseDate(dayName)}'s roster?`)) return;
   
   const roster = currentPosSection === 'foh' ? fohRoster : bohRoster;
   if(roster[dayName]){
@@ -3114,10 +3265,12 @@ window.removeFromRoster = async function(name){
       delete posAssignments[k];
     }
   });
+  touchLastUpdated(dayName);
   
   await saveState();
   renderRoster();
   renderAllDayparts();
+  updateSelectedDayInfo('daySelect', 'daySelectedInfo');
   showToast(`✓ ${name} removed from roster`);
 };
 
@@ -3127,7 +3280,7 @@ document.getElementById('btnAddTeamMember').addEventListener('click', ()=>{
     showToast('Select a day first');
     return;
   }
-  document.getElementById('addTMContext').textContent = `Adding to ${dayName} • ${currentPosSection === 'foh' ? 'FOH' : 'BOH'}`;
+  document.getElementById('addTMContext').textContent = `Adding to ${formatVerboseDate(dayName)} • ${currentPosSection === 'foh' ? 'FOH' : 'BOH'}`;
   document.getElementById('addTMName').value = '';
   document.getElementById('addTMStart').value = '';
   document.getElementById('addTMEnd').value = '';
@@ -3168,11 +3321,13 @@ document.getElementById('btnConfirmAddTM').addEventListener('click', async ()=>{
     roster[dayName].push({name, start, end});
   }
   
+  touchLastUpdated(dayName);
   await saveState();
   renderRoster();
   renderAllDayparts();
+  updateSelectedDayInfo('daySelect', 'daySelectedInfo');
   document.getElementById('addTMModal').classList.remove('active');
-  showToast(`✓ ${name} added to ${dayName}'s roster`);
+  showToast(`✓ ${name} added to ${formatVerboseDate(dayName)}'s roster`);
 });
 
 window.toggleBreak = async function(name){
@@ -3279,17 +3434,10 @@ document.getElementById('btnSaveZoneChecklists').addEventListener('click', async
 });
 
 // KNOW THE NUMBERS
-document.querySelectorAll('#numbersDayPicker .day-pill').forEach(pill=>{
-  pill.addEventListener('click', ()=>{
-    document.querySelectorAll('#numbersDayPicker .day-pill').forEach(p=>p.classList.remove('active'));
-    pill.classList.add('active');
-    document.getElementById('numbersDaySelect').value = pill.dataset.day;
-    renderNumbersContent();
-  });
-});
-
 function renderNumbersTab(){
+  renderDayPicker('numbersDayPicker', 'numbersDaySelect', currentWeekOffset, ()=>{ renderNumbersContent(); updateSelectedDayInfo('numbersDaySelect', 'numbersSelectedInfo'); });
   renderNumbersContent();
+  updateSelectedDayInfo('numbersDaySelect', 'numbersSelectedInfo');
 }
 
 function renderNumbersContent(){
@@ -3330,7 +3478,9 @@ window.updateNumbersField = async function(dayName, dpName, field, value){
   if(!numbersData[dayName]) numbersData[dayName] = {};
   if(!numbersData[dayName][dpName]) numbersData[dayName][dpName] = {};
   numbersData[dayName][dpName][field] = value.trim();
+  touchLastUpdated(dayName);
   await saveState();
+  updateSelectedDayInfo('numbersDaySelect', 'numbersSelectedInfo');
 };
 
 function formatAsCurrency(raw){
@@ -3597,6 +3747,16 @@ async function importSchedule(){
 
 let pendingFOH = [];
 let pendingBOH = [];
+function renderImportDaySelect(){
+  const select = document.getElementById('importDaySelect');
+  const thisWeek = getWeekDays(0);
+  const nextWeek = getWeekDays(1);
+  const optionsFor = days => days.map(d=>`<option value="${d.date}">${d.weekday} (${d.label.split(' ')[1]})</option>`).join('');
+  select.innerHTML = '<option value="">Choose a day</option>' +
+    '<optgroup label="This Week">' + optionsFor(thisWeek) + '</optgroup>' +
+    '<optgroup label="Next Week">' + optionsFor(nextWeek) + '</optgroup>';
+}
+
 let pendingDay = '';
 
 function showRosterPreview(data, day){
@@ -3631,7 +3791,7 @@ function showRosterPreview(data, day){
   `).join('');
   
   preview.innerHTML = html;
-  document.getElementById('rosterPreviewTitle').textContent = 'Review ' + day + ' Roster';
+  document.getElementById('rosterPreviewTitle').textContent = 'Review ' + formatVerboseDate(day) + ' Roster';
   document.getElementById('rosterPreviewModal').classList.add('active');
 }
 
@@ -3665,13 +3825,15 @@ function createRosterPreviewModal(){
 async function confirmRoster(){
   fohRoster[pendingDay] = pendingFOH;
   bohRoster[pendingDay] = pendingBOH;
+  touchLastUpdated(pendingDay);
   await saveState();
   document.getElementById('rosterPreviewModal').classList.remove('active');
   document.getElementById('scheduleUpload').value = '';
   document.getElementById('importDaySelect').value = '';
-  document.getElementById('importStatus').textContent = '✓ ' + pendingDay + ' roster saved! (' + pendingFOH.length + ' FOH + ' + pendingBOH.length + ' BOH)';
+  const dayLabel = formatVerboseDate(pendingDay);
+  document.getElementById('importStatus').textContent = '✓ ' + dayLabel + ' roster saved! (' + pendingFOH.length + ' FOH + ' + pendingBOH.length + ' BOH)';
   document.getElementById('importStatus').style.color = 'var(--success)';
-  showToast('✓ ' + pendingDay + ' Roster Updated!');
+  showToast('✓ ' + dayLabel + ' Roster Updated!');
 }
 
 document.getElementById('btnExportCsv').addEventListener('click',()=>{
@@ -3719,6 +3881,7 @@ document.getElementById('btnSyncSheet').addEventListener('click', async ()=>{
   renderGXScoreboard();
   renderTXScoreboard();
   renderHomeScoreboard();
+  renderImportDaySelect();
 })();
 </script>
 </body>
