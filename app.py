@@ -1,15 +1,27 @@
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from anthropic import Anthropic
+import firebase_admin
+from firebase_admin import credentials, db
 import json
 import os
-import requests
 
 app = Flask(__name__)
 CORS(app)
 
 # Firebase config
 FIREBASE_DB_URL = 'https://cfa-buda-ops-hub-default-rtdb.firebaseio.com'
+
+# The Realtime Database rules are locked down (no public read/write), so the
+# server authenticates as a service account via the Admin SDK instead of
+# hitting the REST API unauthenticated. The key is injected as an env var
+# (never committed) containing the full service-account JSON.
+_cred_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT_KEY')
+if _cred_json:
+    _cred = credentials.Certificate(json.loads(_cred_json))
+    firebase_admin.initialize_app(_cred, {'databaseURL': FIREBASE_DB_URL})
+else:
+    print('[STARTUP WARNING] FIREBASE_SERVICE_ACCOUNT_KEY is not set — Firebase reads/writes will fail.')
 
 # ===== SERVE ROUTES =====
 
@@ -88,138 +100,81 @@ Be thorough and extract EVERY person visible."""
         return jsonify({'error': str(e)}), 500
 
 # ===== FIREBASE PROXY ROUTES =====
+# These authenticate as the service account configured above, so they keep
+# working with the database rules locked to no public access. The browser
+# never talks to Firebase directly and never sees a credential.
 
 @app.route('/api/firebase/read', methods=['POST'])
 def firebase_read():
-    """Proxy Firebase REST API read requests"""
+    """Read a path via the Admin SDK"""
     try:
         data = request.json
         path = data.get('path', '')
-        
+
         if not path:
             return jsonify({'error': 'Missing path'}), 400
-        
-        # Build Firebase URL
-        url = f"{FIREBASE_DB_URL}/{path}.json"
-        
-        # Make request to Firebase
-        response = requests.get(url, timeout=10)
-        
-        # 404 is expected on first run
-        if response.status_code == 404:
-            return jsonify(None), 200
-        
-        if response.status_code == 200:
-            return jsonify(response.json())
-        else:
-            return jsonify({'error': f'Firebase error: {response.status_code}'}), response.status_code
-    
-    except requests.exceptions.RequestException as e:
-        return jsonify({'error': f'Request failed: {str(e)}'}), 500
+
+        value = db.reference(path).get()
+        return jsonify(value)
+
     except Exception as e:
+        print(f"[FIREBASE READ ERROR] Path: {path}, {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/firebase/write', methods=['POST'])
 def firebase_write():
-    """Proxy Firebase REST API write (PUT) requests"""
+    """Overwrite (PUT-equivalent) a path via the Admin SDK"""
     try:
         data = request.json
         path = data.get('path', '')
         value = data.get('value', {})
-        
+
         if not path:
             return jsonify({'error': 'Missing path'}), 400
-        
-        # Build Firebase URL
-        url = f"{FIREBASE_DB_URL}/{path}.json"
-        
-        # Make request to Firebase
-        response = requests.put(url, json=value, timeout=10)
-        
-        print(f"[FIREBASE WRITE] Path: {path}, Status: {response.status_code}")
-        
-        if response.status_code in [200, 201]:
-            try:
-                return jsonify(response.json() if response.text else {'success': True})
-            except:
-                return jsonify({'success': True})
-        else:
-            print(f"[FIREBASE ERROR] Response: {response.text[:500]}")
-            return jsonify({
-                'error': f'Firebase error: {response.status_code}',
-                'details': response.text[:200]
-            }), response.status_code
-    
-    except requests.exceptions.RequestException as e:
-        print(f"[REQUEST ERROR] {str(e)}")
-        return jsonify({'error': f'Request failed: {str(e)}'}), 500
+
+        db.reference(path).set(value)
+        print(f"[FIREBASE WRITE] Path: {path}, OK")
+        return jsonify({'success': True})
+
     except Exception as e:
-        print(f"[EXCEPTION] {str(e)}")
+        print(f"[FIREBASE WRITE ERROR] Path: {path}, {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/firebase/update', methods=['POST'])
 def firebase_update():
-    """Proxy Firebase REST API update (PATCH) requests"""
+    """Merge-update (PATCH-equivalent) a path via the Admin SDK"""
     try:
         data = request.json
         path = data.get('path', '')
         value = data.get('value', {})
-        
+
         if not path:
             return jsonify({'error': 'Missing path'}), 400
-        
-        # Build Firebase URL
-        url = f"{FIREBASE_DB_URL}/{path}.json"
-        
-        # Make request to Firebase (PATCH for update)
-        response = requests.patch(url, json=value, timeout=10)
-        
-        print(f"[FIREBASE UPDATE] Path: {path}, Status: {response.status_code}")
-        
-        if response.status_code in [200, 201]:
-            try:
-                return jsonify(response.json() if response.text else {'success': True})
-            except:
-                return jsonify({'success': True})
-        else:
-            print(f"[FIREBASE ERROR] Response: {response.text[:500]}")
-            return jsonify({'error': f'Firebase error: {response.status_code}'}), response.status_code
-    
-    except requests.exceptions.RequestException as e:
-        print(f"[REQUEST ERROR] {str(e)}")
-        return jsonify({'error': f'Request failed: {str(e)}'}), 500
+
+        db.reference(path).update(value)
+        print(f"[FIREBASE UPDATE] Path: {path}, OK")
+        return jsonify({'success': True})
+
     except Exception as e:
-        print(f"[EXCEPTION] {str(e)}")
+        print(f"[FIREBASE UPDATE ERROR] Path: {path}, {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/firebase/delete', methods=['POST'])
 def firebase_delete():
-    """Proxy Firebase REST API delete requests"""
+    """Delete a path via the Admin SDK"""
     try:
         data = request.json
         path = data.get('path', '')
-        
+
         if not path:
             return jsonify({'error': 'Missing path'}), 400
-        
-        # Build Firebase URL
-        url = f"{FIREBASE_DB_URL}/{path}.json"
-        
-        # Make request to Firebase
-        response = requests.delete(url, timeout=10)
-        
-        print(f"[FIREBASE DELETE] Path: {path}, Status: {response.status_code}")
-        
-        if response.status_code in [200, 204]:
-            return jsonify({'success': True})
-        else:
-            return jsonify({'error': f'Firebase error: {response.status_code}'}), response.status_code
-    
-    except requests.exceptions.RequestException as e:
-        print(f"[REQUEST ERROR] {str(e)}")
-        return jsonify({'error': f'Request failed: {str(e)}'}), 500
+
+        db.reference(path).delete()
+        print(f"[FIREBASE DELETE] Path: {path}, OK")
+        return jsonify({'success': True})
+
     except Exception as e:
-        print(f"[EXCEPTION] {str(e)}")
+        print(f"[FIREBASE DELETE ERROR] Path: {path}, {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # ===== ERROR HANDLING =====
