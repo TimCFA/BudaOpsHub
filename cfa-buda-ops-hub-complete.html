@@ -1275,6 +1275,15 @@ let wasteDays = [];
 let foodSafetyStreak = 0;
 let wasteStreak = 0;
 
+// Any string that came from a user-typed field (EOI submissions, safe count
+// notes, etc.) must go through this before being placed in innerHTML —
+// otherwise a team member typing e.g. "<img src=x onerror=...>" into a free
+// text field would run script in whoever views that submission's browser.
+function escapeHtml(str){
+  if(str === null || str === undefined) return '';
+  return String(str).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
 function toLocalISODate(d){
   // Avoids the classic toISOString() UTC-shift bug, where a local date can
   // silently become the next/previous calendar day depending on timezone
@@ -2890,22 +2899,22 @@ function renderEOISubmissions(){
   container.innerHTML = sorted.map(sub => {
     const date = new Date(sub.timestamp).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
     const metReqsHtml = sub.metRequirements && sub.metRequirements.length
-      ? `<div class="eoi-sub-detail"><b>Meets:</b> ${sub.metRequirements.join(', ')}</div>` : '';
+      ? `<div class="eoi-sub-detail"><b>Meets:</b> ${sub.metRequirements.map(escapeHtml).join(', ')}</div>` : '';
     const extras = [
-      sub.timeInRole ? `<b>Time in role:</b> ${sub.timeInRole}` : '',
-      sub.growthArea ? `<b>Growth area:</b> ${sub.growthArea}` : '',
-      sub.availability ? `<b>Availability:</b> ${sub.availability}` : '',
-      sub.leader ? `<b>Wants to talk to:</b> ${sub.leader}` : '',
-      sub.comments ? `<b>Comments:</b> ${sub.comments}` : ''
+      sub.timeInRole ? `<b>Time in role:</b> ${escapeHtml(sub.timeInRole)}` : '',
+      sub.growthArea ? `<b>Growth area:</b> ${escapeHtml(sub.growthArea)}` : '',
+      sub.availability ? `<b>Availability:</b> ${escapeHtml(sub.availability)}` : '',
+      sub.leader ? `<b>Wants to talk to:</b> ${escapeHtml(sub.leader)}` : '',
+      sub.comments ? `<b>Comments:</b> ${escapeHtml(sub.comments)}` : ''
     ].filter(Boolean).map(t=>`<div class="eoi-sub-detail">${t}</div>`).join('');
     return `
       <div class="eoi-submission" data-id="${sub.id}">
         <div class="eoi-sub-top">
-          <span class="eoi-sub-name">${sub.name} <span style="font-weight:400;color:var(--text-secondary);">(${sub.section.toUpperCase()})</span></span>
+          <span class="eoi-sub-name">${escapeHtml(sub.name)} <span style="font-weight:400;color:var(--text-secondary);">(${escapeHtml(sub.section.toUpperCase())})</span></span>
           <span class="eoi-sub-date">${date} <button class="eoi-delete-btn" data-id="${sub.id}" style="background:none;border:none;color:var(--cfa-red);cursor:pointer;font-weight:700;margin-left:8px;">✕</button></span>
         </div>
-        <div class="eoi-sub-role">${sub.currentRole} → ${sub.targetRole}</div>
-        <div class="eoi-sub-detail"><b>Why:</b> ${sub.why}</div>
+        <div class="eoi-sub-role">${escapeHtml(sub.currentRole)} → ${escapeHtml(sub.targetRole)}</div>
+        <div class="eoi-sub-detail"><b>Why:</b> ${escapeHtml(sub.why)}</div>
         ${metReqsHtml}
         ${extras}
       </div>
@@ -3512,15 +3521,15 @@ function renderSafeCountLog(){
     return `
       <div class="safe-log-entry">
         <div class="safe-log-top">
-          <span class="safe-log-shift">${entry.shift}</span>
-          <span class="safe-log-date">${entry.date}</span>
+          <span class="safe-log-shift">${escapeHtml(entry.shift)}</span>
+          <span class="safe-log-date">${escapeHtml(entry.date)}</span>
         </div>
         <div class="safe-log-total">$${entry.total.toFixed(2)}</div>
         <div class="safe-log-variance ${varClass}">${varText}</div>
-        <div class="safe-log-meta">Counted by ${entry.countedBy}${entry.witness ? ' · Witnessed by ' + entry.witness : ''}</div>
+        <div class="safe-log-meta">Counted by ${escapeHtml(entry.countedBy)}${entry.witness ? ' · Witnessed by ' + escapeHtml(entry.witness) : ''}</div>
         ${entry.tills ? `<div class="safe-log-meta"><b>Cashier tills:</b> $${entry.tills.toFixed(2)}</div>` : ''}
-        ${entry.coinRolls && Object.keys(entry.coinRolls).length ? `<div class="safe-log-meta"><b>Coin rolls:</b> ${Object.entries(entry.coinRolls).map(([k,v])=>`${v} ${k}`).join(', ')}</div>` : ''}
-        ${entry.notes ? `<div class="safe-log-meta"><b>Notes:</b> ${entry.notes}</div>` : ''}
+        ${entry.coinRolls && Object.keys(entry.coinRolls).length ? `<div class="safe-log-meta"><b>Coin rolls:</b> ${Object.entries(entry.coinRolls).map(([k,v])=>`${v} ${escapeHtml(k)}`).join(', ')}</div>` : ''}
+        ${entry.notes ? `<div class="safe-log-meta"><b>Notes:</b> ${escapeHtml(entry.notes)}</div>` : ''}
       </div>
     `;
   }).join('');
