@@ -85,8 +85,9 @@ document.getElementById('btnSubmitLog').addEventListener('click', async ()=>{
   
   await saveState();
   renderTape();
-  renderDashboard();
+  renderScoreboardView();
   renderStandup();
+  renderFohWasteStandup();
   showToast('✓ Logged!');
   document.getElementById('logModal').classList.remove('active');
 });
@@ -115,19 +116,26 @@ function renderTape(){
   `).join('');
 }
 
-function renderDashboard(){
-  const filtered = entries.filter(e=>e.section===currentSection);
-  const total = filtered.reduce((sum,e)=>sum+e.cost,0);
+// Master dashboard for the Scoreboard tab — combines FOH + BOH into one ranked
+// list of top items, plus a combined total and separate FOH/BOH sub-totals.
+// Not filtered by currentSection (that toggle only affects the Log Waste grid/tape).
+function renderScoreboardView(){
+  const total = entries.reduce((sum,e)=>sum+e.cost,0);
+  const fohTotal = entries.filter(e=>e.section==='foh').reduce((sum,e)=>sum+e.cost,0);
+  const bohTotal = entries.filter(e=>e.section==='boh').reduce((sum,e)=>sum+e.cost,0);
+
   document.getElementById('statTotal').textContent = '$' + total.toFixed(2);
-  document.getElementById('statEntries').textContent = filtered.length;
-  
+  document.getElementById('statEntries').textContent = entries.length;
+  document.getElementById('statFohSubtotal').textContent = '$' + fohTotal.toFixed(2);
+  document.getElementById('statBohSubtotal').textContent = '$' + bohTotal.toFixed(2);
+
   const byProduct = {};
-  filtered.forEach(e=>{
+  entries.forEach(e=>{
     byProduct[e.name] = (byProduct[e.name]||0) + e.cost;
   });
   const sorted = Object.entries(byProduct).sort((a,b)=>b[1]-a[1]).slice(0,8);
   const maxVal = sorted[0]?sorted[0][1]:1;
-  
+
   document.getElementById('barList').innerHTML = sorted.map(([name,cost])=>`
     <div class="bar-item">
       <div class="bi-top">
@@ -164,6 +172,22 @@ function renderStandup(){
     formBtn.textContent = 'Mark Complete';
     formBtn.disabled = false;
   }
+}
+
+// FOH OE tab's equivalent of renderStandup() — same total/target pair (waste
+// isn't tracked separately per section), but gated on the OE Walkthrough being
+// done today rather than the Food Safety form, since that's FOH's daily task.
+function renderFohWasteStandup(){
+  const total = getTodayTotal();
+  document.getElementById('fohWasteStandupTotal').textContent = '$' + total.toFixed(2);
+  document.getElementById('fohWasteStandupTarget').textContent = '$' + wasteTarget.toFixed(2);
+
+  document.getElementById('fohWasteStreakNum').textContent = wasteStreak;
+  document.getElementById('fohWasteStreakLabel').textContent = 'consecutive ' + (wasteStreak === 1 ? 'day' : 'days');
+
+  const status = document.getElementById('fohWasteStandupStatus');
+  if(fohOEDays.includes(today) && total < wasteTarget) status.style.display = 'block';
+  else status.style.display = 'none';
 }
 
 document.getElementById('btnMarkFormDone').addEventListener('click', async ()=>{
