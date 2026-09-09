@@ -107,6 +107,7 @@ async function renderManage(){
   renderHomeManage();
   renderEOISubmissions();
   renderNumbersTab();
+  renderScoreboardManage();
   
   const list = document.getElementById('prodList');
   list.innerHTML = products.map(p=>`
