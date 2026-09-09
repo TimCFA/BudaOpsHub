@@ -3,7 +3,8 @@ function activateView(view){
   document.getElementById(view+'View').classList.add('active');
   if(view === 'positions') renderPositionsTab();
   if(view === 'dailytasks') renderDailyTasksTab();
-  if(view === 'boh') renderDashboard();
+  if(view === 'boh') renderStandup();
+  if(view === 'scoreboard') renderScoreboardView();
   if(view === 'lx') renderLXScoreboard();
   if(view === 'gx') renderGXScoreboard();
   if(view === 'tx') renderTXScoreboard();
@@ -77,6 +78,6 @@ document.querySelectorAll('.toggle-btn').forEach(t=>{
     currentSection = t.dataset.section;
     renderGrid();
     renderTape();
-    renderDashboard();
+    renderScoreboardView();
   });
 });
