@@ -34,7 +34,7 @@ async function dbWrite(path, data){
 
 async function saveState(){
   const snapshot = {
-    entries, products, teamMembers, wasteTarget, managerPin, formDone,
+    entries, products, teamMembers, wasteTarget, formDone,
     formDoneDate: formDone ? today : null, foodSafetyDays, wasteDays, breakCountdowns, completedBreaks, posAssignments,
     fohRoster, bohRoster, lxPillars, lxMetrics, lxLastUpdated, gxData, txData, homeData,
     fohOEDays, fohOEChecked, fohOECheckedDate,
@@ -56,7 +56,7 @@ function exportBackup(){
   // Mirrors saveState's exact snapshot, so this backup always covers everything
   // actually persisted — nothing more, nothing less
   const snapshot = {
-    entries, products, teamMembers, wasteTarget, managerPin, formDone,
+    entries, products, teamMembers, wasteTarget, formDone,
     formDoneDate: formDone ? today : null, foodSafetyDays, wasteDays, breakCountdowns, completedBreaks, posAssignments,
     fohRoster, bohRoster, lxPillars, lxMetrics, lxLastUpdated, gxData, txData, homeData,
     fohOEDays, fohOEChecked, fohOECheckedDate,
@@ -110,7 +110,6 @@ async function loadState(){
     wasteTarget = data.wasteTarget || 100;
     safeTarget = data.safeTarget || 4500;
     safeCounts = data.safeCounts || [];
-    managerPin = data.managerPin || '0000';
     foodSafetyDays = data.foodSafetyDays || [];
     wasteDays = data.wasteDays || [];
     breakCountdowns = data.breakCountdowns || {};
@@ -206,4 +205,3 @@ const pillarStyles = {
   pillar6: {color: '#B5838D', tint: '#F9EEF0', icon: '❤️'}
 };
 const ratingIcons = {1: '⚠️', 2: '✓', 3: '🌟'};
-
