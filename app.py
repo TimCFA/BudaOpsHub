@@ -1,21 +1,66 @@
-from flask import Flask, request, jsonify, send_file
+from datetime import timedelta
+from collections import defaultdict
+import json
+import os
+import time
+
+from flask import Flask, request, jsonify, send_file, session
 from flask_cors import CORS
+from werkzeug.security import generate_password_hash, check_password_hash
 from anthropic import Anthropic
 import firebase_admin
 from firebase_admin import credentials, db
-import json
-import os
 
 app = Flask(__name__)
 CORS(app)
 
+# ===== SESSION / AUTH CONFIG =====
+app.secret_key = os.environ.get('FLASK_SECRET_KEY')
+if not app.secret_key:
+    print('[STARTUP WARNING] FLASK_SECRET_KEY is not set — set it in Render env vars. '
+          'Falling back to a random key, which means every manager gets logged out on each restart/deploy.')
+    app.secret_key = os.urandom(32)
+
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=True,          # Render serves HTTPS; set False only for local http testing
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=12),
+)
+
+# Fields that require an authenticated manager session to change.
+# saveState() always resends the full snapshot, so we diff old vs. new
+# and only gate the write if one of THESE keys actually changed.
+MANAGER_ONLY_KEYS = {
+    'wasteTarget', 'safeTarget', 'products', 'teamMembers',
+    'lxPillars', 'lxMetrics', 'lxLastUpdated',
+    'gxData', 'txData', 'homeData',
+}
+
+def _touches_manager_fields(old_state, new_state):
+    for key in MANAGER_ONLY_KEYS:
+        if json.dumps(old_state.get(key), sort_keys=True) != json.dumps(new_state.get(key), sort_keys=True):
+            return True
+    return False
+
+# Basic in-memory brute-force throttle for the login endpoint.
+# Resets on redeploy/restart — fine for a single small-team instance,
+# not a substitute for a real long-term PIN if this ever needs to scale.
+_login_failures = defaultdict(list)
+LOGIN_MAX_ATTEMPTS = 5
+LOGIN_LOCKOUT_SECONDS = 60
+
+def _too_many_attempts(ip):
+    now = time.time()
+    _login_failures[ip] = [t for t in _login_failures[ip] if now - t < LOGIN_LOCKOUT_SECONDS]
+    return len(_login_failures[ip]) >= LOGIN_MAX_ATTEMPTS
+
+def _record_failure(ip):
+    _login_failures[ip].append(time.time())
+
 # Firebase config
 FIREBASE_DB_URL = 'https://cfa-buda-ops-hub-default-rtdb.firebaseio.com'
 
-# The Realtime Database rules are locked down (no public read/write), so the
-# server authenticates as a service account via the Admin SDK instead of
-# hitting the REST API unauthenticated. The key is injected as an env var
-# (never committed) containing the full service-account JSON.
 _cred_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT_KEY')
 if _cred_json:
     _cred = credentials.Certificate(json.loads(_cred_json))
@@ -35,17 +80,16 @@ def import_roster():
         data = request.json
         file_data = data.get('fileData')
         file_type = data.get('fileType')
-        
+
         if not file_data:
             return jsonify({'error': 'Missing file'}), 400
-        
+
         api_key = os.environ.get('ANTHROPIC_API_KEY')
         if not api_key:
             return jsonify({'error': 'Server is not configured with an ANTHROPIC_API_KEY'}), 500
-        
-        # Create Anthropic client using the server-side key (never sent by the browser)
+
         client = Anthropic(api_key=api_key, timeout=30.0)
-        
+
         prompt = """You are a scheduling assistant. Analyze this roster and extract EVERY team member with:
 1. Their full name
 2. Their shift times (e.g., "5:30a - 1:30p")
@@ -60,8 +104,7 @@ Return EXACTLY this JSON format (no markdown, no preamble):
   ]
 }
 Be thorough and extract EVERY person visible."""
-        
-        # Prepare message content
+
         message_content = [
             {
                 "type": "document" if file_type == "application/pdf" else "image",
@@ -76,8 +119,7 @@ Be thorough and extract EVERY person visible."""
                 "text": prompt
             }
         ]
-        
-        # Call Anthropic API
+
         response = client.messages.create(
             model="claude-opus-4-8",
             max_tokens=4000,
@@ -86,27 +128,67 @@ Be thorough and extract EVERY person visible."""
                 "content": message_content
             }]
         )
-        
-        # Extract JSON from response
+
         text = response.content[0].text
         json_start = text.find('{')
         json_end = text.rfind('}') + 1
         json_str = text[json_start:json_end]
         parsed = json.loads(json_str)
-        
+
         return jsonify(parsed)
-    
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# ===== MANAGER AUTH ROUTES =====
+
+@app.route('/api/manager/login', methods=['POST'])
+def manager_login():
+    ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    if _too_many_attempts(ip):
+        return jsonify({'error': 'Too many attempts. Try again in a minute.'}), 429
+
+    data = request.json or {}
+    pin = data.get('pin', '')
+
+    stored_hash = db.reference('secure/managerPinHash').get()
+    if not stored_hash:
+        return jsonify({'error': 'No manager PIN has been configured yet'}), 500
+
+    if not pin or not check_password_hash(stored_hash, pin):
+        _record_failure(ip)
+        return jsonify({'error': 'Incorrect PIN'}), 401
+
+    session.permanent = True
+    session['manager'] = True
+    return jsonify({'success': True})
+
+@app.route('/api/manager/logout', methods=['POST'])
+def manager_logout():
+    session.pop('manager', None)
+    return jsonify({'success': True})
+
+@app.route('/api/manager/status', methods=['GET'])
+def manager_status():
+    return jsonify({'isManager': bool(session.get('manager'))})
+
+@app.route('/api/manager/set-pin', methods=['POST'])
+def manager_set_pin():
+    if not session.get('manager'):
+        return jsonify({'error': 'Not authorized'}), 403
+
+    data = request.json or {}
+    new_pin = data.get('pin', '')
+    if not new_pin or len(new_pin) < 4:
+        return jsonify({'error': 'PIN must be at least 4 characters'}), 400
+
+    db.reference('secure/managerPinHash').set(generate_password_hash(new_pin))
+    return jsonify({'success': True})
+
 # ===== FIREBASE PROXY ROUTES =====
-# These authenticate as the service account configured above, so they keep
-# working with the database rules locked to no public access. The browser
-# never talks to Firebase directly and never sees a credential.
 
 @app.route('/api/firebase/read', methods=['POST'])
 def firebase_read():
-    """Read a path via the Admin SDK"""
     try:
         data = request.json
         path = data.get('path', '')
@@ -123,7 +205,6 @@ def firebase_read():
 
 @app.route('/api/firebase/write', methods=['POST'])
 def firebase_write():
-    """Overwrite (PUT-equivalent) a path via the Admin SDK"""
     try:
         data = request.json
         path = data.get('path', '')
@@ -131,6 +212,31 @@ def firebase_write():
 
         if not path:
             return jsonify({'error': 'Missing path'}), 400
+
+        # Manager-field gate — only applies to the main app-state blob, and only
+        # blocks the write if a manager-only field is actually different from
+        # what's currently stored (not just re-sent unchanged).
+        if path == 'appState' and isinstance(value, str):
+            new_state = None
+            try:
+                new_state = json.loads(value)
+            except (TypeError, ValueError):
+                pass
+
+            if new_state is not None:
+                raw_old = db.reference('appState').get()
+                old_state = None
+                if isinstance(raw_old, str):
+                    try:
+                        old_state = json.loads(raw_old)
+                    except (TypeError, ValueError):
+                        pass
+
+                # If there's no prior state at all, this is first-ever bootstrap —
+                # let it through rather than locking out an empty Firebase project.
+                if old_state is not None and _touches_manager_fields(old_state, new_state):
+                    if not session.get('manager'):
+                        return jsonify({'error': 'Manager sign-in required for this change'}), 403
 
         db.reference(path).set(value)
         print(f"[FIREBASE WRITE] Path: {path}, OK")
@@ -142,7 +248,6 @@ def firebase_write():
 
 @app.route('/api/firebase/update', methods=['POST'])
 def firebase_update():
-    """Merge-update (PATCH-equivalent) a path via the Admin SDK"""
     try:
         data = request.json
         path = data.get('path', '')
@@ -161,7 +266,6 @@ def firebase_update():
 
 @app.route('/api/firebase/delete', methods=['POST'])
 def firebase_delete():
-    """Delete a path via the Admin SDK"""
     try:
         data = request.json
         path = data.get('path', '')
