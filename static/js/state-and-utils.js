@@ -6,7 +6,6 @@ let teamMembers = [];
 let wasteTarget = 100;
 let safeTarget = 4500;
 let safeCounts = [];
-let managerPin = '0000';
 let formDone = false;
 let foodSafetyDays = [];
 let wasteDays = [];
@@ -20,6 +19,53 @@ let wasteStreak = 0;
 function escapeHtml(str){
   if(str === null || str === undefined) return '';
   return String(str).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+const INITIALS_STORAGE_KEY = 'cfaBudaInitials';
+
+function getInitials(){
+  return localStorage.getItem(INITIALS_STORAGE_KEY) || '';
+}
+
+function setInitials(value){
+  // Letters only, capped at 4 chars — keeps it simple and blocks anything odd
+  // from ending up in a checklist stamp.
+  const cleaned = String(value || '').replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 4);
+  localStorage.setItem(INITIALS_STORAGE_KEY, cleaned);
+  renderInitialsBadge();
+  return cleaned;
+}
+
+function formatShortTime(ts){
+  if(!ts) return '';
+  return new Date(ts).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'});
+}
+
+function renderInitialsBadge(){
+  const badge = document.getElementById('initialsBadge');
+  if(!badge) return;
+  const current = getInitials();
+  badge.textContent = (current || 'Set initials') + ' ▾';
+}
+
+function beginEditInitials(){
+  const badge = document.getElementById('initialsBadge');
+  if(!badge || badge.querySelector('input')) return;
+  const current = getInitials();
+  badge.innerHTML = `<input type="text" id="initialsInput" maxlength="4" value="${current}" placeholder="JD" style="width:50px;text-transform:uppercase;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;border:1px solid var(--cfa-red);border-radius:4px;padding:2px 4px;background:var(--cfa-white);color:var(--text-primary);">`;
+  const input = document.getElementById('initialsInput');
+  input.focus();
+  input.select();
+  const commit = () => setInitials(input.value);
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (e) => { if(e.key === 'Enter') commit(); });
+}
+
+const initialsBadgeEl = document.getElementById('initialsBadge');
+if(initialsBadgeEl){
+  renderInitialsBadge();
+  initialsBadgeEl.addEventListener('click', beginEditInitials);
+  if(!getInitials()) beginEditInitials(); // first-ever load on this device: prompt right away
 }
 
 function toLocalISODate(d){
