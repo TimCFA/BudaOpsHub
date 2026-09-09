@@ -51,6 +51,8 @@ document.getElementById('btnUpdateTarget').addEventListener('click', async ()=>{
     wasteTarget = v;
     await saveState();
     renderStandup();
+    renderFohWasteStandup();
+    renderScoreboardView();
     showToast('✓ Target Updated');
   }
 });
@@ -404,7 +406,8 @@ document.getElementById('btnSyncSheet').addEventListener('click', async ()=>{
   renderGrid();
   renderTape();
   renderStandup();
-  renderDashboard();
+  renderFohWasteStandup();
+  renderScoreboardView();
   renderLXScoreboard();
   renderGXScoreboard();
   renderTXScoreboard();
