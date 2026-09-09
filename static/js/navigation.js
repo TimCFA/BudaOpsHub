@@ -4,7 +4,7 @@ function activateView(view){
   if(view === 'positions') renderPositionsTab();
   if(view === 'dailytasks') renderDailyTasksTab();
   if(view === 'boh') renderStandup();
-  if(view === 'scoreboard') renderScoreboardView();
+  if(view === 'scoreboard'){ renderScoreboardView(); renderCustomScoreboards(); }
   if(view === 'lx') renderLXScoreboard();
   if(view === 'gx') renderGXScoreboard();
   if(view === 'tx') renderTXScoreboard();
