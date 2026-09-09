@@ -56,19 +56,6 @@ function updateCostPreview(){
   document.getElementById('costPreview').innerHTML = `Cost: <b>$${cost.toFixed(2)}</b>`;
 }
 
-function renderWhoChips(){
-  const leads = currentSection==='foh' ? fohLeads : bohLeads;
-  document.getElementById('whoChips').innerHTML = leads.map(n=>`
-    <div class="who-chip" data-who="${n}">${n}</div>
-  `).join('');
-  document.querySelectorAll('.who-chip').forEach(chip=>{
-    chip.addEventListener('click',()=>{
-      document.querySelectorAll('.who-chip').forEach(x=>x.classList.remove('sel'));
-      chip.classList.add('sel');
-    });
-  });
-}
-
 document.getElementById('btnSubmitLog').addEventListener('click', async ()=>{
   const qty = parseInt(document.getElementById('qty').value)||1;
   const who = document.querySelector('.who-chip.sel');
