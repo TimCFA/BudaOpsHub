@@ -27,7 +27,6 @@ function openLogModal(prodId){
   document.getElementById('modalProduct').textContent = selectedProd.name + ' @ $' + selectedProd.cost.toFixed(2);
   document.getElementById('qty').value = 1;
   updateCostPreview();
-  renderWhoChips();
   document.getElementById('logModal').classList.add('active');
 }
 
@@ -57,9 +56,13 @@ function updateCostPreview(){
 }
 
 document.getElementById('btnSubmitLog').addEventListener('click', async ()=>{
+  const who = getInitials();
+  if(!who){
+    showToast('Set your initials first (top right)');
+    beginEditInitials();
+    return;
+  }
   const qty = parseInt(document.getElementById('qty').value)||1;
-  const who = document.querySelector('.who-chip.sel');
-  if(!who){ alert('Select a team member'); return; }
   const entry = {
     ts: Date.now(),
     prodId: selectedProd.id,
@@ -68,7 +71,7 @@ document.getElementById('btnSubmitLog').addEventListener('click', async ()=>{
     unit: selectedProd.unit,
     unitCost: selectedProd.cost,
     cost: qty * selectedProd.cost,
-    who: who.dataset.who,
+    who: who,
     section: currentSection
   };
   entries.push(entry);
