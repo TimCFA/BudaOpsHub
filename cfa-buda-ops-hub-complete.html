@@ -627,6 +627,11 @@
       </div>
       <div class="bar-list" id="barList"></div>
     </div>
+
+    <div style="margin:20px 0 10px;">
+      <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);font-weight:700;margin:0;">📊 Custom Scoreboards</p>
+    </div>
+    <div id="customScoreboardContainer"></div>
   </div>
 
   <!-- Trainer Trial Tracker View -->
@@ -806,6 +811,14 @@
       </div>
 
       <div class="standup-card">
+        <h3>📊 Custom Scoreboards & Trackers</h3>
+        <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Add scoreboards, dashboards, or trackers to show under Excellence → Scoreboard</p>
+        <div id="scoreboardManageList" style="margin-bottom:16px;"></div>
+        <button id="btnAddScoreboardItem" class="btn btn-secondary" style="margin-bottom:12px;">+ Add Scoreboard</button>
+        <button id="btnSaveScoreboard" class="btn btn-primary">Save Scoreboard</button>
+      </div>
+
+      <div class="standup-card">
         <h3>💾 Backup</h3>
         <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Download a snapshot of everything — rosters, set ups, numbers, checklists — as a file you keep, independent of this app.</p>
         <button id="btnExportBackup" class="btn btn-primary">Download Backup</button>
@@ -844,6 +857,7 @@
 <script src="/static/js/waste-log.js"></script>
 <script src="/static/js/fohoe-and-safecount.js"></script>
 <script src="/static/js/daypicker-and-positions.js"></script>
+<script src="/static/js/custom-scoreboards.js"></script>
 <script src="/static/js/manage-and-import.js"></script>
 <script src="/static/js/trainer-trial.js"></script>
 </body>
