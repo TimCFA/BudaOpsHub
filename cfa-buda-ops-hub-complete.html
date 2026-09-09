@@ -36,6 +36,7 @@
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="lxView" data-view="lx">LX <span class="sub-inline">Liderazgo</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="fohoeView" data-view="fohoe">FOH OE <span class="sub-inline">Excelencia</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="bohView" data-view="boh">BOH OE <span class="sub-inline">Excelencia</span></button>
+          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="scoreboardView" data-view="scoreboard">Scoreboard <span class="sub-inline">Tableros</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="trainertrialView" data-view="trainertrial">Trainer Trial <span class="sub-inline">Entrenador</span></button>
         </div>
       </div>
@@ -379,7 +380,7 @@
   <!-- Home View -->
   <div class="view active" id="homeView">
     <div class="home-welcome">
-      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAcIAAAGpCAIAAACRSaGLAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAFbmlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSfvu78nIGlkPSdXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQnPz4KPHg6eG1wbWV0YSB4bWxuczp4PSdhZG9iZTpuczptZXRhLyc+CjxyZGY6UkRGIHhtbG5zOnJkZj0naHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyc+CgogPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9JycKICB4bWxuczpBdHRyaWI9J2h0dHA6Ly9ucy5hdHRyaWJ1dGlvbi5jb20vYWRzLzEuMC8nPgogIDxBdHRyaWI6QWRzPgogICA8cmRmOlNlcT4KICAgIDxyZGY6bGkgcmRmOnBhcnNlVHlwZT0nUmVzb3VyY2UnPgogICAgIDxBdHRyaWI6Q3JlYXRlZD4yMDI2LTA4LTI1PC9BdHRyaWI6Q3JlYXRlZD4KICAgICA8QXR0cmliOkRhdGE+eyZxdW90O2RvYyZxdW90OzomcXVvdDtEQUhUVm5YS0FsWSZxdW90OywmcXVvdDt1c2VyJnF1b3Q7OiZxdW90O1VBRkxGeHpWNWpjJnF1b3Q7LCZxdW90O2JyYW5kJnF1b3Q7OiZxdW90O0NoaWNrLWZpbC1BIEJ1ZGHigJlzIHRlYW0mcXVvdDt9PC9BdHRyaWI6RGF0YT4KICAgICA8QXR0cmliOkV4dElkPjUzNGZkZjg4LTQ3M2ItNGM3YS05MjU2LTgyYjdmMDhlYTZmZjwvQXR0cmliOkV4dElkPgogICAgIDxBdHRyaWI6RmJJZD41MjUyNjU5MTQxNzk1ODA8L0F0dHJpYjpGYklkPgogICAgIDxBdHRyaWI6VG91Y2hUeXBlPjI8L0F0dHJpYjpUb3VjaFR5cGU+CiAgICA8L3JkZjpsaT4KICAgPC9yZGY6U2VxPgogIDwvQXR0cmliOkFkcz4KIDwvcmRmOkRlc2NyaXB0aW9uPgoKIDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PScnCiAgeG1sbnM6ZGM9J2h0dHA6Ly9wdXJsLm9yZy9kYy9lbGVtZW50cy8xLjEvJz4KICA8ZGM6dGl0bGU+CiAgIDxyZGY6QWx0PgogICAgPHJkZjpsaSB4bWw6bGFuZz0neC1kZWZhdWx0Jz5VbnRpdGxlZCBkZXNpZ24gLSAxPC9yZGY6bGk+CiAgIDwvcmRmOkFsdD4KICA8L2RjOnRpdGxlPgogPC9yZGY6RGVzY3JpcHRpb24+CgogPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9JycKICB4bWxuczpwZGY9J2h0dHA6Ly9ucy5hZG9iZS5jb20vcGRmLzEuMy8nPgogIDxwZGY6QXV0aG9yPkNoaWNrLWZpbC1BIEJ1ZGE8L3BkZjpBdXRob3I+CiA8L3JkZjpEZXNjcmlwdGlvbj4KCiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0nJwogIHhtbG5zOnhtcD0naHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wLyc+CiAgPHhtcDpDcmVhdG9yVG9vbD5DYW52YSAoUmVuZGVyZXIpIGRvYz1EQUhUVm5YS0FsWSB1c2VyPVVBRkxGeHpWNWpjIGJyYW5kPUNoaWNrLWZpbC1BIEJ1ZGHigJlzIHRlYW0mcXVvdDt9PC9BdHRyaWI6RGF0YT4KICAgICA8QXR0cmliOkV4dElkPjUzNGZkZjg4LTQ3M2ItNGM3YS05MjU2LTgyYjdmMDhlYTZmZjwvQXR0cmliOkV4dElkPgogICAgIDxBdHRyaWI6RmJJZD41MjUyNjU5MTQxNzk1ODA8L0F0dHJpYjpGYklkPgogICAgIDxBdHRyaWI6VG91Y2hUeXBlPjI8L0F0dHJpYjpUb3VjaFR5cGU+CiAgICA8L3JkZjpsaT4KICAgPC9yZGY6U2VxPgogIDwvQXR0cmliOkFkcz4KIDwvcmRmOkRlc2NyaXB0aW9uPgoKIDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PScnCiAgeG1sbnM6ZGM9J2h0dHA6Ly9wdXJsLm9yZy9kYy9lbGVtZW50cy8xLjEvJz4KICA8ZGM6dGl0bGU+CiAgIDxyZGY6QWx0PgogICAgPHJkZjpsaSB4bWw6bGFuZz0neC1kZWZhdWx0Jz5VbnRpdGxlZCBkZXNpZ24gLSAxPC9yZGY6bGk+CiAgIDwvcmRmOkFsdD4KICA8L2RjOnRpdGxlPgogPC9yZGY6RGVzY3JpcHRpb24+CgogPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9JycKICB4bWxuczpwZGY9J2h0dHA6Ly9ucy5hZG9iZS5jb20vcGRmLzEuMy8nPgogIDxwZGY6QXV0aG9yPkNoaWNrLWZpbC1BIEJ1ZGE8L3BkZjpBdXRob3I+CiA8L3JkZjpEZXNjcmlwdGlvbj4KCiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0nJwogIHhtbG5zOnhtcD0naHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wLyc+CiAgPHhtcDpDcmVhdG9yVG9vbD5DYW52YSAoUmVuZGVyZXIpIGRvYz1EQUhUVm5YS0FsWSB1c2VyPVVBRkxGeHpWNWpjIGJyYW5kPUNoaWNrLWZpbC1BIEJ1ZGHigJlzIHRlYW0mcXVvdDt9PC9BdHRyaWI6RGF0YT4KICAgICA8QXR0cmliOkV4dElkPjUzNGZkZjg4LTQ3M2ItNGM3YS05MjU2LTgyYjdmMDhlYTZmZjwvQXR0cmliOkV4dElkPgogICAgIDxBdHRyaWI6RmJJZD41MjUyNjU5MTQxNzk1ODA8L0F0dHJpYjpGYklkPgogICAgIDxBdHRyaWI6VG91Y2hUeXBlPjI8L0F0dHJpYjpUb3VjaFR5cGU+CiAgICA8L3JkZjpsaT4KICAgPC9yZGY6U2VxPgogIDwvQXR0cmliOkFkcz4KIDwvcmRmOkRlc2NyaXB0aW9uPgoKIDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PScnCiAgeG1sbnM6ZGM9J2h0dHA6Ly9wdXJsLm9yZy9kYy9lbGVtZW50cy8xLjEvJz4KICA8ZGM6dGl0bGU+CiAgIDxyZGY6QWx0PgogICAgPHJkZjpsaSB4bWw6bGFuZz0neC1kZWZhdWx0Jz5VbnRpdGxlZCBkZXNpZ24gLSAxPC9yZGY6bGk+CiAgIDwvcmRmOkFsdD4KICA8L2RjOnRpdGxlPgogPC9yZGY6RGVzY3JpcHRpb24+CgogPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9JycKICB4bWxuczpwZGY9J2h0dHA6Ly9ucy5hZG9iZS5jb20vcGRmLzEuMy8nPgogIDxwZGY6QXV0aG9yPkNoaWNrLWZpbC1BIEJ1ZGE8L3BkZjpBdXRob3I+CiA8L3JkZjpEZXNjcmlwdGlvbj4KCiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0nJwogIHhtbG5zOnhtcD0naHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wLyc+CiAgPHhtcDpDcmVhdG9yVG9vbD5DYW52YSAoUmVuZGVyZXIpIGRvYz1EQUhUVm5YS0FsWSB1c2VyPVVBRkxGeHpWNWpjIGJyYW5kPUNoaWNrLWZpbC1BIEJ1ZGHigJlzIHRlYW0mcXVvdDt9PC9BdHRyaWI6RGF0YT4KICAgICA8QXR0cmliOkV4dElkPjUzNGZkZjg4LTQ3M2ItNGM3YS05MjU2LTgyYjdmMDhlYTZmZjwvQXR0cmliOkV4dElkPgogICAgIDxBdHRyaWI6RmJJZD41MjUyNjU5MTQxNzk1ODA8L0F0dHJpYjpGYklkPgogICAgIDxBdHRyaWI6VG91Y2hUeXBlPjI8L0F0dHJpYjpUb3VjaFR5cGU+CiAgICA8L3JkZjpsaT4KICAgPC9yZGY6U2VxPgogIDwvQXR0cmliOkFkcz4KIDwvcmRmOkRlc2NyaXB0aW9uPgoKIDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PScnCiAgeG1sbnM6ZGM9J2h0dHA6Ly9wdXJsLm9yZy9kYy9lbGVtZW50cy8xLjEvJz4KICA8ZGM6dGl0bGU+CiAgIDxyZGY6QWx0PgogICAgPHJkZjpsaSB4bWw6bGFuZz0neC1kZWZhdWx0Jz5VbnRpdGxlZCBkZXNpZ24gLSAxPC9yZGY6bGk+CiAgIDwvcmRmOkFsdD4KICA8L2RjOnRpdGxlPgogPC9yZGY6RGVzY3JpcHRpb24+CgogPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9JycKICB4bWxuczpwZGY9J2h0dHA6Ly9ucy5hZG9iZS5jb20vcGRmLzEuMy8nPgogIDxwZGY6QXV0aG9yPkNoaWNrLWZpbC1BIEJ1ZGE8L3BkZjpBdXRob3I+CiA8L3JkZjpEZXNjcmlwdGlvbj4KCiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0nJwogIHhtbG5zOnhtcD0naHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wLyc+CiAgPHhtcDpDcmVhdG9yVG9vbD5DYW52YSAoUmVuZGVyZXIpIGRvYz1EQUhUVm5YS0FsWSB1c2VyPVVBRkxGeHpWNWpjIGJyYW5kPUNoaWNrLWZpbC1BIEJ1ZGHigJlzIHRlYW08L3htcDpDcmVhdG9yVG9vbD4KIDwvcmRmOkRlc2NyaXB0aW9uPgo8L3JkZjpSREY+CjwveDp4bXBtZXRhPgo8P3hwYWNrZXQgZW5kPSdyJz8+3ZeKEAAAAE5lWElmTU0AKgAAAAgABAEaAAUAAAABAAAAPgEbAAUAAAABAAAARgEoAAMAAAABAAIAAAITAAMAAAABAAEAAAAAAAAAAABgAAAAAQAAAGAAAAABdwXf5wAA9F1JREFUeJzsvXeUXNWd7/v77X1ypa7qnJQzyiAw0YBIwoDJYEw0Dhhje+bO3DBv3bWe3333+t07Yw82zlhmjDEmG4PJGQFCOcdWbnWru9XdVV3xxL1/749qCanVii2EBOezltaC7qpdp06f8z2//YtIRBASEhIScqywz/oAQkJCQk5tQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSPx/Y0FQ6r7QVE0AAAAASUVORK5CYII=" alt="CFA Buda Logo" class="home-logo">
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAcIAAAGpCAIAAACRSaGLAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAFbmlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSfvu78nIGlkPSdXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQnPz4KPHg6eG1wbWV0YSB4bWxuczp4PSdhZG9iZTpuczptZXRhLyc+CjxyZGY6UkRGIHhtbG5zOnJkZj0naHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyc+CgogPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9JycKICB4bWxuczpBdHRyaWI9J2h0dHA6Ly9ucy5hdHRyaWJ1dGlvbi5jb20vYWRzLzEuMC8nPgogIDxBdHRyaWI6QWRzPgogICA8cmRmOlNlcT4KICAgIDxyZGY6bGkgcmRmOnBhcnNlVHlwZT0nUmVzb3VyY2UnPgogICAgIDxBdHRyaWI6Q3JlYXRlZD4yMDI2LTA4LTI1PC9BdHRyaWI6Q3JlYXRlZD4KICAgICA8QXR0cmliOkRhdGE+eyZxdW90O2RvYyZxdW90OzomcXVvdDtEQUhUVm5YS0FsWSZxdW90OywmcXVvdDt1c2VyJnF1b3Q7OiZxdW90O1VBRkxGeHpWNWpjJnF1b3Q7LCZxdW90O2JyYW5kJnF1b3Q7OiZxdW90O0NoaWNrLWZpbC1BIEJ1ZGHigJlzIHRlYW0mcXVvdDt9PC9BdHRyaWI6RGF0YT4KICAgICA8QXR0cmliOkV4dElkPjUzNGZkZjg4LTQ3M2ItNGM3YS05MjU2LTgyYjdmMDhlYTZmZjwvQXR0cmliOkV4dElkPgogICAgIDxBdHRyaWI6RmJJZD41MjUyNjU5MTQxNzk1ODA8L0F0dHJpYjpGYklkPgogICAgIDxBdHRyaWI6VG91Y2hUeXBlPjI8L0F0dHJpYjpUb3VjaFR5cGU+CiAgICA8L3JkZjpsaT4KICAgPC9yZGY6U2VxPgogIDwvQXR0cmliOkFkcz4KIDwvcmRmOkRlc2NyaXB0aW9uPgoKIDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PScnCiAgeG1sbnM6ZGM9J2h0dHA6Ly9wdXJsLm9yZy9kYy9lbGVtZW50cy8xLjEvJz4KICA8ZGM6dGl0bGU+CiAgIDxyZGY6QWx0PgogICAgPHJkZjpsaSB4bWw6bGFuZz0neC1kZWZhdWx0Jz5VbnRpdGxlZCBkZXNpZ24gLSAxPC9yZGY6bGk+CiAgIDwvcmRmOkFsdD4KICA8L2RjOnRpdGxlPgogPC9yZGY6RGVzY3JpcHRpb24+CgogPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9JycKICB4bWxuczpwZGY9J2h0dHA6Ly9ucy5hZG9iZS5jb20vcGRmLzEuMy8nPgogIDxwZGY6QXV0aG9yPkNoaWNrLWZpbC1BIEJ1ZGE8L3BkZjpBdXRob3I+CiA8L3BkZjpEZXNjcmlwdGlvbj4KCiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0nJwogIHhtbG5zOnhtcD0naHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wLyc+CiAgPHhtcDpDcmVhdG9yVG9vbD5DYW52YSAoUmVuZGVyZXIpIGRvYz1EQUhUVm5YS0FsWSB1c2VyPVVBRkxGeHpWNWpjIGJyYW5kPUNoaWNrLWZpbC1BIEJ1ZGHigJlzIHRlYW0mcXVvdDt9PC9BdHRyaWI6RGF0YT4KICAgICA8QXR0cmliOkV4dElkPjUzNGZkZjg4LTQ3M2ItNGM3YS05MjU2LTgyYjdmMDhlYTZmZjwvQXR0cmliOkV4dElkPgogICAgIDxBdHRyaWI6RmJJZD41MjUyNjU5MTQxNzk1ODA8L0F0dHJpYjpGYklkPgogICAgIDxBdHRyaWI6VG91Y2hUeXBlPjI8L0F0dHJpYjpUb3VjaFR5cGU+CiAgICA8L3JkZjpsaT4KICAgPC9yZGY6U2VxPgogIDwvQXR0cmliOkFkcz4KIDwvcmRmOkRlc2NyaXB0aW9uPgoKIDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PScnCiAgeG1sbnM6ZGM9J2h0dHA6Ly9wdXJsLm9yZy9kYy9lbGVtZW50cy8xLjEvJz4KICA8ZGM6dGl0bGU+CiAgIDxyZGY6QWx0PgogICAgPHJkZjpsaSB4bWw6bGFuZz0neC1kZWZhdWx0Jz5VbnRpdGxlZCBkZXNpZ24gLSAxPC9yZGY6bGk+CiAgIDwvcmRmOkFsdD4KICA8L2RjOnRpdGxlPgogPC9yZGY6RGVzY3JpcHRpb24+CgogPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9JycKICB4bWxuczpwZGY9J2h0dHA6Ly9ucy5hZG9iZS5jb20vcGRmLzEuMy8nPgogIDxwZGY6QXV0aG9yPkNoaWNrLWZpbC1BIEJ1ZGE8L3BkZjpBdXRob3I+CiA8L3JkZjpEZXNjcmlwdGlvbj4KCiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0nJwogIHhtbG5zOnhtcD0naHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wLyc+CiAgPHhtcDpDcmVhdG9yVG9vbD5DYW52YSAoUmVuZGVyZXIpIGRvYz1EQUhUVm5YS0FsWSB1c2VyPVVBRkxGeHpWNWpjIGJyYW5kPUNoaWNrLWZpbC1BIEJ1ZGHigJlzIHRlYW0mcXVvdDt9PC9BdHRyaWI6RGF0YT4KICAgICA8QXR0cmliOkV4dElkPjUzNGZkZjg4LTQ3M2ItNGM3YS05MjU2LTgyYjdmMDhlYTZmZjwvQXR0cmliOkV4dElkPgogICAgIDxBdHRyaWI6RmJJZD41MjUyNjU5MTQxNzk1ODA8L0F0dHJpYjpGYklkPgogICAgIDxBdHRyaWI6VG91Y2hUeXBlPjI8L0F0dHJpYjpUb3VjaFR5cGU+CiAgICA8L3JkZjpsaT4KICAgPC9yZGY6U2VxPgogIDwvQXR0cmliOkFkcz4KIDwvcmRmOkRlc2NyaXB0aW9uPgoKIDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PScnCiAgeG1sbnM6ZGM9J2h0dHA6Ly9wdXJsLm9yZy9kYy9lbGVtZW50cy8xLjEvJz4KICA8ZGM6dGl0bGU+CiAgIDxyZGY6QWx0PgogICAgPHJkZjpsaSB4bWw6bGFuZz0neC1kZWZhdWx0Jz5VbnRpdGxlZCBkZXNpZ24gLSAxPC9yZGY6bGk+CiAgIDwvcmRmOkFsdD4KICA8L2RjOnRpdGxlPgogPC9yZGY6RGVzY3JpcHRpb24+CgogPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9JycKICB4bWxuczpwZGY9J2h0dHA6Ly9ucy5hZG9iZS5jb20vcGRmLzEuMy8nPgogIDxwZGY6QXV0aG9yPkNoaWNrLWZpbC1BIEJ1ZGE8L3BkZjpBdXRob3I+CiA8L3BkZjpEZXNjcmlwdGlvbj4KCiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0nJwogIHhtbG5zOnhtcD0naHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wLyc+CiAgPHhtcDpDcmVhdG9yVG9vbD5DYW52YSAoUmVuZGVyZXIpIGRvYz1EQUhUVm5YS0FsWSB1c2VyPVVBRkxGeHpWNWpjIGJyYW5kPUNoaWNrLWZpbC1BIEJ1ZGHigJlzIHRlYW08L3htcDpDcmVhdG9yVG9vbD4KIDwvcmRmOkRlc2NyaXB0aW9uPgo8L3JkZjpSREY+CjwveDp4bXBtZXRhPgo8P3hwYWNrZXQgZW5kPSdyJz8+3ZeKEAAAAE5lWElmTU0AKgAAAAgABAEaAAUAAAABAAAAPgEbAAUAAAABAAAARgEoAAMAAAABAAIAAAITAAMAAAABAAEAAAAAAAAAAABgAAAAAQAAAGAAAAABdwXf5wAA9F1JREFUeJzsvXeUXNWd7/v77X1ypa7qnJQzyiAw0YBIwoDJYEw0Dhhje+bO3DBv3bWe3333+t07Yw82zlhmjDEmG4PJGQFCOcdWbnWru9XdVV3xxL1/749qCanVii2EBOezltaC7qpdp06f8z2//YtIRBASEhIScqywz/oAQkJCQk5tQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSPx/Y0FQ6r7QVE0AAAAASUVORK5CYII=" alt="CFA Buda Logo" class="home-logo">
       <div class="home-greeting" id="homeGreeting">Good Morning</div>
       <div class="home-quote" id="homeQuote">Welcome to Chick-fil-A Buda</div>
       <div class="home-quote-author" id="homeQuoteAuthor">— Team</div>
@@ -442,25 +443,6 @@
       </div>
     </div>
 
-    <div class="standup-card">
-      <h3>Waste Dashboard</h3>
-      <div class="actions-row">
-        <button id="btnSyncSheet" class="btn btn-secondary"><span>Sync to Google Sheet</span> <span class="sub"><i>Sincronizar</i></span></button>
-      </div>
-      <div id="syncStatus" class="sync-status">Ready</div>
-      <div class="stat-row">
-        <div class="stat-card">
-          <div class="label">Total Waste</div>
-          <div class="value" id="statTotal">$0.00</div>
-        </div>
-        <div class="stat-card">
-          <div class="label">Entries</div>
-          <div class="value" id="statEntries">0</div>
-        </div>
-      </div>
-      <div class="bar-list" id="barList"></div>
-    </div>
-
     <div class="tguide-banner">
       <div class="tguide-banner-title">🎓 Training Guides</div>
     </div>
@@ -480,12 +462,32 @@
     </div>
 
     <div class="standup-card fohoe-card fohoe-orange">
+      <h3><span class="fohoe-icon">🎯</span>Today's Waste Target</h3>
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="label">Daily Total</div>
+          <div class="value" id="fohWasteStandupTotal">$0.00</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Target</div>
+          <div class="value" id="fohWasteStandupTarget">$100.00</div>
+        </div>
+      </div>
+      <div id="fohWasteStandupStatus" style="display:none;background:var(--cfa-light);border:1px solid var(--success);border-radius:var(--radius);padding:12px;text-align:center;color:var(--success);font-weight:600;font-size:12px;margin-top:12px;">✓ On track! Under daily target</div>
+    </div>
+
+    <div class="standup-card fohoe-card fohoe-orange">
       <h3><span class="fohoe-icon">🔥</span>Active Streaks</h3>
-      <div style="display:grid;grid-template-columns:1fr;gap:12px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div class="streak-display">
           <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;margin-bottom:8px;">OE Walkthrough</div>
           <div class="streak-number" id="fohOEStreakNum">0</div>
           <div class="streak-label" id="fohOEStreakLabel">consecutive days</div>
+        </div>
+        <div class="streak-display">
+          <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;margin-bottom:8px;">Under $100</div>
+          <div class="streak-number" id="fohWasteStreakNum">0</div>
+          <div class="streak-label" id="fohWasteStreakLabel">consecutive days</div>
         </div>
       </div>
     </div>
@@ -590,6 +592,41 @@
       <div class="tguide-banner-title">🎓 Training Guides</div>
     </div>
     <div id="fohTrainingGuidesContainer"></div>
+  </div>
+
+  <!-- Scoreboard View -->
+  <div class="view" id="scoreboardView">
+    <div style="margin-bottom:20px;">
+      <p style="font-size:13px;color:var(--text-secondary);margin:0;">Combined waste totals across FOH and BOH.</p>
+    </div>
+    <div class="standup-card">
+      <h3>Waste Dashboard</h3>
+      <div class="actions-row">
+        <button id="btnSyncSheet" class="btn btn-secondary"><span>Sync to Google Sheet</span> <span class="sub"><i>Sincronizar</i></span></button>
+      </div>
+      <div id="syncStatus" class="sync-status">Ready</div>
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="label">Total Waste</div>
+          <div class="value" id="statTotal">$0.00</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Entries</div>
+          <div class="value" id="statEntries">0</div>
+        </div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="label">FOH Subtotal</div>
+          <div class="value" id="statFohSubtotal">$0.00</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">BOH Subtotal</div>
+          <div class="value" id="statBohSubtotal">$0.00</div>
+        </div>
+      </div>
+      <div class="bar-list" id="barList"></div>
+    </div>
   </div>
 
   <!-- Trainer Trial Tracker View -->
