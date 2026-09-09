@@ -41,7 +41,7 @@ async function saveState(){
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     fohPositionTransitionChecked, fohPositionTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
-    safeTarget, safeCounts, trainerTrainees, trainerProgress
+    safeTarget, safeCounts, trainerTrainees, trainerProgress, scoreboardItems
   };
   const serialized = JSON.stringify(snapshot);
   // Local cache first, so the app still works instantly / offline even if the network write below fails
@@ -63,7 +63,7 @@ function exportBackup(){
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     fohPositionTransitionChecked, fohPositionTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
-    safeTarget, safeCounts, trainerTrainees, trainerProgress
+    safeTarget, safeCounts, trainerTrainees, trainerProgress, scoreboardItems
   };
   const blob = new Blob([JSON.stringify(snapshot, null, 2)], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
@@ -138,6 +138,7 @@ async function loadState(){
     lastUpdated = data.lastUpdated || {};
     trainerTrainees = data.trainerTrainees || [];
     trainerProgress = data.trainerProgress || {};
+    scoreboardItems = data.scoreboardItems || [];
     const migrated = migrateLegacyWeekdayKeys();
     const prunedDates = pruneOldDateData();
     const prunedChecklists = pruneZoneChecklistData();
