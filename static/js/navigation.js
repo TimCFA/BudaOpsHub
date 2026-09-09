@@ -9,6 +9,7 @@ function activateView(view){
   if(view === 'tx') renderTXScoreboard();
   if(view === 'home') renderHomeScoreboard();
   if(view === 'fohoe') renderFOHOE();
+  if(view === 'trainertrial') renderTrainerTrial();
 }
 
 function clearActiveTabs(){
@@ -79,4 +80,3 @@ document.querySelectorAll('.toggle-btn').forEach(t=>{
     renderDashboard();
   });
 });
-
