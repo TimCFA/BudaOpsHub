@@ -16,11 +16,14 @@ function renderFOHOE(){
     return `<div class="checklist-cat">${group.cat}</div>` + group.items.map((item,i)=>{
       const id = group.cat + '::' + i;
       oeTotal++;
-      const checked = !!fohOEChecked[id];
+      const entry = fohOEChecked[id];
+      const checked = !!entry;
       if(checked) oeDone++;
+      const stamp = checked ? `<span style="font-size:10px;color:var(--text-tertiary);font-style:italic;margin-left:auto;white-space:nowrap;">${escapeHtml(entry.initials)} · ${formatShortTime(entry.ts)}</span>` : '';
       return `<div class="checklist-item ${checked?'checked':''}" data-id="${id.replace(/"/g,'&quot;')}">
         <input type="checkbox" ${checked?'checked':''}>
         <span>${item}</span>
+        ${stamp}
       </div>`;
     }).join('');
   }).join('');
@@ -38,15 +41,18 @@ function renderFOHOE(){
   document.getElementById('fohOEStreakNum').textContent = fohOEStreak;
   document.getElementById('fohOEStreakLabel').textContent = 'consecutive ' + (fohOEStreak === 1 ? 'day' : 'days');
 
-  // Leader transition checklist
+  // Leader Transition List
   const leaderContainer = document.getElementById('fohLeaderTransitionChecklist');
   let lDone = 0;
   leaderContainer.innerHTML = fohLeaderTransitionItems.map((item,i)=>{
-    const checked = !!fohLeaderTransitionChecked[i];
+    const entry = fohLeaderTransitionChecked[i];
+    const checked = !!entry;
     if(checked) lDone++;
+    const stamp = checked ? `<span style="font-size:10px;color:var(--text-tertiary);font-style:italic;margin-left:auto;white-space:nowrap;">${escapeHtml(entry.initials)} · ${formatShortTime(entry.ts)}</span>` : '';
     return `<div class="checklist-item ${checked?'checked':''}" data-lidx="${i}">
       <input type="checkbox" ${checked?'checked':''}>
       <span>${item}</span>
+      ${stamp}
     </div>`;
   }).join('');
   document.getElementById('fohLeaderTransitionProgress').textContent = `${lDone} / ${fohLeaderTransitionItems.length} complete`;
@@ -66,11 +72,14 @@ function renderFOHPositionTransition(){
   const posChecked = fohPositionTransitionChecked[currentFOHPosition] || {};
   let pDone = 0;
   container.innerHTML = items.map((item,i)=>{
-    const checked = !!posChecked[i];
+    const entry = posChecked[i];
+    const checked = !!entry;
     if(checked) pDone++;
+    const stamp = checked ? `<span style="font-size:10px;color:var(--text-tertiary);font-style:italic;margin-left:auto;white-space:nowrap;">${escapeHtml(entry.initials)} · ${formatShortTime(entry.ts)}</span>` : '';
     return `<div class="checklist-item ${checked?'checked':''}" data-pidx="${i}">
       <input type="checkbox" ${checked?'checked':''}>
       <span>${item}</span>
+      ${stamp}
     </div>`;
   }).join('');
   document.getElementById('fohPositionTransitionProgress').textContent = `${pDone} / ${items.length} complete`;
@@ -80,7 +89,13 @@ document.getElementById('fohOEChecklist').addEventListener('click', async (e)=>{
   const row = e.target.closest('.checklist-item');
   if(!row) return;
   const id = row.dataset.id;
-  fohOEChecked[id] = !fohOEChecked[id];
+  if(fohOEChecked[id]){
+    delete fohOEChecked[id];
+  } else {
+    const initials = getInitials();
+    if(!initials){ showToast('Set your initials first (top right)'); beginEditInitials(); return; }
+    fohOEChecked[id] = {initials, ts: Date.now()};
+  }
   fohOECheckedDate = today;
   await saveState();
   renderFOHOE();
@@ -100,7 +115,13 @@ document.getElementById('fohLeaderTransitionChecklist').addEventListener('click'
   const row = e.target.closest('.checklist-item');
   if(!row) return;
   const idx = row.dataset.lidx;
-  fohLeaderTransitionChecked[idx] = !fohLeaderTransitionChecked[idx];
+  if(fohLeaderTransitionChecked[idx]){
+    delete fohLeaderTransitionChecked[idx];
+  } else {
+    const initials = getInitials();
+    if(!initials){ showToast('Set your initials first (top right)'); beginEditInitials(); return; }
+    fohLeaderTransitionChecked[idx] = {initials, ts: Date.now()};
+  }
   fohLeaderTransitionDate = today;
   await saveState();
   renderFOHOE();
@@ -124,7 +145,14 @@ document.getElementById('fohPositionTransitionChecklist').addEventListener('clic
   if(!row) return;
   const idx = row.dataset.pidx;
   if(!fohPositionTransitionChecked[currentFOHPosition]) fohPositionTransitionChecked[currentFOHPosition] = {};
-  fohPositionTransitionChecked[currentFOHPosition][idx] = !fohPositionTransitionChecked[currentFOHPosition][idx];
+  const bucket = fohPositionTransitionChecked[currentFOHPosition];
+  if(bucket[idx]){
+    delete bucket[idx];
+  } else {
+    const initials = getInitials();
+    if(!initials){ showToast('Set your initials first (top right)'); beginEditInitials(); return; }
+    bucket[idx] = {initials, ts: Date.now()};
+  }
   fohPositionTransitionDate = today;
   await saveState();
   renderFOHPositionTransition();
