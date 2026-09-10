@@ -86,8 +86,6 @@ document.getElementById('btnSubmitLog').addEventListener('click', async ()=>{
   await saveState();
   renderTape();
   renderScoreboardView();
-  renderStandup();
-  renderFohWasteStandup();
   showToast('✓ Logged!');
   document.getElementById('logModal').classList.remove('active');
 });
@@ -116,8 +114,7 @@ function renderTape(){
   `).join('');
 }
 
-// Master dashboard for the Scoreboard tab — combines FOH + BOH into one ranked
-// list of top items, plus a combined total and separate FOH/BOH sub-totals.
+// Scoreboard: combined waste totals, target status, and streaks all in one place.
 // Not filtered by currentSection (that toggle only affects the Log Waste grid/tape).
 function renderScoreboardView(){
   const total = entries.reduce((sum,e)=>sum+e.cost,0);
@@ -147,23 +144,23 @@ function renderScoreboardView(){
       </div>
     </div>
   `).join('');
-}
 
-function renderStandup(){
-  const total = getTodayTotal();
-  document.getElementById('standupTotal').textContent = '$' + total.toFixed(2);
+  // Today's Waste Target status
+  const todayTotal = getTodayTotal();
+  document.getElementById('standupTotal').textContent = '$' + todayTotal.toFixed(2);
   document.getElementById('standupTarget').textContent = '$' + wasteTarget.toFixed(2);
-  
+  document.getElementById('standupStatus').style.display = (todayTotal < wasteTarget) ? 'block' : 'none';
+
+  // Active Streaks
   document.getElementById('foodSafetyStreakNum').textContent = foodSafetyStreak;
   document.getElementById('foodSafetyStreakLabel').textContent = 'consecutive ' + (foodSafetyStreak === 1 ? 'day' : 'days');
-  
   document.getElementById('wasteStreakNum').textContent = wasteStreak;
   document.getElementById('wasteStreakLabel').textContent = 'consecutive ' + (wasteStreak === 1 ? 'day' : 'days');
-  
-  const status = document.getElementById('standupStatus');
-  if(formDone && total < wasteTarget) status.style.display = 'block';
-  else status.style.display = 'none';
-  
+  document.getElementById('fohOEStreakNum').textContent = fohOEStreak;
+  document.getElementById('fohOEStreakLabel').textContent = 'consecutive ' + (fohOEStreak === 1 ? 'day' : 'days');
+}
+
+function renderFoodSafety(){
   const formBtn = document.getElementById('btnMarkFormDone');
   if(formDone){
     formBtn.textContent = '✓ Completed Today';
@@ -174,22 +171,6 @@ function renderStandup(){
   }
 }
 
-// FOH OE tab's equivalent of renderStandup() — same total/target pair (waste
-// isn't tracked separately per section), but gated on the OE Walkthrough being
-// done today rather than the Food Safety form, since that's FOH's daily task.
-function renderFohWasteStandup(){
-  const total = getTodayTotal();
-  document.getElementById('fohWasteStandupTotal').textContent = '$' + total.toFixed(2);
-  document.getElementById('fohWasteStandupTarget').textContent = '$' + wasteTarget.toFixed(2);
-
-  document.getElementById('fohWasteStreakNum').textContent = wasteStreak;
-  document.getElementById('fohWasteStreakLabel').textContent = 'consecutive ' + (wasteStreak === 1 ? 'day' : 'days');
-
-  const status = document.getElementById('fohWasteStandupStatus');
-  if(fohOEDays.includes(today) && total < wasteTarget) status.style.display = 'block';
-  else status.style.display = 'none';
-}
-
 document.getElementById('btnMarkFormDone').addEventListener('click', async ()=>{
   formDone = true;
   if(!foodSafetyDays.includes(today)){
@@ -197,8 +178,7 @@ document.getElementById('btnMarkFormDone').addEventListener('click', async ()=>{
     calcStreak();
   }
   await saveState();
-  renderStandup();
+  renderFoodSafety();
+  renderScoreboardView();
   showToast('✓ Food Safety Marked Complete!');
 });
-
-// FOH OE TAB
