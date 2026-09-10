@@ -26,18 +26,26 @@
     <div class="tabs" role="tablist">
       <button type="button" class="tab active" role="tab" aria-selected="true" aria-controls="homeView" data-view="home">Home <span class="sub"><i>Inicio</i></span></button>
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="positionsView" data-view="positions">Set Ups <span class="sub"><i>Configuración</i></span></button>
-      <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="dailytasksView" data-view="dailytasks">Daily Tasks <span class="sub"><i>Tareas</i></span></button>
 
-      <div class="tab-group" data-group="excellence">
-        <button type="button" class="tab-group-label" aria-haspopup="true" aria-expanded="false">Excellence <span class="chevron-mini">▾</span></button>
+      <div class="tab-group" data-group="oe">
+        <button type="button" class="tab-group-label" aria-haspopup="true" aria-expanded="false">OE <span class="chevron-mini">▾</span></button>
+        <div class="tab-dropdown" role="menu">
+          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="wastelogView" data-view="wastelog">Log Waste <span class="sub-inline">Desperdicio</span></button>
+          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="zoneresetView" data-view="zonereset">Zone Resets <span class="sub-inline">Reinicio de Zona</span></button>
+          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="oewalkthroughView" data-view="oewalkthrough">OE Walkthrough <span class="sub-inline">Recorrido</span></button>
+          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="leadertransitionView" data-view="leadertransition">Leader Transition List <span class="sub-inline">Transición</span></button>
+          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="safecountView" data-view="safecount">Daily Safe Count <span class="sub-inline">Caja Fuerte</span></button>
+          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="foodsafetyView" data-view="foodsafety">Food Safety Walkthrough <span class="sub-inline">Seguridad Alimentaria</span></button>
+        </div>
+      </div>
+
+      <div class="tab-group" data-group="experience">
+        <button type="button" class="tab-group-label" aria-haspopup="true" aria-expanded="false">Experience <span class="chevron-mini">▾</span></button>
         <div class="tab-dropdown" role="menu">
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="gxView" data-view="gx">GX <span class="sub-inline">Experiencia</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="txView" data-view="tx">TX <span class="sub-inline">Talento</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="lxView" data-view="lx">LX <span class="sub-inline">Liderazgo</span></button>
-          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="fohoeView" data-view="fohoe">FOH OE <span class="sub-inline">Excelencia</span></button>
-          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="bohView" data-view="boh">BOH OE <span class="sub-inline">Excelencia</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="scoreboardView" data-view="scoreboard">Scoreboard <span class="sub-inline">Tableros</span></button>
-          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="trainertrialView" data-view="trainertrial">Trainer Trial <span class="sub-inline">Entrenador</span></button>
         </div>
       </div>
 
@@ -239,7 +247,12 @@
 
   <!-- TX Scoreboard View -->
   <div class="view" id="txView">
-    <div style="margin-bottom:24px;">
+    <div style="margin-bottom:20px;">
+      <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);font-weight:700;margin:0;">🧭 Trainer Trial Tracker</p>
+    </div>
+    <div id="trainerTrialRoot"></div>
+
+    <div style="margin-top:28px;margin-bottom:24px;">
       <p style="font-size:13px;color:var(--text-secondary);margin:0 0 16px;">Talent Development Dashboard</p>
     </div>
 
@@ -375,12 +388,22 @@
         <div id="txCertContainer"></div>
       </div>
     </div>
+
+    <div class="tguide-banner">
+      <div class="tguide-banner-title">🎓 FOH Training Guides</div>
+    </div>
+    <div id="fohTrainingGuidesContainer"></div>
+
+    <div class="tguide-banner">
+      <div class="tguide-banner-title">🎓 BOH Training Guides</div>
+    </div>
+    <div id="bohTrainingGuidesContainer"></div>
   </div>
 
   <!-- Home View -->
   <div class="view active" id="homeView">
     <div class="home-welcome">
-      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAcIAAAGpCAIAAACRSaGLAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAFbmlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSfvu78nIGlkPSdXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQnPz4KPHg6eG1wbWV0YSB4bWxuczp4PSdhZG9iZTpuczptZXRhLyc+CjxyZGY6UkRGIHhtbG5zOnJkZj0naHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyc+CgogPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9JycKICB4bWxuczpBdHRyaWI9J2h0dHA6Ly9ucy5hdHRyaWJ1dGlvbi5jb20vYWRzLzEuMC8nPgogIDxBdHRyaWI6QWRzPgogICA8cmRmOlNlcT4KICAgIDxyZGY6bGkgcmRmOnBhcnNlVHlwZT0nUmVzb3VyY2UnPgogICAgIDxBdHRyaWI6Q3JlYXRlZD4yMDI2LTA4LTI1PC9BdHRyaWI6Q3JlYXRlZD4KICAgICA8QXR0cmliOkRhdGE+eyZxdW90O2RvYyZxdW90OzomcXVvdDtEQUhUVm5YS0FsWSZxdW90OywmcXVvdDt1c2VyJnF1b3Q7OiZxdW90O1VBRkxGeHpWNWpjJnF1b3Q7LCZxdW90O2JyYW5kJnF1b3Q7OiZxdW90O0NoaWNrLWZpbC1BIEJ1ZGHigJlzIHRlYW0mcXVvdDt9PC9BdHRyaWI6RGF0YT4KICAgICA8QXR0cmliOkV4dElkPjUzNGZkZjg4LTQ3M2ItNGM3YS05MjU2LTgyYjdmMDhlYTZmZjwvQXR0cmliOkV4dElkPgogICAgIDxBdHRyaWI6RmJJZD41MjUyNjU5MTQxNzk1ODA8L0F0dHJpYjpGYklkPgogICAgIDxBdHRyaWI6VG91Y2hUeXBlPjI8L0F0dHJpYjpUb3VjaFR5cGU+CiAgICA8L3JkZjpsaT4KICAgPC9yZGY6U2VxPgogIDwvQXR0cmliOkFkcz4KIDwvcmRmOkRlc2NyaXB0aW9uPgoKIDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PScnCiAgeG1sbnM6ZGM9J2h0dHA6Ly9wdXJsLm9yZy9kYy9lbGVtZW50cy8xLjEvJz4KICA8ZGM6dGl0bGU+CiAgIDxyZGY6QWx0PgogICAgPHJkZjpsaSB4bWw6bGFuZz0neC1kZWZhdWx0Jz5VbnRpdGxlZCBkZXNpZ24gLSAxPC9yZGY6bGk+CiAgIDwvcmRmOkFsdD4KICA8L2RjOnRpdGxlPgogPC9yZGY6RGVzY3JpcHRpb24+CgogPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9JycKICB4bWxuczpwZGY9J2h0dHA6Ly9ucy5hZG9iZS5jb20vcGRmLzEuMy8nPgogIDxwZGY6QXV0aG9yPkNoaWNrLWZpbC1BIEJ1ZGE8L3BkZjpBdXRob3I+CiA8L3BkZjpEZXNjcmlwdGlvbj4KCiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0nJwogIHhtbG5zOnhtcD0naHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wLyc+CiAgPHhtcDpDcmVhdG9yVG9vbD5DYW52YSAoUmVuZGVyZXIpIGRvYz1EQUhUVm5YS0FsWSB1c2VyPVVBRkxGeHpWNWpjIGJyYW5kPUNoaWNrLWZpbC1BIEJ1ZGHigJlzIHRlYW0mcXVvdDt9PC9BdHRyaWI6RGF0YT4KICAgICA8QXR0cmliOkV4dElkPjUzNGZkZjg4LTQ3M2ItNGM3YS05MjU2LTgyYjdmMDhlYTZmZjwvQXR0cmliOkV4dElkPgogICAgIDxBdHRyaWI6RmJJZD41MjUyNjU5MTQxNzk1ODA8L0F0dHJpYjpGYklkPgogICAgIDxBdHRyaWI6VG91Y2hUeXBlPjI8L0F0dHJpYjpUb3VjaFR5cGU+CiAgICA8L3JkZjpsaT4KICAgPC9yZGY6U2VxPgogIDwvQXR0cmliOkFkcz4KIDwvcmRmOkRlc2NyaXB0aW9uPgoKIDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PScnCiAgeG1sbnM6ZGM9J2h0dHA6Ly9wdXJsLm9yZy9kYy9lbGVtZW50cy8xLjEvJz4KICA8ZGM6dGl0bGU+CiAgIDxyZGY6QWx0PgogICAgPHJkZjpsaSB4bWw6bGFuZz0neC1kZWZhdWx0Jz5VbnRpdGxlZCBkZXNpZ24gLSAxPC9yZGY6bGk+CiAgIDwvcmRmOkFsdD4KICA8L2RjOnRpdGxlPgogPC9yZGY6RGVzY3JpcHRpb24+CgogPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9JycKICB4bWxuczpwZGY9J2h0dHA6Ly9ucy5hZG9iZS5jb20vcGRmLzEuMy8nPgogIDxwZGY6QXV0aG9yPkNoaWNrLWZpbC1BIEJ1ZGE8L3BkZjpBdXRob3I+CiA8L3JkZjpEZXNjcmlwdGlvbj4KCiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0nJwogIHhtbG5zOnhtcD0naHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wLyc+CiAgPHhtcDpDcmVhdG9yVG9vbD5DYW52YSAoUmVuZGVyZXIpIGRvYz1EQUhUVm5YS0FsWSB1c2VyPVVBRkxGeHpWNWpjIGJyYW5kPUNoaWNrLWZpbC1BIEJ1ZGHigJlzIHRlYW0mcXVvdDt9PC9BdHRyaWI6RGF0YT4KICAgICA8QXR0cmliOkV4dElkPjUzNGZkZjg4LTQ3M2ItNGM3YS05MjU2LTgyYjdmMDhlYTZmZjwvQXR0cmliOkV4dElkPgogICAgIDxBdHRyaWI6RmJJZD41MjUyNjU5MTQxNzk1ODA8L0F0dHJpYjpGYklkPgogICAgIDxBdHRyaWI6VG91Y2hUeXBlPjI8L0F0dHJpYjpUb3VjaFR5cGU+CiAgICA8L3JkZjpsaT4KICAgPC9yZGY6U2VxPgogIDwvQXR0cmliOkFkcz4KIDwvcmRmOkRlc2NyaXB0aW9uPgoKIDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PScnCiAgeG1sbnM6ZGM9J2h0dHA6Ly9wdXJsLm9yZy9kYy9lbGVtZW50cy8xLjEvJz4KICA8ZGM6dGl0bGU+CiAgIDxyZGY6QWx0PgogICAgPHJkZjpsaSB4bWw6bGFuZz0neC1kZWZhdWx0Jz5VbnRpdGxlZCBkZXNpZ24gLSAxPC9yZGY6bGk+CiAgIDwvcmRmOkFsdD4KICA8L2RjOnRpdGxlPgogPC9yZGY6RGVzY3JpcHRpb24+CgogPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9JycKICB4bWxuczpwZGY9J2h0dHA6Ly9ucy5hZG9iZS5jb20vcGRmLzEuMy8nPgogIDxwZGY6QXV0aG9yPkNoaWNrLWZpbC1BIEJ1ZGE8L3BkZjpBdXRob3I+CiA8L3BkZjpEZXNjcmlwdGlvbj4KCiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0nJwogIHhtbG5zOnhtcD0naHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wLyc+CiAgPHhtcDpDcmVhdG9yVG9vbD5DYW52YSAoUmVuZGVyZXIpIGRvYz1EQUhUVm5YS0FsWSB1c2VyPVVBRkxGeHpWNWpjIGJyYW5kPUNoaWNrLWZpbC1BIEJ1ZGHigJlzIHRlYW08L3htcDpDcmVhdG9yVG9vbD4KIDwvcmRmOkRlc2NyaXB0aW9uPgo8L3JkZjpSREY+CjwveDp4bXBtZXRhPgo8P3hwYWNrZXQgZW5kPSdyJz8+3ZeKEAAAAE5lWElmTU0AKgAAAAgABAEaAAUAAAABAAAAPgEbAAUAAAABAAAARgEoAAMAAAABAAIAAAITAAMAAAABAAEAAAAAAAAAAABgAAAAAQAAAGAAAAABdwXf5wAA9F1JREFUeJzsvXeUXNWd7/v77X1ypa7qnJQzyiAw0YBIwoDJYEw0Dhhje+bO3DBv3bWe3333+t07Yw82zlhmjDEmG4PJGQFCOcdWbnWru9XdVV3xxL1/749qCanVii2EBOezltaC7qpdp06f8z2//YtIRBASEhIScqywz/oAQkJCQk5tQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSPx/Y0FQ6r7QVE0AAAAASUVORK5CYII=" alt="CFA Buda Logo" class="home-logo">
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAcIAAAGpCAIAAACRSaGLAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAFbmlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSfvu78nIGlkPSdXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQnPz4KPHg6eG1wbWV0YSB4bWxuczp4PSdhZG9iZTpuczptZXRhLyc+CjxyZGY6UkRGIHhtbG5zOnJkZj0naHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyc+CgogPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9JycKICB4bWxuczpBdHRyaWI9J2h0dHA6Ly9ucy5hdHRyaWJ1dGlvbi5jb20vYWRzLzEuMC8nPgogIDxBdHRyaWI6QWRzPgogICA8cmRmOlNlcT4KICAgIDxyZGY6bGkgcmRmOnBhcnNlVHlwZT0nUmVzb3VyY2UnPgogICAgIDxBdHRyaWI6Q3JlYXRlZD4yMDI2LTA4LTI1PC9BdHRyaWI6Q3JlYXRlZD4KICAgICA8QXR0cmliOkRhdGE+eyZxdW90O2RvYyZxdW90OzomcXVvdDtEQUhUVm5YS0FsWSZxdW90OywmcXVvdDt1c2VyJnF1b3Q7OiZxdW90O1VBRkxGeHpWNWpjJnF1b3Q7LCZxdW90O2JyYW5kJnF1b3Q7OiZxdW90O0NoaWNrLWZpbC1BIEJ1ZGHigJlzIHRlYW0mcXVvdDt9PC9BdHRyaWI6RGF0YT4KICAgICA8QXR0cmliOkV4dElkPjUzNGZkZjg4LTQ3M2ItNGM3YS05MjU2LTgyYjdmMDhlYTZmZjwvQXR0cmliOkV4dElkPgogICAgIDxBdHRyaWI6RmJJZD41MjUyNjU5MTQxNzk1ODA8L0F0dHJpYjpGYklkPgogICAgIDxBdHRyaWI6VG91Y2hUeXBlPjI8L0F0dHJpYjpUb3VjaFR5cGU+CiAgICA8L3JkZjpsaT4KICAgPC9yZGY6U2VxPgogIDwvQXR0cmliOkFkcz4KIDwvcmRmOkRlc2NyaXB0aW9uPgoKIDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PScnCiAgeG1sbnM6ZGM9J2h0dHA6Ly9wdXJsLm9yZy9kYy9lbGVtZW50cy8xLjEvJz4KICA8ZGM6dGl0bGU+CiAgIDxyZGY6QWx0PgogICAgPHJkZjpsaSB4bWw6bGFuZz0neC1kZWZhdWx0Jz5VbnRpdGxlZCBkZXNpZ24gLSAxPC9yZGY6bGk+CiAgIDwvcmRmOkFsdD4KICA8L2RjOnRpdGxlPgogPC9yZGY6RGVzY3JpcHRpb24+CgogPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9JycKICB4bWxuczpwZGY9J2h0dHA6Ly9ucy5hZG9iZS5jb20vcGRmLzEuMy8nPgogIDxwZGY6QXV0aG9yPkNoaWNrLWZpbC1BIEJ1ZGE8L3BkZjpBdXRob3I+CiA8L3BkZjpEZXNjcmlwdGlvbj4KCiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0nJwogIHhtbG5zOnhtcD0naHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wLyc+CiAgPHhtcDpDcmVhdG9yVG9vbD5DYW52YSAoUmVuZGVyZXIpIGRvYz1EQUhUVm5YS0FsWSB1c2VyPVVBRkxGeHpWNWpjIGJyYW5kPUNoaWNrLWZpbC1BIEJ1ZGHigJlzIHRlYW08L3htcDpDcmVhdG9yVG9vbD4KIDwvcmRmOkRlc2NyaXB0aW9uPgo8L3JkZjpSREY+CjwveDp4bXBtZXRhPgo8P3hwYWNrZXQgZW5kPSdyJz8+3ZeKEAAAAE5lWElmTU0AKgAAAAgABAEaAAUAAAABAAAAPgEbAAUAAAABAAAARgEoAAMAAAABAAIAAAITAAMAAAABAAEAAAAAAAAAAABgAAAAAQAAAGAAAAABdwXf5wAA9F1JREFUeJzsvXeUXNWd7/v77X1ypa7qnJQzyiAw0YBIwoDJYEw0Dhhje+bO3DBv3bWe3333+t07Yw82zlhmjDEmG4PJGQFCOcdWbnWru9XdVV3xxL1/749qCanVii2EBOezltaC7qpdp06f8z2//YtIRBASEhIScqywz/oAQkJCQk5tQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSIQyGhISEjIkQhkNCQkJGRKhjIaEhIQMiVBGQ0JCQoZEKKMhISEhQyKU0ZCQkJAhEcpoSEhIyJAIZTQkJCRkSPx/Y0FQ6r7QVE0AAAAASUVORK5CYII=" alt="CFA Buda Logo" class="home-logo">
       <div class="home-greeting" id="homeGreeting">Good Morning</div>
       <div class="home-quote" id="homeQuote">Welcome to Chick-fil-A Buda</div>
       <div class="home-quote-author" id="homeQuoteAuthor">— Team</div>
@@ -397,60 +420,38 @@
     </div>
   </div>
 
-  <!-- BOH OE View -->
-  <div class="view" id="bohView">
-    <div class="standup-card">
-      <h3>Food Safety Walkthrough</h3>
-      <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Complete your daily food safety checklist</p>
-      <div class="iframe-wrap" id="iframeContainer" style="display:none;">
-        <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSfNM3MiBZ8pLKwxw5qgjarWCqkb9iicp7bzCN06iPq9lzjhxQ/viewform?embedded=true" height="500" frameborder="0" marginheight="0" marginwidth="0"></iframe>
-      </div>
-      <div id="formFallback" style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;margin-bottom:12px;">
-        <p style="margin:0 0 12px;font-size:13px;color:var(--text-secondary);">Open the form in a new tab to complete your daily checklist</p>
-        <a href="https://docs.google.com/forms/d/e/1FAIpQLSfNM3MiBZ8pLKwxw5qgjarWCqkb9iicp7bzCN06iPq9lzjhxQ/viewform" target="_blank" style="display:inline-block;background:var(--cfa-red);color:white;padding:10px 20px;border-radius:var(--radius);text-decoration:none;font-weight:600;font-size:12px;text-transform:uppercase;">Open Food Safety Form ↗</a>
-      </div>
-      <button id="btnMarkFormDone" class="standup-btn">Mark Complete</button>
+  <!-- Log Waste View -->
+  <div class="view" id="wastelogView">
+    <div class="foh-boh-toggle" id="logToggle">
+      <button type="button" class="toggle-btn active" aria-pressed="true" data-section="foh">FOH <span class="sub"><i>Frente</i></span></button>
+      <button type="button" class="toggle-btn" aria-pressed="false" data-section="boh">BOH <span class="sub"><i>Atrás</i></span></button>
     </div>
-
-    <div class="standup-card">
-      <h3>Today's Waste Target</h3>
-      <div class="stat-row">
-        <div class="stat-card">
-          <div class="label">Daily Total</div>
-          <div class="value" id="standupTotal">$0.00</div>
-        </div>
-        <div class="stat-card">
-          <div class="label">Target</div>
-          <div class="value" id="standupTarget">$100.00</div>
-        </div>
+    <div class="grid" id="grid"></div>
+    <div class="tape-wrap">
+      <div class="tape-head">
+        <span>Recent Entries <span class="sub"><i>Entradas Recientes</i></span></span>
+        <button id="btnExportCsv" style="background:none;border:none;color:var(--cfa-red);cursor:pointer;font-size:11px;text-transform:uppercase;font-weight:600;letter-spacing:0.05em;">Export CSV</button>
       </div>
-      <div id="standupStatus" style="display:none;background:var(--cfa-light);border:1px solid var(--success);border-radius:var(--radius);padding:12px;text-align:center;color:var(--success);font-weight:600;font-size:12px;margin-top:12px;">✓ On track! Under daily target</div>
+      <div class="tape" id="tape"></div>
     </div>
-
-    <div class="standup-card">
-      <h3>Active Streaks</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div class="streak-display">
-          <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;margin-bottom:8px;">Food Safety</div>
-          <div class="streak-number" id="foodSafetyStreakNum">0</div>
-          <div class="streak-label" id="foodSafetyStreakLabel">consecutive days</div>
-        </div>
-        <div class="streak-display">
-          <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;margin-bottom:8px;">Under $100</div>
-          <div class="streak-number" id="wasteStreakNum">0</div>
-          <div class="streak-label" id="wasteStreakLabel">consecutive days</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="tguide-banner">
-      <div class="tguide-banner-title">🎓 Training Guides</div>
-    </div>
-    <div id="bohTrainingGuidesContainer"></div>
   </div>
 
-  <!-- FOH OE View -->
-  <div class="view" id="fohoeView">
+  <!-- Zone Reset View -->
+  <div class="view" id="zoneresetView">
+    <div class="standup-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <h3 style="margin:0;">🎯 Zone Reset</h3>
+        <span class="zone-overall-pct" id="zoneOverallPct">0%</span>
+      </div>
+      <div class="sub" style="margin-bottom:10px;">Pick a daypart to see that transition's reset lists</div>
+      <div class="day-picker" id="zoneDaypartPicker"></div>
+      <div class="zone-btn-row" id="zoneButtonRow"></div>
+      <div class="zone-reset-scoreboard" id="zoneResetScoreboard"></div>
+    </div>
+  </div>
+
+  <!-- OE Walkthrough View -->
+  <div class="view" id="oewalkthroughView">
     <div class="standup-card fohoe-card fohoe-green">
       <h3><span class="fohoe-icon">🎯</span>Operational Excellence Walkthrough</h3>
       <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Complete your daily FOH OE walkthrough</p>
@@ -460,38 +461,10 @@
         <button id="btnMarkFOHOEDone" class="standup-btn" style="width:auto;padding:10px 20px;">Mark Complete</button>
       </div>
     </div>
+  </div>
 
-    <div class="standup-card fohoe-card fohoe-orange">
-      <h3><span class="fohoe-icon">🎯</span>Today's Waste Target</h3>
-      <div class="stat-row">
-        <div class="stat-card">
-          <div class="label">Daily Total</div>
-          <div class="value" id="fohWasteStandupTotal">$0.00</div>
-        </div>
-        <div class="stat-card">
-          <div class="label">Target</div>
-          <div class="value" id="fohWasteStandupTarget">$100.00</div>
-        </div>
-      </div>
-      <div id="fohWasteStandupStatus" style="display:none;background:var(--cfa-light);border:1px solid var(--success);border-radius:var(--radius);padding:12px;text-align:center;color:var(--success);font-weight:600;font-size:12px;margin-top:12px;">✓ On track! Under daily target</div>
-    </div>
-
-    <div class="standup-card fohoe-card fohoe-orange">
-      <h3><span class="fohoe-icon">🔥</span>Active Streaks</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div class="streak-display">
-          <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;margin-bottom:8px;">OE Walkthrough</div>
-          <div class="streak-number" id="fohOEStreakNum">0</div>
-          <div class="streak-label" id="fohOEStreakLabel">consecutive days</div>
-        </div>
-        <div class="streak-display">
-          <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;margin-bottom:8px;">Under $100</div>
-          <div class="streak-number" id="fohWasteStreakNum">0</div>
-          <div class="streak-label" id="fohWasteStreakLabel">consecutive days</div>
-        </div>
-      </div>
-    </div>
-
+  <!-- Leader Transition List View -->
+  <div class="view" id="leadertransitionView">
     <div class="standup-card fohoe-card fohoe-blue">
       <h3><span class="fohoe-icon">🧭</span>Leader Transition List <span class="sub"><i>Lista de Transición — Líderes</i></span></h3>
       <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Complete before handing off to the next leader</p>
@@ -501,18 +474,10 @@
         <button id="btnResetLeaderTransition" class="btn btn-secondary" style="width:auto;padding:10px 20px;">Reset for Next Shift</button>
       </div>
     </div>
+  </div>
 
-    <div class="standup-card fohoe-card fohoe-purple">
-      <h3><span class="fohoe-icon">🔄</span>Position Transition Lists <span class="sub"><i>Lista de Transición — Posiciones</i></span></h3>
-      <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Select a position to complete its handoff checklist</p>
-      <select id="fohPositionSelect" style="width:100%;padding:10px 12px;border-radius:var(--radius);border:2px solid var(--border);font-family:'Inter';font-size:13px;margin-bottom:12px;"></select>
-      <div id="fohPositionTransitionChecklist"></div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;">
-        <div style="font-size:12px;color:var(--text-secondary);" id="fohPositionTransitionProgress">0 / 0 complete</div>
-        <button id="btnResetPositionTransition" class="btn btn-secondary" style="width:auto;padding:10px 20px;">Reset for Next Shift</button>
-      </div>
-    </div>
-
+  <!-- Daily Safe Count View -->
+  <div class="view" id="safecountView">
     <div class="standup-card fohoe-card fohoe-green">
       <h3><span class="fohoe-icon">💵</span>Daily Safe Count <span class="sub"><i>Conteo Diario de Caja Fuerte</i></span></h3>
       <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Count the safe and submit — it posts instantly to the log below</p>
@@ -587,18 +552,66 @@
       <h3><span class="fohoe-icon">📋</span>Safe Count Log <span class="sub"><i>Registro de Conteos</i></span></h3>
       <div id="safeCountLogContainer"></div>
     </div>
+  </div>
 
-    <div class="tguide-banner">
-      <div class="tguide-banner-title">🎓 Training Guides</div>
+  <!-- Food Safety Walkthrough View -->
+  <div class="view" id="foodsafetyView">
+    <div class="standup-card">
+      <h3>Food Safety Walkthrough</h3>
+      <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Complete your daily food safety checklist</p>
+      <div class="iframe-wrap" id="iframeContainer" style="display:none;">
+        <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSfNM3MiBZ8pLKwxw5qgjarWCqkb9iicp7bzCN06iPq9lzjhxQ/viewform?embedded=true" height="500" frameborder="0" marginheight="0" marginwidth="0"></iframe>
+      </div>
+      <div id="formFallback" style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;margin-bottom:12px;">
+        <p style="margin:0 0 12px;font-size:13px;color:var(--text-secondary);">Open the form in a new tab to complete your daily checklist</p>
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLSfNM3MiBZ8pLKwxw5qgjarWCqkb9iicp7bzCN06iPq9lzjhxQ/viewform" target="_blank" style="display:inline-block;background:var(--cfa-red);color:white;padding:10px 20px;border-radius:var(--radius);text-decoration:none;font-weight:600;font-size:12px;text-transform:uppercase;">Open Food Safety Form ↗</a>
+      </div>
+      <button id="btnMarkFormDone" class="standup-btn">Mark Complete</button>
     </div>
-    <div id="fohTrainingGuidesContainer"></div>
   </div>
 
   <!-- Scoreboard View -->
   <div class="view" id="scoreboardView">
     <div style="margin-bottom:20px;">
-      <p style="font-size:13px;color:var(--text-secondary);margin:0;">Combined waste totals across FOH and BOH.</p>
+      <p style="font-size:13px;color:var(--text-secondary);margin:0;">Combined waste totals, streaks, and status across FOH and BOH.</p>
     </div>
+
+    <div class="standup-card">
+      <h3>Today's Waste Target</h3>
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="label">Daily Total</div>
+          <div class="value" id="standupTotal">$0.00</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Target</div>
+          <div class="value" id="standupTarget">$100.00</div>
+        </div>
+      </div>
+      <div id="standupStatus" style="display:none;background:var(--cfa-light);border:1px solid var(--success);border-radius:var(--radius);padding:12px;text-align:center;color:var(--success);font-weight:600;font-size:12px;margin-top:12px;">✓ On track! Under daily target</div>
+    </div>
+
+    <div class="standup-card">
+      <h3>Active Streaks</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+        <div class="streak-display">
+          <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;margin-bottom:8px;">Food Safety</div>
+          <div class="streak-number" id="foodSafetyStreakNum">0</div>
+          <div class="streak-label" id="foodSafetyStreakLabel">consecutive days</div>
+        </div>
+        <div class="streak-display">
+          <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;margin-bottom:8px;">Under Target</div>
+          <div class="streak-number" id="wasteStreakNum">0</div>
+          <div class="streak-label" id="wasteStreakLabel">consecutive days</div>
+        </div>
+        <div class="streak-display">
+          <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;margin-bottom:8px;">OE Walkthrough</div>
+          <div class="streak-number" id="fohOEStreakNum">0</div>
+          <div class="streak-label" id="fohOEStreakLabel">consecutive days</div>
+        </div>
+      </div>
+    </div>
+
     <div class="standup-card">
       <h3>Waste Dashboard</h3>
       <div class="actions-row">
@@ -632,47 +645,6 @@
       <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);font-weight:700;margin:0;">📊 Custom Scoreboards</p>
     </div>
     <div id="customScoreboardContainer"></div>
-  </div>
-
-  <!-- Trainer Trial Tracker View -->
-  <div class="view" id="trainertrialView">
-    <div id="trainerTrialRoot"></div>
-  </div>
-
-  <!-- Daily Tasks View (Log Waste + Zone Reset) -->
-  <div class="view" id="dailytasksView">
-    <div class="foh-boh-toggle" id="dailyTasksToggle">
-      <button type="button" class="toggle-btn active" aria-pressed="true" data-subview="waste">🗑️ Log Waste</button>
-      <button type="button" class="toggle-btn" aria-pressed="false" data-subview="zonereset">🎯 Zone Reset</button>
-    </div>
-
-    <div id="wasteSubpanel">
-      <div class="foh-boh-toggle" id="logToggle">
-        <button type="button" class="toggle-btn active" aria-pressed="true" data-section="foh">FOH <span class="sub"><i>Frente</i></span></button>
-        <button type="button" class="toggle-btn" aria-pressed="false" data-section="boh">BOH <span class="sub"><i>Atrás</i></span></button>
-      </div>
-      <div class="grid" id="grid"></div>
-      <div class="tape-wrap">
-        <div class="tape-head">
-          <span>Recent Entries <span class="sub"><i>Entradas Recientes</i></span></span>
-          <button id="btnExportCsv" style="background:none;border:none;color:var(--cfa-red);cursor:pointer;font-size:11px;text-transform:uppercase;font-weight:600;letter-spacing:0.05em;">Export CSV</button>
-        </div>
-        <div class="tape" id="tape"></div>
-      </div>
-    </div>
-
-    <div id="zoneResetSubpanel" style="display:none;">
-      <div class="standup-card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-          <h3 style="margin:0;">🎯 Zone Reset</h3>
-          <span class="zone-overall-pct" id="zoneOverallPct">0%</span>
-        </div>
-        <div class="sub" style="margin-bottom:10px;">Pick a daypart to see that transition's reset lists</div>
-        <div class="day-picker" id="zoneDaypartPicker"></div>
-        <div class="zone-btn-row" id="zoneButtonRow"></div>
-        <div class="zone-reset-scoreboard" id="zoneResetScoreboard"></div>
-      </div>
-    </div>
   </div>
 
   <!-- Manage View -->
@@ -812,7 +784,7 @@
 
       <div class="standup-card">
         <h3>📊 Custom Scoreboards & Trackers</h3>
-        <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Add scoreboards, dashboards, or trackers to show under Excellence → Scoreboard</p>
+        <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Add scoreboards, dashboards, or trackers to show under Experience → Scoreboard</p>
         <div id="scoreboardManageList" style="margin-bottom:16px;"></div>
         <button id="btnAddScoreboardItem" class="btn btn-secondary" style="margin-bottom:12px;">+ Add Scoreboard</button>
         <button id="btnSaveScoreboard" class="btn btn-primary">Save Scoreboard</button>
