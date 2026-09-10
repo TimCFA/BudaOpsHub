@@ -2,15 +2,17 @@ function activateView(view){
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
   document.getElementById(view+'View').classList.add('active');
   if(view === 'positions') renderPositionsTab();
-  if(view === 'dailytasks') renderDailyTasksTab();
-  if(view === 'boh') renderStandup();
+  if(view === 'wastelog'){ renderGrid(); renderTape(); }
+  if(view === 'zonereset') renderZoneResetView();
+  if(view === 'oewalkthrough') renderOEWalkthrough();
+  if(view === 'leadertransition') renderLeaderTransition();
+  if(view === 'safecount') renderSafeCount();
+  if(view === 'foodsafety') renderFoodSafety();
   if(view === 'scoreboard'){ renderScoreboardView(); renderCustomScoreboards(); }
   if(view === 'lx') renderLXScoreboard();
   if(view === 'gx') renderGXScoreboard();
-  if(view === 'tx') renderTXScoreboard();
+  if(view === 'tx'){ renderTXScoreboard(); renderTrainerTrial(); }
   if(view === 'home') renderHomeScoreboard();
-  if(view === 'fohoe') renderFOHOE();
-  if(view === 'trainertrial') renderTrainerTrial();
 }
 
 function clearActiveTabs(){
