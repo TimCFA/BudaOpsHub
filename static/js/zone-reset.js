@@ -82,13 +82,16 @@ function renderZoneChecklistModal(){
   document.getElementById('zcTaskModalTitle').textContent = (ZONE_ICONS[zoneName] || '') + ' ' + zoneName;
   document.getElementById('zcTaskModalProgress').textContent = `${checked}/${total} complete • ${currentZoneDaypart} • ${formatVerboseDate(today)}`;
   document.getElementById('zcTaskModalList').innerHTML = items.map(item=>{
-    const isChecked = !!state[item];
+    const entry = state[item];
+    const isChecked = !!entry;
     const escapedItem = item.replace(/'/g, "\\'");
     const escapedZone = zoneName.replace(/'/g, "\\'");
+    const stamp = isChecked ? `<span style="font-size:10px;color:var(--text-tertiary);font-style:italic;white-space:nowrap;">${escapeHtml(entry.initials)} · ${formatShortTime(entry.ts)}</span>` : '';
     return `
       <label style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--border);cursor:pointer;">
         <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleChecklistItem('${escapedZone}','${escapedItem}')" style="width:18px;height:18px;flex-shrink:0;">
-        <span style="${isChecked ? 'text-decoration:line-through;color:var(--text-tertiary);' : ''}font-size:13px;">${item}</span>
+        <span style="${isChecked ? 'text-decoration:line-through;color:var(--text-tertiary);' : ''}font-size:13px;flex:1;">${item}</span>
+        ${stamp}
       </label>
     `;
   }).join('');
@@ -100,7 +103,19 @@ window.toggleChecklistItem = async function(zoneName, itemText){
   if(!zoneChecklistState[today]) zoneChecklistState[today] = {};
   if(!zoneChecklistState[today][daypart]) zoneChecklistState[today][daypart] = {};
   if(!zoneChecklistState[today][daypart][zoneName]) zoneChecklistState[today][daypart][zoneName] = {};
-  zoneChecklistState[today][daypart][zoneName][itemText] = !zoneChecklistState[today][daypart][zoneName][itemText];
+  const bucket = zoneChecklistState[today][daypart][zoneName];
+  if(bucket[itemText]){
+    delete bucket[itemText];
+  } else {
+    const initials = getInitials();
+    if(!initials){
+      showToast('Set your initials first (top right)');
+      beginEditInitials();
+      renderZoneChecklistModal();
+      return;
+    }
+    bucket[itemText] = {initials, ts: Date.now()};
+  }
   recomputeChecklistHistory(today);
   await saveState();
   renderZoneChecklistModal();
@@ -151,22 +166,11 @@ function renderZoneResetScoreboard(){
   `).join('');
 }
 
-function renderDailyTasksTab(){
+function renderZoneResetView(){
   renderZoneDaypartPicker();
   renderZoneResetCard();
   renderZoneResetScoreboard();
 }
-
-document.querySelectorAll('#dailyTasksToggle .toggle-btn').forEach(t=>{
-  t.addEventListener('click', ()=>{
-    document.querySelectorAll('#dailyTasksToggle .toggle-btn').forEach(x=>{x.classList.remove('active'); x.setAttribute('aria-pressed', 'false');});
-    t.classList.add('active');
-    t.setAttribute('aria-pressed', 'true');
-    const sub = t.dataset.subview;
-    document.getElementById('wasteSubpanel').style.display = sub === 'waste' ? 'block' : 'none';
-    document.getElementById('zoneResetSubpanel').style.display = sub === 'zonereset' ? 'block' : 'none';
-  });
-});
 
 document.getElementById('zcTaskModalClose').addEventListener('click', ()=>{
   document.getElementById('zoneChecklistTaskModal').classList.remove('active');
@@ -302,24 +306,12 @@ const fohLeaderTransitionItems = [
   'Review upcoming reservations / large orders'
 ];
 
-const fohPositionTransitionItems = {
-  'Front Counter': ['Register balanced', 'Counter area clean and stocked', 'Guest queue clear', 'Handoff open orders to next FC'],
-  'Drive Thru': ['Headset handed off', 'Timer reset', 'Bagging station stocked', 'Lane clear of trash'],
-  'Kitchen Support / OMD': ['Expo station clean', 'Order marker area stocked', 'Handoff open tickets'],
-  'Drinks / Beverage': ['Beverage station stocked', 'Ice bins full', 'Lemonade fresh and stocked'],
-  'Dining Room / Host': ['Tables wiped', 'Trash emptied', 'High chairs cleaned', 'Condiments restocked'],
-  'Bagging': ['Bagging station stocked', 'Sauces stocked', 'Bags/trays refilled']
-};
-
 let fohOEDays = [];
 let fohOEStreak = 0;
 let fohOEChecked = {};
 let fohOECheckedDate = null;
 let fohLeaderTransitionChecked = {};
 let fohLeaderTransitionDate = null;
-let currentFOHPosition = Object.keys(fohPositionTransitionItems)[0];
-let fohPositionTransitionChecked = {};
-let fohPositionTransitionDate = null;
 
 // REMARKable Opportunities Growth Track & EOI Forms
 const growthTrack = [
@@ -387,7 +379,7 @@ let currentPosSection = 'foh';
 let breakCountdowns = {};
 let completedBreaks = {}; // persisted: marks a break as done, whether by timer expiry or manual completion
 let activeCountdownTimers = {}; // runtime-only: interval IDs, never persisted
-let zoneChecklistState = {}; // persisted: zoneChecklistState[dateISO][zoneName][itemText] = true (only today's date is ever written to)
+let zoneChecklistState = {}; // persisted: zoneChecklistState[dateISO][zoneName][itemText] = {initials, ts} (only today's date is ever written to)
 let zoneChecklistHistory = {}; // persisted: zoneChecklistHistory[dateISO] = {overall: pct, zones: {zoneName: pct}} — kept longer than the raw state, for the scoreboard
 let numbersData = {}; // persisted: numbersData[dateISO][daypartName] = {projectedSales, productivityGoal, specialEvents}
 let lastUpdated = {}; // persisted: lastUpdated[dateISO] = timestamp (ms) of last roster/positions/numbers edit
@@ -573,4 +565,3 @@ const defaultHomeData = {
 };
 
 let homeData = JSON.parse(JSON.stringify(defaultHomeData));
-
