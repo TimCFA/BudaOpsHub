@@ -7,7 +7,6 @@ function renderFOHOE(){
   // reset checklists if date rolled over
   if(fohOECheckedDate !== today){ fohOEChecked = {}; fohOECheckedDate = today; }
   if(fohLeaderTransitionDate !== today){ fohLeaderTransitionChecked = {}; fohLeaderTransitionDate = today; }
-  if(fohPositionTransitionDate !== today){ fohPositionTransitionChecked = {}; fohPositionTransitionDate = today; }
 
   // OE Walkthrough checklist
   const oeContainer = document.getElementById('fohOEChecklist');
@@ -56,33 +55,6 @@ function renderFOHOE(){
     </div>`;
   }).join('');
   document.getElementById('fohLeaderTransitionProgress').textContent = `${lDone} / ${fohLeaderTransitionItems.length} complete`;
-
-  // Position transition select + checklist
-  const posSelect = document.getElementById('fohPositionSelect');
-  if(posSelect.options.length === 0){
-    posSelect.innerHTML = Object.keys(fohPositionTransitionItems).map(p=>`<option value="${p}">${p}</option>`).join('');
-    posSelect.value = currentFOHPosition;
-  }
-  renderFOHPositionTransition();
-}
-
-function renderFOHPositionTransition(){
-  const items = fohPositionTransitionItems[currentFOHPosition] || [];
-  const container = document.getElementById('fohPositionTransitionChecklist');
-  const posChecked = fohPositionTransitionChecked[currentFOHPosition] || {};
-  let pDone = 0;
-  container.innerHTML = items.map((item,i)=>{
-    const entry = posChecked[i];
-    const checked = !!entry;
-    if(checked) pDone++;
-    const stamp = checked ? `<span style="font-size:10px;color:var(--text-tertiary);font-style:italic;margin-left:auto;white-space:nowrap;">${escapeHtml(entry.initials)} · ${formatShortTime(entry.ts)}</span>` : '';
-    return `<div class="checklist-item ${checked?'checked':''}" data-pidx="${i}">
-      <input type="checkbox" ${checked?'checked':''}>
-      <span>${item}</span>
-      ${stamp}
-    </div>`;
-  }).join('');
-  document.getElementById('fohPositionTransitionProgress').textContent = `${pDone} / ${items.length} complete`;
 }
 
 document.getElementById('fohOEChecklist').addEventListener('click', async (e)=>{
@@ -133,37 +105,6 @@ document.getElementById('btnResetLeaderTransition').addEventListener('click', as
   await saveState();
   renderFOHOE();
   showToast('✓ Leader Transition List Reset');
-});
-
-document.getElementById('fohPositionSelect').addEventListener('change', (e)=>{
-  currentFOHPosition = e.target.value;
-  renderFOHPositionTransition();
-});
-
-document.getElementById('fohPositionTransitionChecklist').addEventListener('click', async (e)=>{
-  const row = e.target.closest('.checklist-item');
-  if(!row) return;
-  const idx = row.dataset.pidx;
-  if(!fohPositionTransitionChecked[currentFOHPosition]) fohPositionTransitionChecked[currentFOHPosition] = {};
-  const bucket = fohPositionTransitionChecked[currentFOHPosition];
-  if(bucket[idx]){
-    delete bucket[idx];
-  } else {
-    const initials = getInitials();
-    if(!initials){ showToast('Set your initials first (top right)'); beginEditInitials(); return; }
-    bucket[idx] = {initials, ts: Date.now()};
-  }
-  fohPositionTransitionDate = today;
-  await saveState();
-  renderFOHPositionTransition();
-});
-
-document.getElementById('btnResetPositionTransition').addEventListener('click', async ()=>{
-  fohPositionTransitionChecked[currentFOHPosition] = {};
-  fohPositionTransitionDate = today;
-  await saveState();
-  renderFOHPositionTransition();
-  showToast('✓ Position Transition List Reset');
 });
 
 // ===== Ported from Kianna's version: DAILY SAFE COUNT =====
