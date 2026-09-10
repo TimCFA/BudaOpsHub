@@ -39,7 +39,6 @@ async function saveState(){
     fohRoster, bohRoster, lxPillars, lxMetrics, lxLastUpdated, gxData, txData, homeData,
     fohOEDays, fohOEChecked, fohOECheckedDate,
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
-    fohPositionTransitionChecked, fohPositionTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeTarget, safeCounts, trainerTrainees, trainerProgress, scoreboardItems
   };
@@ -61,7 +60,6 @@ function exportBackup(){
     fohRoster, bohRoster, lxPillars, lxMetrics, lxLastUpdated, gxData, txData, homeData,
     fohOEDays, fohOEChecked, fohOECheckedDate,
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
-    fohPositionTransitionChecked, fohPositionTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeTarget, safeCounts, trainerTrainees, trainerProgress, scoreboardItems
   };
@@ -127,8 +125,6 @@ async function loadState(){
     fohOEDays = data.fohOEDays || [];
     fohOECheckedDate = data.fohOECheckedDate || null;
     fohOEChecked = (fohOECheckedDate === today) ? (data.fohOEChecked || {}) : {};
-    fohLeaderTransitionDate = data.fohLeaderTransitionDate || null;
-    fohLeaderTransitionChecked = (fohLeaderTransitionDate === today) ? (data.fohLeaderTransitionChecked || {}) : {};
     fohPositionTransitionDate = data.fohPositionTransitionDate || null;
     fohPositionTransitionChecked = (fohPositionTransitionDate === today) ? (data.fohPositionTransitionChecked || {}) : {};
     eoiSubmissions = data.eoiSubmissions || [];
