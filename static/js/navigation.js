@@ -72,9 +72,9 @@ document.addEventListener('click', (e)=>{
 
 window.addEventListener('scroll', closeAllTabDropdowns, true);
 
-document.querySelectorAll('.toggle-btn').forEach(t=>{
+document.querySelectorAll('#logToggle .toggle-btn').forEach(t=>{
   t.addEventListener('click',()=>{
-    document.querySelectorAll('.toggle-btn').forEach(x=>{x.classList.remove('active'); x.setAttribute('aria-pressed', 'false');});
+    document.querySelectorAll('#logToggle .toggle-btn').forEach(x=>{x.classList.remove('active'); x.setAttribute('aria-pressed', 'false');});
     t.classList.add('active');
     t.setAttribute('aria-pressed', 'true');
     currentSection = t.dataset.section;
@@ -83,3 +83,4 @@ document.querySelectorAll('.toggle-btn').forEach(t=>{
     renderScoreboardView();
   });
 });
+
