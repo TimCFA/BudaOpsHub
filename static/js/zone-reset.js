@@ -384,6 +384,7 @@ let zoneChecklistHistory = {}; // persisted: zoneChecklistHistory[dateISO] = {ov
 let numbersData = {}; // persisted: numbersData[dateISO][daypartName] = {projectedSales, productivityGoal, specialEvents}
 let lastUpdated = {}; // persisted: lastUpdated[dateISO] = timestamp (ms) of last roster/positions/numbers edit
 let posAssignments = {};
+let posVacancyFlags = {}; // persisted: posVacancyFlags[key] = {flaggedBy, flaggedAt} — same key shape as posAssignments, marks an assigned position as needing coverage
 
 // LX SCOREBOARD DATA
 const defaultPillars = [
