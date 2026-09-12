@@ -81,7 +81,7 @@ function getSetupsWeekDays(offsetWeeks){
 
 function pickDefaultSetupsDay(days, previousValue){
   if(days.some(d => d.date === previousValue)) return previousValue;
-  if(setupsWeekOffset !== 0) return '';
+  if(setupsWeekOffset !== 0) return days.length ? days[0].date : '';
   if(days.some(d => d.date === today)) return today;
   // On a Sunday, "This Week" already rolls forward to the upcoming Mon-Sat block, so
   // today itself won't appear in the list — default to the first day (Monday) instead
