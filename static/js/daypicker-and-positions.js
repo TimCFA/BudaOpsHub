@@ -7,7 +7,7 @@ function renderDayPicker(pickerId, selectId, offsetWeeks, onSelect){
   
   let targetValue = stillValid ? previousValue : '';
   if(!targetValue && offsetWeeks === 0 && days.some(d => d.date === today)){
-    targetValue = today; // default to today's set up instead of leaving the page blank
+    targetValue = today;
   }
   
   picker.innerHTML = days.map(d=>`<div class="day-pill ${d.date === targetValue ? 'active' : ''}" data-date="${d.date}">${d.label}</div>`).join('');
@@ -51,35 +51,76 @@ document.querySelectorAll('.week-toggle-btn').forEach(btn=>{
   });
 });
 
-// Set Ups shows a rolling window of 6 open days (Sundays always skipped, since the
-// store is always closed) starting from an anchor date nudged by the arrows
-let rollingAnchorDate = new Date();
+// ===== SET UPS WEEK NAVIGATION =====
+// True Monday-Saturday week (not a rolling window). "This Week"/"Next Week" cover
+// the obvious two; the left arrow steps further back one week at a time, and once
+// you're not on This/Next Week anymore, the arrow itself expands to show the actual
+// date range you're viewing (e.g. "‹ 8/24-8/29") so you always know where you are.
+let setupsWeekOffset = 0;
 
-function getRollingWindowDays(anchorDate){
-  const days = [];
-  for(let i = 0; i < 7; i++){
-    const d = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), anchorDate.getDate() + i);
-    if(d.getDay() === 0) continue; // always closed Sundays
-    days.push({
-      date: toLocalISODate(d),
-      weekday: d.toLocaleDateString('en-US', {weekday: 'long'}),
-      label: d.toLocaleDateString('en-US', {weekday: 'short'}) + ' ' + d.toLocaleDateString('en-US', {month: 'numeric', day: 'numeric'})
-    });
-  }
-  return days; // always exactly 6, since any 7 consecutive days contain exactly one Sunday
+// Mirrors getWeekStartDate, but treats Sunday as the day BEFORE the upcoming work
+// week rather than the last day of the week that just ended. The store is closed
+// Sundays, so a leader checking Set Ups on a Sunday almost always wants to see the
+// upcoming Monday's lineup, not a stale view of the week that already wrapped up.
+function getSetupsWeekStartDate(offsetWeeks){
+  const now = new Date();
+  const dow = now.getDay(); // 0=Sun..6=Sat
+  const diffToMonday = (dow === 0) ? 1 : (1 - dow);
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday + offsetWeeks * 7);
 }
 
-function renderRollingDayPicker(onSelect){
-  const days = getRollingWindowDays(rollingAnchorDate);
+function getSetupsWeekDays(offsetWeeks){
+  const monday = getSetupsWeekStartDate(offsetWeeks);
+  return WEEKDAY_NAMES.map((name, i)=>{
+    const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+    const iso = toLocalISODate(d);
+    const shortDate = d.toLocaleDateString('en-US', {month: 'numeric', day: 'numeric'});
+    return {weekday: name, date: iso, label: name.slice(0, 3) + ' ' + shortDate};
+  });
+}
+
+function pickDefaultSetupsDay(days, previousValue){
+  if(days.some(d => d.date === previousValue)) return previousValue;
+  if(setupsWeekOffset !== 0) return '';
+  if(days.some(d => d.date === today)) return today;
+  // On a Sunday, "This Week" already rolls forward to the upcoming Mon-Sat block, so
+  // today itself won't appear in the list — default to the first day (Monday) instead
+  // of leaving the tab blank.
+  return days.length ? days[0].date : '';
+}
+
+function formatWeekRangeLabel(days){
+  const fmt = iso => {
+    const d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString('en-US', {month: 'numeric', day: 'numeric'});
+  };
+  return fmt(days[0].date) + '-' + fmt(days[days.length - 1].date);
+}
+
+// Once you've scrolled back past This Week/Next Week, neither toggle button is a
+// meaningful label for where you are anymore — so the arrow itself grows into a small
+// button showing the date range currently in view, and stays clickable to keep going
+// back. Snapping back to "This Week" collapses it to an arrow again.
+function updateSetupsPrevBtn(days){
+  const btn = document.getElementById('setupsPrevWeekBtn');
+  if(setupsWeekOffset === 0 || setupsWeekOffset === 1){
+    btn.className = 'rolling-arrow';
+    btn.textContent = '‹';
+    btn.title = 'Previous week';
+  } else {
+    btn.className = 'rolling-arrow-expanded';
+    btn.textContent = '‹ ' + formatWeekRangeLabel(days);
+    btn.title = 'Go back another week';
+  }
+}
+
+function renderSetupsDayPicker(onSelect){
+  const days = getSetupsWeekDays(setupsWeekOffset);
   const picker = document.getElementById('dayPicker');
   const select = document.getElementById('daySelect');
-  const previousValue = select.value;
-  const stillValid = days.some(d => d.date === previousValue);
+  const targetValue = pickDefaultSetupsDay(days, select.value);
   
-  let targetValue = stillValid ? previousValue : '';
-  if(!targetValue && days.some(d => d.date === today)){
-    targetValue = today; // default to today's set up instead of leaving the page blank
-  }
+  updateSetupsPrevBtn(days);
   
   picker.innerHTML = days.map(d=>`<div class="day-pill ${d.date === targetValue ? 'active' : ''}" data-date="${d.date}">${d.label}</div>`).join('');
   select.innerHTML = '<option value="">Choose a day</option>' + days.map(d=>`<option value="${d.date}">${d.weekday}</option>`).join('');
@@ -95,15 +136,29 @@ function renderRollingDayPicker(onSelect){
   });
 }
 
-function shiftRollingWindow(deltaDays){
-  rollingAnchorDate.setDate(rollingAnchorDate.getDate() + deltaDays);
-  renderRollingDayPicker(()=>{ renderAllDayparts(); updateSelectedDayInfo('daySelect', 'daySelectedInfo'); });
+function setSetupsWeekOffset(offset){
+  setupsWeekOffset = offset;
+  document.querySelectorAll('#setupsWeekToggle .su-week-toggle-btn').forEach(b=>{
+    const isActive = parseInt(b.dataset.offset, 10) === offset;
+    b.classList.toggle('active', isActive);
+    b.setAttribute('aria-pressed', String(isActive));
+  });
+  renderSetupsDayPicker(()=>{ renderAllDayparts(); updateSelectedDayInfo('daySelect', 'daySelectedInfo'); });
   renderAllDayparts();
   updateSelectedDayInfo('daySelect', 'daySelectedInfo');
 }
 
-document.getElementById('rollingPrevBtn').addEventListener('click', ()=> shiftRollingWindow(-1));
-document.getElementById('rollingNextBtn').addEventListener('click', ()=> shiftRollingWindow(1));
+document.querySelectorAll('#setupsWeekToggle .su-week-toggle-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    setSetupsWeekOffset(parseInt(btn.dataset.offset, 10));
+  });
+});
+
+// Deliberately just an arrow, not a third toggle button — looking at a past week's
+// set up is rare, so it doesn't need equal visual billing with This Week / Next Week.
+document.getElementById('setupsPrevWeekBtn').addEventListener('click', ()=>{
+  setSetupsWeekOffset(setupsWeekOffset - 1);
+});
 
 let expandedDayparts = new Set(); // runtime-only UI state, not persisted
 
@@ -130,12 +185,28 @@ function daypartTimeWindow(dayparts, index){
   const startMin = parseDaypartTimeToMinutes(dayparts[index].time);
   const endMin = (index + 1 < dayparts.length)
     ? parseDaypartTimeToMinutes(dayparts[index + 1].time)
-    : startMin + 120; // last daypart of the day: assume a 2-hour block
+    : startMin + 120;
   return {startMin, endMin};
 }
 
+// How many people currently on the day's roster (for the active FOH/BOH section)
+// have a shift overlapping this daypart's time window — regardless of whether
+// they've actually been assigned to a position yet. Lets a leader see at a glance
+// how many hands they have to work with before opening any assignment menu.
+function countEligibleForDaypart(dayName, dpIndex, dayparts){
+  const roster = currentPosSection === 'foh' ? fohRoster : bohRoster;
+  const dayRoster = roster[dayName] || [];
+  const {startMin, endMin} = daypartTimeWindow(dayparts, dpIndex);
+  return dayRoster.filter(p=>{
+    const s = parseShiftTimeToMinutes(p.start);
+    const e = parseShiftTimeToMinutes(p.end);
+    if(s === null || e === null) return true;
+    return s < endMin && e > startMin;
+  }).length;
+}
+
 function renderPositionsTab(){
-  renderRollingDayPicker(()=>{ renderAllDayparts(); updateSelectedDayInfo('daySelect', 'daySelectedInfo'); });
+  renderSetupsDayPicker(()=>{ renderAllDayparts(); updateSelectedDayInfo('daySelect', 'daySelectedInfo'); });
   renderAllDayparts();
   updateSelectedDayInfo('daySelect', 'daySelectedInfo');
 }
@@ -155,13 +226,14 @@ function renderAllDayparts(){
   const posMap = currentPosSection === 'foh' ? fohPositions : bohPositions;
   
   let html = '';
-  dayparts.forEach(dp=>{
+  dayparts.forEach((dp, dpIndex)=>{
     const positions = posMap[dp.name] || [];
     const isExpanded = expandedDayparts.has(dp.name);
     const filledCount = positions.filter(pos=>{
       const key = currentPosSection + '||' + dayName + '||' + dp.name + '||' + pos;
       return !!posAssignments[key];
     }).length;
+    const eligibleCount = countEligibleForDaypart(dayName, dpIndex, dayparts);
     
     html += `
       <div class="daypart-card ${isExpanded ? 'expanded' : ''}">
@@ -169,6 +241,7 @@ function renderAllDayparts(){
           <div class="daypart-title">
             <span class="daypart-name">${dp.name}</span>
             <span class="daypart-fill ${filledCount === positions.length ? 'full' : ''}">${filledCount}/${positions.length} filled</span>
+            <span class="daypart-eligible">${eligibleCount} eligible</span>
           </div>
           <span class="chevron">▾</span>
         </div>
@@ -216,7 +289,7 @@ window.toggleDaypart = function(dpName){
 let currentPosKey = '';
 let currentPosName = '';
 
-let pendingPosSelection = ''; // tracks the tapped row in the custom option list, read by btnAssignPos
+let pendingPosSelection = '';
 
 window.openPosModal = function(key, pos, daypart){
   currentPosKey = key;
@@ -227,7 +300,7 @@ window.openPosModal = function(key, pos, daypart){
   
   const dayName = document.getElementById('daySelect').value;
   const roster = currentPosSection === 'foh' ? fohRoster : bohRoster;
-  const dayRoster = roster[dayName] || []; // scoped to the selected day only, not the whole week
+  const dayRoster = roster[dayName] || [];
   
   const dayparts = currentPosSection === 'foh' ? fohDayparts : bohDayparts;
   const dpIndex = dayparts.findIndex(d => d.name === daypart);
@@ -238,13 +311,11 @@ window.openPosModal = function(key, pos, daypart){
     eligible = dayRoster.filter(p=>{
       const s = parseShiftTimeToMinutes(p.start);
       const e = parseShiftTimeToMinutes(p.end);
-      if(s === null || e === null) return true; // if we can't parse their shift, don't hide them
-      return s < endMin && e > startMin; // shift overlaps this daypart's window
+      if(s === null || e === null) return true;
+      return s < endMin && e > startMin;
     });
   }
   
-  // Exclude anyone already placed in a DIFFERENT position within this same daypart,
-  // so a name disappears from the list the moment it's used elsewhere for this daypart
   const daypartPrefix = currentPosSection + '||' + dayName + '||' + daypart + '||';
   const takenElsewhere = new Set();
   Object.keys(posAssignments).forEach(k=>{
@@ -254,15 +325,13 @@ window.openPosModal = function(key, pos, daypart){
   });
   eligible = eligible.filter(p => !takenElsewhere.has(p.name));
   
-  // Always keep the currently-assigned person visible even if their shift doesn't
-  // technically overlap, so an existing assignment never silently vanishes from view
   const currentlyAssigned = posAssignments[key];
   if(currentlyAssigned && !eligible.some(p=>p.name === currentlyAssigned)){
     eligible = [{name: currentlyAssigned, offShift: true}, ...eligible];
   }
   
   pendingPosSelection = currentlyAssigned || '';
-  window.currentPosModalEligible = eligible; // stashed for the search filter to re-render against
+  window.currentPosModalEligible = eligible;
   renderPosOptionList(eligible);
   
   document.getElementById('posModal').classList.add('active');
@@ -363,7 +432,7 @@ function renderRoster(){
     return `
       <div class="roster-item">
         <button class="roster-remove" onclick="removeFromRoster('${escapedName}')" title="Remove from today's roster">✕</button>
-        <div class="roster-name">${person.name}${customBadge}${(isCompleted && !onBreak) ? '<span class="break-complete-badge">✓ Break Complete</span>' : ''}</div>
+        <div class="roster-name">${person.name}${customBadge}${(isCompleted && !onBreak) ? `<button class="break-complete-badge" onclick="undoBreakComplete('${escapedName}')" title="Tap to undo">✓ Break Complete ↺</button>` : ''}</div>
         <div class="roster-time">${person.start} - ${person.end}</div>
         ${onBreak ? `
           <div class="countdown" id="timer-${person.name}">${mins}:${secs<10?'0':''}${secs}</div>
@@ -496,7 +565,7 @@ window.toggleBreak = async function(name){
       delete activeCountdownTimers[name];
     }
   } else {
-    breakCountdowns[key] = Date.now() + (30 * 60 * 1000); // absolute end-time, survives refresh
+    breakCountdowns[key] = Date.now() + (30 * 60 * 1000);
   }
   await saveState();
   renderRoster();
@@ -513,6 +582,17 @@ window.completeBreakNow = async function(name){
   await saveState();
   renderRoster();
   showToast('✓ Break marked complete');
+};
+
+// Lets a leader undo a break-complete mark made by mistake — e.g. clicked too early,
+// or clicked for the wrong person. Does not restart the countdown; the person just
+// goes back to a plain "Start Break" state, as if the break hadn't been touched yet.
+window.undoBreakComplete = async function(name){
+  const key = name + today;
+  delete completedBreaks[key];
+  await saveState();
+  renderRoster();
+  showToast('✓ Break status reset');
 };
 
 function startCountdown(name){
@@ -614,9 +694,6 @@ window.formatAndUpdateCurrency = async function(inputEl, dayName, dpName, field)
   await updateNumbersField(dayName, dpName, field, formatted);
 };
 
-// Looks up the Numbers entry for a given daypart, whether it's a FOH daypart (exact name
-// match, since Numbers is entered against the FOH list) or a BOH daypart (matched by
-// whichever start time overlaps, since BOH's daypart names/boundaries differ from FOH's)
 function getNumbersForDaypart(dayName, dp){
   const dayNums = numbersData[dayName];
   if(!dayNums) return null;
