@@ -71,8 +71,6 @@ function getSetupsWeekDays(offsetWeeks){
   });
 }
 
-// Fixed: "Next Week" (and any further-back week) now defaults to Monday instead of
-// leaving the tab blank — previously only offset 0 ("This Week") had a default.
 function pickDefaultSetupsDay(days, previousValue){
   if(days.some(d => d.date === previousValue)) return previousValue;
   if(setupsWeekOffset !== 0) return days.length ? days[0].date : '';
@@ -244,9 +242,11 @@ function renderAllDayparts(){
               const assigned = posAssignments[key] || '';
               const flag = posVacancyFlags[key];
               const escapedKey = key.replace(/'/g, "\\'");
+              const escapedPos = pos.replace(/'/g, "\\'");
+              const escapedDp = dp.name.replace(/'/g, "\\'");
               return `
-                <div class="pos-tile ${assigned ? 'assigned' : ''} ${flag ? 'vacancy-flagged' : ''}" onclick="openPosModal('${key}', '${pos.replace(/'/g, "\\'")}', '${dp.name.replace(/'/g, "\\'")}')">
-                  ${assigned ? `<button class="pos-flag-btn" onclick="event.stopPropagation(); toggleVacancyFlag('${escapedKey}')" title="${flag ? 'Resolve — coverage found' : 'Flag: needs coverage'}">${flag ? '✕' : '🚩'}</button>` : ''}
+                <div class="pos-tile ${assigned ? 'assigned' : ''} ${flag ? 'vacancy-flagged' : ''}" onclick="openPosModal('${key}', '${escapedPos}', '${escapedDp}')">
+                  ${assigned ? `<button class="pos-flag-btn ${flag ? 'flagged' : ''}" onclick="event.stopPropagation(); openVacancyModal('${escapedKey}', '${escapedPos}', '${escapedDp}')" title="${flag ? 'Needs coverage — tap to resolve' : 'Flag: find coverage'}">${flag ? '⚠️' : '🚩'}</button>` : ''}
                   <div>
                     <div class="pos-name">${pos}</div>
                     ${assigned ? `<div class="pos-assigned-name">${assigned}</div>` : '<div class="pos-empty">Tap to assign</div>'}
@@ -269,25 +269,6 @@ window.toggleDaypart = function(dpName){
   if(expandedDayparts.has(dpName)) expandedDayparts.delete(dpName);
   else expandedDayparts.add(dpName);
   renderAllDayparts();
-};
-
-// Manual flag for an unplanned mid-shift departure. Tapping again before a
-// reassignment happens acts as an undo. Assigning a new person to the position
-// (see btnAssignPos below) always auto-clears this flag.
-window.toggleVacancyFlag = async function(key){
-  if(posVacancyFlags[key]){
-    delete posVacancyFlags[key];
-    await saveState();
-    renderAllDayparts();
-    showToast('✓ Marked as resolved');
-  } else {
-    const initials = getInitials();
-    if(!initials){ showToast('Set your initials first (top right)'); beginEditInitials(); return; }
-    posVacancyFlags[key] = {flaggedBy: initials, flaggedAt: Date.now()};
-    await saveState();
-    renderAllDayparts();
-    showToast('🚨 Flagged — needs coverage');
-  }
 };
 
 let currentPosKey = '';
@@ -320,11 +301,14 @@ window.openPosModal = function(key, pos, daypart){
     });
   }
   
+  // Exclusive assignment: exclude anyone already placed in a DIFFERENT position
+  // within this same daypart. (The "Find Coverage" split flow deliberately does
+  // NOT apply this filter — see openVacancyModal below.)
   const daypartPrefix = currentPosSection + '||' + dayName + '||' + daypart + '||';
   const takenElsewhere = new Set();
   Object.keys(posAssignments).forEach(k=>{
     if(k !== key && k.startsWith(daypartPrefix) && posAssignments[k]){
-      takenElsewhere.add(posAssignments[k]);
+      posAssignments[k].split('/').forEach(n => takenElsewhere.add(n.trim()));
     }
   });
   eligible = eligible.filter(p => !takenElsewhere.has(p.name));
@@ -393,9 +377,10 @@ document.getElementById('btnAssignPos').addEventListener('click', async ()=>{
   const selected = pendingPosSelection;
   if(selected){
     posAssignments[currentPosKey] = selected;
-    delete posVacancyFlags[currentPosKey]; // assigning someone new always resolves a "needs coverage" flag
+    delete posVacancyFlags[currentPosKey];
   } else {
     delete posAssignments[currentPosKey];
+    delete posVacancyFlags[currentPosKey];
   }
   const keyDate = currentPosKey.split('||')[1];
   touchLastUpdated(keyDate);
@@ -404,6 +389,137 @@ document.getElementById('btnAssignPos').addEventListener('click', async ()=>{
   updateSelectedDayInfo('daySelect', 'daySelectedInfo');
   document.getElementById('posModal').classList.remove('active');
   showToast('✓ Assignment Saved!');
+});
+
+// ===== FIND COVERAGE (split assignment) =====
+// Distinct from the standard assign flow above: this list is NOT restricted to
+// people who aren't already assigned elsewhere this daypart — someone covering
+// a gap may well already be working another position. Picking a name appends
+// it to the current assignment as "ExistingName/NewName" rather than replacing it.
+let currentVacancyKey = '';
+let currentVacancyPos = '';
+let currentVacancyDaypart = '';
+let pendingVacancySelection = '';
+
+window.openVacancyModal = function(key, pos, daypart){
+  currentVacancyKey = key;
+  currentVacancyPos = pos;
+  currentVacancyDaypart = daypart;
+  pendingVacancySelection = '';
+
+  document.getElementById('vacancyModalTitle').textContent = daypart;
+  document.getElementById('vacancyModalPos').textContent = pos;
+  document.getElementById('vacancyModalCurrent').textContent = 'Currently assigned: ' + (posAssignments[key] || '—');
+  document.getElementById('vacancyModalSearch').value = '';
+
+  const isFlagged = !!posVacancyFlags[key];
+  document.getElementById('btnResolveNoSplit').style.display = isFlagged ? 'block' : 'none';
+  document.getElementById('btnFlagOnly').textContent = isFlagged ? 'Keep Flagged (Still Looking)' : 'Flag Only — Find Coverage Later';
+
+  const dayName = document.getElementById('daySelect').value;
+  const roster = currentPosSection === 'foh' ? fohRoster : bohRoster;
+  const dayRoster = roster[dayName] || [];
+
+  const dayparts = currentPosSection === 'foh' ? fohDayparts : bohDayparts;
+  const dpIndex = dayparts.findIndex(d => d.name === daypart);
+
+  let eligible = dayRoster;
+  if(dpIndex !== -1){
+    const {startMin, endMin} = daypartTimeWindow(dayparts, dpIndex);
+    eligible = dayRoster.filter(p=>{
+      const s = parseShiftTimeToMinutes(p.start);
+      const e = parseShiftTimeToMinutes(p.end);
+      if(s === null || e === null) return true;
+      return s < endMin && e > startMin;
+    });
+  }
+
+  // No exclusivity filter here on purpose — someone already working another
+  // position is a perfectly valid person to split coverage with.
+  const currentNames = (posAssignments[key] || '').split('/').map(n => n.trim().toLowerCase()).filter(Boolean);
+  eligible = eligible.filter(p => !currentNames.includes(p.name.toLowerCase()));
+
+  window.currentVacancyEligible = eligible;
+  renderVacancyOptionList(eligible);
+
+  document.getElementById('vacancyModal').classList.add('active');
+};
+
+function renderVacancyOptionList(eligible, filterText){
+  const container = document.getElementById('vacancyModalOptions');
+  const filtered = filterText
+    ? eligible.filter(p => p.name.toLowerCase().includes(filterText.toLowerCase()))
+    : eligible;
+
+  if(filtered.length === 0){
+    container.innerHTML = filterText
+      ? '<div class="pos-option-empty">No matches</div>'
+      : '<div class="pos-option-empty">No one else is on the roster for this daypart</div>';
+    return;
+  }
+
+  container.innerHTML = filtered.map(p=>{
+    const escapedName = p.name.replace(/'/g, "\\'");
+    const isSelected = pendingVacancySelection === p.name;
+    return `
+      <div class="pos-option ${isSelected ? 'selected' : ''}" onclick="selectVacancyOption('${escapedName}')">
+        <span>${p.name}</span>
+        <span class="pos-option-check">✓</span>
+      </div>
+    `;
+  }).join('');
+}
+
+window.selectVacancyOption = function(name){
+  pendingVacancySelection = name;
+  renderVacancyOptionList(window.currentVacancyEligible || [], document.getElementById('vacancyModalSearch').value);
+};
+
+document.getElementById('vacancyModalSearch').addEventListener('input', (e)=>{
+  renderVacancyOptionList(window.currentVacancyEligible || [], e.target.value);
+});
+
+document.getElementById('vacancyModal').addEventListener('click', (e)=>{
+  if(e.target === document.getElementById('vacancyModal')) document.getElementById('vacancyModal').classList.remove('active');
+});
+
+document.getElementById('btnCancelVacancy').addEventListener('click', ()=>{
+  document.getElementById('vacancyModal').classList.remove('active');
+});
+
+document.getElementById('btnConfirmVacancy').addEventListener('click', async ()=>{
+  if(!pendingVacancySelection){
+    showToast('Select a team member first');
+    return;
+  }
+  const current = posAssignments[currentVacancyKey] || '';
+  posAssignments[currentVacancyKey] = current ? current + '/' + pendingVacancySelection : pendingVacancySelection;
+  delete posVacancyFlags[currentVacancyKey];
+  const keyDate = currentVacancyKey.split('||')[1];
+  touchLastUpdated(keyDate);
+  await saveState();
+  renderAllDayparts();
+  updateSelectedDayInfo('daySelect', 'daySelectedInfo');
+  document.getElementById('vacancyModal').classList.remove('active');
+  showToast('✓ Coverage Added!');
+});
+
+document.getElementById('btnFlagOnly').addEventListener('click', async ()=>{
+  const initials = getInitials();
+  if(!initials){ showToast('Set your initials first (top right)'); beginEditInitials(); return; }
+  posVacancyFlags[currentVacancyKey] = {flaggedBy: initials, flaggedAt: Date.now()};
+  await saveState();
+  renderAllDayparts();
+  document.getElementById('vacancyModal').classList.remove('active');
+  showToast('🚨 Flagged — needs coverage');
+});
+
+document.getElementById('btnResolveNoSplit').addEventListener('click', async ()=>{
+  delete posVacancyFlags[currentVacancyKey];
+  await saveState();
+  renderAllDayparts();
+  document.getElementById('vacancyModal').classList.remove('active');
+  showToast('✓ Marked as resolved');
 });
 
 function renderRoster(){
@@ -485,9 +601,17 @@ window.removeFromRoster = async function(name){
   }
   delete completedBreaks[breakKey];
   Object.keys(posAssignments).forEach(k=>{
-    if(posAssignments[k] === name && k.startsWith(currentPosSection + '||' + dayName + '||')){
-      delete posAssignments[k];
-      delete posVacancyFlags[k];
+    if(k.startsWith(currentPosSection + '||' + dayName + '||')){
+      const names = posAssignments[k].split('/').map(n => n.trim());
+      if(names.includes(name)){
+        const remaining = names.filter(n => n !== name);
+        if(remaining.length > 0){
+          posAssignments[k] = remaining.join('/');
+        } else {
+          delete posAssignments[k];
+          delete posVacancyFlags[k];
+        }
+      }
     }
   });
   touchLastUpdated(dayName);
