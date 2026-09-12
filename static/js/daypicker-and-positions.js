@@ -52,19 +52,11 @@ document.querySelectorAll('.week-toggle-btn').forEach(btn=>{
 });
 
 // ===== SET UPS WEEK NAVIGATION =====
-// True Monday-Saturday week (not a rolling window). "This Week"/"Next Week" cover
-// the obvious two; the left arrow steps further back one week at a time, and once
-// you're not on This/Next Week anymore, the arrow itself expands to show the actual
-// date range you're viewing (e.g. "‹ 8/24-8/29") so you always know where you are.
 let setupsWeekOffset = 0;
 
-// Mirrors getWeekStartDate, but treats Sunday as the day BEFORE the upcoming work
-// week rather than the last day of the week that just ended. The store is closed
-// Sundays, so a leader checking Set Ups on a Sunday almost always wants to see the
-// upcoming Monday's lineup, not a stale view of the week that already wrapped up.
 function getSetupsWeekStartDate(offsetWeeks){
   const now = new Date();
-  const dow = now.getDay(); // 0=Sun..6=Sat
+  const dow = now.getDay();
   const diffToMonday = (dow === 0) ? 1 : (1 - dow);
   return new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday + offsetWeeks * 7);
 }
@@ -79,13 +71,12 @@ function getSetupsWeekDays(offsetWeeks){
   });
 }
 
+// Fixed: "Next Week" (and any further-back week) now defaults to Monday instead of
+// leaving the tab blank — previously only offset 0 ("This Week") had a default.
 function pickDefaultSetupsDay(days, previousValue){
   if(days.some(d => d.date === previousValue)) return previousValue;
   if(setupsWeekOffset !== 0) return days.length ? days[0].date : '';
   if(days.some(d => d.date === today)) return today;
-  // On a Sunday, "This Week" already rolls forward to the upcoming Mon-Sat block, so
-  // today itself won't appear in the list — default to the first day (Monday) instead
-  // of leaving the tab blank.
   return days.length ? days[0].date : '';
 }
 
@@ -97,10 +88,6 @@ function formatWeekRangeLabel(days){
   return fmt(days[0].date) + '-' + fmt(days[days.length - 1].date);
 }
 
-// Once you've scrolled back past This Week/Next Week, neither toggle button is a
-// meaningful label for where you are anymore — so the arrow itself grows into a small
-// button showing the date range currently in view, and stays clickable to keep going
-// back. Snapping back to "This Week" collapses it to an arrow again.
 function updateSetupsPrevBtn(days){
   const btn = document.getElementById('setupsPrevWeekBtn');
   if(setupsWeekOffset === 0 || setupsWeekOffset === 1){
@@ -154,13 +141,11 @@ document.querySelectorAll('#setupsWeekToggle .su-week-toggle-btn').forEach(btn=>
   });
 });
 
-// Deliberately just an arrow, not a third toggle button — looking at a past week's
-// set up is rare, so it doesn't need equal visual billing with This Week / Next Week.
 document.getElementById('setupsPrevWeekBtn').addEventListener('click', ()=>{
   setSetupsWeekOffset(setupsWeekOffset - 1);
 });
 
-let expandedDayparts = new Set(); // runtime-only UI state, not persisted
+let expandedDayparts = new Set();
 
 function parseShiftTimeToMinutes(str){
   if(!str) return null;
@@ -189,10 +174,6 @@ function daypartTimeWindow(dayparts, index){
   return {startMin, endMin};
 }
 
-// How many people currently on the day's roster (for the active FOH/BOH section)
-// have a shift overlapping this daypart's time window — regardless of whether
-// they've actually been assigned to a position yet. Lets a leader see at a glance
-// how many hands they have to work with before opening any assignment menu.
 function countEligibleForDaypart(dayName, dpIndex, dayparts){
   const roster = currentPosSection === 'foh' ? fohRoster : bohRoster;
   const dayRoster = roster[dayName] || [];
@@ -261,11 +242,15 @@ function renderAllDayparts(){
             ${positions.map(pos=>{
               const key = currentPosSection + '||' + dayName + '||' + dp.name + '||' + pos;
               const assigned = posAssignments[key] || '';
+              const flag = posVacancyFlags[key];
+              const escapedKey = key.replace(/'/g, "\\'");
               return `
-                <div class="pos-tile ${assigned ? 'assigned' : ''}" onclick="openPosModal('${key}', '${pos.replace(/'/g, "\\'")}', '${dp.name.replace(/'/g, "\\'")}')">
+                <div class="pos-tile ${assigned ? 'assigned' : ''} ${flag ? 'vacancy-flagged' : ''}" onclick="openPosModal('${key}', '${pos.replace(/'/g, "\\'")}', '${dp.name.replace(/'/g, "\\'")}')">
+                  ${assigned ? `<button class="pos-flag-btn" onclick="event.stopPropagation(); toggleVacancyFlag('${escapedKey}')" title="${flag ? 'Resolve — coverage found' : 'Flag: needs coverage'}">${flag ? '✕' : '🚩'}</button>` : ''}
                   <div>
                     <div class="pos-name">${pos}</div>
                     ${assigned ? `<div class="pos-assigned-name">${assigned}</div>` : '<div class="pos-empty">Tap to assign</div>'}
+                    ${flag ? `<div class="pos-vacancy-badge">🚨 Needs Coverage</div>` : ''}
                   </div>
                 </div>
               `;
@@ -284,6 +269,25 @@ window.toggleDaypart = function(dpName){
   if(expandedDayparts.has(dpName)) expandedDayparts.delete(dpName);
   else expandedDayparts.add(dpName);
   renderAllDayparts();
+};
+
+// Manual flag for an unplanned mid-shift departure. Tapping again before a
+// reassignment happens acts as an undo. Assigning a new person to the position
+// (see btnAssignPos below) always auto-clears this flag.
+window.toggleVacancyFlag = async function(key){
+  if(posVacancyFlags[key]){
+    delete posVacancyFlags[key];
+    await saveState();
+    renderAllDayparts();
+    showToast('✓ Marked as resolved');
+  } else {
+    const initials = getInitials();
+    if(!initials){ showToast('Set your initials first (top right)'); beginEditInitials(); return; }
+    posVacancyFlags[key] = {flaggedBy: initials, flaggedAt: Date.now()};
+    await saveState();
+    renderAllDayparts();
+    showToast('🚨 Flagged — needs coverage');
+  }
 };
 
 let currentPosKey = '';
@@ -389,6 +393,7 @@ document.getElementById('btnAssignPos').addEventListener('click', async ()=>{
   const selected = pendingPosSelection;
   if(selected){
     posAssignments[currentPosKey] = selected;
+    delete posVacancyFlags[currentPosKey]; // assigning someone new always resolves a "needs coverage" flag
   } else {
     delete posAssignments[currentPosKey];
   }
@@ -482,6 +487,7 @@ window.removeFromRoster = async function(name){
   Object.keys(posAssignments).forEach(k=>{
     if(posAssignments[k] === name && k.startsWith(currentPosSection + '||' + dayName + '||')){
       delete posAssignments[k];
+      delete posVacancyFlags[k];
     }
   });
   touchLastUpdated(dayName);
@@ -584,9 +590,6 @@ window.completeBreakNow = async function(name){
   showToast('✓ Break marked complete');
 };
 
-// Lets a leader undo a break-complete mark made by mistake — e.g. clicked too early,
-// or clicked for the wrong person. Does not restart the countdown; the person just
-// goes back to a plain "Start Break" state, as if the break hadn't been touched yet.
 window.undoBreakComplete = async function(name){
   const key = name + today;
   delete completedBreaks[key];
