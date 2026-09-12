@@ -359,10 +359,11 @@ function renderRoster(){
     const mins = Math.floor(remaining / 60);
     const secs = remaining % 60;
     const isCompleted = !!completedBreaks[key];
+    const customBadge = person.source === 'manual' ? `<span class="roster-custom-badge">✏️ Custom${person.addedBy ? ' · ' + escapeHtml(person.addedBy) : ''}</span>` : '';
     return `
       <div class="roster-item">
         <button class="roster-remove" onclick="removeFromRoster('${escapedName}')" title="Remove from today's roster">✕</button>
-        <div class="roster-name">${person.name}${(isCompleted && !onBreak) ? '<span class="break-complete-badge">✓ Break Complete</span>' : ''}</div>
+        <div class="roster-name">${person.name}${customBadge}${(isCompleted && !onBreak) ? '<span class="break-complete-badge">✓ Break Complete</span>' : ''}</div>
         <div class="roster-time">${person.start} - ${person.end}</div>
         ${onBreak ? `
           <div class="countdown" id="timer-${person.name}">${mins}:${secs<10?'0':''}${secs}</div>
@@ -458,15 +459,23 @@ document.getElementById('btnConfirmAddTM').addEventListener('click', async ()=>{
     showToast('Times should look like 5:30a or 1:30p');
     return;
   }
+
+  const initials = getInitials();
+  if(!initials){
+    showToast('Set your initials first (top right)');
+    beginEditInitials();
+    return;
+  }
   
   const roster = currentPosSection === 'foh' ? fohRoster : bohRoster;
   if(!roster[dayName]) roster[dayName] = [];
   
+  const entry = {name, start, end, source: 'manual', addedBy: initials, addedAt: Date.now()};
   const existingIndex = roster[dayName].findIndex(p => p.name.toLowerCase() === name.toLowerCase());
   if(existingIndex !== -1){
-    roster[dayName][existingIndex] = {name, start, end};
+    roster[dayName][existingIndex] = entry;
   } else {
-    roster[dayName].push({name, start, end});
+    roster[dayName].push(entry);
   }
   
   touchLastUpdated(dayName);
@@ -621,4 +630,3 @@ function getNumbersForDaypart(dayName, dp){
   });
   return match ? (dayNums[match] || null) : null;
 }
-
