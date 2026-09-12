@@ -173,7 +173,16 @@
   .scoreboard-day.star .scoreboard-day-bar{background:#FFB300;}
   .scoreboard-day-pct{font-size:9px;font-weight:700;color:var(--text-secondary);margin-top:3px;}
   .scoreboard-star{position:absolute;top:-13px;font-size:11px;}
-  .break-complete-badge{display:inline-block;font-size:10px;font-weight:700;color:var(--success);background:#E8F5E9;padding:2px 7px;border-radius:8px;margin-left:6px;vertical-align:middle;}
+  .break-complete-badge{display:inline-block;font-size:10px;font-weight:700;color:var(--success);background:#E8F5E9;padding:2px 7px;border-radius:8px;margin-left:6px;vertical-align:middle;border:none;cursor:pointer;font-family:'Inter',sans-serif;}
+  .break-complete-badge:hover{background:#C8E6C9;}
+  .wri-week-btn{background:none;border:none;padding:7px 16px;border-radius:16px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;transition:all .15s ease;user-select:none;}
+  .wri-week-btn.active{background:var(--cfa-white);color:var(--cfa-red);box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+  .setups-week-nav{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  .rolling-arrow-expanded{flex:0 0 auto;height:34px;padding:0 16px;border-radius:20px;border:1.5px solid var(--cfa-red);background:var(--cfa-white);color:var(--cfa-red);font-size:12px;font-weight:700;font-family:'Outfit',sans-serif;cursor:pointer;transition:all .15s ease;display:flex;align-items:center;justify-content:center;white-space:nowrap;gap:4px;}
+  .rolling-arrow-expanded:hover{background:var(--cfa-red);color:var(--cfa-white);}
+  .su-week-toggle-btn{background:none;border:none;padding:7px 16px;border-radius:16px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;transition:all .15s ease;user-select:none;}
+  .su-week-toggle-btn.active{background:var(--cfa-white);color:var(--cfa-red);box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+  .daypart-eligible{font-size:11px;font-weight:600;color:#1565C0;background:#E3F2FD;padding:3px 8px;border-radius:10px;}
   .roster-custom-badge{display:inline-block;font-size:10px;font-weight:700;color:#1565C0;background:#E3F2FD;padding:2px 7px;border-radius:8px;margin-left:6px;vertical-align:middle;}
   .pos-option-list{max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);}
   .pos-option{padding:12px 14px;font-family:'Inter',sans-serif;font-size:14px;color:var(--text-primary);cursor:pointer;transition:background .12s ease;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
