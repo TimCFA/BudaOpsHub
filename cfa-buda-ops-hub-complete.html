@@ -60,11 +60,14 @@
       <button type="button" class="toggle-btn" aria-pressed="false" data-section="boh">BOH <span class="sub"><i>Atrás</i></span></button>
     </div>
 
-    <div class="rolling-day-nav">
-      <button class="rolling-arrow" id="rollingPrevBtn" title="Previous day">‹</button>
-      <div class="day-picker" id="dayPicker"></div>
-      <button class="rolling-arrow" id="rollingNextBtn" title="Next day">›</button>
+    <div class="setups-week-nav">
+      <button type="button" class="rolling-arrow" id="setupsPrevWeekBtn" title="Previous week">‹</button>
+      <div class="week-toggle" id="setupsWeekToggle">
+        <button type="button" class="su-week-toggle-btn active" aria-pressed="true" data-offset="0">This Week</button>
+        <button type="button" class="su-week-toggle-btn" aria-pressed="false" data-offset="1">Next Week</button>
+      </div>
     </div>
+    <div class="day-picker" id="dayPicker"></div>
     <select id="daySelect" style="display:none;"></select>
     <div id="daySelectedInfo" class="day-info-bar"></div>
 
@@ -745,8 +748,8 @@
         <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Upload a full week's HotSchedules CSV export to populate Monday–Saturday at once. Manually-added team members are never overwritten.</p>
 
         <div class="week-toggle" style="margin-bottom:14px;">
-          <button type="button" class="week-toggle-btn active" aria-pressed="true" data-weekly-offset="0">This Week</button>
-          <button type="button" class="week-toggle-btn" aria-pressed="false" data-weekly-offset="1">Next Week</button>
+          <button type="button" class="wri-week-btn active" aria-pressed="true" data-weekly-offset="0">This Week</button>
+          <button type="button" class="wri-week-btn" aria-pressed="false" data-weekly-offset="1">Next Week</button>
         </div>
 
         <div class="field">
