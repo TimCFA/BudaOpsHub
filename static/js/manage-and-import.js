@@ -352,8 +352,10 @@ function createRosterPreviewModal(){
 }
 
 async function confirmRoster(){
-  fohRoster[pendingDay] = pendingFOH;
-  bohRoster[pendingDay] = pendingBOH;
+  const fohTagged = pendingFOH.map(p => ({...p, source: 'import'}));
+  const bohTagged = pendingBOH.map(p => ({...p, source: 'import'}));
+  fohRoster[pendingDay] = mergeImportedDayRoster(fohRoster[pendingDay], fohTagged);
+  bohRoster[pendingDay] = mergeImportedDayRoster(bohRoster[pendingDay], bohTagged);
   touchLastUpdated(pendingDay);
   await saveState();
   document.getElementById('rosterPreviewModal').classList.remove('active');
