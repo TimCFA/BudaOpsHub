@@ -161,6 +161,8 @@ function renderScoreboardView(){
 }
 
 function renderFoodSafety(){
+  const badge = document.getElementById('foodSafetyDoneBadge');
+  if(badge) badge.style.display = formDone ? 'inline-block' : 'none';
   const formBtn = document.getElementById('btnMarkFormDone');
   if(formDone){
     formBtn.textContent = '✓ Completed Today';
@@ -170,7 +172,6 @@ function renderFoodSafety(){
     formBtn.disabled = false;
   }
 }
-
 document.getElementById('btnMarkFormDone').addEventListener('click', async ()=>{
   formDone = true;
   if(!foodSafetyDays.includes(today)){
