@@ -4,10 +4,8 @@ function activateView(view){
   if(view === 'positions') renderPositionsTab();
   if(view === 'wastelog'){ renderGrid(); renderTape(); }
   if(view === 'zonereset') renderZoneResetView();
-  if(view === 'oewalkthrough') renderOEWalkthrough();
-  if(view === 'leadertransition') renderLeaderTransition();
+  if(view === 'walkthroughs') renderWalkthroughsPage();
   if(view === 'safecount') renderSafeCount();
-  if(view === 'foodsafety') renderFoodSafety();
   if(view === 'scoreboard'){ renderScoreboardView(); renderCustomScoreboards(); }
   if(view === 'lx') renderLXScoreboard();
   if(view === 'gx') renderGXScoreboard();
@@ -44,8 +42,6 @@ document.querySelector('.tabs').addEventListener('click', (e)=>{
     const wasOpen = group.classList.contains('open');
     closeAllTabDropdowns();
     if(!wasOpen){
-      // Fixed positioning calculated from the label's actual on-screen position,
-      // so the dropdown can never be silently clipped by an ancestor's overflow
       const rect = groupLabel.getBoundingClientRect();
       const menu = group.querySelector('.tab-dropdown');
       menu.style.top = (rect.bottom + 4) + 'px';
@@ -72,6 +68,8 @@ document.addEventListener('click', (e)=>{
 
 window.addEventListener('scroll', closeAllTabDropdowns, true);
 
+document.querySelectorAll('#logToggle .toggle-btn, #posToggle .toggle-btn').forEach(()=>{}); // reserved — Log Waste toggle wired separately below
+
 document.querySelectorAll('#logToggle .toggle-btn').forEach(t=>{
   t.addEventListener('click',()=>{
     document.querySelectorAll('#logToggle .toggle-btn').forEach(x=>{x.classList.remove('active'); x.setAttribute('aria-pressed', 'false');});
@@ -83,4 +81,3 @@ document.querySelectorAll('#logToggle .toggle-btn').forEach(t=>{
     renderScoreboardView();
   });
 });
-
