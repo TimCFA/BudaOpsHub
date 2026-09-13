@@ -40,20 +40,15 @@ async function saveState(){
     fohOEDays, fohOEChecked, fohOECheckedDate,
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
-    safeTarget, safeCounts, trainerTrainees, trainerProgress, scoreboardItems, posVacancyFlags
+    safeCounts, trainerTrainees, trainerProgress, scoreboardItems, posVacancyFlags
   };
   const serialized = JSON.stringify(snapshot);
-  // Local cache first, so the app still works instantly / offline even if the network write below fails
   localStorage.setItem('cfaBudaOps', serialized);
-  // Stored as a single JSON string (not a nested object) so data-driven keys like
-  // position names containing "/" never get interpreted as Firebase path separators
   const result = await dbWrite('appState', serialized);
   setSyncStatus(result ? 'Synced' : 'Saved locally — sync failed', result ? 'ok' : 'error');
 }
 
 function exportBackup(){
-  // Mirrors saveState's exact snapshot, so this backup always covers everything
-  // actually persisted — nothing more, nothing less
   const snapshot = {
     entries, products, teamMembers, wasteTarget, formDone,
     formDoneDate: formDone ? today : null, foodSafetyDays, wasteDays, breakCountdowns, completedBreaks, posAssignments,
@@ -61,7 +56,7 @@ function exportBackup(){
     fohOEDays, fohOEChecked, fohOECheckedDate,
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
-    safeTarget, safeCounts, trainerTrainees, trainerProgress, scoreboardItems, posVacancyFlags
+    safeCounts, trainerTrainees, trainerProgress, scoreboardItems, posVacancyFlags
   };
   const blob = new Blob([JSON.stringify(snapshot, null, 2)], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
@@ -83,11 +78,9 @@ async function loadState(){
   if(typeof raw === 'string'){
     try{ data = JSON.parse(raw); }catch(e){ console.warn('Could not parse Firebase appState:', e); }
   } else if(raw && typeof raw === 'object'){
-    // Backward compatibility with the old nested-object format, if any old data is still there
     data = raw;
   }
   if(!data){
-    // Fall back to whatever's cached locally (e.g. first load with no network, or nothing in Firebase yet)
     const saved = localStorage.getItem('cfaBudaOps');
     if(saved) data = JSON.parse(saved);
   }
@@ -98,7 +91,6 @@ async function loadState(){
       const savedIds = new Set(data.products.map(p=>p.id));
       const missingDefaults = defaultProducts.filter(p=>!savedIds.has(p.id));
       products = [...data.products, ...missingDefaults];
-      // fix renamed grilled nugget products even if already saved
       const renameFixes = {foh26:'5 ct Grilled Nugget', foh27:'8 ct Grilled Nugget', foh28:'12 ct Grilled Nugget'};
       products.forEach(p=>{ if(renameFixes[p.id]) p.name = renameFixes[p.id]; });
     } else {
@@ -106,7 +98,6 @@ async function loadState(){
     }
     teamMembers = data.teamMembers || [...fohLeads, ...bohLeads];
     wasteTarget = data.wasteTarget || 100;
-    safeTarget = data.safeTarget || 4500;
     safeCounts = data.safeCounts || [];
     foodSafetyDays = data.foodSafetyDays || [];
     wasteDays = data.wasteDays || [];
@@ -125,8 +116,8 @@ async function loadState(){
     fohOEDays = data.fohOEDays || [];
     fohOECheckedDate = data.fohOECheckedDate || null;
     fohOEChecked = (fohOECheckedDate === today) ? (data.fohOEChecked || {}) : {};
-    fohPositionTransitionDate = data.fohPositionTransitionDate || null;
-    fohPositionTransitionChecked = (fohPositionTransitionDate === today) ? (data.fohPositionTransitionChecked || {}) : {};
+    fohLeaderTransitionDate = data.fohLeaderTransitionDate || null;
+    fohLeaderTransitionChecked = (fohLeaderTransitionDate === today) ? (data.fohLeaderTransitionChecked || {}) : {};
     eoiSubmissions = data.eoiSubmissions || [];
     zoneChecklistState = data.zoneChecklistState || {};
     zoneChecklistHistory = data.zoneChecklistHistory || {};
