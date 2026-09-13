@@ -4,7 +4,7 @@ let entries = [];
 let products = [];
 let teamMembers = [];
 let wasteTarget = 100;
-let safeTarget = 4500;
+const safeTarget = 4500; // hardcoded — this value never changes, no UI to edit it
 let safeCounts = [];
 let formDone = false;
 let foodSafetyDays = [];
@@ -21,6 +21,9 @@ function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
 
+// ===== TEAM MEMBER INITIALS (attribution) =====
+// Not a login, not verified — just a quick low-friction way to stamp who did
+// what during a shift. Lives in localStorage per-device, switches instantly.
 const INITIALS_STORAGE_KEY = 'cfaBudaInitials';
 
 function getInitials(){
@@ -28,8 +31,6 @@ function getInitials(){
 }
 
 function setInitials(value){
-  // Letters only, capped at 4 chars — keeps it simple and blocks anything odd
-  // from ending up in a checklist stamp.
   const cleaned = String(value || '').replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 4);
   localStorage.setItem(INITIALS_STORAGE_KEY, cleaned);
   renderInitialsBadge();
@@ -65,7 +66,7 @@ const initialsBadgeEl = document.getElementById('initialsBadge');
 if(initialsBadgeEl){
   renderInitialsBadge();
   initialsBadgeEl.addEventListener('click', beginEditInitials);
-  if(!getInitials()) beginEditInitials(); // first-ever load on this device: prompt right away
+  if(!getInitials()) beginEditInitials();
 }
 
 function toLocalISODate(d){
@@ -82,9 +83,8 @@ const today = toLocalISODate(new Date());
 const WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 function getWeekStartDate(offsetWeeks){
-  // Returns the Monday of "this week" (or +offsetWeeks weeks from it) as a Date
   const now = new Date();
-  const dow = now.getDay(); // 0=Sun..6=Sat
+  const dow = now.getDay();
   const diffToMonday = (dow === 0) ? -6 : (1 - dow);
   return new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday + offsetWeeks * 7);
 }
@@ -110,7 +110,7 @@ function formatLastUpdated(ts){
   return d.toLocaleDateString('en-US', {month: 'short', day: 'numeric'}) + ' at ' + d.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'});
 }
 
-let currentWeekOffset = 0; // runtime-only: 0 = this week, 1 = next week
+let currentWeekOffset = 0;
 
 function touchLastUpdated(dateISO){
   if(!dateISO) return;
@@ -204,4 +204,3 @@ const ZONE_ICONS = {
   'Drinks Zone': '🥤', 'Outside': '🅿️', 'Soda Room / Tea Station': '🫖', 'The Spot': '📍', 'Final Check': '✅'
 };
 const ALL_ZONE_NAMES = Object.keys(ZONE_CHECKLISTS).concat(['Final Check']);
-
