@@ -32,7 +32,6 @@ document.getElementById('btnLock').addEventListener('click', async ()=>{
   document.getElementById('pinInput').value = '';
 });
 
-// Auto-unlock on load if the browser still holds a valid manager session cookie
 (async function checkManagerStatus(){
   try{
     const res = await fetch(`${API_BASE}/api/manager/status`);
@@ -55,49 +54,12 @@ document.getElementById('btnUpdateTarget').addEventListener('click', async ()=>{
   }
 });
 
-// Ported from Kianna's version: Target Safe Bank Amount
-document.getElementById('btnUpdateSafeTarget').addEventListener('click', async ()=>{
-  const v = parseFloat(document.getElementById('safeTargetInput').value);
-  if(!isNaN(v) && v >= 0){
-    safeTarget = v;
-    await saveState();
-    renderSafeCountLog();
-    showToast('✓ Safe Target Updated');
-  }
-});
-
-document.getElementById('btnResetDefaults').addEventListener('click', async ()=>{
-  products = [...fohProducts, ...bohProducts];
-  await saveState();
-  renderManage();
-  renderGrid();
-  showToast('✓ Products Reset to Defaults!');
-});
-
-document.getElementById('btnUpdatePin').addEventListener('click', async ()=>{
-  const v = document.getElementById('pinManage').value;
-  if(!v) return;
-  try{
-    const res = await fetch(`${API_BASE}/api/manager/set-pin`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({pin: v})
-    });
-    const result = await res.json();
-    if(res.ok && result.success){
-      showToast('✓ PIN Updated');
-      document.getElementById('pinManage').value = '';
-    } else {
-      showToast(result.error || 'Update failed');
-    }
-  }catch(err){
-    showToast('Connection error — PIN not updated');
-  }
-});
+window.toggleManageGroup = function(headerEl){
+  headerEl.closest('.manage-group').classList.toggle('open');
+};
 
 async function renderManage(){
   document.getElementById('targetInput').value = wasteTarget;
-  document.getElementById('safeTargetInput').value = safeTarget;
 
   renderLXManage();
   renderGXManage();
@@ -204,6 +166,42 @@ document.addEventListener('click', (e) => {
   if(e.target && e.target.id === 'btnAddTXCeleb'){
     txData.celebrations.push({id: 'celeb' + Date.now(), name: 'New Person', date: '01-01', type: 'birthday'});
     renderTXManage();
+  }
+  if(e.target && e.target.id === 'btnImportCemData'){
+    const file = document.getElementById('cemFileUpload').files[0];
+    const status = document.getElementById('cemImportStatus');
+    if(!file){
+      status.textContent = '❌ Choose a CSV file first';
+      status.style.color = 'var(--cfa-red)';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev)=>{
+      try{
+        const metrics = parseCemCsv(ev.target.result);
+        const applied = [];
+        const skipped = [];
+        Object.keys(metrics).forEach(name=>{
+          const mapping = CEM_FIELD_MAP[name];
+          if(!mapping){ skipped.push(name); return; }
+          const valEl = document.getElementById(mapping.value);
+          if(valEl && metrics[name].value){ valEl.value = metrics[name].value; applied.push(name); }
+          if(mapping.top5){
+            const top5El = document.getElementById(mapping.top5);
+            if(top5El && metrics[name].top5) top5El.value = metrics[name].top5;
+          }
+        });
+        status.textContent = `✓ Applied ${applied.length}: ${applied.join(', ') || 'none'}.` +
+          (skipped.length ? ` Skipped (no matching field yet): ${skipped.join(', ')}.` : '') +
+          ' Review values above, then click Save GX Scoreboard.';
+        status.style.color = 'var(--success)';
+      }catch(err){
+        status.textContent = '❌ ' + err.message;
+        status.style.color = 'var(--cfa-red)';
+        console.error(err);
+      }
+    };
+    reader.readAsText(file);
   }
 });
 
@@ -412,7 +410,6 @@ document.getElementById('btnSyncSheet').addEventListener('click', async ()=>{
   renderTXScoreboard();
   renderHomeScoreboard();
   renderImportDaySelect();
-  // Ported from Kianna's version: populate Training Guides once on load (static content)
   renderTrainingGuides('bohTrainingGuidesContainer', bohTrainingGuidesData, true);
   renderTrainingGuides('fohTrainingGuidesContainer', fohTrainingGuidesData, false);
 })();
