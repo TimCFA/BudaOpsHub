@@ -1,32 +1,49 @@
-function renderFOHOE(){
-  // Safe count date default (ported from Kianna's version)
-  const safeDateInput = document.getElementById('safeCountDate');
-  if(safeDateInput) safeDateInput.value = new Date().toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric', year:'numeric'});
-  renderSafeCountLog();
-
-  // reset checklists if date rolled over
+function renderWalkthroughsPage(){
   if(fohOECheckedDate !== today){ fohOEChecked = {}; fohOECheckedDate = today; }
   if(fohLeaderTransitionDate !== today){ fohLeaderTransitionChecked = {}; fohLeaderTransitionDate = today; }
 
-  // OE Walkthrough checklist
-  const oeContainer = document.getElementById('fohOEChecklist');
-  let oeTotal = 0, oeDone = 0;
-  oeContainer.innerHTML = fohOEChecklistData.map(group => {
-    return `<div class="checklist-cat">${group.cat}</div>` + group.items.map((item,i)=>{
-      const id = group.cat + '::' + i;
-      oeTotal++;
-      const entry = fohOEChecked[id];
-      const checked = !!entry;
-      if(checked) oeDone++;
-      const stamp = checked ? `<span style="font-size:10px;color:var(--text-tertiary);font-style:italic;margin-left:auto;white-space:nowrap;">${escapeHtml(entry.initials)} · ${formatShortTime(entry.ts)}</span>` : '';
-      return `<div class="checklist-item ${checked?'checked':''}" data-id="${id.replace(/"/g,'&quot;')}">
-        <input type="checkbox" ${checked?'checked':''}>
-        <span>${item}</span>
-        ${stamp}
-      </div>`;
-    }).join('');
+  renderOEWalkthroughCard();
+  renderLeaderTransitionCard();
+  renderFoodSafety();
+}
+
+// ===== OE WALKTHROUGH (category pills → modal, matching Zone Reset's pattern) =====
+function getOEWalkthroughCompletion(catName){
+  const group = fohOEChecklistData.find(g => g.cat === catName);
+  if(!group) return {checked: 0, total: 0};
+  let checked = 0;
+  group.items.forEach((item, i) => {
+    if(fohOEChecked[catName + '::' + i]) checked++;
+  });
+  return {checked, total: group.items.length};
+}
+
+function getOEWalkthroughOverall(){
+  let checked = 0, total = 0;
+  fohOEChecklistData.forEach(g => {
+    const c = getOEWalkthroughCompletion(g.cat);
+    checked += c.checked;
+    total += c.total;
+  });
+  return total > 0 ? Math.round((checked / total) * 100) : 0;
+}
+
+let currentOEWalkthroughCat = '';
+
+function renderOEWalkthroughCard(){
+  const overall = getOEWalkthroughOverall();
+  const pctEl = document.getElementById('oeWalkthroughPct');
+  pctEl.textContent = overall + '%';
+  pctEl.classList.toggle('high', overall >= 95);
+
+  const row = document.getElementById('oeWalkthroughCatRow');
+  row.innerHTML = fohOEChecklistData.map(g => {
+    const {checked, total} = getOEWalkthroughCompletion(g.cat);
+    const done = total > 0 && checked === total;
+    const escapedCat = g.cat.replace(/'/g, "\\'");
+    return `<button class="zone-btn ${done ? 'zone-btn-done' : ''}" onclick="openOEWalkthroughModal('${escapedCat}')">${g.cat}<span class="zone-btn-count">${checked}/${total}</span></button>`;
   }).join('');
-  document.getElementById('fohOEProgress').textContent = `${oeDone} / ${oeTotal} complete`;
+
   const oeBtn = document.getElementById('btnMarkFOHOEDone');
   const oeCompletedToday = fohOEDays.includes(today);
   if(oeCompletedToday){
@@ -34,16 +51,80 @@ function renderFOHOE(){
     oeBtn.disabled = true;
   } else {
     oeBtn.textContent = 'Mark Complete';
-    oeBtn.disabled = oeDone < oeTotal;
+    oeBtn.disabled = overall < 100;
   }
+}
 
-  document.getElementById('fohOEStreakNum').textContent = fohOEStreak;
-  document.getElementById('fohOEStreakLabel').textContent = 'consecutive ' + (fohOEStreak === 1 ? 'day' : 'days');
+window.openOEWalkthroughModal = function(catName){
+  currentOEWalkthroughCat = catName;
+  renderOEWalkthroughModalContent();
+  document.getElementById('walkthroughTaskModal').classList.add('active');
+};
 
-  // Leader Transition List
+function renderOEWalkthroughModalContent(){
+  const group = fohOEChecklistData.find(g => g.cat === currentOEWalkthroughCat);
+  if(!group) return;
+  const {checked, total} = getOEWalkthroughCompletion(currentOEWalkthroughCat);
+  document.getElementById('walkthroughTaskModalTitle').textContent = currentOEWalkthroughCat;
+  document.getElementById('walkthroughTaskModalProgress').textContent = `${checked}/${total} complete`;
+  document.getElementById('walkthroughTaskModalList').innerHTML = group.items.map((item, i) => {
+    const id = currentOEWalkthroughCat + '::' + i;
+    const entry = fohOEChecked[id];
+    const isChecked = !!entry;
+    const stamp = isChecked ? `<span style="font-size:10px;color:var(--text-tertiary);font-style:italic;white-space:nowrap;">${escapeHtml(entry.initials)} · ${formatShortTime(entry.ts)}</span>` : '';
+    const escapedId = id.replace(/'/g, "\\'");
+    return `
+      <label style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--border);cursor:pointer;">
+        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleOEWalkthroughItem('${escapedId}')" style="width:18px;height:18px;flex-shrink:0;">
+        <span style="${isChecked ? 'text-decoration:line-through;color:var(--text-tertiary);' : ''}font-size:13px;flex:1;">${item}</span>
+        ${stamp}
+      </label>
+    `;
+  }).join('');
+}
+
+window.toggleOEWalkthroughItem = async function(id){
+  if(fohOEChecked[id]){
+    delete fohOEChecked[id];
+  } else {
+    const initials = getInitials();
+    if(!initials){
+      showToast('Set your initials first (top right)');
+      beginEditInitials();
+      renderOEWalkthroughModalContent();
+      return;
+    }
+    fohOEChecked[id] = {initials, ts: Date.now()};
+  }
+  fohOECheckedDate = today;
+  await saveState();
+  renderOEWalkthroughModalContent();
+  renderOEWalkthroughCard();
+};
+
+document.getElementById('walkthroughTaskModalClose').addEventListener('click', ()=>{
+  document.getElementById('walkthroughTaskModal').classList.remove('active');
+});
+document.getElementById('walkthroughTaskModal').addEventListener('click', (e)=>{
+  if(e.target === document.getElementById('walkthroughTaskModal')) document.getElementById('walkthroughTaskModal').classList.remove('active');
+});
+
+document.getElementById('btnMarkFOHOEDone').addEventListener('click', async ()=>{
+  if(!fohOEDays.includes(today)){
+    fohOEDays.push(today);
+    calcStreak();
+  }
+  await saveState();
+  renderOEWalkthroughCard();
+  renderScoreboardView();
+  showToast('✓ OE Walkthrough Marked Complete!');
+});
+
+// ===== LEADER TRANSITION LIST (unchanged content, new header badge) =====
+function renderLeaderTransitionCard(){
   const leaderContainer = document.getElementById('fohLeaderTransitionChecklist');
   let lDone = 0;
-  leaderContainer.innerHTML = fohLeaderTransitionItems.map((item,i)=>{
+  leaderContainer.innerHTML = fohLeaderTransitionItems.map((item, i) => {
     const entry = fohLeaderTransitionChecked[i];
     const checked = !!entry;
     if(checked) lDone++;
@@ -54,34 +135,13 @@ function renderFOHOE(){
       ${stamp}
     </div>`;
   }).join('');
+
+  const pct = fohLeaderTransitionItems.length > 0 ? Math.round((lDone / fohLeaderTransitionItems.length) * 100) : 0;
+  const pctEl = document.getElementById('leaderTransitionPct');
+  pctEl.textContent = pct + '%';
+  pctEl.classList.toggle('high', pct >= 95);
   document.getElementById('fohLeaderTransitionProgress').textContent = `${lDone} / ${fohLeaderTransitionItems.length} complete`;
 }
-
-document.getElementById('fohOEChecklist').addEventListener('click', async (e)=>{
-  const row = e.target.closest('.checklist-item');
-  if(!row) return;
-  const id = row.dataset.id;
-  if(fohOEChecked[id]){
-    delete fohOEChecked[id];
-  } else {
-    const initials = getInitials();
-    if(!initials){ showToast('Set your initials first (top right)'); beginEditInitials(); return; }
-    fohOEChecked[id] = {initials, ts: Date.now()};
-  }
-  fohOECheckedDate = today;
-  await saveState();
-  renderFOHOE();
-});
-
-document.getElementById('btnMarkFOHOEDone').addEventListener('click', async ()=>{
-  if(!fohOEDays.includes(today)){
-    fohOEDays.push(today);
-    calcStreak();
-  }
-  await saveState();
-  renderFOHOE();
-  showToast('✓ OE Walkthrough Marked Complete!');
-});
 
 document.getElementById('fohLeaderTransitionChecklist').addEventListener('click', async (e)=>{
   const row = e.target.closest('.checklist-item');
@@ -96,18 +156,24 @@ document.getElementById('fohLeaderTransitionChecklist').addEventListener('click'
   }
   fohLeaderTransitionDate = today;
   await saveState();
-  renderFOHOE();
+  renderLeaderTransitionCard();
 });
 
 document.getElementById('btnResetLeaderTransition').addEventListener('click', async ()=>{
   fohLeaderTransitionChecked = {};
   fohLeaderTransitionDate = today;
   await saveState();
-  renderFOHOE();
+  renderLeaderTransitionCard();
   showToast('✓ Leader Transition List Reset');
 });
 
-// ===== Ported from Kianna's version: DAILY SAFE COUNT =====
+// ===== DAILY SAFE COUNT (unchanged, still its own OE dropdown item) =====
+function renderSafeCount(){
+  const safeDateInput = document.getElementById('safeCountDate');
+  if(safeDateInput) safeDateInput.value = new Date().toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric', year:'numeric'});
+  renderSafeCountLog();
+}
+
 function calcSafeCountTotal(){
   let total = 0;
   const tills = parseFloat(document.getElementById('safeCountTills').value) || 0;
@@ -223,8 +289,3 @@ document.querySelectorAll('#posToggle .toggle-btn').forEach(t=>{
     updateSelectedDayInfo('daySelect', 'daySelectedInfo');
   });
 });
-
-// Builds a week's worth of date-based pills into pickerId, wires their clicks, and
-// keeps selectId's hidden <select> in sync so all existing dayName-keyed lookups
-// throughout the app keep working unchanged (they now just receive an ISO date
-// instead of a weekday name)
