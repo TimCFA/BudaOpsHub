@@ -142,6 +142,27 @@
     </div>
   </div>
 
+  <!-- Find Coverage Modal -->
+  <div class="overlay" id="vacancyModal">
+    <div class="sheet">
+      <h2 id="vacancyModalTitle">Find Coverage</h2>
+      <div class="field">
+        <label>Position</label>
+        <div id="vacancyModalPos" style="font-weight:600;color:var(--cfa-red);margin-bottom:4px;"></div>
+        <div id="vacancyModalCurrent" style="font-size:12px;color:var(--text-secondary);margin-bottom:16px;"></div>
+      </div>
+      <div class="field">
+        <label>Split With</label>
+        <input type="text" id="vacancyModalSearch" placeholder="Search team members..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';margin-bottom:8px;">
+        <div id="vacancyModalOptions" class="pos-option-list"></div>
+      </div>
+      <button id="btnConfirmVacancy" class="btn btn-primary">Confirm Split</button>
+      <button id="btnFlagOnly" class="btn btn-secondary">Flag Only — Find Coverage Later</button>
+      <button id="btnResolveNoSplit" class="btn btn-secondary" style="display:none;">Mark Resolved — No Split Needed</button>
+      <button id="btnCancelVacancy" class="btn btn-ghost">Cancel</button>
+    </div>
+  </div>
+
   <!-- Add Trainer Trial Modal -->
   <div class="overlay" id="ttAddModal">
     <div class="sheet">
