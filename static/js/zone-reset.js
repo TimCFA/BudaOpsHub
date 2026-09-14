@@ -379,12 +379,6 @@ let lastUpdated = {};
 let posAssignments = {};
 let posVacancyFlags = {};
 
-// Target Safe Bank Amount — will never change, hardcoded per decision (no Manage UI).
-// IMPORTANT: delete any pre-existing "let safeTarget = ..." declaration elsewhere in
-// the project before deploying this — a duplicate top-level declaration of the same
-// name across concatenated scripts throws a fatal SyntaxError on page load.
-const safeTarget = 4500;
-
 const defaultPillars = [
   {
     id: 'pillar1',
