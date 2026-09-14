@@ -30,12 +30,10 @@
       <div class="tab-group" data-group="oe">
         <button type="button" class="tab-group-label" aria-haspopup="true" aria-expanded="false">OE <span class="chevron-mini">▾</span></button>
         <div class="tab-dropdown" role="menu">
+          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="zoneresetView" data-view="zonereset">Zone Reset <span class="sub-inline">Reinicio de Zona</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="wastelogView" data-view="wastelog">Log Waste <span class="sub-inline">Desperdicio</span></button>
-          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="zoneresetView" data-view="zonereset">Zone Resets <span class="sub-inline">Reinicio de Zona</span></button>
-          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="oewalkthroughView" data-view="oewalkthrough">OE Walkthrough <span class="sub-inline">Recorrido</span></button>
-          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="leadertransitionView" data-view="leadertransition">Leader Transition List <span class="sub-inline">Transición</span></button>
+          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="walkthroughsView" data-view="walkthroughs">Walkthroughs <span class="sub-inline">Recorridos</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="safecountView" data-view="safecount">Daily Safe Count <span class="sub-inline">Caja Fuerte</span></button>
-          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="foodsafetyView" data-view="foodsafety">Food Safety Walkthrough <span class="sub-inline">Seguridad Alimentaria</span></button>
         </div>
       </div>
 
@@ -45,10 +43,10 @@
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="gxView" data-view="gx">GX <span class="sub-inline">Experiencia</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="txView" data-view="tx">TX <span class="sub-inline">Talento</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="lxView" data-view="lx">LX <span class="sub-inline">Liderazgo</span></button>
-          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="scoreboardView" data-view="scoreboard">Scoreboard <span class="sub-inline">Tableros</span></button>
         </div>
       </div>
 
+      <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="scoreboardView" data-view="scoreboard">Scoreboard <span class="sub"><i>Tableros</i></span></button>
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="manageView" data-view="manage">Manage <span class="sub"><i>Gestionar</i></span></button>
     </div>
   </div>
@@ -72,12 +70,10 @@
     <div id="daySelectedInfo" class="day-info-bar"></div>
 
     <div class="setups-layout">
-      <!-- All Dayparts - Scrollable -->
       <div id="daypartContainer" style="display:none;">
         <div id="allDayparts"></div>
       </div>
 
-      <!-- Roster Panel -->
       <div id="rosterContainer" style="display:none;">
         <div class="standup-card">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
@@ -105,6 +101,27 @@
       </div>
       <button id="btnAssignPos" class="btn btn-primary">Assign</button>
       <button id="btnCancelPos" class="btn btn-ghost">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Find Coverage Modal -->
+  <div class="overlay" id="vacancyModal">
+    <div class="sheet">
+      <h2 id="vacancyModalTitle">Find Coverage</h2>
+      <div class="field">
+        <label>Position</label>
+        <div id="vacancyModalPos" style="font-weight:600;color:var(--cfa-red);margin-bottom:4px;"></div>
+        <div id="vacancyModalCurrent" style="font-size:12px;color:var(--text-secondary);margin-bottom:16px;"></div>
+      </div>
+      <div class="field">
+        <label>Split With</label>
+        <input type="text" id="vacancyModalSearch" placeholder="Search team members..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';margin-bottom:8px;">
+        <div id="vacancyModalOptions" class="pos-option-list"></div>
+      </div>
+      <button id="btnConfirmVacancy" class="btn btn-primary">Confirm Split</button>
+      <button id="btnFlagOnly" class="btn btn-secondary">Flag Only — Find Coverage Later</button>
+      <button id="btnResolveNoSplit" class="btn btn-secondary" style="display:none;">Mark Resolved — No Split Needed</button>
+      <button id="btnCancelVacancy" class="btn btn-ghost">Cancel</button>
     </div>
   </div>
 
@@ -142,24 +159,13 @@
     </div>
   </div>
 
-  <!-- Find Coverage Modal -->
-  <div class="overlay" id="vacancyModal">
-    <div class="sheet">
-      <h2 id="vacancyModalTitle">Find Coverage</h2>
-      <div class="field">
-        <label>Position</label>
-        <div id="vacancyModalPos" style="font-weight:600;color:var(--cfa-red);margin-bottom:4px;"></div>
-        <div id="vacancyModalCurrent" style="font-size:12px;color:var(--text-secondary);margin-bottom:16px;"></div>
-      </div>
-      <div class="field">
-        <label>Split With</label>
-        <input type="text" id="vacancyModalSearch" placeholder="Search team members..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';margin-bottom:8px;">
-        <div id="vacancyModalOptions" class="pos-option-list"></div>
-      </div>
-      <button id="btnConfirmVacancy" class="btn btn-primary">Confirm Split</button>
-      <button id="btnFlagOnly" class="btn btn-secondary">Flag Only — Find Coverage Later</button>
-      <button id="btnResolveNoSplit" class="btn btn-secondary" style="display:none;">Mark Resolved — No Split Needed</button>
-      <button id="btnCancelVacancy" class="btn btn-ghost">Cancel</button>
+  <!-- Walkthrough (OE Walkthrough category) Checklist Modal -->
+  <div class="overlay" id="walkthroughTaskModal">
+    <div class="sheet" style="max-width:480px;">
+      <h2 id="wtModalTitle">Category</h2>
+      <div class="sub" id="wtModalProgress"></div>
+      <div id="wtModalList" style="max-height:400px;overflow-y:auto;margin:16px 0;"></div>
+      <button id="wtModalClose" class="btn btn-ghost">Close</button>
     </div>
   </div>
 
@@ -183,7 +189,6 @@
       <button id="btnTTCancelAdd" class="btn btn-ghost">Cancel</button>
     </div>
   </div>
-
 
   <!-- LX Scoreboard View -->
   <div class="view" id="lxView">
@@ -280,13 +285,11 @@
       <p style="font-size:13px;color:var(--text-secondary);margin:0 0 16px;">Talent Development Dashboard</p>
     </div>
 
-    <!-- Celebrations Banner -->
     <div class="celeb-banner">
       <div class="celeb-banner-title">🎉 Celebrations This Month 🎉</div>
       <div class="celeb-scroll" id="txCelebrationContainer"></div>
     </div>
 
-    <!-- Levelset Positional Excellence Embed -->
     <div style="margin-bottom:20px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--cfa-white);">
       <iframe 
         src="https://app.levelset.io/public/positional-excellence/TJXV5MLEXJZC" 
@@ -474,29 +477,46 @@
     </div>
   </div>
 
-  <!-- OE Walkthrough View -->
-  <div class="view" id="oewalkthroughView">
-    <div class="standup-card fohoe-card fohoe-green">
-      <h3><span class="fohoe-icon">🎯</span>Operational Excellence Walkthrough</h3>
+  <!-- Walkthroughs View (OE Walkthrough + Leader Transition List + Food Safety Walkthrough) -->
+  <div class="view" id="walkthroughsView">
+    <div class="standup-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <h3 style="margin:0;">🎯 Operational Excellence Walkthrough</h3>
+        <span class="zone-overall-pct" id="oeWalkthroughOverallPct">0%</span>
+      </div>
       <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Complete your daily FOH OE walkthrough</p>
-      <div id="fohOEChecklist"></div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;">
-        <div style="font-size:12px;color:var(--text-secondary);" id="fohOEProgress">0 / 0 complete</div>
+      <div class="zone-btn-row" id="oeWalkthroughButtonRow"></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:14px;">
         <button id="btnMarkFOHOEDone" class="standup-btn" style="width:auto;padding:10px 20px;">Mark Complete</button>
       </div>
     </div>
-  </div>
 
-  <!-- Leader Transition List View -->
-  <div class="view" id="leadertransitionView">
-    <div class="standup-card fohoe-card fohoe-blue">
-      <h3><span class="fohoe-icon">🧭</span>Leader Transition List <span class="sub"><i>Lista de Transición — Líderes</i></span></h3>
+    <div class="standup-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <h3 style="margin:0;">🧭 Leader Transition List <span class="sub"><i>Lista de Transición — Líderes</i></span></h3>
+        <span class="zone-overall-pct" id="leaderTransitionBadge">0/0</span>
+      </div>
       <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Complete before handing off to the next leader</p>
       <div id="fohLeaderTransitionChecklist"></div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;">
-        <div style="font-size:12px;color:var(--text-secondary);" id="fohLeaderTransitionProgress">0 / 0 complete</div>
+      <div style="display:flex;justify-content:flex-end;margin-top:12px;">
         <button id="btnResetLeaderTransition" class="btn btn-secondary" style="width:auto;padding:10px 20px;">Reset for Next Shift</button>
       </div>
+    </div>
+
+    <div class="standup-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <h3 style="margin:0;">Food Safety Walkthrough</h3>
+        <span class="zone-overall-pct" id="foodSafetyBadge">Not yet</span>
+      </div>
+      <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Complete your daily food safety checklist</p>
+      <div class="iframe-wrap" id="iframeContainer" style="display:none;">
+        <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSfNM3MiBZ8pLKwxw5qgjarWCqkb9iicp7bzCN06iPq9lzjhxQ/viewform?embedded=true" height="500" frameborder="0" marginheight="0" marginwidth="0"></iframe>
+      </div>
+      <div id="formFallback" style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;margin-bottom:12px;">
+        <p style="margin:0 0 12px;font-size:13px;color:var(--text-secondary);">Open the form in a new tab to complete your daily checklist</p>
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLSfNM3MiBZ8pLKwxw5qgjarWCqkb9iicp7bzCN06iPq9lzjhxQ/viewform" target="_blank" style="display:inline-block;background:var(--cfa-red);color:white;padding:10px 20px;border-radius:var(--radius);text-decoration:none;font-weight:600;font-size:12px;text-transform:uppercase;">Open Food Safety Form ↗</a>
+      </div>
+      <button id="btnMarkFormDone" class="standup-btn">Mark Complete</button>
     </div>
   </div>
 
@@ -575,22 +595,6 @@
     <div class="standup-card fohoe-card fohoe-red">
       <h3><span class="fohoe-icon">📋</span>Safe Count Log <span class="sub"><i>Registro de Conteos</i></span></h3>
       <div id="safeCountLogContainer"></div>
-    </div>
-  </div>
-
-  <!-- Food Safety Walkthrough View -->
-  <div class="view" id="foodsafetyView">
-    <div class="standup-card">
-      <h3>Food Safety Walkthrough</h3>
-      <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Complete your daily food safety checklist</p>
-      <div class="iframe-wrap" id="iframeContainer" style="display:none;">
-        <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSfNM3MiBZ8pLKwxw5qgjarWCqkb9iicp7bzCN06iPq9lzjhxQ/viewform?embedded=true" height="500" frameborder="0" marginheight="0" marginwidth="0"></iframe>
-      </div>
-      <div id="formFallback" style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;margin-bottom:12px;">
-        <p style="margin:0 0 12px;font-size:13px;color:var(--text-secondary);">Open the form in a new tab to complete your daily checklist</p>
-        <a href="https://docs.google.com/forms/d/e/1FAIpQLSfNM3MiBZ8pLKwxw5qgjarWCqkb9iicp7bzCN06iPq9lzjhxQ/viewform" target="_blank" style="display:inline-block;background:var(--cfa-red);color:white;padding:10px 20px;border-radius:var(--radius);text-decoration:none;font-weight:600;font-size:12px;text-transform:uppercase;">Open Food Safety Form ↗</a>
-      </div>
-      <button id="btnMarkFormDone" class="standup-btn">Mark Complete</button>
     </div>
   </div>
 
@@ -684,159 +688,205 @@
         <button id="btnLock" class="btn btn-ghost" style="width:auto;padding:8px 16px;margin:0;font-size:11px;">Lock <span class="sub"><i>Bloquear</i></span></button>
       </div>
 
-      <div class="standup-card">
-        <h3>Reset Data</h3>
-        <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Reload all products to get the complete menu</p>
-        <button id="btnResetDefaults" class="btn btn-secondary" style="background:#FFF3CD;color:#856404;border:1px solid #FFE69C;">Reset to Defaults</button>
-      </div>
-
-      <div class="standup-card">
-        <h3>📊 Know the Numbers</h3>
-        <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Projected sales, productivity goals, and events by daypart</p>
-        <div class="week-toggle">
-          <button type="button" class="week-toggle-btn active" aria-pressed="true" data-offset="0">This Week</button>
-          <button type="button" class="week-toggle-btn" aria-pressed="false" data-offset="1">Next Week</button>
+      <!-- GROUP: General Settings -->
+      <div class="manage-group open">
+        <div class="manage-group-header" onclick="toggleManageGroup(this)">
+          <span class="manage-group-title">⚙️ General Settings</span>
+          <span class="manage-group-chevron">▾</span>
         </div>
-        <div class="day-picker" id="numbersDayPicker"></div>
-        <select id="numbersDaySelect" style="display:none;"></select>
-        <div id="numbersSelectedInfo" class="day-info-bar"></div>
-        <div id="numbersContent"></div>
-      </div>
+        <div class="manage-group-body">
+          <div class="standup-card">
+            <h3>Daily Waste Target</h3>
+            <div style="display:flex;gap:8px;">
+              <input type="number" id="targetInput" value="100" min="1" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius);">
+              <button id="btnUpdateTarget" class="btn btn-primary" style="flex:0;width:auto;padding:10px 16px;">Update</button>
+            </div>
+          </div>
 
-      <div class="standup-card">
-        <h3>EOI Submissions <span class="sub"><i>Expresiones de Interés</i></span></h3>
-        <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Team members interested in their next role</p>
-        <div id="eoiSubmissionsContainer"></div>
-      </div>
-
-      <div class="standup-card">
-        <h3>Daily Waste Target</h3>
-        <div style="display:flex;gap:8px;">
-          <input type="number" id="targetInput" value="100" min="1" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius);">
-          <button id="btnUpdateTarget" class="btn btn-primary" style="flex:0;width:auto;padding:10px 16px;">Update</button>
+          <div class="standup-card">
+            <h3>Products</h3>
+            <div id="prodList"></div>
+            <div class="add-prod-form">
+              <input type="text" id="newName" placeholder="Product name / Nombre">
+              <input type="text" id="newUnit" placeholder="Unit / Unidad">
+              <input type="number" step="0.01" id="newCost" placeholder="Cost / Costo">
+              <button id="btnAddProd">Add</button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="standup-card">
-        <h3>💵 Target Safe Bank Amount</h3>
-        <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Used to calculate variance on the Daily Safe Count log</p>
-        <div style="display:flex;gap:8px;">
-          <input type="number" id="safeTargetInput" value="4500" min="0" step="0.01" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius);">
-          <button id="btnUpdateSafeTarget" class="btn btn-primary" style="flex:0;width:auto;padding:10px 16px;">Update</button>
+      <!-- GROUP: Team & Scheduling -->
+      <div class="manage-group">
+        <div class="manage-group-header" onclick="toggleManageGroup(this)">
+          <span class="manage-group-title">👥 Team & Scheduling</span>
+          <span class="manage-group-chevron">▾</span>
+        </div>
+        <div class="manage-group-body">
+          <div class="standup-card">
+            <h3>Team Members</h3>
+            <div id="teamList" style="margin-bottom:12px;"></div>
+            <div style="display:flex;gap:8px;">
+              <input type="text" id="newTeamName" placeholder="Name / Nombre" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius);">
+              <button id="btnAddTeam" class="btn btn-primary" style="flex:0;width:auto;padding:10px 16px;">Add</button>
+            </div>
+          </div>
+
+          <div class="standup-card">
+            <h3>HotSchedules Import (by Day)</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Upload weekly roster screenshots to populate each day</p>
+            
+            <div class="field">
+              <label>Select Day to Import</label>
+              <select id="importDaySelect" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';"></select>
+            </div>
+
+            <div class="field">
+              <label>Upload Daily Roster (PDF or Screenshot)</label>
+              <input type="file" id="scheduleUpload" accept=".pdf,image/*" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;">
+              <div style="font-size:10px;color:var(--text-secondary);margin-top:4px;font-style:italic;">Upload your full roster PDF - we'll auto-split FOH & BOH</div>
+            </div>
+
+            <button id="btnImportSchedule" class="btn btn-primary" style="margin-top:12px;">Import Roster</button>
+            <div id="importStatus" style="font-size:12px;color:var(--text-secondary);margin-top:8px;text-align:center;"></div>
+          </div>
+
+          <div class="standup-card">
+            <h3>Weekly Roster Import (CSV)</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Upload a full week's HotSchedules CSV export to populate Monday–Saturday at once. Manually-added team members are never overwritten.</p>
+
+            <div class="week-toggle" style="margin-bottom:14px;">
+              <button type="button" class="wri-week-btn active" aria-pressed="true" data-weekly-offset="0">This Week</button>
+              <button type="button" class="wri-week-btn" aria-pressed="false" data-weekly-offset="1">Next Week</button>
+            </div>
+
+            <div class="field">
+              <label>Upload Weekly Roster CSV</label>
+              <input type="file" id="weeklyRosterUpload" accept=".csv" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;">
+              <div style="font-size:10px;color:var(--text-secondary);margin-top:4px;font-style:italic;">Sunday and Truck/Other shifts are ignored automatically</div>
+            </div>
+
+            <button id="btnImportWeeklyRoster" class="btn btn-primary" style="margin-top:12px;">Import Week</button>
+            <div id="weeklyImportStatus" style="font-size:12px;color:var(--text-secondary);margin-top:8px;text-align:center;"></div>
+          </div>
         </div>
       </div>
 
-      <div class="standup-card">
-        <h3>Manager PIN</h3>
-        <div style="display:flex;gap:8px;">
-          <input type="password" id="pinManage" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius);">
-          <button id="btnUpdatePin" class="btn btn-primary" style="flex:0;width:auto;padding:10px 16px;">Update</button>
+      <!-- GROUP: Know the Numbers -->
+      <div class="manage-group">
+        <div class="manage-group-header" onclick="toggleManageGroup(this)">
+          <span class="manage-group-title">📊 Know the Numbers</span>
+          <span class="manage-group-chevron">▾</span>
+        </div>
+        <div class="manage-group-body">
+          <div class="standup-card">
+            <h3>Projected Sales, Productivity & Events</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Projected sales, productivity goals, and events by daypart</p>
+            <div class="week-toggle">
+              <button type="button" class="week-toggle-btn active" aria-pressed="true" data-offset="0">This Week</button>
+              <button type="button" class="week-toggle-btn" aria-pressed="false" data-offset="1">Next Week</button>
+            </div>
+            <div class="day-picker" id="numbersDayPicker"></div>
+            <select id="numbersDaySelect" style="display:none;"></select>
+            <div id="numbersSelectedInfo" class="day-info-bar"></div>
+            <div id="numbersContent"></div>
+          </div>
         </div>
       </div>
 
-      <div class="standup-card">
-        <h3>Products</h3>
-        <div id="prodList"></div>
-        <div class="add-prod-form">
-          <input type="text" id="newName" placeholder="Product name / Nombre">
-          <input type="text" id="newUnit" placeholder="Unit / Unidad">
-          <input type="number" step="0.01" id="newCost" placeholder="Cost / Costo">
-          <button id="btnAddProd">Add</button>
+      <!-- GROUP: Talent Development -->
+      <div class="manage-group">
+        <div class="manage-group-header" onclick="toggleManageGroup(this)">
+          <span class="manage-group-title">🎓 Talent Development</span>
+          <span class="manage-group-chevron">▾</span>
+        </div>
+        <div class="manage-group-body">
+          <div class="standup-card">
+            <h3>EOI Submissions <span class="sub"><i>Expresiones de Interés</i></span></h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Team members interested in their next role</p>
+            <div id="eoiSubmissionsContainer"></div>
+          </div>
+
+          <div class="standup-card">
+            <h3>TX Scoreboard (Monthly Update)</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Updated at the beginning of each month</p>
+            <div id="txManageList" style="margin-bottom:16px;"></div>
+            <button id="btnSaveTX" class="btn btn-primary">Save TX Scoreboard</button>
+          </div>
         </div>
       </div>
 
-      <div class="standup-card">
-        <h3>HotSchedules Import (by Day)</h3>
-        <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Upload weekly roster screenshots to populate each day</p>
-        
-        <div class="field">
-          <label>Select Day to Import</label>
-          <select id="importDaySelect" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';"></select>
+      <!-- GROUP: Scoreboards -->
+      <div class="manage-group">
+        <div class="manage-group-header" onclick="toggleManageGroup(this)">
+          <span class="manage-group-title">📈 Scoreboards</span>
+          <span class="manage-group-chevron">▾</span>
         </div>
+        <div class="manage-group-body">
+          <div class="standup-card">
+            <h3>LX Scoreboard (Weekly Update)</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Updated every Monday by admin team</p>
+            <div id="pillarsManageList" style="margin-bottom:20px;"></div>
+            <h4 style="font-family:'Outfit';font-weight:600;margin:20px 0 12px;font-size:13px;color:var(--text-primary);">Business Metrics</h4>
+            <div id="metricsManageList" style="margin-bottom:16px;"></div>
+            <button id="btnSaveLX" class="btn btn-primary">Save LX Scoreboard</button>
+          </div>
 
-        <div class="field">
-          <label>Upload Daily Roster (PDF or Screenshot)</label>
-          <input type="file" id="scheduleUpload" accept=".pdf,image/*" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;">
-          <div style="font-size:10px;color:var(--text-secondary);margin-top:4px;font-style:italic;">Upload your full roster PDF - we'll auto-split FOH & BOH</div>
-        </div>
+          <div class="standup-card">
+            <h3>GX Scoreboard (Weekly Update)</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Updated every Monday by admin team</p>
 
-        <button id="btnImportSchedule" class="btn btn-primary" style="margin-top:12px;">Import Roster</button>
-        <div id="importStatus" style="font-size:12px;color:var(--text-secondary);margin-top:8px;text-align:center;"></div>
-      </div>
+            <div style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:16px;">
+              <div style="font-weight:600;font-size:12px;color:var(--text-primary);margin-bottom:8px;">📄 Import CEM Comparison Report</div>
+              <p style="font-size:11px;color:var(--text-secondary);margin:0 0 10px;">Upload the CEM "Comparison Report" CSV to auto-fill the store-total scores below. Review before saving.</p>
+              <input type="file" id="cemUpload" accept=".csv" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;margin-bottom:8px;">
+              <button id="btnImportCem" class="btn btn-secondary" style="width:auto;padding:8px 14px;font-size:11px;">Import CEM Data</button>
+              <div id="cemImportStatus" style="font-size:11px;color:var(--text-secondary);margin-top:8px;"></div>
+            </div>
 
-      <div class="standup-card">
-        <h3>Weekly Roster Import (CSV)</h3>
-        <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Upload a full week's HotSchedules CSV export to populate Monday–Saturday at once. Manually-added team members are never overwritten.</p>
+            <div id="gxManageList" style="margin-bottom:16px;"></div>
+            <button id="btnSaveGX" class="btn btn-primary">Save GX Scoreboard</button>
+          </div>
 
-        <div class="week-toggle" style="margin-bottom:14px;">
-          <button type="button" class="wri-week-btn active" aria-pressed="true" data-weekly-offset="0">This Week</button>
-          <button type="button" class="wri-week-btn" aria-pressed="false" data-weekly-offset="1">Next Week</button>
-        </div>
-
-        <div class="field">
-          <label>Upload Weekly Roster CSV</label>
-          <input type="file" id="weeklyRosterUpload" accept=".csv" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;">
-          <div style="font-size:10px;color:var(--text-secondary);margin-top:4px;font-style:italic;">Sunday and Truck/Other shifts are ignored automatically</div>
-        </div>
-
-        <button id="btnImportWeeklyRoster" class="btn btn-primary" style="margin-top:12px;">Import Week</button>
-        <div id="weeklyImportStatus" style="font-size:12px;color:var(--text-secondary);margin-top:8px;text-align:center;"></div>
-      </div>
-
-      <div class="standup-card">
-        <h3>Team Members</h3>
-        <div id="teamList" style="margin-bottom:12px;"></div>
-        <div style="display:flex;gap:8px;">
-          <input type="text" id="newTeamName" placeholder="Name / Nombre" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius);">
-          <button id="btnAddTeam" class="btn btn-primary" style="flex:0;width:auto;padding:10px 16px;">Add</button>
+          <div class="standup-card">
+            <h3>📊 Custom Scoreboards & Trackers</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Add scoreboards, dashboards, or trackers to show under Scoreboard</p>
+            <div id="scoreboardManageList" style="margin-bottom:16px;"></div>
+            <button id="btnAddScoreboardItem" class="btn btn-secondary" style="margin-bottom:12px;">+ Add Scoreboard</button>
+            <button id="btnSaveScoreboard" class="btn btn-primary">Save Scoreboard</button>
+          </div>
         </div>
       </div>
 
-      <div class="standup-card">
-        <h3>LX Scoreboard (Weekly Update)</h3>
-        <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Updated every Monday by admin team</p>
-        
-        <div id="pillarsManageList" style="margin-bottom:20px;"></div>
-
-        <h4 style="font-family:'Outfit';font-weight:600;margin:20px 0 12px;font-size:13px;color:var(--text-primary);">Business Metrics</h4>
-        <div id="metricsManageList" style="margin-bottom:16px;"></div>
-
-        <button id="btnSaveLX" class="btn btn-primary">Save LX Scoreboard</button>
+      <!-- GROUP: Home Page -->
+      <div class="manage-group">
+        <div class="manage-group-header" onclick="toggleManageGroup(this)">
+          <span class="manage-group-title">🏠 Home Page</span>
+          <span class="manage-group-chevron">▾</span>
+        </div>
+        <div class="manage-group-body">
+          <div class="standup-card">
+            <h3>Home Page (Vision, Mission, Values & Wins)</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Updated monthly by leadership team</p>
+            <div id="homeManageList" style="margin-bottom:16px;"></div>
+            <button id="btnSaveHome" class="btn btn-primary">Save Home Page</button>
+          </div>
+        </div>
       </div>
 
-      <div class="standup-card">
-        <h3>GX Scoreboard (Weekly Update)</h3>
-        <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Updated every Monday by admin team</p>
-        <div id="gxManageList" style="margin-bottom:16px;"></div>
-        <button id="btnSaveGX" class="btn btn-primary">Save GX Scoreboard</button>
-      </div>
-
-      <div class="standup-card">
-        <h3>TX Scoreboard (Monthly Update)</h3>
-        <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Updated at the beginning of each month</p>
-        <div id="txManageList" style="margin-bottom:16px;"></div>
-        <button id="btnSaveTX" class="btn btn-primary">Save TX Scoreboard</button>
-      </div>
-
-      <div class="standup-card">
-        <h3>Home Page (Vision, Mission, Values & Wins)</h3>
-        <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Updated monthly by leadership team</p>
-        <div id="homeManageList" style="margin-bottom:16px;"></div>
-        <button id="btnSaveHome" class="btn btn-primary">Save Home Page</button>
-      </div>
-
-      <div class="standup-card">
-        <h3>📊 Custom Scoreboards & Trackers</h3>
-        <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Add scoreboards, dashboards, or trackers to show under Experience → Scoreboard</p>
-        <div id="scoreboardManageList" style="margin-bottom:16px;"></div>
-        <button id="btnAddScoreboardItem" class="btn btn-secondary" style="margin-bottom:12px;">+ Add Scoreboard</button>
-        <button id="btnSaveScoreboard" class="btn btn-primary">Save Scoreboard</button>
-      </div>
-
-      <div class="standup-card">
-        <h3>💾 Backup</h3>
-        <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Download a snapshot of everything — rosters, set ups, numbers, checklists — as a file you keep, independent of this app.</p>
-        <button id="btnExportBackup" class="btn btn-primary">Download Backup</button>
+      <!-- GROUP: Backup & Data -->
+      <div class="manage-group">
+        <div class="manage-group-header" onclick="toggleManageGroup(this)">
+          <span class="manage-group-title">💾 Backup & Data</span>
+          <span class="manage-group-chevron">▾</span>
+        </div>
+        <div class="manage-group-body">
+          <div class="standup-card">
+            <h3>💾 Backup</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Download a snapshot of everything — rosters, set ups, numbers, checklists — as a file you keep, independent of this app.</p>
+            <button id="btnExportBackup" class="btn btn-primary">Download Backup</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
