@@ -2,8 +2,6 @@ function getZoneItems(zoneName){
   return zoneName === 'Final Check' ? FINAL_CHECK_ITEMS : (ZONE_CHECKLISTS[zoneName] || []);
 }
 
-// Reuses the same major-daypart list as Set Ups, so leaders see one consistent
-// set of transition points across the app instead of two different schemes
 function getZoneDayparts(){
   return fohDayparts.map(dp => dp.name);
 }
@@ -31,9 +29,6 @@ function recomputeChecklistHistory(dateISO){
   zoneChecklistHistory[dateISO] = {overall: getOverallCompletion(dateISO)};
 }
 
-// Zone checklists don't need long history (raw checkbox state prunes with everything
-// else after 14 days), but the scoreboard needs the completion percentages to stick
-// around longer to actually show a trend — keep those for 60 days instead
 function pruneZoneChecklistData(){
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 60);
@@ -236,7 +231,6 @@ const bohProducts = [
 products = [...fohProducts, ...bohProducts];
 teamMembers = [...fohLeads, ...bohLeads];
 
-// POSITIONS & BREAKS DATA
 const fohDayparts = [
   {name: 'Early Breakfast (6:00-8:00)', time: '6:00'},
   {name: 'Breakfast (8:00-11:00)', time: '8:00'},
@@ -313,7 +307,6 @@ let fohOECheckedDate = null;
 let fohLeaderTransitionChecked = {};
 let fohLeaderTransitionDate = null;
 
-// REMARKable Opportunities Growth Track & EOI Forms
 const growthTrack = [
   {role: 'Team Member', color: '#E31C23', desc: "Lives out our mission of being the most caring brand by winning the hearts of our guests everyday."},
   {role: 'Trainer', color: '#1B3A57', desc: "Develops New Hires. Foundation of leading self. Proven in 5 Key Areas — FOH/BOH. Models the 3-step D.I.R. method. Committed to developing self & others."},
@@ -377,16 +370,21 @@ const bohRoster = {
 
 let currentPosSection = 'foh';
 let breakCountdowns = {};
-let completedBreaks = {}; // persisted: marks a break as done, whether by timer expiry or manual completion
-let activeCountdownTimers = {}; // runtime-only: interval IDs, never persisted
-let zoneChecklistState = {}; // persisted: zoneChecklistState[dateISO][zoneName][itemText] = {initials, ts} (only today's date is ever written to)
-let zoneChecklistHistory = {}; // persisted: zoneChecklistHistory[dateISO] = {overall: pct, zones: {zoneName: pct}} — kept longer than the raw state, for the scoreboard
-let numbersData = {}; // persisted: numbersData[dateISO][daypartName] = {projectedSales, productivityGoal, specialEvents}
-let lastUpdated = {}; // persisted: lastUpdated[dateISO] = timestamp (ms) of last roster/positions/numbers edit
+let completedBreaks = {};
+let activeCountdownTimers = {};
+let zoneChecklistState = {};
+let zoneChecklistHistory = {};
+let numbersData = {};
+let lastUpdated = {};
 let posAssignments = {};
-let posVacancyFlags = {}; // persisted: posVacancyFlags[key] = {flaggedBy, flaggedAt} — same key shape as posAssignments, marks an assigned position as needing coverage
+let posVacancyFlags = {};
 
-// LX SCOREBOARD DATA
+// Target Safe Bank Amount — will never change, hardcoded per decision (no Manage UI).
+// IMPORTANT: delete any pre-existing "let safeTarget = ..." declaration elsewhere in
+// the project before deploying this — a duplicate top-level declaration of the same
+// name across concatenated scripts throws a fatal SyntaxError on page load.
+const safeTarget = 4500;
+
 const defaultPillars = [
   {
     id: 'pillar1',
@@ -444,7 +442,6 @@ let lxPillars = [];
 let lxMetrics = [];
 let lxLastUpdated = null;
 
-// GX SCOREBOARD DATA
 const defaultGXData = {
   wig: {
     mtdSales: {value: '$402,555', label: 'MTD Sales $'},
@@ -505,7 +502,6 @@ const defaultGXData = {
 
 let gxData = JSON.parse(JSON.stringify(defaultGXData));
 
-// TX SCOREBOARD DATA
 const defaultTXData = {
   events: [
     {id: 'evt1', name: 'Trainer Trials Begin', date: '2026-09-05'},
@@ -531,7 +527,6 @@ const defaultTXData = {
 
 let txData = JSON.parse(JSON.stringify(defaultTXData));
 
-// HOME PAGE DATA
 const truettQuotes = [
   {text: "Pressurized jobs create pressurized people. That's not what we want to be.", author: "Truett Cathy"},
   {text: "Be a servant leader. It's not about being the boss. It's about serving others.", author: "Truett Cathy"},
