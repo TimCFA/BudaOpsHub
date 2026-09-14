@@ -159,27 +159,3 @@ function renderScoreboardView(){
   document.getElementById('fohOEStreakNum').textContent = fohOEStreak;
   document.getElementById('fohOEStreakLabel').textContent = 'consecutive ' + (fohOEStreak === 1 ? 'day' : 'days');
 }
-
-function renderFoodSafety(){
-  const badge = document.getElementById('foodSafetyDoneBadge');
-  if(badge) badge.style.display = formDone ? 'inline-block' : 'none';
-  const formBtn = document.getElementById('btnMarkFormDone');
-  if(formDone){
-    formBtn.textContent = '✓ Completed Today';
-    formBtn.disabled = true;
-  } else {
-    formBtn.textContent = 'Mark Complete';
-    formBtn.disabled = false;
-  }
-}
-document.getElementById('btnMarkFormDone').addEventListener('click', async ()=>{
-  formDone = true;
-  if(!foodSafetyDays.includes(today)){
-    foodSafetyDays.push(today);
-    calcStreak();
-  }
-  await saveState();
-  renderFoodSafety();
-  renderScoreboardView();
-  showToast('✓ Food Safety Marked Complete!');
-});
