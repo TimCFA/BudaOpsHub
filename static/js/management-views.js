@@ -110,74 +110,9 @@ function renderLXManage(){
   `).join('');
 }
 
-// ===== CEM CSV IMPORT (for GX Scoreboard) =====
-// Parses a Comparison Report export into flat metric-name → {value, top5} pairs,
-// pulling ONLY the store-total row (blank daypart) per metric block, ignoring
-// per-daypart breakdowns for now — that level of detail is deferred to a future
-// Operational Intelligence pass. Reuses the generic parseCsv() tokenizer defined
-// in weekly-roster-import.js (shared global, loaded elsewhere on the page).
-function parseCemCsv(text){
-  const rows = parseCsv(text);
-  const blocks = [];
-  let i = 0;
-  while(i < rows.length){
-    const row = rows[i];
-    if(row[0] && row[0].trim() === 'Store'){
-      const metricNames = [];
-      for(let c = 3; c < row.length; c += 2){
-        const name = (row[c] || '').trim();
-        if(name) metricNames.push({name, col: c});
-      }
-      let r = i + 2; // skip the Score/n subheader row directly below
-      let top5Row = null, storeRow = null;
-      while(r < rows.length && !(rows[r][0] && rows[r][0].trim() === 'Store')){
-        const label = (rows[r][0] || '').trim();
-        const daypart = (rows[r][1] || '').trim();
-        if(label === 'Top 5%') top5Row = rows[r];
-        else if(label && daypart === '' && !storeRow) storeRow = rows[r]; // first blank-daypart row = store total
-        r++;
-      }
-      const metrics = {};
-      metricNames.forEach(({name, col})=>{
-        metrics[name] = {
-          value: storeRow ? (storeRow[col] || '').trim() : '',
-          top5: top5Row ? (top5Row[col] || '').trim() : ''
-        };
-      });
-      blocks.push(metrics);
-      i = r;
-    } else {
-      i++;
-    }
-  }
-  const merged = {};
-  blocks.forEach(b => Object.assign(merged, b));
-  return merged;
-}
-
-// Only maps to GX Manage fields that already exist. "Attentive/Friendly" has no
-// corresponding input in the current GX Manage form (gxData.teamMembers isn't
-// editable there yet), so it's intentionally left unmapped and gets reported as
-// skipped rather than silently dropped.
-const CEM_FIELD_MAP = {
-  'Overall Satisfaction': {value: 'gx-satisfaction'},
-  'Taste of Food': {value: 'gx-craveable-overallTaste', top5: 'gx-craveable-overallTaste-top5'},
-  'Fast Service': {value: 'gx-service-fastService', top5: 'gx-service-fastService-top5'},
-  'Cleanliness': {value: 'gx-welcoming-cleanliness', top5: 'gx-welcoming-cleanliness-top5'},
-  'Order Accuracy Y/N': {value: 'gx-service-orderAccuracy', top5: 'gx-service-orderAccuracy-top5'}
-};
-
 function renderGXManage(){
   const gxManageList = document.getElementById('gxManageList');
   gxManageList.innerHTML = `
-    <div style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;">
-      <div style="font-weight:600;font-size:12px;color:var(--text-primary);margin-bottom:10px;">📥 Import CEM Data (CSV)</div>
-      <p style="font-size:11px;color:var(--text-secondary);margin:0 0 10px;">Upload a Comparison Report export to auto-fill matching fields below. Review before saving.</p>
-      <input type="file" id="cemFileUpload" accept=".csv" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;cursor:pointer;margin-bottom:8px;">
-      <button id="btnImportCemData" class="btn btn-secondary" style="width:auto;padding:8px 14px;font-size:11px;">Import CEM CSV</button>
-      <div id="cemImportStatus" style="font-size:11px;color:var(--text-secondary);margin-top:8px;"></div>
-    </div>
-
     <div style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;">
       <div style="font-weight:600;font-size:12px;color:var(--text-primary);margin-bottom:10px;">WIG: $12M Revenue</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
@@ -457,3 +392,126 @@ async function savePillars(){
   renderLXScoreboard();
   showToast('✓ Pillars Updated');
 }
+
+// ===== CEM COMPARISON REPORT IMPORT =====
+// Parses the CEM "Comparison Report" CSV export and fills in the corresponding
+// GX Scoreboard input fields with the store-total values (the row with a blank
+// "Time of Day Extended" column) plus the "Top 5%" benchmark row. Deliberately
+// does NOT touch gxData directly or save anything — it only populates the
+// existing manage-form inputs so the normal review-then-"Save GX Scoreboard"
+// flow still applies before anything persists.
+//
+// Per-daypart CEM breakdowns are intentionally out of scope here — deferred to
+// the future Operational Intelligence work.
+
+const CEM_FIELD_MAP = [
+  {cemName: 'Overall Satisfaction', valueInputId: 'gx-satisfaction', top5InputId: null},
+  {cemName: 'Taste of Food', valueInputId: 'gx-craveable-overallTaste', top5InputId: 'gx-craveable-overallTaste-top5'},
+  {cemName: 'Fast Service', valueInputId: 'gx-service-fastService', top5InputId: 'gx-service-fastService-top5'},
+  {cemName: 'Cleanliness', valueInputId: 'gx-welcoming-cleanliness', top5InputId: 'gx-welcoming-cleanliness-top5'},
+  {cemName: 'Order Accuracy Y/N', valueInputId: 'gx-service-orderAccuracy', top5InputId: 'gx-service-orderAccuracy-top5'}
+];
+
+// Generic CSV tokenizer (handles quoted fields with embedded commas). Reused
+// by weekly-roster-import.js too — declared as a plain function so it's safe
+// to call regardless of script load order, since by the time either file's
+// button handler actually fires, every script has already finished loading.
+function parseCsv(text){
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for(let i = 0; i < text.length; i++){
+    const c = text[i];
+    if(inQuotes){
+      if(c === '"'){
+        if(text[i+1] === '"'){ field += '"'; i++; }
+        else { inQuotes = false; }
+      } else {
+        field += c;
+      }
+    } else {
+      if(c === '"') inQuotes = true;
+      else if(c === ',') { row.push(field); field = ''; }
+      else if(c === '\r') { /* skip, handled by \n below */ }
+      else if(c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+      else field += c;
+    }
+  }
+  if(field.length > 0 || row.length > 0){ row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(cell => cell.trim() !== ''));
+}
+
+function parseCemCsv(text){
+  const rows = parseCsv(text);
+  const metrics = {};
+  let i = 0;
+  while(i < rows.length){
+    const row = rows[i];
+    if((row[0]||'').trim() === 'Store' && (row[1]||'').trim() === 'Time of Day Extended'){
+      const metricCols = [];
+      for(let c = 3; c < row.length; c++){
+        const label = (row[c]||'').trim();
+        if(label) metricCols.push({name: label, col: c});
+      }
+      i += 2; // skip this header row and the Score/n subheader row directly beneath it
+
+      let top5Row = null, totalRow = null;
+      while(i < rows.length){
+        const r = rows[i];
+        if((r[0]||'').trim() === 'Store' && (r[1]||'').trim() === 'Time of Day Extended') break;
+        const col0 = (r[0]||'').trim();
+        const col1 = (r[1]||'').trim();
+        if(col0 === 'Top 5%'){ top5Row = r; }
+        else if(col0 && !col1 && !totalRow){ totalRow = r; }
+        i++;
+      }
+      metricCols.forEach(({name, col})=>{
+        metrics[name] = {
+          value: totalRow ? (totalRow[col]||'').trim() : null,
+          top5: top5Row ? (top5Row[col]||'').trim() : null
+        };
+      });
+    } else {
+      i++;
+    }
+  }
+  return metrics;
+}
+
+document.getElementById('btnImportCem').addEventListener('click', ()=>{
+  const file = document.getElementById('cemUpload').files[0];
+  const status = document.getElementById('cemImportStatus');
+  if(!file){
+    status.textContent = '❌ Choose a CSV file first';
+    status.style.color = 'var(--cfa-red)';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const metrics = parseCemCsv(e.target.result);
+      if(Object.keys(metrics).length === 0){
+        throw new Error('No "Store, Time of Day Extended, Count..." block found — is this the CEM Comparison Report export?');
+      }
+      let applied = 0;
+      const skipped = [];
+      Object.keys(metrics).forEach(name=>{
+        const mapping = CEM_FIELD_MAP.find(m => m.cemName === name);
+        if(!mapping){ skipped.push(name); return; }
+        const valueEl = document.getElementById(mapping.valueInputId);
+        if(valueEl && metrics[name].value){ valueEl.value = metrics[name].value; applied++; }
+        if(mapping.top5InputId){
+          const top5El = document.getElementById(mapping.top5InputId);
+          if(top5El && metrics[name].top5) top5El.value = metrics[name].top5;
+        }
+      });
+      status.textContent = `✓ Imported ${applied} metric(s) into the form below — review, then click Save GX Scoreboard.` +
+        (skipped.length ? ` (Skipped: ${skipped.join(', ')} — no field yet for this metric)` : '');
+      status.style.color = 'var(--success)';
+    }catch(err){
+      status.textContent = '❌ ' + err.message;
+      status.style.color = 'var(--cfa-red)';
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
+});
