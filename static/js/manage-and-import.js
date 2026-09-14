@@ -1,4 +1,3 @@
-// Manage
 document.getElementById('btnPinGo').addEventListener('click',checkPin);
 document.getElementById('pinInput').addEventListener('keydown',(e)=>{ if(e.key==='Enter') checkPin(); });
 
@@ -44,6 +43,12 @@ document.getElementById('btnLock').addEventListener('click', async ()=>{
   }catch(err){ /* stay locked if the status check fails */ }
 })();
 
+// Collapsible accordion groups in Manage. Only "General Settings" starts open
+// (matches the .open class already on that group in the HTML).
+window.toggleManageGroup = function(headerEl){
+  headerEl.closest('.manage-group').classList.toggle('open');
+};
+
 document.getElementById('btnUpdateTarget').addEventListener('click', async ()=>{
   const v = parseInt(document.getElementById('targetInput').value);
   if(!isNaN(v) && v > 0){
@@ -53,10 +58,6 @@ document.getElementById('btnUpdateTarget').addEventListener('click', async ()=>{
     showToast('✓ Target Updated');
   }
 });
-
-window.toggleManageGroup = function(headerEl){
-  headerEl.closest('.manage-group').classList.toggle('open');
-};
 
 async function renderManage(){
   document.getElementById('targetInput').value = wasteTarget;
@@ -166,42 +167,6 @@ document.addEventListener('click', (e) => {
   if(e.target && e.target.id === 'btnAddTXCeleb'){
     txData.celebrations.push({id: 'celeb' + Date.now(), name: 'New Person', date: '01-01', type: 'birthday'});
     renderTXManage();
-  }
-  if(e.target && e.target.id === 'btnImportCemData'){
-    const file = document.getElementById('cemFileUpload').files[0];
-    const status = document.getElementById('cemImportStatus');
-    if(!file){
-      status.textContent = '❌ Choose a CSV file first';
-      status.style.color = 'var(--cfa-red)';
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (ev)=>{
-      try{
-        const metrics = parseCemCsv(ev.target.result);
-        const applied = [];
-        const skipped = [];
-        Object.keys(metrics).forEach(name=>{
-          const mapping = CEM_FIELD_MAP[name];
-          if(!mapping){ skipped.push(name); return; }
-          const valEl = document.getElementById(mapping.value);
-          if(valEl && metrics[name].value){ valEl.value = metrics[name].value; applied.push(name); }
-          if(mapping.top5){
-            const top5El = document.getElementById(mapping.top5);
-            if(top5El && metrics[name].top5) top5El.value = metrics[name].top5;
-          }
-        });
-        status.textContent = `✓ Applied ${applied.length}: ${applied.join(', ') || 'none'}.` +
-          (skipped.length ? ` Skipped (no matching field yet): ${skipped.join(', ')}.` : '') +
-          ' Review values above, then click Save GX Scoreboard.';
-        status.style.color = 'var(--success)';
-      }catch(err){
-        status.textContent = '❌ ' + err.message;
-        status.style.color = 'var(--cfa-red)';
-        console.error(err);
-      }
-    };
-    reader.readAsText(file);
   }
 });
 
