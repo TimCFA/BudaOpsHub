@@ -91,6 +91,14 @@
   .pos-flag-btn.flagged{border-color:var(--cfa-red);background:#FFF0F0;}
   .pos-flag-btn:hover{border-color:var(--cfa-red);}
   .pos-vacancy-badge{font-size:9px;font-weight:800;color:var(--cfa-red);text-transform:uppercase;letter-spacing:0.03em;margin-top:3px;}
+
+  .manage-group{margin-bottom:16px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--cfa-white);}
+  .manage-group-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;background:var(--cfa-light);user-select:none;}
+  .manage-group-title{font-family:'Outfit',sans-serif;font-weight:700;font-size:13px;color:var(--text-primary);}
+  .manage-group-chevron{font-size:14px;color:var(--text-secondary);transition:transform .15s ease;}
+  .manage-group.open .manage-group-chevron{transform:rotate(180deg);}
+  .manage-group-body{display:none;padding:14px 14px 4px;}
+  .manage-group.open .manage-group-body{display:block;}
   .pos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;}
 
   .daypart-card{background:var(--cfa-white);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05);}
