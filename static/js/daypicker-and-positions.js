@@ -246,8 +246,7 @@ function renderAllDayparts(){
               const escapedDp = dp.name.replace(/'/g, "\\'");
               return `
                 <div class="pos-tile ${assigned ? 'assigned' : ''} ${flag ? 'vacancy-flagged' : ''}" onclick="openPosModal('${key}', '${escapedPos}', '${escapedDp}')">
-                  ${assigned ? `<button class="pos-flag-btn ${flag ? 'flagged' : ''}" onclick="event.stopPropagation(); openVacancyModal('${escapedKey}', '${escapedPos}', '${escapedDp}')" title="${flag ? 'Needs coverage — tap to resolve' : 'Flag: find coverage'}">${flag ? '⚠️' : '🚩'}</button>` : ''}
-                  <div>
+                  ${assigned ? `<button class="pos-flag-btn ${flag ? 'flagged' : ''}" onclick="event.stopPropagation(); openVacancyModal('${escapedKey}', '${escapedPos}', '${escapedDp}')" title="Customize position">+</button>` : ''}                  <div>
                     <div class="pos-name">${pos}</div>
                     ${assigned ? `<div class="pos-assigned-name">${assigned}</div>` : '<div class="pos-empty">Tap to assign</div>'}
                     ${flag ? `<div class="pos-vacancy-badge">🚨 Needs Coverage</div>` : ''}
@@ -302,11 +301,16 @@ window.openPosModal = function(key, pos, daypart){
   // Exclusive assignment: exclude anyone already placed in a DIFFERENT position
   // within this same daypart. (The "Find Coverage" split flow deliberately does
   // NOT apply this filter — see openVacancyModal below.)
+  // Only the LAST name in a split assignment counts as "still working" this
+  // position — the first name has handed off and becomes eligible for a
+  // different position again (e.g. John hands Drinks 1 to Bill at 11:30,
+  // John is now free to be assigned to OMD 1).
   const daypartPrefix = currentPosSection + '||' + dayName + '||' + daypart + '||';
   const takenElsewhere = new Set();
   Object.keys(posAssignments).forEach(k=>{
     if(k !== key && k.startsWith(daypartPrefix) && posAssignments[k]){
-      posAssignments[k].split('/').forEach(n => takenElsewhere.add(n.trim()));
+      const names = posAssignments[k].split('/').map(n => n.trim());
+      takenElsewhere.add(names[names.length - 1]);
     }
   });
   eligible = eligible.filter(p => !takenElsewhere.has(p.name));
@@ -316,7 +320,6 @@ window.openPosModal = function(key, pos, daypart){
     eligible = [{name: currentlyAssigned, offShift: true}, ...eligible];
   }
   
-  pendingPosSelection = currentlyAssigned || '';
   window.currentPosModalEligible = eligible;
   renderPosOptionList(eligible);
   
@@ -330,8 +333,8 @@ function renderPosOptionList(eligible, filterText){
     : eligible;
   
   let html = `
-    <div class="pos-option unassign-option ${pendingPosSelection === '' ? 'selected' : ''}" onclick="selectPosOption('')">
-      <span>Unassign</span><span class="pos-option-check">✓</span>
+    <div class="pos-option unassign-option" onclick="commitPosAssignment('')">
+      <span>Unassign</span>
     </div>
   `;
   
@@ -340,14 +343,10 @@ function renderPosOptionList(eligible, filterText){
   } else {
     html += filtered.map(p=>{
       const escapedName = p.name.replace(/'/g, "\\'");
-      const isSelected = pendingPosSelection === p.name;
       return `
-        <div class="pos-option ${isSelected ? 'selected' : ''}" onclick="selectPosOption('${escapedName}')">
+        <div class="pos-option" onclick="commitPosAssignment('${escapedName}')">
           <span>${p.name}</span>
-          <span style="display:flex;align-items:center;gap:8px;">
-            ${p.offShift ? '<span class="pos-option-tag">off shift</span>' : ''}
-            <span class="pos-option-check">✓</span>
-          </span>
+          ${p.offShift ? '<span class="pos-option-tag">off shift</span>' : ''}
         </div>
       `;
     }).join('');
@@ -356,25 +355,11 @@ function renderPosOptionList(eligible, filterText){
   container.innerHTML = html;
 }
 
-window.selectPosOption = function(name){
-  pendingPosSelection = name;
-  renderPosOptionList(window.currentPosModalEligible || [], document.getElementById('posModalSearch').value);
-};
-
-document.getElementById('posModalSearch').addEventListener('input', (e)=>{
-  renderPosOptionList(window.currentPosModalEligible || [], e.target.value);
-});
-
-document.getElementById('posModal').addEventListener('click',(e)=>{
-  if(e.target===document.getElementById('posModal')) document.getElementById('posModal').classList.remove('active');
-});
-
-document.getElementById('btnCancelPos').addEventListener('click',()=>document.getElementById('posModal').classList.remove('active'));
-
-document.getElementById('btnAssignPos').addEventListener('click', async ()=>{
-  const selected = pendingPosSelection;
-  if(selected){
-    posAssignments[currentPosKey] = selected;
+// One tap = done. No confirm step, no "selected" state to track — picking a
+// name (or Unassign) commits immediately and closes the modal.
+window.commitPosAssignment = async function(name){
+  if(name){
+    posAssignments[currentPosKey] = name;
     delete posVacancyFlags[currentPosKey];
   } else {
     delete posAssignments[currentPosKey];
@@ -387,6 +372,17 @@ document.getElementById('btnAssignPos').addEventListener('click', async ()=>{
   updateSelectedDayInfo('daySelect', 'daySelectedInfo');
   document.getElementById('posModal').classList.remove('active');
   showToast('✓ Assignment Saved!');
+};
+
+document.getElementById('posModalSearch').addEventListener('input', (e)=>{
+  renderPosOptionList(window.currentPosModalEligible || [], e.target.value);
+});
+
+document.getElementById('posModal').addEventListener('click',(e)=>{
+  if(e.target===document.getElementById('posModal')) document.getElementById('posModal').classList.remove('active');
+});
+
+document.getElementById('btnCancelPos').addEventListener('click',()=>document.getElementById('posModal').classList.remove('active'));
 });
 
 // ===== FIND COVERAGE (split assignment) =====
