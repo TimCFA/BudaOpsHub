@@ -274,8 +274,6 @@ window.toggleDaypart = function(dpName){
 let currentPosKey = '';
 let currentPosName = '';
 
-let pendingPosSelection = '';
-
 window.openPosModal = function(key, pos, daypart){
   currentPosKey = key;
   currentPosName = pos;
