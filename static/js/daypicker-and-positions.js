@@ -383,9 +383,9 @@ document.getElementById('posModal').addEventListener('click',(e)=>{
 });
 
 document.getElementById('btnCancelPos').addEventListener('click',()=>document.getElementById('posModal').classList.remove('active'));
-});
 
 // ===== FIND COVERAGE (split assignment) =====
+
 // Distinct from the standard assign flow above: this list is NOT restricted to
 // people who aren't already assigned elsewhere this daypart — someone covering
 // a gap may well already be working another position. Picking a name appends
