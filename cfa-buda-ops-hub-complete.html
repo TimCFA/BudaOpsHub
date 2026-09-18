@@ -603,19 +603,47 @@
       <p style="font-size:13px;color:var(--text-secondary);margin:0;">Combined waste totals, streaks, and status across FOH and BOH.</p>
     </div>
 
-    <div class="standup-card">
-      <h3>Today's Waste Target</h3>
-      <div class="stat-row">
+    <div class="standup-card waste-today-card">
+      <div class="waste-today-header">
+        <div>
+          <h3 style="margin:0;">🍗 Today's Waste</h3>
+          <div class="sub" id="wasteTodayDate"></div>
+        </div>
+        <span class="waste-status-pill" id="wasteStatusPill">On Track</span>
+      </div>
+
+      <div class="waste-hero">
+        <div class="waste-hero-total" id="wasteTodayTotal">$0.00</div>
+        <div class="waste-hero-target">of <span id="wasteTodayTarget">$100.00</span> target</div>
+      </div>
+      <div class="waste-progress-track">
+        <div class="waste-progress-fill" id="wasteProgressFill"></div>
+      </div>
+
+      <div class="stat-row" style="margin-top:18px;">
         <div class="stat-card">
-          <div class="label">Daily Total</div>
-          <div class="value" id="standupTotal">$0.00</div>
+          <div class="label">FOH</div>
+          <div class="value" id="statFohSubtotal">$0.00</div>
         </div>
         <div class="stat-card">
-          <div class="label">Target</div>
-          <div class="value" id="standupTarget">$100.00</div>
+          <div class="label">BOH</div>
+          <div class="value" id="statBohSubtotal">$0.00</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Entries</div>
+          <div class="value" id="statEntries">0</div>
         </div>
       </div>
-      <div id="standupStatus" style="display:none;background:var(--cfa-light);border:1px solid var(--success);border-radius:var(--radius);padding:12px;text-align:center;color:var(--success);font-weight:600;font-size:12px;margin-top:12px;">✓ On track! Under daily target</div>
+
+      <div style="margin-top:16px;">
+        <div class="sub" style="margin-bottom:8px;">Top Items Today</div>
+        <div class="bar-list" id="barList"></div>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:14px;">
+        <div id="syncStatus" class="sync-status" style="font-size:10px;">Ready</div>
+        <button id="btnDownloadTodayCsv" class="btn btn-secondary" style="width:auto;padding:8px 14px;font-size:11px;">Download Today's Log (CSV)</button>
+      </div>
     </div>
 
     <div class="standup-card">
@@ -637,35 +665,6 @@
           <div class="streak-label" id="fohOEStreakLabel">consecutive days</div>
         </div>
       </div>
-    </div>
-
-    <div class="standup-card">
-      <h3>Waste Dashboard</h3>
-      <div class="actions-row">
-        <button id="btnSyncSheet" class="btn btn-secondary"><span>Sync to Google Sheet</span> <span class="sub"><i>Sincronizar</i></span></button>
-      </div>
-      <div id="syncStatus" class="sync-status">Ready</div>
-      <div class="stat-row">
-        <div class="stat-card">
-          <div class="label">Total Waste</div>
-          <div class="value" id="statTotal">$0.00</div>
-        </div>
-        <div class="stat-card">
-          <div class="label">Entries</div>
-          <div class="value" id="statEntries">0</div>
-        </div>
-      </div>
-      <div class="stat-row">
-        <div class="stat-card">
-          <div class="label">FOH Subtotal</div>
-          <div class="value" id="statFohSubtotal">$0.00</div>
-        </div>
-        <div class="stat-card">
-          <div class="label">BOH Subtotal</div>
-          <div class="value" id="statBohSubtotal">$0.00</div>
-        </div>
-      </div>
-      <div class="bar-list" id="barList"></div>
     </div>
 
     <div style="margin:20px 0 10px;">
