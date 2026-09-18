@@ -106,6 +106,21 @@
   .waste-progress-fill{height:100%;border-radius:4px;transition:width .3s ease;}
   .waste-progress-fill.on-track{background:var(--success);}
   .waste-progress-fill.over-target{background:var(--cfa-red);}
+
+  .prod-group{margin-bottom:16px;}
+  .prod-group-header{font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-secondary);padding:6px 4px;border-bottom:1px solid var(--border);margin-bottom:6px;}
+  .prod-row{display:grid;grid-template-columns:1fr 70px 90px 30px;gap:8px;align-items:center;padding:8px 4px;border-bottom:1px solid var(--border);}
+  .prod-row:last-child{border-bottom:none;}
+  .prod-input{font-family:'Inter',sans-serif;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;background:var(--cfa-white);color:var(--text-primary);width:100%;transition:border-color .15s ease;}
+  .prod-input:focus{outline:none;border-color:var(--cfa-red);}
+  .prod-input-name{font-weight:600;}
+  .prod-cost-wrap{display:flex;align-items:center;background:var(--cfa-white);border:1px solid var(--border);border-radius:6px;padding:0 8px;}
+  .prod-cost-wrap .prod-cost-sign{font-size:12px;color:var(--text-secondary);margin-right:2px;}
+  .prod-cost-wrap .prod-input-cost{border:none;padding:7px 0;background:none;}
+  .prod-cost-wrap .prod-input-cost:focus{outline:none;}
+  .prod-del{width:26px;height:26px;border-radius:50%;border:1px solid var(--border);background:var(--cfa-white);color:var(--text-secondary);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:all .15s ease;}
+  .prod-del:hover{border-color:var(--cfa-red);color:var(--cfa-red);background:#FFF0F0;}
+  .add-prod-form select{font-family:'Inter',sans-serif;font-size:13px;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--cfa-white);color:var(--text-primary);}
   .manage-group{margin-bottom:16px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--cfa-white);}
   .manage-group-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;background:var(--cfa-light);user-select:none;}
   .manage-group-title{font-family:'Outfit',sans-serif;font-weight:700;font-size:13px;color:var(--text-primary);}
