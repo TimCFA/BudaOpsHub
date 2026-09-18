@@ -40,7 +40,7 @@ async function saveState(){
     fohOEDays, fohOEChecked, fohOECheckedDate,
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
-    safeCounts, trainerTrainees, trainerProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds
+    safeCounts, trainerTrainees, trainerProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, wasteMonthlyHistory
   };
   const serialized = JSON.stringify(snapshot);
   localStorage.setItem('cfaBudaOps', serialized);
@@ -56,7 +56,7 @@ function exportBackup(){
     fohOEDays, fohOEChecked, fohOECheckedDate,
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
-    safeCounts, trainerTrainees, trainerProgress, scoreboardItems, posVacancyFlags
+    safeCounts, trainerTrainees, trainerProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, wasteMonthlyHistory
   };
   const blob = new Blob([JSON.stringify(snapshot, null, 2)], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
