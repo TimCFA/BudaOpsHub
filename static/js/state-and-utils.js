@@ -12,6 +12,8 @@ let foodSafetyDays = [];
 let wasteDays = [];
 let foodSafetyStreak = 0;
 let wasteStreak = 0;
+let wasteLogLastClosedOut = null; // timestamp of the last manual export+reset, shown in Manage
+let wasteMonthlyHistory = {}; // {"YYYY-MM": {total, fohTotal, bohTotal, entryCount, topProducts, closedOutAt}} — a small permanent summary saved at each monthly close-out, so month-over-month comparisons survive the reset that wipes raw entries
 
 // Any string that came from a user-typed field (EOI submissions, safe count
 // notes, etc.) must go through this before being placed in innerHTML —
