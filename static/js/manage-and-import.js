@@ -71,17 +71,36 @@ async function renderManage(){
   renderScoreboardManage();
   
   const list = document.getElementById('prodList');
-  list.innerHTML = products.map(p=>`
-    <div class="prod-row" data-id="${p.id}">
-      <input class="pn" value="${p.name}" data-f="name">
-      <input class="pc" type="number" step="0.01" value="${p.cost}" data-f="cost">
-      <input class="pu" value="${p.unit}" data-f="unit">
-      <button class="del">✕</button>
-    </div>
-  `).join('');
+  const prodGroups = {};
+  const prodGroupOrder = [];
+  products.forEach(p=>{
+    const key = p.section + '||' + p.cat;
+    if(!prodGroups[key]){ prodGroups[key] = {section: p.section, cat: p.cat, items: []}; prodGroupOrder.push(key); }
+    prodGroups[key].items.push(p);
+  });
+  list.innerHTML = prodGroupOrder.map(key=>{
+    const g = prodGroups[key];
+    const sectionLabel = g.section === 'foh' ? '🔴 FOH' : '🟠 BOH';
+    return `
+      <div class="prod-group">
+        <div class="prod-group-header">${sectionLabel} · ${escapeHtml(g.cat)}</div>
+        ${g.items.map(p=>`
+          <div class="prod-row" data-id="${p.id}">
+            <input class="prod-input prod-input-name" value="${escapeHtml(p.name)}" data-f="name" placeholder="Name">
+            <input class="prod-input prod-input-unit" value="${escapeHtml(p.unit)}" data-f="unit" placeholder="Unit">
+            <div class="prod-cost-wrap">
+              <span class="prod-cost-sign">$</span>
+              <input class="prod-input prod-input-cost" type="number" step="0.01" value="${p.cost}" data-f="cost" placeholder="0.00">
+            </div>
+            <button class="prod-del" title="Delete permanently">✕</button>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }).join('');
   list.querySelectorAll('.prod-row').forEach(row=>{
     const id = row.dataset.id;
-    row.querySelectorAll('input').forEach(inp=>{
+    row.querySelectorAll('.prod-input').forEach(inp=>{
       inp.addEventListener('change', async ()=>{
         const prod = products.find(p=>p.id===id);
         const f = inp.dataset.f;
@@ -90,8 +109,10 @@ async function renderManage(){
         renderGrid();
       });
     });
-    row.querySelector('.del').addEventListener('click', async ()=>{
+    row.querySelector('.prod-del').addEventListener('click', async ()=>{
+      if(!confirm('Remove this product? It will not come back on future updates.')) return;
       products = products.filter(p=>p.id!==id);
+      if(!deletedProductIds.includes(id)) deletedProductIds.push(id);
       await saveState();
       renderManage(); renderGrid();
     });
@@ -113,11 +134,12 @@ window.deleteTeam = async function(i){
 };
 
 document.getElementById('btnAddProd').addEventListener('click', async ()=>{
+  const section = document.getElementById('newSection').value;
   const name = document.getElementById('newName').value.trim();
   const unit = document.getElementById('newUnit').value.trim() || 'each';
   const cost = parseFloat(document.getElementById('newCost').value)||0;
   if(!name) return;
-  products.push({id:'p'+Date.now(), section:currentSection, cat:'Custom', name, unit, cost});
+  products.push({id:'p'+Date.now(), section, cat:'Custom', name, unit, cost});
   document.getElementById('newName').value='';
   document.getElementById('newUnit').value='';
   document.getElementById('newCost').value='';
