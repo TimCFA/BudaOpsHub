@@ -2,6 +2,7 @@ const SHEET_TITLE = 'CFA Buda Waste Log';
 let currentSection = 'foh';
 let entries = [];
 let products = [];
+let deletedProductIds = []; // ids of default products the user has explicitly removed — never re-added on load
 let teamMembers = [];
 let wasteTarget = 100;
 const safeTarget = 4500; // hardcoded — this value never changes, no UI to edit it
