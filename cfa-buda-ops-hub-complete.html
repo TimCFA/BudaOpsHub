@@ -886,6 +886,13 @@
         </div>
         <div class="manage-group-body">
           <div class="standup-card">
+            <h3>📦 Monthly Waste Archive</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Downloads a CSV and PDF of every waste entry logged since the last time this was pressed, then clears the waste log to start fresh. This can't be undone — make sure both files actually downloaded before confirming.</p>
+            <button id="btnCloseOutMonth" class="btn btn-primary">Export & Reset Waste Log</button>
+            <div id="monthCloseStatus" style="font-size:11px;color:var(--text-secondary);margin-top:8px;"></div>
+          </div>
+
+          <div class="standup-card">
             <h3>💾 Backup</h3>
             <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Download a snapshot of everything — rosters, set ups, numbers, checklists — as a file you keep, independent of this app.</p>
             <button id="btnExportBackup" class="btn btn-primary">Download Backup</button>
@@ -916,6 +923,7 @@
   </div>
 
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="/static/js/state-and-utils.js"></script>
 <script src="/static/js/zone-reset.js"></script>
 <script src="/static/js/training-guides.js"></script>
