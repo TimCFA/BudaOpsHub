@@ -86,10 +86,14 @@ async function loadState(){
   }
   if(data){
     entries = data.entries || [];
+    // Tracks products the user has explicitly deleted, so a default item never
+    // silently reappears on the next load just because it's "missing" from
+    // their saved list — missing now means "deleted", not "needs restoring".
+    deletedProductIds = data.deletedProductIds || [];
     const defaultProducts = [...fohProducts, ...bohProducts];
     if(data.products){
       const savedIds = new Set(data.products.map(p=>p.id));
-      const missingDefaults = defaultProducts.filter(p=>!savedIds.has(p.id));
+      const missingDefaults = defaultProducts.filter(p=>!savedIds.has(p.id) && !deletedProductIds.includes(p.id));
       products = [...data.products, ...missingDefaults];
       const renameFixes = {foh26:'5 ct Grilled Nugget', foh27:'8 ct Grilled Nugget', foh28:'12 ct Grilled Nugget'};
       products.forEach(p=>{ if(renameFixes[p.id]) p.name = renameFixes[p.id]; });
