@@ -1,2 +1,1 @@
-web: gunicorn server:app
-release: pip install gunicorn
+web: gunicorn app:app
