@@ -176,8 +176,12 @@ function calcStreak(){
   }
 }
 
+// Fixed: this used to sum EVERY entry ever logged, not just today's — meaning
+// "Today's Waste Target" was actually showing a lifetime running total, and
+// the under-target streak could never increment again once lifetime waste
+// passed the target. Now correctly scoped to today's date only.
 function getTodayTotal(){
-  return entries.reduce((sum,e)=>sum+e.cost,0);
+  return entries.filter(e => toLocalISODate(new Date(e.ts)) === today).reduce((sum,e)=>sum+e.cost,0);
 }
 
 function updateClock(){
