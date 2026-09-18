@@ -92,14 +92,26 @@
   .pos-flag-btn.flagged{border-color:var(--cfa-red);color:var(--cfa-red);background:#FFF0F0;}
   .pos-flag-btn.flagged::after{content:'';position:absolute;top:-2px;right:-2px;width:8px;height:8px;border-radius:50%;background:var(--cfa-red);border:1px solid var(--cfa-white);}
   .pos-vacancy-badge{font-size:9px;font-weight:800;color:var(--cfa-red);text-transform:uppercase;letter-spacing:0.03em;margin-top:3px;}
+  .manage-group-body{display:none;padding:14px 14px 4px;}
+  .manage-group.open .manage-group-body{display:block;}
 
+  .waste-today-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;}
+  .waste-status-pill{font-size:11px;font-weight:700;padding:5px 12px;border-radius:14px;text-transform:uppercase;letter-spacing:0.03em;white-space:nowrap;flex-shrink:0;}
+  .waste-status-pill.on-track{background:#E8F5E9;color:var(--success);}
+  .waste-status-pill.over-target{background:#FBE9EB;color:var(--cfa-red);}
+  .waste-hero{display:flex;align-items:baseline;gap:8px;margin-bottom:10px;}
+  .waste-hero-total{font-family:'Outfit',sans-serif;font-weight:800;font-size:40px;color:var(--text-primary);line-height:1;}
+  .waste-hero-target{font-size:13px;color:var(--text-secondary);}
+  .waste-progress-track{width:100%;height:8px;border-radius:4px;background:var(--cfa-light);overflow:hidden;}
+  .waste-progress-fill{height:100%;border-radius:4px;transition:width .3s ease;}
+  .waste-progress-fill.on-track{background:var(--success);}
+  .waste-progress-fill.over-target{background:var(--cfa-red);}
   .manage-group{margin-bottom:16px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--cfa-white);}
   .manage-group-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;background:var(--cfa-light);user-select:none;}
   .manage-group-title{font-family:'Outfit',sans-serif;font-weight:700;font-size:13px;color:var(--text-primary);}
   .manage-group-chevron{font-size:14px;color:var(--text-secondary);transition:transform .15s ease;}
   .manage-group.open .manage-group-chevron{transform:rotate(180deg);}
-  .manage-group-body{display:none;padding:14px 14px 4px;}
-  .manage-group.open .manage-group-body{display:block;}
+
   .pos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;}
 
   .daypart-card{background:var(--cfa-white);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05);}
