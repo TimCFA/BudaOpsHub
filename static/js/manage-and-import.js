@@ -61,6 +61,9 @@ document.getElementById('btnUpdateTarget').addEventListener('click', async ()=>{
 
 async function renderManage(){
   document.getElementById('targetInput').value = wasteTarget;
+  document.getElementById('monthCloseStatus').textContent = wasteLogLastClosedOut
+    ? `Last closed out: ${new Date(wasteLogLastClosedOut).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})} · ${entries.length} entries since`
+    : `Never closed out yet · ${entries.length} entries logged so far`;
 
   renderLXManage();
   renderGXManage();
@@ -351,6 +354,105 @@ async function confirmRoster(){
   document.getElementById('importStatus').style.color = 'var(--success)';
   showToast('✓ ' + dayLabel + ' Roster Updated!');
 }
+
+function generateWastePdf(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const throughDate = new Date().toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'});
+
+  doc.setFontSize(16);
+  doc.text('CFA Buda — Waste Log', 14, 18);
+  doc.setFontSize(10);
+  doc.text(`Export through ${throughDate}`, 14, 25);
+
+  const sorted = [...entries].sort((a,b)=>a.ts-b.ts);
+  let y = 38;
+  doc.setFontSize(9);
+  doc.setFont(undefined, 'bold');
+  doc.text('Date/Time', 14, y);
+  doc.text('Product', 55, y);
+  doc.text('Qty', 118, y);
+  doc.text('Cost', 138, y);
+  doc.text('By', 160, y);
+  doc.text('Section', 178, y);
+  doc.setFont(undefined, 'normal');
+  y += 5;
+  doc.setLineWidth(0.2);
+  doc.line(14, y - 3, 196, y - 3);
+  y += 3;
+
+  sorted.forEach(e=>{
+    if(y > 280){ doc.addPage(); y = 20; }
+    doc.text(new Date(e.ts).toLocaleString('en-US', {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}), 14, y);
+    doc.text(String(e.name).slice(0, 32), 55, y);
+    doc.text(`${e.qty}${e.unit}`, 118, y);
+    doc.text(`$${e.cost.toFixed(2)}`, 138, y);
+    doc.text(e.who || '', 160, y);
+    doc.text(e.section.toUpperCase(), 178, y);
+    y += 6;
+  });
+
+  const total = entries.reduce((sum,e)=>sum+e.cost,0);
+  y += 3;
+  doc.setLineWidth(0.4);
+  doc.line(14, y - 3, 196, y - 3);
+  y += 4;
+  doc.setFontSize(11);
+  doc.setFont(undefined, 'bold');
+  doc.text(`Total Waste: $${total.toFixed(2)}`, 14, y);
+  doc.text(`Entries: ${entries.length}`, 110, y);
+
+  doc.save(`cfa-buda-waste-log-through-${today}.pdf`);
+}
+
+document.getElementById('btnCloseOutMonth').addEventListener('click', async ()=>{
+  if(entries.length === 0){
+    showToast('No waste entries to export yet');
+    return;
+  }
+  const confirmed = confirm(
+    `This will download a CSV and a PDF covering all ${entries.length} waste entries logged since the last close-out, then permanently clear the waste log to start fresh. This can't be undone. Continue?`
+  );
+  if(!confirmed) return;
+
+  const csv = buildCsvContent();
+  const csvBlob = new Blob([csv], {type: 'text/csv'});
+  const csvUrl = URL.createObjectURL(csvBlob);
+  const csvLink = document.createElement('a');
+  csvLink.href = csvUrl;
+  csvLink.download = `cfa-buda-waste-log-through-${today}.csv`;
+  csvLink.click();
+  URL.revokeObjectURL(csvUrl);
+
+  generateWastePdf();
+
+  // Save a lightweight permanent summary before wiping raw entries — this is
+  // what lets month-over-month trends on Scoreboard keep working after a
+  // close-out, without needing to keep every raw entry around forever.
+  const monthKey = today.slice(0, 7); // YYYY-MM
+  const closingFohTotal = entries.filter(e=>e.section==='foh').reduce((s,e)=>s+e.cost,0);
+  const closingBohTotal = entries.filter(e=>e.section==='boh').reduce((s,e)=>s+e.cost,0);
+  const closingByProduct = {};
+  entries.forEach(e=>{ closingByProduct[e.name] = (closingByProduct[e.name]||0) + e.cost; });
+  const closingTopProducts = Object.entries(closingByProduct).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([name,cost])=>({name, cost}));
+  wasteMonthlyHistory[monthKey] = {
+    total: entries.reduce((s,e)=>s+e.cost,0),
+    fohTotal: closingFohTotal,
+    bohTotal: closingBohTotal,
+    entryCount: entries.length,
+    topProducts: closingTopProducts,
+    closedOutAt: Date.now()
+  };
+
+  entries = [];
+  wasteLogLastClosedOut = Date.now();
+  await saveState();
+  renderGrid();
+  renderTape();
+  renderScoreboardView();
+  renderManage();
+  showToast('✓ Waste log exported and reset');
+});
 
 document.getElementById('btnExportCsv').addEventListener('click',()=>{
   const rows = [['Date/Time','Product','Qty','Unit','Unit Cost','Total Cost','Logged By','Section']];
