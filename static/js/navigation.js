@@ -6,7 +6,7 @@ function activateView(view){
   if(view === 'zonereset') renderZoneResetView();
   if(view === 'walkthroughs') renderWalkthroughsPage();
   if(view === 'safecount') renderSafeCount();
-  if(view === 'scoreboard'){ renderScoreboardView(); renderCustomScoreboards(); }
+  if(view === 'scoreboard'){ renderScoreboardView(); renderOperationalIntelligence(); renderCustomScoreboards(); }
   if(view === 'lx') renderLXScoreboard();
   if(view === 'gx') renderGXScoreboard();
   if(view === 'tx'){ renderTXScoreboard(); renderTrainerTrial(); }
