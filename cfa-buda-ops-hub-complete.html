@@ -686,22 +686,6 @@
         <button id="btnLock" class="btn btn-ghost" style="width:auto;padding:8px 16px;margin:0;font-size:11px;">Lock <span class="sub"><i>Bloquear</i></span></button>
       </div>
 
-      <!-- GROUP: General Settings -->
-      <div class="manage-group open">
-        <div class="manage-group-header" onclick="toggleManageGroup(this)">
-          <span class="manage-group-title">⚙️ General Settings</span>
-          <span class="manage-group-chevron">▾</span>
-        </div>
-        <div class="manage-group-body">
-          <div class="standup-card">
-            <h3>Daily Waste Target</h3>
-            <div style="display:flex;gap:8px;">
-              <input type="number" id="targetInput" value="100" min="1" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius);">
-              <button id="btnUpdateTarget" class="btn btn-primary" style="flex:0;width:auto;padding:10px 16px;">Update</button>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <!-- GROUP: Team & Scheduling -->
       <div class="manage-group">
@@ -861,13 +845,21 @@
         </div>
       </div>
 
-      <!-- GROUP: Products -->
+      <!-- GROUP: Waste Tracking -->
       <div class="manage-group">
         <div class="manage-group-header" onclick="toggleManageGroup(this)">
-          <span class="manage-group-title">🏷️ Products</span>
+          <span class="manage-group-title">🍗 Waste Tracking</span>
           <span class="manage-group-chevron">▾</span>
         </div>
         <div class="manage-group-body">
+          <div class="standup-card">
+            <h3>Daily Waste Target</h3>
+            <div style="display:flex;gap:8px;">
+              <input type="number" id="targetInput" value="100" min="1" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius);">
+              <button id="btnUpdateTarget" class="btn btn-primary" style="flex:0;width:auto;padding:10px 16px;">Update</button>
+            </div>
+          </div>
+
           <div class="standup-card">
             <h3>Products</h3>
             <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Rarely changes — tucked down here since it's not a daily task</p>
