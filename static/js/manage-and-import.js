@@ -353,6 +353,7 @@ function buildCsvContent(){
 
 function setSyncStatus(msg, cls){
   const el = document.getElementById('syncStatus');
+  if(!el) return; // defensive: this fires on every save app-wide, never let a missing element crash a save
   el.textContent = msg;
   el.className = 'sync-status' + (cls?(' '+cls):'');
 }
