@@ -357,12 +357,20 @@ function setSyncStatus(msg, cls){
   el.className = 'sync-status' + (cls?(' '+cls):'');
 }
 
-document.getElementById('btnSyncSheet').addEventListener('click', async ()=>{
-  setSyncStatus('Syncing…','');
-  if(entries.length===0){ setSyncStatus('Nothing to sync yet'); return; }
-  const csv = buildCsvContent();
-  showToast('✓ Data ready for export');
-  setSyncStatus('Ready — download CSV to import to Sheet', 'ok');
+document.getElementById('btnDownloadTodayCsv').addEventListener('click', ()=>{
+  const todayEntries = entries.filter(e => toLocalISODate(new Date(e.ts)) === today);
+  if(todayEntries.length === 0){ showToast('No entries logged yet today'); return; }
+  const rows = [['Date/Time','Product','Qty','Unit','Unit Cost','Total Cost','Logged By','Section']];
+  [...todayEntries].sort((a,b)=>b.ts-a.ts).forEach(e=>{
+    rows.push([new Date(e.ts).toLocaleString(), e.name, e.qty, e.unit, e.unitCost.toFixed(2), e.cost.toFixed(2), e.who, e.section.toUpperCase()]);
+  });
+  const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv],{type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `cfa-buda-waste-today-${today}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
 });
 
 (async function(){
