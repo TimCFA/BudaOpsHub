@@ -99,20 +99,32 @@ function showToast(msg){
   setTimeout(()=>t.classList.remove('show'), 1800);
 }
 
+// Recent Entries is a rolling 15-minute display window, NOT a data deletion —
+// entries stay in the underlying `entries` array (and count toward totals,
+// exports, etc.) long after they scroll out of this list.
+const RECENT_ENTRIES_WINDOW_MS = 15 * 60 * 1000;
+
 function renderTape(){
   const tape = document.getElementById('tape');
-  const filtered = entries.filter(e=>e.section===currentSection);
+  const cutoff = Date.now() - RECENT_ENTRIES_WINDOW_MS;
+  const filtered = entries.filter(e=>e.section===currentSection && e.ts >= cutoff);
   if(filtered.length===0){
-    tape.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:12px;">No entries yet</div>`;
+    tape.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:12px;">No entries in the last 15 minutes</div>`;
     return;
   }
-  tape.innerHTML = [...filtered].sort((a,b)=>b.ts-a.ts).slice(0,20).map(e=>`
+  tape.innerHTML = [...filtered].sort((a,b)=>b.ts-a.ts).map(e=>`
     <div class="tape-row">
       <span class="l">${new Date(e.ts).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})} · ${e.name}</span>
       <span class="r">${e.qty}${e.unit} · $${e.cost.toFixed(2)}</span>
     </div>
   `).join('');
 }
+
+// Keeps the rolling window current even if nobody touches the page — an
+// entry silently drops off the list once it ages past 15 minutes.
+setInterval(()=>{
+  if(document.getElementById('wastelogView').classList.contains('active')) renderTape();
+}, 30000);
 
 // Scoreboard: combined waste totals, target status, and streaks all in one place.
 // Not filtered by currentSection (that toggle only affects the Log Waste grid/tape).
