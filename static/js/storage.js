@@ -40,7 +40,7 @@ async function saveState(){
     fohOEDays, fohOEChecked, fohOECheckedDate,
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
-    safeCounts, trainerTrainees, trainerProgress, scoreboardItems, posVacancyFlags
+    safeCounts, trainerTrainees, trainerProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds
   };
   const serialized = JSON.stringify(snapshot);
   localStorage.setItem('cfaBudaOps', serialized);
