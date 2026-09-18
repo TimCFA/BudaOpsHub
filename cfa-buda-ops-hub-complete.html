@@ -861,6 +861,31 @@
         </div>
       </div>
 
+      <!-- GROUP: Products -->
+      <div class="manage-group">
+        <div class="manage-group-header" onclick="toggleManageGroup(this)">
+          <span class="manage-group-title">🏷️ Products</span>
+          <span class="manage-group-chevron">▾</span>
+        </div>
+        <div class="manage-group-body">
+          <div class="standup-card">
+            <h3>Products</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Rarely changes — tucked down here since it's not a daily task</p>
+            <div id="prodList"></div>
+            <div class="add-prod-form">
+              <select id="newSection">
+                <option value="foh">FOH</option>
+                <option value="boh">BOH</option>
+              </select>
+              <input type="text" id="newName" placeholder="Product name / Nombre">
+              <input type="text" id="newUnit" placeholder="Unit / Unidad">
+              <input type="number" step="0.01" id="newCost" placeholder="Cost / Costo">
+              <button id="btnAddProd">Add</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- GROUP: Backup & Data -->
       <div class="manage-group">
         <div class="manage-group-header" onclick="toggleManageGroup(this)">
