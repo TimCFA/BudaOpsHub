@@ -116,24 +116,28 @@ function renderTape(){
 
 // Scoreboard: combined waste totals, target status, and streaks all in one place.
 // Not filtered by currentSection (that toggle only affects the Log Waste grid/tape).
+// Everything here is scoped to TODAY only — the monthly running total lives
+// on in the underlying `entries` array (nothing is deleted), ready for
+// whichever future leadership-only scoreboard reads across the full month.
+// The manual monthly close-out (Manage tab) is the only thing that clears it.
 function renderScoreboardView(){
-  const total = entries.reduce((sum,e)=>sum+e.cost,0);
-  const fohTotal = entries.filter(e=>e.section==='foh').reduce((sum,e)=>sum+e.cost,0);
-  const bohTotal = entries.filter(e=>e.section==='boh').reduce((sum,e)=>sum+e.cost,0);
+  const todayEntries = entries.filter(e => toLocalISODate(new Date(e.ts)) === today);
+  const total = todayEntries.reduce((sum,e)=>sum+e.cost,0);
+  const fohTotal = todayEntries.filter(e=>e.section==='foh').reduce((sum,e)=>sum+e.cost,0);
+  const bohTotal = todayEntries.filter(e=>e.section==='boh').reduce((sum,e)=>sum+e.cost,0);
 
-  document.getElementById('statTotal').textContent = '$' + total.toFixed(2);
-  document.getElementById('statEntries').textContent = entries.length;
+  document.getElementById('statEntries').textContent = todayEntries.length;
   document.getElementById('statFohSubtotal').textContent = '$' + fohTotal.toFixed(2);
   document.getElementById('statBohSubtotal').textContent = '$' + bohTotal.toFixed(2);
 
   const byProduct = {};
-  entries.forEach(e=>{
+  todayEntries.forEach(e=>{
     byProduct[e.name] = (byProduct[e.name]||0) + e.cost;
   });
   const sorted = Object.entries(byProduct).sort((a,b)=>b[1]-a[1]).slice(0,8);
   const maxVal = sorted[0]?sorted[0][1]:1;
 
-  document.getElementById('barList').innerHTML = sorted.map(([name,cost])=>`
+  document.getElementById('barList').innerHTML = sorted.length ? sorted.map(([name,cost])=>`
     <div class="bar-item">
       <div class="bi-top">
         <span class="bn">${name}</span>
@@ -143,13 +147,25 @@ function renderScoreboardView(){
         <div class="bar-fill" style="width:${(cost/maxVal)*100}%"></div>
       </div>
     </div>
-  `).join('');
+  `).join('') : '<div style="text-align:center;color:var(--text-secondary);font-size:12px;padding:12px 0;">No waste logged yet today</div>';
 
-  // Today's Waste Target status
-  const todayTotal = getTodayTotal();
-  document.getElementById('standupTotal').textContent = '$' + todayTotal.toFixed(2);
-  document.getElementById('standupTarget').textContent = '$' + wasteTarget.toFixed(2);
-  document.getElementById('standupStatus').style.display = (todayTotal < wasteTarget) ? 'block' : 'none';
+  // Today's Waste hero
+  document.getElementById('wasteTodayDate').textContent = formatVerboseDate(today);
+  document.getElementById('wasteTodayTotal').textContent = '$' + total.toFixed(2);
+  document.getElementById('wasteTodayTarget').textContent = '$' + wasteTarget.toFixed(2);
+  const pct = Math.min(100, (total / wasteTarget) * 100);
+  const fillEl = document.getElementById('wasteProgressFill');
+  const pill = document.getElementById('wasteStatusPill');
+  fillEl.style.width = pct + '%';
+  if(total < wasteTarget){
+    pill.textContent = '✓ On Track';
+    pill.className = 'waste-status-pill on-track';
+    fillEl.className = 'waste-progress-fill on-track';
+  } else {
+    pill.textContent = '⚠ Over Target';
+    pill.className = 'waste-status-pill over-target';
+    fillEl.className = 'waste-progress-fill over-target';
+  }
 
   // Active Streaks
   document.getElementById('foodSafetyStreakNum').textContent = foodSafetyStreak;
