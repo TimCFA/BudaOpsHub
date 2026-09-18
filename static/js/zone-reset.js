@@ -215,17 +215,11 @@ const bohProducts = [
   {id:'boh4', section:'boh', cat:'Raw Filets', name:'Raw Spicy Filet', es:'Filete Picante Crudo', unit:'each', cost:0},
   {id:'boh5', section:'boh', cat:'Cooked Filets', name:'CFA Filet', es:'Filete CFA', unit:'each', cost:0},
   {id:'boh6', section:'boh', cat:'Cooked Filets', name:'Spicy Filet', es:'Filete Picante', unit:'each', cost:0},
-  {id:'boh7', section:'boh', cat:'Tenders', name:'Chicken Tenders', es:'Tiras de Pollo', unit:'each', cost:0},
-  {id:'boh8', section:'boh', cat:'Tenders', name:'Grilled Chicken Strips', es:'Tiras Asadas', unit:'each', cost:0},
+  {id:'boh18', section:'boh', cat:'Tenders', name:'Strip', es:'Tira', unit:'each', cost:0},
   {id:'boh9', section:'boh', cat:'Prepared', name:'Breaded Filet', es:'Filete Empanizado', unit:'each', cost:0},
   {id:'boh10', section:'boh', cat:'Prepared', name:'Breaded Spicy Filet', es:'Filete Picante Empanizado', unit:'each', cost:0},
   {id:'boh11', section:'boh', cat:'Components', name:'Buttered Bun', es:'Bollo Mantequillado', unit:'each', cost:0},
-  {id:'boh12', section:'boh', cat:'Components', name:'Toasted Bun', es:'Bollo Tostado', unit:'each', cost:0},
   {id:'boh13', section:'boh', cat:'Sauce Prep', name:'Sauce Container', es:'Recipiente de Salsa', unit:'each', cost:0},
-  {id:'boh14', section:'boh', cat:'Sides Prep', name:'Waffle Fries Batch', es:'Lote de Papas Onduladas', unit:'each', cost:0},
-  {id:'boh15', section:'boh', cat:'Sides Prep', name:'Mac & Cheese Batch', es:'Lote de Pasta con Queso', unit:'each', cost:0},
-  {id:'boh16', section:'boh', cat:'Cooling/Holding', name:'Cooler Discard', es:'Descarte de Enfriador', unit:'each', cost:0},
-  {id:'boh17', section:'boh', cat:'Cooling/Holding', name:'Warmer Discard', es:'Descarte de Calentador', unit:'each', cost:0},
 ];
 
 products = [...fohProducts, ...bohProducts];
