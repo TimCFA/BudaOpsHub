@@ -30,9 +30,8 @@
       <div class="tab-group" data-group="oe">
         <button type="button" class="tab-group-label" aria-haspopup="true" aria-expanded="false">OE <span class="chevron-mini">▾</span></button>
         <div class="tab-dropdown" role="menu">
-          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="zoneresetView" data-view="zonereset">Zone Reset <span class="sub-inline">Reinicio de Zona</span></button>
+          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="zoneresetView" data-view="zonereset">Zone Reset & Walkthroughs <span class="sub-inline">Reinicio y Recorridos</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="wastelogView" data-view="wastelog">Log Waste <span class="sub-inline">Desperdicio</span></button>
-          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="walkthroughsView" data-view="walkthroughs">Walkthroughs <span class="sub-inline">Recorridos</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="safecountView" data-view="safecount">Daily Safe Count <span class="sub-inline">Caja Fuerte</span></button>
         </div>
       </div>
@@ -462,8 +461,10 @@
     </div>
   </div>
 
-  <!-- Zone Reset View -->
+  <!-- Zone Reset & Walkthroughs View -->
   <div class="view" id="zoneresetView">
+    <p class="section-intro">🧹 <b>Zone Reset</b> is for Team Members — restock and reset each zone between dayparts. 🧭 <b>Walkthroughs</b> are for Leaders — a quick scan to confirm the big things are handled.</p>
+
     <div class="standup-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
         <h3 style="margin:0;">🎯 Zone Reset</h3>
@@ -471,20 +472,17 @@
       </div>
       <div class="sub" style="margin-bottom:10px;">Pick a daypart to see that transition's reset lists</div>
       <div class="day-picker" id="zoneDaypartPicker"></div>
-      <div class="zone-btn-row" id="zoneButtonRow"></div>
+      <div class="checklist-tile-grid" id="zoneButtonRow"></div>
       <div class="zone-reset-scoreboard" id="zoneResetScoreboard"></div>
     </div>
-  </div>
 
-  <!-- Walkthroughs View (OE Walkthrough + Leader Transition List + Food Safety Walkthrough) -->
-  <div class="view" id="walkthroughsView">
     <div class="standup-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
         <h3 style="margin:0;">🎯 Operational Excellence Walkthrough</h3>
         <span class="zone-overall-pct" id="oeWalkthroughOverallPct">0%</span>
       </div>
       <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Complete your daily FOH OE walkthrough</p>
-      <div class="zone-btn-row" id="oeWalkthroughButtonRow"></div>
+      <div class="checklist-tile-grid" id="oeWalkthroughButtonRow"></div>
       <div style="display:flex;justify-content:flex-end;margin-top:14px;">
         <button id="btnMarkFOHOEDone" class="standup-btn" style="width:auto;padding:10px 20px;">Mark Complete</button>
       </div>

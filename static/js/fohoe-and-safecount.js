@@ -27,18 +27,12 @@ function renderWalkthroughsPage(){
   if(fohOECheckedDate !== today){ fohOEChecked = {}; fohOECheckedDate = today; }
   if(fohLeaderTransitionDate !== today){ fohLeaderTransitionChecked = {}; fohLeaderTransitionDate = today; }
 
-  // --- OE Walkthrough: category pills, matching Zone Reset's zone-btn pattern ---
-  const buttonRow = document.getElementById('oeWalkthroughButtonRow');
-  buttonRow.innerHTML = fohOEChecklistData.map(group=>{
+  // --- OE Walkthrough: category tiles, sharing Zone Reset's checklist-tile component ---
+  const tiles = fohOEChecklistData.map(group=>{
     const {checked, total} = getOEWalkthroughCompletion(group.cat);
-    const done = total > 0 && checked === total;
-    const escapedCat = group.cat.replace(/'/g, "\\'");
-    return `
-      <button class="zone-btn ${done ? 'zone-btn-done' : ''}" onclick="openWalkthroughCategory('${escapedCat}')">
-        ${group.cat}<span class="zone-btn-count">${checked}/${total}</span>
-      </button>
-    `;
-  }).join('');
+    return {key: group.cat, icon: OE_CATEGORY_ICONS[group.cat], name: group.cat, checked, total};
+  });
+  renderChecklistTiles('oeWalkthroughButtonRow', tiles, 'openWalkthroughCategory');
   const overall = getOEWalkthroughOverall();
   const pctEl = document.getElementById('oeWalkthroughOverallPct');
   pctEl.textContent = overall + '%';

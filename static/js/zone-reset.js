@@ -1,3 +1,33 @@
+// Shared tile grid used by both Zone Reset (zones) and OE Walkthrough
+// (categories) — same underlying pattern (a group of checklist items behind
+// a tile that opens a modal), unified into one visual component.
+function renderChecklistTiles(containerId, tiles, onClickFn, emptyMessage){
+  const container = document.getElementById(containerId);
+  if(!container) return;
+
+  if(tiles === null){
+    container.innerHTML = `<div class="pos-option-empty" style="width:100%;grid-column:1/-1;">${emptyMessage}</div>`;
+    return;
+  }
+
+  container.innerHTML = tiles.map(t=>{
+    const done = t.total > 0 && t.checked === t.total;
+    const pct = t.total > 0 ? Math.round((t.checked / t.total) * 100) : 0;
+    const escapedKey = t.key.replace(/'/g, "\\'");
+    return `
+      <button type="button" class="checklist-tile ${done ? 'done' : ''}" onclick="${onClickFn}('${escapedKey}')">
+        <div class="checklist-tile-top">
+          <span class="checklist-tile-icon">${t.icon || ''}</span>
+          <span class="checklist-tile-check">✓</span>
+        </div>
+        <div class="checklist-tile-name">${t.name}</div>
+        <div class="checklist-tile-progress-track"><div class="checklist-tile-progress-fill" style="width:${pct}%"></div></div>
+        <div class="checklist-tile-count">${t.checked}/${t.total}</div>
+      </button>
+    `;
+  }).join('');
+}
+
 function getZoneItems(zoneName){
   return zoneName === 'Final Check' ? FINAL_CHECK_ITEMS : (ZONE_CHECKLISTS[zoneName] || []);
 }
@@ -118,23 +148,16 @@ window.toggleChecklistItem = async function(zoneName, itemText){
 };
 
 function renderZoneResetCard(){
-  const buttonRow = document.getElementById('zoneButtonRow');
-  
   if(!currentZoneDaypart){
-    buttonRow.innerHTML = '<div class="pos-option-empty" style="width:100%;">Pick a daypart above to see its reset lists</div>';
+    renderChecklistTiles('zoneButtonRow', null, null, 'Pick a daypart above to see its reset lists');
   } else {
-    buttonRow.innerHTML = ALL_ZONE_NAMES.map(zone=>{
+    const tiles = ALL_ZONE_NAMES.map(zone=>{
       const {checked, total} = getZoneCompletion(today, currentZoneDaypart, zone);
-      const done = total > 0 && checked === total;
-      const escapedZone = zone.replace(/'/g, "\\'");
-      return `
-        <button class="zone-btn ${done ? 'zone-btn-done' : ''}" onclick="openZoneChecklistTasks('${escapedZone}')">
-          ${ZONE_ICONS[zone] || ''} ${zone}<span class="zone-btn-count">${checked}/${total}</span>
-        </button>
-      `;
-    }).join('');
+      return {key: zone, icon: ZONE_ICONS[zone], name: zone, checked, total};
+    });
+    renderChecklistTiles('zoneButtonRow', tiles, 'openZoneChecklistTasks');
   }
-  
+
   const overall = getOverallCompletion(today);
   const pctEl = document.getElementById('zoneOverallPct');
   pctEl.textContent = overall + '%';
@@ -269,6 +292,12 @@ const bohPositions = {
   'Afternoon (2:00-5:00)': ['Breader 1', 'Machines', 'Primary 1', 'Fries', 'Secondary 1', 'Breader 2', 'Prep'],
   'Dinner (5:00-8:00)': ['Breader 1', 'Breader 2', 'Machines', 'Primary 1', 'Fries', 'Secondary 1', 'Primary 2', 'Secondary 2', 'Prep'],
   'Close (8:00-10:00)': ['Breader 1', 'Breader 2', 'Machines', 'Primary 1', 'Fries', 'Secondary 1', 'Primary 2', 'Secondary 2', 'Prep', 'Floors', 'Prep/dishes'],
+};
+
+const OE_CATEGORY_ICONS = {
+  'Guest Experience': '🙂',
+  'Team & Positioning': '🧭',
+  'Safety & Compliance': '🛡️'
 };
 
 const fohOEChecklistData = [
