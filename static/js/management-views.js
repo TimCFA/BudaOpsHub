@@ -215,6 +215,12 @@ function renderGXManage(){
           </div>
         `).join('')}
       </div>
+
+      <div style="font-weight:600;font-size:12px;color:var(--text-primary);margin:12px 0 10px;">Team Members</div>
+      <div style="background:white;padding:8px;border-radius:6px;border:1px solid var(--border);">
+        <label style="display:block;font-size:8px;text-transform:uppercase;color:var(--text-secondary);margin-bottom:2px;font-weight:600;">${gxData.teamMembers.attentiveCourteous.label}</label>
+        <input type="text" id="gx-team-attentive" value="${gxData.teamMembers.attentiveCourteous.value}" style="width:100%;padding:5px;border:1px solid var(--border);border-radius:4px;font-family:'Inter';font-size:11px;">
+      </div>
     </div>
   `;
 }
@@ -384,7 +390,9 @@ async function saveGXScoreboard(){
     if(valEl) gxData.welcoming[key].value = valEl.value;
     if(top5El) gxData.welcoming[key].top5 = top5El.value;
   });
-  
+
+  gxData.teamMembers.attentiveCourteous.value = document.getElementById('gx-team-attentive').value;
+
   gxData.lastUpdated = new Date().toISOString();
   await saveState();
   renderGXScoreboard();
@@ -405,12 +413,11 @@ async function savePillars(){
 
 // ===== CEM COMPARISON REPORT IMPORT =====
 // Parses the CEM "Comparison Report" export (CSV or Excel) and fills in the
-// corresponding Guest Obsession Scoreboard input fields with the store-total
-// values (the row with a blank "Time of Day Extended" column) plus the
-// "Top 5%" benchmark row. Deliberately does NOT touch gxData directly or save
-// anything — it only populates the existing manage-form inputs so the normal
-// review-then-"Save Guest Obsession Scoreboard" flow still applies before
-// anything persists.
+// corresponding Guest Obsession Scoreboard input fields with the store's
+// score for each measure plus the "Top 5%" benchmark row for it. Deliberately
+// does NOT touch gxData directly or save anything — it only populates the
+// existing manage-form inputs so the normal review-then-"Save Guest Obsession
+// Scoreboard" flow still applies before anything persists.
 //
 // Per-daypart CEM breakdowns are intentionally out of scope here — deferred to
 // the future Operational Intelligence work.
@@ -420,7 +427,8 @@ const CEM_FIELD_MAP = [
   {cemName: 'Taste of Food', valueInputId: 'gx-craveable-overallTaste', top5InputId: 'gx-craveable-overallTaste-top5'},
   {cemName: 'Fast Service', valueInputId: 'gx-service-fastService', top5InputId: 'gx-service-fastService-top5'},
   {cemName: 'Cleanliness', valueInputId: 'gx-welcoming-cleanliness', top5InputId: 'gx-welcoming-cleanliness-top5'},
-  {cemName: 'Order Accuracy Y/N', valueInputId: 'gx-service-orderAccuracy', top5InputId: 'gx-service-orderAccuracy-top5'}
+  {cemName: 'Order Accuracy Y/N', valueInputId: 'gx-service-orderAccuracy', top5InputId: 'gx-service-orderAccuracy-top5'},
+  {cemName: 'Attentive/Friendly', valueInputId: 'gx-team-attentive', top5InputId: null}
 ];
 
 // Generic CSV tokenizer (handles quoted fields with embedded commas). Reused
@@ -467,38 +475,53 @@ function parseCemXlsx(arrayBuffer){
   return extractCemMetricsFromRows(rows);
 }
 
+// A "Current" cell is a percentage — sometimes already rendered as "82%" (an
+// Excel cell with a %-format read with raw:false, or a CSV export that bakes
+// in the % sign), sometimes a bare fraction like "0.81516" (a raw decimal,
+// no formatting applied). Normalize both to a whole-number percent string.
+function formatCemScore(raw){
+  const s = String(raw ?? '').trim();
+  if(s === '' || s.toLowerCase() === 'n/a') return null;
+  if(s.endsWith('%')) return s;
+  const num = parseFloat(s);
+  if(isNaN(num)) return null;
+  return Math.round(num * 100) + '%';
+}
+
+// The real CEM Comparison Report export is a long/narrow table, not a wide
+// one: a header row with "Store" and "Measure" columns (plus two separate
+// "Current" columns — the first, right after Measure, is the score; the
+// second is just a repeat of the response Count), followed by one row pair
+// per metric — a "Top 5%" benchmark row, then a row named for the store
+// itself (e.g. "04066 - Buda FSU").
 function extractCemMetricsFromRows(rows){
   const metrics = {};
-  let i = 0;
-  while(i < rows.length){
-    const row = rows[i];
-    if((row[0]||'').trim() === 'Store' && (row[1]||'').trim() === 'Time of Day Extended'){
-      const metricCols = [];
-      for(let c = 3; c < row.length; c++){
-        const label = (row[c]||'').trim();
-        if(label) metricCols.push({name: label, col: c});
-      }
-      i += 2; // skip this header row and the Score/n subheader row directly beneath it
 
-      let top5Row = null, totalRow = null;
-      while(i < rows.length){
-        const r = rows[i];
-        if((r[0]||'').trim() === 'Store' && (r[1]||'').trim() === 'Time of Day Extended') break;
-        const col0 = (r[0]||'').trim();
-        const col1 = (r[1]||'').trim();
-        if(col0 === 'Top 5%'){ top5Row = r; }
-        else if(col0 && !col1 && !totalRow){ totalRow = r; }
-        i++;
-      }
-      metricCols.forEach(({name, col})=>{
-        metrics[name] = {
-          value: totalRow ? (totalRow[col]||'').trim() : null,
-          top5: top5Row ? (top5Row[col]||'').trim() : null
-        };
-      });
-    } else {
-      i++;
+  let headerIdx = -1, storeCol = -1, measureCol = -1, currentCol = -1;
+  for(let i = 0; i < rows.length; i++){
+    const row = rows[i];
+    const sc = row.findIndex(cell => (cell||'').trim() === 'Store');
+    const mc = row.findIndex(cell => (cell||'').trim() === 'Measure');
+    if(sc !== -1 && mc !== -1){
+      headerIdx = i;
+      storeCol = sc;
+      measureCol = mc;
+      currentCol = row.findIndex((cell, idx) => idx > mc && (cell||'').trim() === 'Current');
+      break;
     }
+  }
+  if(headerIdx === -1 || currentCol === -1) return metrics;
+
+  for(let i = headerIdx + 1; i < rows.length; i++){
+    const row = rows[i];
+    const storeLabel = (row[storeCol]||'').trim();
+    const measure = (row[measureCol]||'').trim();
+    if(!storeLabel || !measure) continue;
+    const score = formatCemScore(row[currentCol]);
+    if(score === null) continue;
+    if(!metrics[measure]) metrics[measure] = {value: null, top5: null};
+    if(storeLabel === 'Top 5%') metrics[measure].top5 = score;
+    else metrics[measure].value = score;
   }
   return metrics;
 }
