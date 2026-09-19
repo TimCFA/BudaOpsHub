@@ -525,8 +525,17 @@ function renderRoster(){
   
   const roster = currentPosSection === 'foh' ? (fohRoster[dayName] || []) : (bohRoster[dayName] || []);
   let expiredSomething = false;
-  
-  const html = roster.map(person=>{
+
+  const sortedRoster = [...roster].sort((a, b)=>{
+    const aStart = parseShiftTimeToMinutes(a.start);
+    const bStart = parseShiftTimeToMinutes(b.start);
+    if(aStart === null && bStart === null) return 0;
+    if(aStart === null) return 1;
+    if(bStart === null) return -1;
+    return aStart - bStart;
+  });
+
+  const html = sortedRoster.map(person=>{
     const key = person.name + today;
     const escapedName = person.name.replace(/'/g, "\\'");
     let remaining = 0;
