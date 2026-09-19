@@ -112,6 +112,21 @@ async function loadState(){
     lxMetrics = data.lxMetrics || defaultMetrics;
     lxLastUpdated = data.lxLastUpdated || null;
     gxData = data.gxData || JSON.parse(JSON.stringify(defaultGXData));
+    // Backfill any sub-fields added to defaultGXData since this store's gxData
+    // was last saved (e.g. a new CEM metric breakdown) — never overwrites a
+    // value already there, just adds what's missing, so a newly-added field
+    // actually shows up on an already-saved scoreboard instead of silently
+    // not existing until the next full re-save.
+    if(data.gxData){
+      Object.keys(defaultGXData).forEach(section=>{
+        const def = defaultGXData[section];
+        if(!def || typeof def !== 'object' || Array.isArray(def)) return;
+        if(!gxData[section]) gxData[section] = {};
+        Object.keys(def).forEach(key=>{
+          if(!(key in gxData[section])) gxData[section][key] = JSON.parse(JSON.stringify(def[key]));
+        });
+      });
+    }
     txData = data.txData || JSON.parse(JSON.stringify(defaultTXData));
     homeData = data.homeData || JSON.parse(JSON.stringify(defaultHomeData));
     if(data.fohRoster) Object.assign(fohRoster, data.fohRoster);

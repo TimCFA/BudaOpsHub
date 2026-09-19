@@ -498,7 +498,10 @@ const defaultGXData = {
     tasteSpicy: {value: '81%', top5: '84%', label: 'Taste - Spicy'},
     tasteNuggets: {value: '87%', top5: '89%', label: 'Taste - Nuggets'},
     mostRecentQIV: {value: '97.4%', top5: '98%', label: 'Most Recent QIV'},
-    temperature: {value: '80%', top5: '85%', label: 'Temperature'},
+    tempFries: {value: '80%', top5: '85%', label: 'Temperature - Fries'},
+    tempCFA: {value: '80%', top5: '85%', label: 'Temperature - CFA'},
+    tempSpicy: {value: '80%', top5: '85%', label: 'Temperature - Spicy'},
+    tempNuggets: {value: '80%', top5: '85%', label: 'Temperature - Nuggets'},
     portionSize: {value: '70%', top5: '80%', label: 'Portion Size'},
     smartShopScore: {value: '91%', top5: '93%', label: 'Smart Shop Score'}
   },
