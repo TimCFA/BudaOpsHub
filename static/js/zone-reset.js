@@ -166,14 +166,20 @@ function renderZoneResetCard(){
 
 function renderZoneResetScoreboard(){
   const container = document.getElementById('zoneResetScoreboard');
+  // Walk back from today skipping Sundays (always closed) so all 6 bars are
+  // real open days, instead of a fixed 7-calendar-day window that wastes a
+  // slot on a day the store was never open.
   const days = [];
-  for(let i = 6; i >= 0; i--){
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const iso = toLocalISODate(d);
-    const pct = zoneChecklistHistory[iso] ? zoneChecklistHistory[iso].overall : null;
-    days.push({label: d.toLocaleDateString('en-US', {weekday: 'short'}).slice(0, 1), pct});
+  const cursor = new Date();
+  while(days.length < 6){
+    if(cursor.getDay() !== 0){
+      const iso = toLocalISODate(cursor);
+      const pct = zoneChecklistHistory[iso] ? zoneChecklistHistory[iso].overall : null;
+      days.push({label: cursor.toLocaleDateString('en-US', {weekday: 'short'}).slice(0, 1), pct});
+    }
+    cursor.setDate(cursor.getDate() - 1);
   }
+  days.reverse();
   container.innerHTML = days.map(d=>`
     <div class="scoreboard-day ${d.pct !== null && d.pct >= 95 ? 'star' : ''}">
       ${d.pct !== null && d.pct >= 95 ? '<div class="scoreboard-star">⭐</div>' : ''}
