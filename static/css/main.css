@@ -323,6 +323,16 @@
   .checklist-item input[type="checkbox"]{width:18px;height:18px;flex-shrink:0;margin-top:1px;accent-color:var(--cfa-red);cursor:pointer;}
   .checklist-item span{font-size:13px;color:var(--text-primary);line-height:1.4;}
   .checklist-item.checked span{color:var(--text-secondary);text-decoration:line-through;}
+
+  /* Elevated checklist row — same rounded/bordered card language as .checklist-tile,
+     for flat action-item lists (like Leader Transition) that don't fit the tile grid. */
+  .checklist-item-elevated{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;margin-bottom:8px;background:var(--cfa-light);border:1.5px solid var(--border);border-radius:10px;cursor:pointer;user-select:none;transition:all .15s ease;}
+  .checklist-item-elevated:last-child{margin-bottom:0;}
+  .checklist-item-elevated:hover{border-color:var(--cfa-red);}
+  .checklist-item-elevated.checked{border-color:var(--success);background:#F3FBF4;}
+  .checklist-item-elevated input[type="checkbox"]{width:18px;height:18px;flex-shrink:0;margin-top:1px;accent-color:var(--cfa-red);cursor:pointer;}
+  .checklist-item-elevated span{font-size:13px;color:var(--text-primary);line-height:1.4;}
+  .checklist-item-elevated.checked span{color:var(--text-secondary);text-decoration:line-through;}
   .streak-number{font-family:'Outfit';font-size:48px;font-weight:700;color:var(--cfa-red);line-height:1;}
   .streak-label{font-family:'Outfit';font-size:12px;text-transform:uppercase;color:var(--text-secondary);margin-top:8px;letter-spacing:0.05em;}
 
