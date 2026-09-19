@@ -39,7 +39,7 @@
       <div class="tab-group" data-group="experience">
         <button type="button" class="tab-group-label" aria-haspopup="true" aria-expanded="false">Experience <span class="chevron-mini">▾</span></button>
         <div class="tab-dropdown" role="menu">
-          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="gxView" data-view="gx">GX <span class="sub-inline">Experiencia</span></button>
+          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="gxView" data-view="gx">Guest Obsession <span class="sub-inline">Experiencia</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="txView" data-view="tx">TX <span class="sub-inline">Talento</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="lxView" data-view="lx">LX <span class="sub-inline">Liderazgo</span></button>
         </div>
@@ -205,7 +205,7 @@
     </div>
   </div>
 
-  <!-- GX Scoreboard View -->
+  <!-- Guest Obsession Scoreboard View -->
   <div class="view" id="gxView">
     <div style="margin-bottom:24px;">
       <p style="font-size:13px;color:var(--text-secondary);margin:0 0 16px;">Last updated: <span id="gxUpdateTime">Never</span></p>
@@ -832,19 +832,19 @@
           </div>
 
           <div class="standup-card">
-            <h3>GX Scoreboard (Weekly Update)</h3>
+            <h3>Guest Obsession Scoreboard (Weekly Update)</h3>
             <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Updated every Monday by admin team</p>
 
             <div style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:16px;">
               <div style="font-weight:600;font-size:12px;color:var(--text-primary);margin-bottom:8px;">📄 Import CEM Comparison Report</div>
-              <p style="font-size:11px;color:var(--text-secondary);margin:0 0 10px;">Upload the CEM "Comparison Report" CSV to auto-fill the store-total scores below. Review before saving.</p>
-              <input type="file" id="cemUpload" accept=".csv" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;margin-bottom:8px;">
+              <p style="font-size:11px;color:var(--text-secondary);margin:0 0 10px;">Upload the CEM "Comparison Report" as CSV or Excel (.xlsx/.xls) to auto-fill the store-total scores below. Review before saving.</p>
+              <input type="file" id="cemUpload" accept=".csv,.xlsx,.xls" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;margin-bottom:8px;">
               <button id="btnImportCem" class="btn btn-secondary" style="width:auto;padding:8px 14px;font-size:11px;">Import CEM Data</button>
               <div id="cemImportStatus" style="font-size:11px;color:var(--text-secondary);margin-top:8px;"></div>
             </div>
 
             <div id="gxManageList" style="margin-bottom:16px;"></div>
-            <button id="btnSaveGX" class="btn btn-primary">Save GX Scoreboard</button>
+            <button id="btnSaveGX" class="btn btn-primary">Save Guest Obsession Scoreboard</button>
           </div>
 
           <div class="standup-card">
@@ -952,6 +952,7 @@
 
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="/static/js/state-and-utils.js"></script>
 <script src="/static/js/zone-reset.js"></script>
 <script src="/static/js/training-guides.js"></script>

@@ -124,6 +124,14 @@ function renderGXManage(){
           <label style="display:block;font-size:9px;text-transform:uppercase;color:var(--text-secondary);margin-bottom:2px;font-weight:600;">MTD % Change</label>
           <input type="text" id="gx-mtd-change" value="${gxData.wig.mtdSalesChange.value}" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;font-family:'Inter';font-size:11px;">
         </div>
+        <div>
+          <label style="display:block;font-size:9px;text-transform:uppercase;color:var(--text-secondary);margin-bottom:2px;font-weight:600;">YTD Sales $</label>
+          <input type="text" id="gx-ytd-sales" value="${gxData.wig.ytdSales.value}" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;font-family:'Inter';font-size:11px;">
+        </div>
+        <div>
+          <label style="display:block;font-size:9px;text-transform:uppercase;color:var(--text-secondary);margin-bottom:2px;font-weight:600;">YTD % Change</label>
+          <input type="text" id="gx-ytd-change" value="${gxData.wig.ytdSalesChange.value}" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;font-family:'Inter';font-size:11px;">
+        </div>
       </div>
     </div>
 
@@ -348,6 +356,8 @@ async function saveLXScoreboard(){
 async function saveGXScoreboard(){
   gxData.wig.mtdSales.value = document.getElementById('gx-mtd-sales').value;
   gxData.wig.mtdSalesChange.value = document.getElementById('gx-mtd-change').value;
+  gxData.wig.ytdSales.value = document.getElementById('gx-ytd-sales').value;
+  gxData.wig.ytdSalesChange.value = document.getElementById('gx-ytd-change').value;
   gxData.dt.market.value = document.getElementById('gx-dt-market').value;
   gxData.dt.state.value = document.getElementById('gx-dt-state').value;
   gxData.dt.chain.value = document.getElementById('gx-dt-chain').value;
@@ -378,7 +388,7 @@ async function saveGXScoreboard(){
   gxData.lastUpdated = new Date().toISOString();
   await saveState();
   renderGXScoreboard();
-  showToast('✓ GX Scoreboard Updated');
+  showToast('✓ Guest Obsession Scoreboard Updated');
 }
 
 async function savePillars(){
@@ -394,12 +404,13 @@ async function savePillars(){
 }
 
 // ===== CEM COMPARISON REPORT IMPORT =====
-// Parses the CEM "Comparison Report" CSV export and fills in the corresponding
-// GX Scoreboard input fields with the store-total values (the row with a blank
-// "Time of Day Extended" column) plus the "Top 5%" benchmark row. Deliberately
-// does NOT touch gxData directly or save anything — it only populates the
-// existing manage-form inputs so the normal review-then-"Save GX Scoreboard"
-// flow still applies before anything persists.
+// Parses the CEM "Comparison Report" export (CSV or Excel) and fills in the
+// corresponding Guest Obsession Scoreboard input fields with the store-total
+// values (the row with a blank "Time of Day Extended" column) plus the
+// "Top 5%" benchmark row. Deliberately does NOT touch gxData directly or save
+// anything — it only populates the existing manage-form inputs so the normal
+// review-then-"Save Guest Obsession Scoreboard" flow still applies before
+// anything persists.
 //
 // Per-daypart CEM breakdowns are intentionally out of scope here — deferred to
 // the future Operational Intelligence work.
@@ -441,7 +452,22 @@ function parseCsv(text){
 }
 
 function parseCemCsv(text){
-  const rows = parseCsv(text);
+  return extractCemMetricsFromRows(parseCsv(text));
+}
+
+// Reads the first sheet of an uploaded CEM Comparison Report workbook (.xlsx/.xls)
+// into the same row-of-strings shape parseCsv() produces, via SheetJS (loaded in
+// the page head), so it can run through the same extraction logic as the CSV path.
+function parseCemXlsx(arrayBuffer){
+  const workbook = XLSX.read(arrayBuffer, {type: 'array'});
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, {header: 1, raw: false, defval: ''})
+    .map(row => row.map(cell => String(cell ?? '')))
+    .filter(row => row.some(cell => cell.trim() !== ''));
+  return extractCemMetricsFromRows(rows);
+}
+
+function extractCemMetricsFromRows(rows){
   const metrics = {};
   let i = 0;
   while(i < rows.length){
@@ -481,37 +507,42 @@ document.getElementById('btnImportCem').addEventListener('click', ()=>{
   const file = document.getElementById('cemUpload').files[0];
   const status = document.getElementById('cemImportStatus');
   if(!file){
-    status.textContent = '❌ Choose a CSV file first';
+    status.textContent = '❌ Choose a CSV or Excel file first';
     status.style.color = 'var(--cfa-red)';
     return;
   }
+  const isExcel = /\.(xlsx|xls)$/i.test(file.name);
+  const applyMetrics = (metrics)=>{
+    if(Object.keys(metrics).length === 0){
+      throw new Error('No "Store, Time of Day Extended, Count..." block found — is this the CEM Comparison Report export?');
+    }
+    let applied = 0;
+    const skipped = [];
+    Object.keys(metrics).forEach(name=>{
+      const mapping = CEM_FIELD_MAP.find(m => m.cemName === name);
+      if(!mapping){ skipped.push(name); return; }
+      const valueEl = document.getElementById(mapping.valueInputId);
+      if(valueEl && metrics[name].value){ valueEl.value = metrics[name].value; applied++; }
+      if(mapping.top5InputId){
+        const top5El = document.getElementById(mapping.top5InputId);
+        if(top5El && metrics[name].top5) top5El.value = metrics[name].top5;
+      }
+    });
+    status.textContent = `✓ Imported ${applied} metric(s) into the form below — review, then click Save Guest Obsession Scoreboard.` +
+      (skipped.length ? ` (Skipped: ${skipped.join(', ')} — no field yet for this metric)` : '');
+    status.style.color = 'var(--success)';
+  };
   const reader = new FileReader();
   reader.onload = (e)=>{
     try{
-      const metrics = parseCemCsv(e.target.result);
-      if(Object.keys(metrics).length === 0){
-        throw new Error('No "Store, Time of Day Extended, Count..." block found — is this the CEM Comparison Report export?');
-      }
-      let applied = 0;
-      const skipped = [];
-      Object.keys(metrics).forEach(name=>{
-        const mapping = CEM_FIELD_MAP.find(m => m.cemName === name);
-        if(!mapping){ skipped.push(name); return; }
-        const valueEl = document.getElementById(mapping.valueInputId);
-        if(valueEl && metrics[name].value){ valueEl.value = metrics[name].value; applied++; }
-        if(mapping.top5InputId){
-          const top5El = document.getElementById(mapping.top5InputId);
-          if(top5El && metrics[name].top5) top5El.value = metrics[name].top5;
-        }
-      });
-      status.textContent = `✓ Imported ${applied} metric(s) into the form below — review, then click Save GX Scoreboard.` +
-        (skipped.length ? ` (Skipped: ${skipped.join(', ')} — no field yet for this metric)` : '');
-      status.style.color = 'var(--success)';
+      const metrics = isExcel ? parseCemXlsx(e.target.result) : parseCemCsv(e.target.result);
+      applyMetrics(metrics);
     }catch(err){
       status.textContent = '❌ ' + err.message;
       status.style.color = 'var(--cfa-red)';
       console.error(err);
     }
   };
-  reader.readAsText(file);
+  if(isExcel) reader.readAsArrayBuffer(file);
+  else reader.readAsText(file);
 });
