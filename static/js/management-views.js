@@ -428,7 +428,16 @@ const CEM_FIELD_MAP = [
   {cemName: 'Fast Service', valueInputId: 'gx-service-fastService', top5InputId: 'gx-service-fastService-top5'},
   {cemName: 'Cleanliness', valueInputId: 'gx-welcoming-cleanliness', top5InputId: 'gx-welcoming-cleanliness-top5'},
   {cemName: 'Order Accuracy Y/N', valueInputId: 'gx-service-orderAccuracy', top5InputId: 'gx-service-orderAccuracy-top5'},
-  {cemName: 'Attentive/Friendly', valueInputId: 'gx-team-attentive', top5InputId: null}
+  {cemName: 'Attentive/Friendly', valueInputId: 'gx-team-attentive', top5InputId: null},
+  {cemName: 'Portion Size of Food', valueInputId: 'gx-craveable-portionSize', top5InputId: 'gx-craveable-portionSize-top5'},
+  {cemName: 'Taste of Waffle Potato Fries', valueInputId: 'gx-craveable-tasteFries', top5InputId: 'gx-craveable-tasteFries-top5'},
+  {cemName: 'Taste of Nuggets', valueInputId: 'gx-craveable-tasteNuggets', top5InputId: 'gx-craveable-tasteNuggets-top5'},
+  {cemName: 'Taste of Chicken Sandwich', valueInputId: 'gx-craveable-tasteCFA', top5InputId: 'gx-craveable-tasteCFA-top5'},
+  {cemName: 'Taste of Spicy Chicken Sandwich', valueInputId: 'gx-craveable-tasteSpicy', top5InputId: 'gx-craveable-tasteSpicy-top5'},
+  {cemName: 'Temperature of Waffle Potato Fries', valueInputId: 'gx-craveable-tempFries', top5InputId: 'gx-craveable-tempFries-top5'},
+  {cemName: 'Temperature of Nuggets', valueInputId: 'gx-craveable-tempNuggets', top5InputId: 'gx-craveable-tempNuggets-top5'},
+  {cemName: 'Temperature of Chicken Sandwich', valueInputId: 'gx-craveable-tempCFA', top5InputId: 'gx-craveable-tempCFA-top5'},
+  {cemName: 'Temperature of Spicy Chicken Sandwich', valueInputId: 'gx-craveable-tempSpicy', top5InputId: 'gx-craveable-tempSpicy-top5'}
 ];
 
 // Generic CSV tokenizer (handles quoted fields with embedded commas). Reused
