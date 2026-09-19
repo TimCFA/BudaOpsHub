@@ -3,7 +3,7 @@ function getZoneItems(zoneName){
 }
 
 function getZoneDayparts(){
-  return fohDayparts.map(dp => dp.name);
+  return zoneResetDayparts.map(dp => dp.name);
 }
 
 function getZoneCompletion(dateISO, daypart, zoneName){
@@ -242,6 +242,14 @@ const bohDayparts = [
   {name: 'Afternoon (2:00-5:00)', time: '14:00'},
   {name: 'Dinner (5:00-8:00)', time: '17:00'},
   {name: 'Close (8:00-10:00)', time: '20:00'},
+];
+
+const zoneResetDayparts = [
+  {name: 'Breakfast to Lunch (10:30am - 11:30am)', time: '10:30'},
+  {name: 'Lunch to Mid (1:00pm - 2:00pm)', time: '13:00'},
+  {name: 'Mid to Dinner (4:00pm - 5:00pm)', time: '16:00'},
+  {name: 'Dinner to Late Night (7:00pm - 8:00pm)', time: '19:00'},
+  {name: 'Close', time: '21:00'},
 ];
 
 const fohPositions = {
