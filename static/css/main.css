@@ -155,6 +155,15 @@
   @keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
 
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;}
+  .waste-cat-group{margin-bottom:22px;}
+  .waste-cat-group:last-child{margin-bottom:0;}
+  .waste-cat-heading{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-secondary);font-weight:700;margin:0 0 10px;}
+  .tile-sizegroup{background:var(--cfa-white);border:1px solid var(--border);border-radius:var(--radius);padding:12px;box-shadow:0 1px 3px rgba(0,0,0,0.05);}
+  .tile-sizegroup-name{font-family:'Inter',sans-serif;font-weight:600;font-size:13px;line-height:1.3;color:var(--text-primary);margin-bottom:8px;}
+  .tile-sizegroup-row{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;margin:0 -8px;border-radius:6px;cursor:pointer;transition:background .15s ease;}
+  .tile-sizegroup-row:hover{background:var(--cfa-light);}
+  .tile-sizegroup-size{font-size:12px;font-weight:600;color:var(--text-secondary);}
+  .tile-sizegroup-cost{font-size:11px;color:var(--text-tertiary);font-weight:500;}
   .tile{background:var(--cfa-white);border:1px solid var(--border);border-radius:var(--radius);padding:16px;cursor:pointer;transition:all .15s ease;position:relative;overflow:hidden;min-height:100px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 1px 3px rgba(0,0,0,0.05);}
   .tile:hover{border-color:var(--cfa-red);box-shadow:0 4px 12px rgba(227,28,35,0.1);}
   .tile:active{transform:scale(0.98);}
@@ -190,6 +199,11 @@
   .field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);margin-bottom:8px;font-family:'Outfit',sans-serif;font-weight:600;}
   .field select,.field input[type=text],.field input[type=number],.field input[type=password]{width:100%;background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:12px;color:var(--text-primary);font-family:'Inter';font-size:14px;transition:all .15s ease;}
   .field select:focus,.field input:focus{outline:none;border-color:var(--cfa-red);background:var(--cfa-white);}
+
+  /* One consistent look for every file upload in the app (previously each was
+     hand-styled inline and had drifted — different padding/radius/cursor). */
+  input[type=file]{width:100%;padding:10px;margin-bottom:8px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;font-family:'Inter',sans-serif;font-size:12px;color:var(--text-secondary);background:var(--cfa-white);transition:border-color .15s ease;box-sizing:border-box;}
+  input[type=file]:hover{border-color:var(--cfa-red);}
   .cost-preview{text-align:center;font-family:'Outfit',sans-serif;font-size:14px;color:var(--text-secondary);margin:12px 0 20px;font-weight:600;}
   .cost-preview b{color:var(--cfa-red);font-size:22px;}
   .btn{display:block;width:100%;padding:14px;border-radius:var(--radius);border:none;font-family:'Outfit',sans-serif;font-size:13px;text-transform:uppercase;letter-spacing:0.03em;cursor:pointer;font-weight:700;transition:all .2s ease;}
@@ -555,6 +569,7 @@
   .safe-log-variance.over{background:#E3F2FD;color:#1565C0;}
   .safe-log-variance.short{background:#FFEBEE;color:#C62828;}
   .safe-log-meta{font-size:12px;color:var(--text-secondary);margin-top:6px;}
+  .safe-count-entry-title{font-family:'Outfit',sans-serif;font-weight:700;font-size:14px;color:var(--text-primary);text-transform:uppercase;letter-spacing:0.02em;}
 
   /* ===== Trainer Trial Tracker ===== */
   .tt-header-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;}

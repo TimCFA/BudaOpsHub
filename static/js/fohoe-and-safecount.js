@@ -209,9 +209,36 @@ document.getElementById('btnMarkFormDone').addEventListener('click', async ()=>{
 });
 
 // ===== DAILY SAFE COUNT =====
+const SAFE_COUNT_ENTRY_TYPES = ['Opening Count', 'Transition Count', 'Closing Count', 'Additional Count'];
+let currentSafeCountEntryType = '';
+
+function renderSafeCountEntryPicker(){
+  const picker = document.getElementById('safeCountEntryPicker');
+  picker.innerHTML = SAFE_COUNT_ENTRY_TYPES.map(type => `<div class="day-pill ${type === currentSafeCountEntryType ? 'active' : ''}" data-type="${type}">${type}</div>`).join('');
+  picker.querySelectorAll('.day-pill').forEach(pill=>{
+    pill.addEventListener('click', ()=>{
+      currentSafeCountEntryType = pill.dataset.type;
+      openSafeCountEntry();
+    });
+  });
+}
+
+function openSafeCountEntry(){
+  renderSafeCountEntryPicker();
+  document.getElementById('safeCountEntryTitle').textContent = currentSafeCountEntryType;
+  document.getElementById('safeCountShift').value = currentSafeCountEntryType;
+  document.getElementById('safeCountFormWrap').style.display = currentSafeCountEntryType ? 'block' : 'none';
+}
+
+document.getElementById('btnSafeCountChangeEntry').addEventListener('click', ()=>{
+  currentSafeCountEntryType = '';
+  openSafeCountEntry();
+});
+
 function renderSafeCount(){
   const safeDateInput = document.getElementById('safeCountDate');
   if(safeDateInput) safeDateInput.value = new Date().toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric', year:'numeric'});
+  openSafeCountEntry();
   renderSafeCountLog();
 }
 
@@ -288,6 +315,8 @@ document.getElementById('safeCountForm').addEventListener('submit', async (e)=>{
   document.getElementById('safeCountForm').reset();
   document.getElementById('safeCountDate').value = new Date().toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric', year:'numeric'});
   calcSafeCountTotal();
+  currentSafeCountEntryType = '';
+  openSafeCountEntry();
   showToast('✓ Safe Count Submitted!');
 });
 

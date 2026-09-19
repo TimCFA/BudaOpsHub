@@ -1,22 +1,90 @@
-function renderGrid(){
-  const grid = document.getElementById('grid');
-  const filtered = products.filter(p=>p.section===currentSection);
-  if(filtered.length===0){
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><b>No products</b></div>`;
-    return;
-  }
-  grid.innerHTML = filtered.map(p=>`
+// A product named "X (Small)" / "X (Medium)" / "X (Large)" is a size variant
+// of the same item — group those into one stacked tile instead of scattering
+// them across the grid, purely for visual/aesthetic grouping.
+const SIZE_SUFFIX_RE = /^(.*)\s\((Small|Medium|Large)\)$/;
+
+function groupProductsByCategory(list){
+  const order = [];
+  const byCat = {};
+  list.forEach(p=>{
+    if(!byCat[p.cat]){ byCat[p.cat] = []; order.push(p.cat); }
+    byCat[p.cat].push(p);
+  });
+  return order.map(cat => ({cat, items: byCat[cat]}));
+}
+
+function groupSizeVariants(items){
+  const sizeOrder = {Small:0, Medium:1, Large:2};
+  const bases = {};
+  const order = [];
+  const seenBase = new Set();
+  items.forEach(p=>{
+    const m = p.name.match(SIZE_SUFFIX_RE);
+    if(m){
+      const base = m[1];
+      if(!bases[base]) bases[base] = [];
+      bases[base].push({size: m[2], product: p});
+      if(!seenBase.has(base)){ seenBase.add(base); order.push({type:'sizegroup', base}); }
+    } else {
+      order.push({type:'single', product: p});
+    }
+  });
+  return order.map(entry=>{
+    if(entry.type !== 'sizegroup') return entry;
+    const variants = bases[entry.base].slice().sort((a,b)=>sizeOrder[a.size]-sizeOrder[b.size]);
+    if(variants.length < 2) return {type:'single', product: variants[0].product};
+    return {type:'sizegroup', base: entry.base, variants};
+  });
+}
+
+function renderTile(p){
+  return `
     <div class="tile" data-id="${p.id}">
       <div>
-        <div class="cat">${p.cat}</div>
         <div class="name">${p.name}</div>
         ${p.es ? `<div class="name-es">${p.es}</div>` : ''}
       </div>
       <div class="cost">${p.cost>0?'$'+p.cost.toFixed(2):'—'}</div>
     </div>
-  `).join('');
-  grid.querySelectorAll('.tile').forEach(tile=>{
-    tile.addEventListener('click',()=>openLogModal(tile.dataset.id));
+  `;
+}
+
+function renderSizeGroupTile(base, variants){
+  return `
+    <div class="tile-sizegroup">
+      <div class="tile-sizegroup-name">${base}</div>
+      ${variants.map(v => `
+        <div class="tile-sizegroup-row" data-id="${v.product.id}">
+          <span class="tile-sizegroup-size">${v.size}</span>
+          <span class="tile-sizegroup-cost">${v.product.cost>0?'$'+v.product.cost.toFixed(2):'—'}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderGrid(){
+  const grid = document.getElementById('grid');
+  const filtered = products.filter(p=>p.section===currentSection);
+  if(filtered.length===0){
+    grid.innerHTML = `<div class="empty-state"><b>No products</b></div>`;
+    return;
+  }
+  const groups = groupProductsByCategory(filtered);
+  grid.innerHTML = groups.map(({cat, items})=>{
+    const entries = groupSizeVariants(items);
+    const tilesHtml = entries.map(entry =>
+      entry.type === 'sizegroup' ? renderSizeGroupTile(entry.base, entry.variants) : renderTile(entry.product)
+    ).join('');
+    return `
+      <div class="waste-cat-group">
+        <div class="waste-cat-heading">${cat}</div>
+        <div class="grid">${tilesHtml}</div>
+      </div>
+    `;
+  }).join('');
+  grid.querySelectorAll('.tile, .tile-sizegroup-row').forEach(el=>{
+    el.addEventListener('click',()=>openLogModal(el.dataset.id));
   });
 }
 
