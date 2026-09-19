@@ -3,8 +3,7 @@ function activateView(view){
   document.getElementById(view+'View').classList.add('active');
   if(view === 'positions') renderPositionsTab();
   if(view === 'wastelog'){ renderGrid(); renderTape(); }
-  if(view === 'zonereset') renderZoneResetView();
-  if(view === 'walkthroughs') renderWalkthroughsPage();
+  if(view === 'zonereset'){ renderZoneResetView(); renderWalkthroughsPage(); }
   if(view === 'safecount') renderSafeCount();
   if(view === 'scoreboard'){ renderScoreboardView(); renderOperationalIntelligence(); renderCustomScoreboards(); }
   if(view === 'lx') renderLXScoreboard();
