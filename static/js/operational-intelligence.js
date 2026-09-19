@@ -121,7 +121,151 @@ function renderDayOfWeekCard(){
   `).join('') + `<div class="oi-stat-sub" style="margin-top:10px;">Based on ${totalDaysLogged} logged day${totalDaysLogged===1?'':'s'} in the current period — resets with each monthly close-out for now</div>`;
 }
 
+function getSafeCountsForDates(dateList){
+  const dateSet = new Set(dateList);
+  return safeCounts.filter(c => dateSet.has(c.date));
+}
+
+function renderSafeCountVarianceCard(){
+  const el = document.getElementById('oiSafeCount');
+  if(!el) return;
+
+  const thisWeekDates = getWeekDays(0).map(d=>d.date);
+  const lastWeekDates = getWeekDays(-1).map(d=>d.date);
+  const thisWeekCounts = getSafeCountsForDates(thisWeekDates);
+  const lastWeekCounts = getSafeCountsForDates(lastWeekDates);
+
+  if(thisWeekCounts.length === 0 && lastWeekCounts.length === 0){
+    el.innerHTML = '<div class="oi-stat-sub">No safe counts logged yet.</div>';
+    return;
+  }
+
+  const avgAbsVariance = list => list.length ? list.reduce((sum,c)=>sum+Math.abs(c.variance),0)/list.length : null;
+  const balancedCount = list => list.filter(c=>Math.abs(c.variance) < 0.01).length;
+  const thisWeekAvg = avgAbsVariance(thisWeekCounts);
+  const lastWeekAvg = avgAbsVariance(lastWeekCounts);
+
+  let html = '';
+  if(thisWeekAvg !== null && lastWeekAvg !== null && lastWeekAvg > 0){
+    const pct = Math.round(((thisWeekAvg - lastWeekAvg) / lastWeekAvg) * 100);
+    const improved = pct <= 0;
+    html += `
+      <div class="oi-stat-row">
+        <div class="oi-stat-label">Avg Variance vs Last Week</div>
+        <div class="oi-stat-value ${improved ? 'oi-good' : 'oi-bad'}">${improved ? '▼' : '▲'} ${Math.abs(pct)}%</div>
+      </div>
+      <div class="oi-stat-sub">$${thisWeekAvg.toFixed(2)} avg this week vs $${lastWeekAvg.toFixed(2)} last week · ${balancedCount(thisWeekCounts)}/${thisWeekCounts.length} balanced this week</div>
+    `;
+  } else if(thisWeekAvg !== null){
+    html += `<div class="oi-stat-sub">$${thisWeekAvg.toFixed(2)} avg variance this week · ${balancedCount(thisWeekCounts)}/${thisWeekCounts.length} balanced — not enough history yet for a week-over-week comparison</div>`;
+  } else {
+    html += `<div class="oi-stat-sub">No safe counts logged this week yet.</div>`;
+  }
+
+  if(thisWeekCounts.length){
+    const netBias = thisWeekCounts.reduce((sum,c)=>sum+c.variance, 0);
+    if(Math.abs(netBias) >= 0.01){
+      html += `<div class="oi-stat-sub" style="margin-top:8px;">Running ${netBias > 0 ? 'over' : 'short'} by $${Math.abs(netBias).toFixed(2)} this week</div>`;
+    }
+  }
+
+  el.innerHTML = html;
+}
+
+function renderZoneResetTrendCard(){
+  const el = document.getElementById('oiZoneReset');
+  if(!el) return;
+
+  const thisWeekDates = getWeekDays(0).map(d=>d.date);
+  const lastWeekDates = getWeekDays(-1).map(d=>d.date);
+  const pctsFor = dateList => dateList.map(d => zoneChecklistHistory[d] ? zoneChecklistHistory[d].overall : null).filter(v => v !== null);
+  const avg = list => list.length ? list.reduce((s,v)=>s+v,0)/list.length : null;
+  const thisWeekAvg = avg(pctsFor(thisWeekDates));
+  const lastWeekAvg = avg(pctsFor(lastWeekDates));
+
+  let html = '';
+  if(thisWeekAvg !== null && lastWeekAvg !== null){
+    const delta = Math.round(thisWeekAvg - lastWeekAvg);
+    const improved = delta >= 0;
+    html += `
+      <div class="oi-stat-row">
+        <div class="oi-stat-label">Avg Completion vs Last Week</div>
+        <div class="oi-stat-value ${improved ? 'oi-good' : 'oi-bad'}">${improved ? '▲' : '▼'} ${Math.abs(delta)}pts</div>
+      </div>
+      <div class="oi-stat-sub">${Math.round(thisWeekAvg)}% avg this week vs ${Math.round(lastWeekAvg)}% last week</div>
+    `;
+  } else if(thisWeekAvg !== null){
+    html += `<div class="oi-stat-sub">${Math.round(thisWeekAvg)}% avg completion this week — not enough history yet for a week-over-week comparison</div>`;
+  } else {
+    html += `<div class="oi-stat-sub">No Zone Reset checklists completed yet this week.</div>`;
+  }
+
+  const greatDays = Object.keys(zoneChecklistHistory).filter(d => zoneChecklistHistory[d].overall >= 95).sort().reverse();
+  let streak = 0;
+  if(greatDays.length){
+    streak = 1;
+    for(let i = 1; i < greatDays.length; i++){
+      const d1 = new Date(greatDays[i-1]);
+      const d2 = new Date(greatDays[i]);
+      if((d1 - d2) / (1000*60*60*24) === 1) streak++;
+      else break;
+    }
+  }
+  html += `<div class="oi-stat-sub" style="margin-top:8px;">${streak > 0 ? `${streak} day${streak===1?'':'s'} in a row at 95%+ completion` : 'No current 95%+ completion streak'}</div>`;
+
+  el.innerHTML = html;
+}
+
+function complianceRateForWeek(dateList, doneDates){
+  const applicable = dateList.filter(d => d <= today);
+  if(applicable.length === 0) return null;
+  const done = applicable.filter(d => doneDates.includes(d)).length;
+  return {rate: Math.round((done/applicable.length)*100), done, total: applicable.length};
+}
+
+function renderComplianceTrendCard(){
+  const el = document.getElementById('oiCompliance');
+  if(!el) return;
+
+  const thisWeekDates = getWeekDays(0).map(d=>d.date);
+  const lastWeekDates = getWeekDays(-1).map(d=>d.date);
+  const rows = [
+    {label: 'Food Safety', doneDates: foodSafetyDays},
+    {label: 'FOH OE Walkthrough', doneDates: fohOEDays}
+  ];
+
+  let html = '';
+  rows.forEach(row=>{
+    const thisWeek = complianceRateForWeek(thisWeekDates, row.doneDates);
+    const lastWeek = complianceRateForWeek(lastWeekDates, row.doneDates);
+    if(!thisWeek){
+      html += `<div class="oi-stat-sub" style="margin-bottom:10px;">${row.label}: no applicable days yet this week.</div>`;
+      return;
+    }
+    let compareHtml;
+    if(lastWeek !== null){
+      const delta = thisWeek.rate - lastWeek.rate;
+      const improved = delta >= 0;
+      compareHtml = `<span class="${improved ? 'oi-good' : 'oi-bad'}" style="font-weight:700;">${improved ? '▲' : '▼'} ${Math.abs(delta)}pts</span> vs last week (${lastWeek.rate}%)`;
+    } else {
+      compareHtml = 'not enough history yet for a week-over-week comparison';
+    }
+    html += `
+      <div class="oi-stat-row">
+        <div class="oi-stat-label">${row.label}</div>
+        <div class="oi-stat-value">${thisWeek.rate}%</div>
+      </div>
+      <div class="oi-stat-sub" style="margin-bottom:10px;">${thisWeek.done}/${thisWeek.total} days this week · ${compareHtml}</div>
+    `;
+  });
+
+  el.innerHTML = html;
+}
+
 function renderOperationalIntelligence(){
   renderWasteTrendCard();
   renderDayOfWeekCard();
+  renderSafeCountVarianceCard();
+  renderZoneResetTrendCard();
+  renderComplianceTrendCard();
 }

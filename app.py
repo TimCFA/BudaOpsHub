@@ -121,7 +121,7 @@ Be thorough and extract EVERY person visible."""
         ]
 
         response = client.messages.create(
-            model="claude-opus-4-8",
+            model="claude-opus-5",
             max_tokens=4000,
             messages=[{
                 "role": "user",
