@@ -11,6 +11,7 @@ function activateView(view){
     renderGXScoreboard(); renderCemTrends(); renderTXScoreboard(); renderTrainerTrial(); renderTeamLeadTrial(); renderLXScoreboard();
   }
   if(view === 'tx') renderTXScoreboard();
+  if(view === 'lx') renderLXScoreboard();
   if(view === 'home') renderHomeScoreboard();
 }
 
