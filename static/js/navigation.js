@@ -8,7 +8,7 @@ function activateView(view){
   if(view === 'scoreboard'){ renderScoreboardView(); renderOperationalIntelligence(); renderCustomScoreboards(); }
   if(view === 'lx') renderLXScoreboard();
   if(view === 'gx') renderGXScoreboard();
-  if(view === 'tx'){ renderTXScoreboard(); renderTrainerTrial(); }
+  if(view === 'tx'){ renderTXScoreboard(); renderTrainerTrial(); renderTeamLeadTrial(); }
   if(view === 'home') renderHomeScoreboard();
 }
 
