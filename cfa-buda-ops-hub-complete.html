@@ -188,6 +188,27 @@
     </div>
   </div>
 
+  <!-- Add Team Lead Trial Modal -->
+  <div class="overlay" id="tlAddModal">
+    <div class="sheet">
+      <h2>New Team Lead Trial</h2>
+      <div class="field">
+        <label>Trainee Name</label>
+        <input type="text" id="tlAddName" placeholder="e.g. Jordan Ramirez" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+      </div>
+      <div class="field">
+        <label>Coaching Leader</label>
+        <input type="text" id="tlAddCoach" placeholder="e.g. Casey" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+      </div>
+      <div class="field">
+        <label>Trial Start Date</label>
+        <input type="date" id="tlAddStart" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+      </div>
+      <button id="btnTLConfirmAdd" class="btn btn-primary">Start Trial</button>
+      <button id="btnTLCancelAdd" class="btn btn-ghost">Cancel</button>
+    </div>
+  </div>
+
   <!-- LX Scoreboard View -->
   <div class="view" id="lxView">
     <div style="margin-bottom:24px;">
@@ -276,6 +297,10 @@
   <div class="view" id="txView">
     <div class="standup-card">
       <div id="trainerTrialRoot"></div>
+    </div>
+
+    <div class="standup-card">
+      <div id="teamLeadTrialRoot"></div>
     </div>
 
     <div style="margin-top:28px;margin-bottom:24px;">
@@ -502,7 +527,7 @@
 
     <div class="standup-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-        <h3 style="margin:0;">Food Safety Walkthrough</h3>
+        <h3 style="margin:0;">🛡️ Food Safety Walkthrough</h3>
         <span class="zone-overall-pct" id="foodSafetyBadge">Not yet</span>
       </div>
       <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Complete your daily food safety checklist</p>
@@ -966,5 +991,6 @@
 <script src="/static/js/weekly-roster-import.js"></script>
 <script src="/static/js/manage-and-import.js"></script>
 <script src="/static/js/trainer-trial.js"></script>
+<script src="/static/js/team-lead-trial.js"></script>
 </body>
 </html>
