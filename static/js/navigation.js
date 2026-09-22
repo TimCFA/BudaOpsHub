@@ -5,9 +5,10 @@ function activateView(view){
   if(view === 'wastelog'){ renderGrid(); renderTape(); }
   if(view === 'zonereset'){ renderZoneResetView(); renderWalkthroughsPage(); }
   if(view === 'safecount') renderSafeCount();
+  if(view === 'prepboard') renderPrepBoard();
   if(view === 'scoreboard'){ renderScoreboardView(); renderOperationalIntelligence(); renderCustomScoreboards(); }
   if(view === 'lx') renderLXScoreboard();
-  if(view === 'gx') renderGXScoreboard();
+  if(view === 'gx'){ renderGXScoreboard(); renderCemTrends(); }
   if(view === 'tx'){ renderTXScoreboard(); renderTrainerTrial(); renderTeamLeadTrial(); }
   if(view === 'home') renderHomeScoreboard();
 }

@@ -33,6 +33,7 @@
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="zoneresetView" data-view="zonereset">Zone Reset & Walkthroughs <span class="sub-inline">Reinicio y Recorridos</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="wastelogView" data-view="wastelog">Log Waste <span class="sub-inline">Desperdicio</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="safecountView" data-view="safecount">Daily Safe Count <span class="sub-inline">Caja Fuerte</span></button>
+          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="prepboardView" data-view="prepboard">Prep Board <span class="sub-inline">Tablero de Preparación</span></button>
         </div>
       </div>
 
@@ -290,6 +291,10 @@
         <ul class="gx-opportunities-list" id="gxTeamCoachingFocus"></ul>
       </div>
       <div class="gx-metrics-grid" id="gxTeamMetrics" style="margin-top:12px;"></div>
+    </div>
+
+    <div class="standup-card">
+      <div id="cemTrendsRoot"></div>
     </div>
   </div>
 
@@ -616,6 +621,13 @@
     <div class="standup-card fohoe-card fohoe-red">
       <h3><span class="fohoe-icon">📋</span>Safe Count Log <span class="sub"><i>Registro de Conteos</i></span></h3>
       <div id="safeCountLogContainer"></div>
+    </div>
+  </div>
+
+  <!-- Prep Board View -->
+  <div class="view" id="prepboardView">
+    <div class="standup-card">
+      <div id="prepBoardRoot"></div>
     </div>
   </div>
 
@@ -992,5 +1004,7 @@
 <script src="/static/js/manage-and-import.js"></script>
 <script src="/static/js/trainer-trial.js"></script>
 <script src="/static/js/team-lead-trial.js"></script>
+<script src="/static/js/prep-board.js"></script>
+<script src="/static/js/cem-trends.js"></script>
 </body>
 </html>

@@ -40,7 +40,8 @@ async function saveState(){
     fohOEDays, fohOEChecked, fohOECheckedDate,
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
-    safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, wasteMonthlyHistory
+    safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, wasteMonthlyHistory,
+    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries
   };
   const serialized = JSON.stringify(snapshot);
   localStorage.setItem('cfaBudaOps', serialized);
@@ -56,7 +57,8 @@ function exportBackup(){
     fohOEDays, fohOEChecked, fohOECheckedDate,
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
-    safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, wasteMonthlyHistory
+    safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, wasteMonthlyHistory,
+    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries
   };
   const blob = new Blob([JSON.stringify(snapshot, null, 2)], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
@@ -146,6 +148,12 @@ async function loadState(){
     trainerProgress = data.trainerProgress || {};
     teamLeadTrainees = data.teamLeadTrainees || [];
     teamLeadProgress = data.teamLeadProgress || {};
+    prepBuffers = Object.assign({}, PB_DEFAULT_BUFFERS, data.prepBuffers || {});
+    prepSoldEntries = data.prepSoldEntries || [];
+    prepWasteEntries = data.prepWasteEntries || [];
+    prepStockoutEvents = data.prepStockoutEvents || [];
+    prepHistorySeeded = data.prepHistorySeeded || false;
+    cemEntries = data.cemEntries || [];
     scoreboardItems = data.scoreboardItems || [];
     posVacancyFlags = data.posVacancyFlags || {};
     const migrated = migrateLegacyWeekdayKeys();
