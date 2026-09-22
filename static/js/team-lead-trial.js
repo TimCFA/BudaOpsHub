@@ -173,59 +173,72 @@ function tlRenderDashboard(trainee, progress){
     return item.block < eBlock && (st === 'not_started' || st === 'in_progress');
   });
 
+  const ringPct = Math.min(100, Math.round((daysIn / 90) * 100));
+  const r = 44, c = 2 * Math.PI * r;
+  const ringOffset = (c - (ringPct / 100) * c).toFixed(1);
+
   return `
-    <div class="tt-stat-grid">
-      <div class="tt-stat-card">
-        <div class="tt-stat-label">Day of Trial</div>
-        <div class="tt-stat-value">${daysIn} <span class="tt-stat-unit">/ 90</span></div>
-        <div class="tt-stat-sub">Expected on Week ${eWeek} of 12 (Month ${TL_BLOCKS[eBlock-1].month})</div>
+    <div class="trial-hero-row">
+      <div class="trial-ring-card">
+        <div class="trial-ring-wrap">
+          <svg viewBox="0 0 104 104">
+            <circle class="trial-ring-track" cx="52" cy="52" r="${r}"></circle>
+            <circle class="trial-ring-fill" cx="52" cy="52" r="${r}" style="stroke-dasharray:${c.toFixed(1)};stroke-dashoffset:${ringOffset};"></circle>
+          </svg>
+          <div class="trial-ring-center">
+            <span class="trial-ring-num">${daysIn}</span>
+            <span class="trial-ring-denom">/ 90 DAYS</span>
+          </div>
+        </div>
+        <p class="trial-ring-caption">Expected on Week ${eWeek} of 12 (Month ${TL_BLOCKS[eBlock-1].month})</p>
       </div>
-      <div class="tt-stat-card">
-        <div class="tt-stat-label">Overall Progress</div>
-        <div class="tt-stat-value">${stats.overallPct}%</div>
-        <div class="tt-progress-track"><div class="tt-progress-fill" style="width:${stats.overallPct}%;background:var(--cfa-red);"></div></div>
-      </div>
-      <div class="tt-stat-card">
-        <div class="tt-stat-label">On Track?</div>
-        <div class="tt-stat-value" style="color:${behind.length ? '#B23B1F' : '#2F7D4F'};font-size:20px;">${behind.length ? behind.length + ' behind' : 'Yes'}</div>
-        <div class="tt-stat-sub">${behind.length ? 'Items from earlier weeks still open' : 'No overdue items'}</div>
+      <div class="trial-chip-stack">
+        <div class="trial-chip">
+          <p class="trial-chip-label">Overall Progress</p>
+          <p class="trial-chip-value">${stats.overallPct}%</p>
+        </div>
+        <div class="trial-chip">
+          <p class="trial-chip-label">On Track?</p>
+          <p class="trial-chip-value" style="color:${behind.length ? '#B23B1F' : '#2F7D4F'};">${behind.length ? behind.length + ' behind' : 'Yes'}</p>
+          <p class="trial-chip-sub">${behind.length ? 'Items from earlier weeks still open' : 'No overdue items'}</p>
+        </div>
       </div>
     </div>
 
-    <div class="tt-track-grid">
-      <div class="tt-track-card">
-        <div class="tt-track-row"><span style="color:${TL_TRACKS.ops.ink};font-weight:600;">Business & Execution</span><span>${stats.opsPct}%</span></div>
-        <div class="tt-progress-track"><div class="tt-progress-fill" style="width:${stats.opsPct}%;background:${TL_TRACKS.ops.bar};"></div></div>
+    <div class="trial-gauge-grid">
+      <div class="trial-gauge">
+        <div class="trial-gauge-row"><span style="color:${TL_TRACKS.ops.ink};">Business & Execution</span><span class="trial-gauge-pct">${stats.opsPct}%</span></div>
+        <div class="trial-gauge-track"><div class="trial-gauge-fill" style="width:${stats.opsPct}%;background:${TL_TRACKS.ops.bar};"></div></div>
       </div>
-      <div class="tt-track-card">
-        <div class="tt-track-row"><span style="color:${TL_TRACKS.leadership.ink};font-weight:600;">Leadership Development</span><span>${stats.leadershipPct}%</span></div>
-        <div class="tt-progress-track"><div class="tt-progress-fill" style="width:${stats.leadershipPct}%;background:${TL_TRACKS.leadership.bar};"></div></div>
+      <div class="trial-gauge">
+        <div class="trial-gauge-row"><span style="color:${TL_TRACKS.leadership.ink};">Leadership Development</span><span class="trial-gauge-pct">${stats.leadershipPct}%</span></div>
+        <div class="trial-gauge-track"><div class="trial-gauge-fill" style="width:${stats.leadershipPct}%;background:${TL_TRACKS.leadership.bar};"></div></div>
       </div>
     </div>
 
     ${behind.length > 0 ? `
-      <div class="tt-alert-card">
-        <div class="tt-alert-title" style="color:#B23B1F;">⚠️ Behind schedule</div>
-        <ul class="tt-plain-list">
+      <div class="trial-alert-card">
+        <div class="trial-alert-title" style="color:#B23B1F;">⚠️ Behind schedule</div>
+        <ul class="trial-plain-list">
           ${behind.map(item => `<li>${escapeHtml(TL_BLOCKS[item.block-1].label)} — ${escapeHtml(item.title)}</li>`).join('')}
         </ul>
       </div>
     ` : ''}
 
-    <div class="tt-track-grid">
-      <div class="tt-track-card">
-        <div class="tt-alert-title" style="color:#B23B1F;">⚠️ Struggled with (${stats.struggles.length})</div>
-        ${stats.struggles.length === 0 ? '<p class="tt-empty-note">Nothing flagged yet.</p>' : `
-          <ul class="tt-plain-list">
-            ${stats.struggles.map(item => `<li><p style="margin:0;">${escapeHtml(item.title)}</p>${(progress[item.id] && progress[item.id].notes) ? `<p class="tt-note-text">${escapeHtml(progress[item.id].notes)}</p>` : ''}</li>`).join('')}
+    <div class="trial-panel-grid">
+      <div class="trial-panel">
+        <div class="trial-alert-title" style="color:#B23B1F;">⚠️ Struggled with (${stats.struggles.length})</div>
+        ${stats.struggles.length === 0 ? '<p class="trial-empty-note">Nothing flagged yet.</p>' : `
+          <ul class="trial-plain-list">
+            ${stats.struggles.map(item => `<li><p style="margin:0;">${escapeHtml(item.title)}</p>${(progress[item.id] && progress[item.id].notes) ? `<p class="trial-note-text">${escapeHtml(progress[item.id].notes)}</p>` : ''}</li>`).join('')}
           </ul>
         `}
       </div>
-      <div class="tt-track-card">
-        <div class="tt-alert-title" style="color:#2F7D4F;">✨ Excelled at (${stats.wins.length})</div>
-        ${stats.wins.length === 0 ? '<p class="tt-empty-note">Nothing flagged yet.</p>' : `
-          <ul class="tt-plain-list">
-            ${stats.wins.map(item => `<li><p style="margin:0;">${escapeHtml(item.title)}</p>${(progress[item.id] && progress[item.id].notes) ? `<p class="tt-note-text">${escapeHtml(progress[item.id].notes)}</p>` : ''}</li>`).join('')}
+      <div class="trial-panel">
+        <div class="trial-alert-title" style="color:#2F7D4F;">✨ Excelled at (${stats.wins.length})</div>
+        ${stats.wins.length === 0 ? '<p class="trial-empty-note">Nothing flagged yet.</p>' : `
+          <ul class="trial-plain-list">
+            ${stats.wins.map(item => `<li><p style="margin:0;">${escapeHtml(item.title)}</p>${(progress[item.id] && progress[item.id].notes) ? `<p class="trial-note-text">${escapeHtml(progress[item.id].notes)}</p>` : ''}</li>`).join('')}
           </ul>
         `}
       </div>
@@ -241,32 +254,32 @@ function tlRenderCurriculumRow(item, entry){
   const notes = (entry && entry.notes) || '';
   const track = TL_TRACKS[item.track];
   return `
-    <div class="tt-row">
-      <div class="tt-row-top">
-        <div class="tt-row-main">
-          <div class="tt-row-title-line">
-            <span class="tt-row-title">${escapeHtml(item.title)}</span>
-            <span class="tt-track-badge" style="color:${track.ink};background:${track.bg};">${track.label}</span>
+    <div class="trial-row" style="--trial-row-ink:${track.ink};">
+      <div class="trial-row-top">
+        <div class="trial-row-main">
+          <div class="trial-row-title-line">
+            <span class="trial-row-title">${escapeHtml(item.title)}</span>
+            <span class="trial-track-badge" style="background:${track.ink};">${track.label}</span>
           </div>
-          <p class="tt-row-desc">${escapeHtml(item.desc)}</p>
-          <p class="tt-row-ref">${escapeHtml(item.ref)}</p>
+          <p class="trial-row-desc">${escapeHtml(item.desc)}</p>
+          <p class="trial-row-ref">${escapeHtml(item.ref)}</p>
         </div>
-        <div class="tt-status-wrap">
-          <button class="tt-status-pill" style="color:${s.ink};background:${s.bg};border-color:${s.ink}55;" data-tl-status-toggle="${item.id}">${s.icon} ${s.label}</button>
+        <div class="trial-status-wrap">
+          <button class="trial-status-pill" style="color:${s.ink};background:${s.bg};border-color:${s.ink}55;" data-tl-status-toggle="${item.id}">${s.icon} ${s.label}</button>
           ${menuOpen ? `
-            <div class="tt-status-menu">
+            <div class="trial-status-menu">
               ${TT_STATUS_ORDER.map(key => {
                 const opt = TT_STATUS[key];
-                return `<button class="tt-status-option" style="color:${opt.ink};${status===key?`background:${opt.bg};`:''}" data-tl-status-set="${item.id}" data-status="${key}">${opt.icon} ${opt.label}${status===key?' ✓':''}</button>`;
+                return `<button class="trial-status-option" style="color:${opt.ink};${status===key?`background:${opt.bg};`:''}" data-tl-status-set="${item.id}" data-status="${key}">${opt.icon} ${opt.label}${status===key?' ✓':''}</button>`;
               }).join('')}
             </div>
           ` : ''}
         </div>
       </div>
-      <button class="tt-notes-toggle" data-tl-notes-toggle="${item.id}">${notesOpen ? '▾' : '▸'} ${notes ? 'Coaching note' : 'Add a coaching note'}</button>
+      <button class="trial-notes-toggle" data-tl-notes-toggle="${item.id}">${notesOpen ? '▾' : '▸'} ${notes ? 'Coaching note' : 'Add a coaching note'}</button>
       ${notesOpen ? `
-        <div class="tt-notes-wrap">
-          <textarea class="tt-notes-input" data-tl-notes-input="${item.id}" placeholder="What specifically did they struggle with, or excel at? Keep it behavior-based." rows="2">${escapeHtml(notes)}</textarea>
+        <div class="trial-notes-wrap">
+          <textarea class="trial-notes-input" data-tl-notes-input="${item.id}" placeholder="What specifically did they struggle with, or excel at? Keep it behavior-based." rows="2">${escapeHtml(notes)}</textarea>
         </div>
       ` : ''}
     </div>
@@ -279,11 +292,16 @@ function renderTeamLeadTrial(){
 
   if(teamLeadTrainees.length === 0){
     root.innerHTML = `
-      <div class="tt-header-row"><h2 class="tt-title">🎟️ Team Lead 90-Day Trial</h2></div>
-      <p class="tt-subtitle">90-day path from Team Member to certified Team Leader</p>
-      <div class="tt-empty-state">
-        <p>No Team Lead trials started yet.</p>
-        <button class="btn btn-primary" style="width:auto;padding:10px 20px;" data-tl-open-add-modal>+ Start a Team Lead Trial</button>
+      <div class="trial-root" data-theme="teamlead">
+        <div class="trial-masthead">
+          <p class="trial-masthead-eyebrow">Trial Tracker</p>
+          <h2 class="trial-masthead-title">🎟️ Team Lead 90-Day Trial</h2>
+          <p class="trial-masthead-subtitle">90-day path from Team Member to certified Team Leader</p>
+        </div>
+        <div class="trial-empty-state">
+          <p>No Team Lead trials started yet.</p>
+          <button class="trial-cta" data-tl-open-add-modal>+ Start a Team Lead Trial</button>
+        </div>
       </div>
     `;
     return;
@@ -294,39 +312,43 @@ function renderTeamLeadTrial(){
   const progress = teamLeadProgress[tlActiveId] || {};
 
   let html = `
-    <div class="tt-header-row"><h2 class="tt-title">🎟️ Team Lead 90-Day Trial</h2></div>
-    <p class="tt-subtitle">90-day path from Team Member to certified Team Leader</p>
-
-    <div class="tt-trainee-tabs">
-      ${teamLeadTrainees.map(t => `<button class="tt-trainee-tab ${t.id===tlActiveId?'active':''}" data-tl-select-trainee="${t.id}">👤 ${escapeHtml(t.name)}</button>`).join('')}
-      <button class="tt-add-trainee-btn" data-tl-open-add-modal>+ Add trainee</button>
-    </div>
-
-    <div class="tt-info-bar">
-      <div>
-        <p class="tt-info-name">${escapeHtml(activeTrainee.name)}</p>
-        <p class="tt-info-meta">${activeTrainee.coach ? `Coached by ${escapeHtml(activeTrainee.coach)} · ` : ''}Started ${escapeHtml(activeTrainee.startDate)}</p>
+    <div class="trial-root" data-theme="teamlead">
+      <div class="trial-masthead">
+        <p class="trial-masthead-eyebrow">Trial Tracker</p>
+        <h2 class="trial-masthead-title">🎟️ Team Lead 90-Day Trial</h2>
+        <p class="trial-masthead-subtitle">90-day path from Team Member to certified Team Leader</p>
       </div>
-      <div class="tt-info-right">
-        <div style="text-align:right;">
-          <p class="tt-info-overall-label">Overall</p>
-          <p class="tt-info-overall-value">${tlOverallPct(progress)}%</p>
+
+      <div class="trial-trainee-tabs">
+        ${teamLeadTrainees.map(t => `<button class="trial-trainee-tab ${t.id===tlActiveId?'active':''}" data-tl-select-trainee="${t.id}">👤 ${escapeHtml(t.name)}</button>`).join('')}
+        <button class="trial-add-trainee-btn" data-tl-open-add-modal>+ Add trainee</button>
+      </div>
+
+      <div class="trial-info-bar">
+        <div>
+          <p class="trial-info-name">${escapeHtml(activeTrainee.name)}</p>
+          <p class="trial-info-meta">${activeTrainee.coach ? `Coached by ${escapeHtml(activeTrainee.coach)} · ` : ''}Started ${escapeHtml(activeTrainee.startDate)}</p>
         </div>
-        <button class="tt-remove-btn" data-tl-remove-trainee="${activeTrainee.id}" title="Remove trainee">🗑️</button>
+        <div class="trial-info-right">
+          <div style="text-align:right;">
+            <p class="trial-info-overall-label">Overall</p>
+            <p class="trial-info-overall-value">${tlOverallPct(progress)}%</p>
+          </div>
+          <button class="trial-remove-btn" data-tl-remove-trainee="${activeTrainee.id}" title="Remove trainee">🗑️</button>
+        </div>
       </div>
-    </div>
 
-    <div class="tt-view-toggle">
-      <button class="tt-view-btn ${tlView==='dashboard'?'active':''}" data-tl-set-view="dashboard">Dashboard</button>
-      <button class="tt-view-btn ${tlView==='curriculum'?'active':''}" data-tl-set-view="curriculum">Curriculum & Progress</button>
-    </div>
+      <div class="trial-view-toggle">
+        <button class="trial-view-btn ${tlView==='dashboard'?'active':''}" data-tl-set-view="dashboard">Dashboard</button>
+        <button class="trial-view-btn ${tlView==='curriculum'?'active':''}" data-tl-set-view="curriculum">Curriculum & Progress</button>
+      </div>
   `;
 
   if(tlView === 'dashboard'){
     html += tlRenderDashboard(activeTrainee, progress);
   } else {
     html += `
-      <div class="tt-filters">
+      <div class="trial-filters">
         <select data-tl-block-filter>
           <option value="all" ${tlBlockFilter==='all'?'selected':''}>All weeks</option>
           ${TL_BLOCKS.map(b => `<option value="${b.id}" ${tlBlockFilter===b.id?'selected':''}>${TL_MONTHS[b.month].label} · ${b.label} — ${b.theme}</option>`).join('')}
@@ -348,14 +370,14 @@ function renderTeamLeadTrial(){
       if(!items.length) return;
       if(block.month !== lastMonth){
         lastMonth = block.month;
-        html += `<h3 class="tt-week-theme" style="margin:20px 0 4px;">${TL_MONTHS[block.month].label} — ${TL_MONTHS[block.month].theme}</h3>`;
+        html += `<h3 class="trial-month-heading">${TL_MONTHS[block.month].label} — ${TL_MONTHS[block.month].theme}</h3>`;
       }
       html += `
-        <div class="tt-week-block">
-          <div class="tt-week-heading">
-            <h3>${block.label}</h3><span class="tt-week-theme">— ${block.theme}</span>
+        <div class="trial-week-block">
+          <div class="trial-week-heading">
+            <h3>${block.label}</h3><span class="trial-week-theme">— ${block.theme}</span>
           </div>
-          <div class="tt-row-list">
+          <div class="trial-row-list">
             ${items.map(item => tlRenderCurriculumRow(item, progress[item.id])).join('')}
           </div>
         </div>
@@ -363,6 +385,7 @@ function renderTeamLeadTrial(){
     });
   }
 
+  html += `</div>`;
   root.innerHTML = html;
 }
 
