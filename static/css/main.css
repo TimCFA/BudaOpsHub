@@ -921,5 +921,17 @@
   .ct-icon-btn:hover{color:var(--cfa-red);}
 
   .ct-sparkline{display:block;flex-shrink:0;}
+
+  /* ===== Scoreboard sub-tabs (GX / TX / LX / Waste, moved here from their own tabs) ===== */
+  .sb-subtabs{display:flex;gap:4px;margin-bottom:20px;padding:4px;background:var(--cfa-bg);border-radius:10px;overflow-x:auto;}
+  .sb-subtab-btn{flex:1;white-space:nowrap;border:none;border-radius:7px;padding:9px 12px;font-family:'Outfit',sans-serif;font-size:12.5px;font-weight:600;color:var(--text-secondary);background:transparent;cursor:pointer;transition:all .15s ease;}
+  .sb-subtab-btn.active{color:#fff;background:var(--cfa-red);}
+  .sb-panel{display:none;}
+  .sb-panel.active{display:block;}
+
+  .content-hub-placeholder{text-align:center;padding:48px 20px;}
+  .content-hub-placeholder .chp-icon{font-size:32px;margin-bottom:10px;}
+  .content-hub-placeholder h3{font-family:'Outfit';font-size:16px;margin:0 0 8px;color:var(--text-primary);}
+  .content-hub-placeholder p{font-size:12.5px;color:var(--text-secondary);margin:0;max-width:40ch;margin-left:auto;margin-right:auto;line-height:1.5;}
   
 

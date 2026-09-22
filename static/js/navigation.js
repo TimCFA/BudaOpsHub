@@ -6,12 +6,22 @@ function activateView(view){
   if(view === 'zonereset'){ renderZoneResetView(); renderWalkthroughsPage(); }
   if(view === 'safecount') renderSafeCount();
   if(view === 'prepboard') renderPrepBoard();
-  if(view === 'scoreboard'){ renderScoreboardView(); renderOperationalIntelligence(); renderCustomScoreboards(); }
-  if(view === 'lx') renderLXScoreboard();
-  if(view === 'gx'){ renderGXScoreboard(); renderCemTrends(); }
-  if(view === 'tx'){ renderTXScoreboard(); renderTrainerTrial(); renderTeamLeadTrial(); }
+  if(view === 'scoreboard'){
+    renderScoreboardView(); renderOperationalIntelligence(); renderCustomScoreboards();
+    renderGXScoreboard(); renderCemTrends(); renderTXScoreboard(); renderTrainerTrial(); renderTeamLeadTrial(); renderLXScoreboard();
+  }
+  if(view === 'tx') renderTXScoreboard();
   if(view === 'home') renderHomeScoreboard();
 }
+
+document.querySelector('.sb-subtabs').addEventListener('click', function(e){
+  const btn = e.target.closest('[data-sb-subtab]');
+  if(!btn) return;
+  const key = btn.dataset.sbSubtab;
+  document.querySelectorAll('.sb-subtab-btn').forEach(b => b.classList.toggle('active', b === btn));
+  document.querySelectorAll('.sb-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('sbPanel' + key.charAt(0).toUpperCase() + key.slice(1)).classList.add('active');
+});
 
 function clearActiveTabs(){
   document.querySelectorAll('.tab, .tab-group').forEach(x=>x.classList.remove('active'));
