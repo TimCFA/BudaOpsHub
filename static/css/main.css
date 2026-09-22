@@ -154,23 +154,28 @@
   .view.active{display:block;animation:fadein .2s ease;}
   @keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
 
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;}
-  .waste-cat-group{margin-bottom:22px;}
+  /* auto-fit (not auto-fill) collapses column tracks that end up with no tile
+     in them, so a category with only 1-2 items doesn't reserve a full row's
+     worth of empty grid cells — that was the main cause of Log Waste feeling
+     spread out. The fixed max (instead of 1fr) keeps a lone tile from
+     stretching to fill the freed-up space. */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,132px));gap:8px;}
+  .waste-cat-group{margin-bottom:14px;}
   .waste-cat-group:last-child{margin-bottom:0;}
-  .waste-cat-heading{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-secondary);font-weight:700;margin:0 0 10px;}
-  .tile-sizegroup{background:var(--cfa-white);border:1px solid var(--border);border-radius:var(--radius);padding:12px;box-shadow:0 1px 3px rgba(0,0,0,0.05);}
-  .tile-sizegroup-name{font-family:'Inter',sans-serif;font-weight:600;font-size:13px;line-height:1.3;color:var(--text-primary);margin-bottom:8px;}
-  .tile-sizegroup-row{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;margin:0 -8px;border-radius:6px;cursor:pointer;transition:background .15s ease;}
+  .waste-cat-heading{font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-secondary);font-weight:700;margin:0 0 6px;}
+  .tile-sizegroup{background:var(--cfa-white);border:1px solid var(--border);border-radius:var(--radius);padding:10px;box-shadow:0 1px 3px rgba(0,0,0,0.05);}
+  .tile-sizegroup-name{font-family:'Inter',sans-serif;font-weight:600;font-size:12px;line-height:1.25;color:var(--text-primary);margin-bottom:5px;}
+  .tile-sizegroup-row{display:flex;align-items:center;justify-content:space-between;padding:5px 6px;margin:0 -6px;border-radius:6px;cursor:pointer;transition:background .15s ease;}
   .tile-sizegroup-row:hover{background:var(--cfa-light);}
-  .tile-sizegroup-size{font-size:12px;font-weight:600;color:var(--text-secondary);}
-  .tile-sizegroup-cost{font-size:11px;color:var(--text-tertiary);font-weight:500;}
-  .tile{background:var(--cfa-white);border:1px solid var(--border);border-radius:var(--radius);padding:16px;cursor:pointer;transition:all .15s ease;position:relative;overflow:hidden;min-height:100px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 1px 3px rgba(0,0,0,0.05);}
+  .tile-sizegroup-size{font-size:11px;font-weight:600;color:var(--text-secondary);}
+  .tile-sizegroup-cost{font-size:10.5px;color:var(--text-tertiary);font-weight:500;}
+  .tile{background:var(--cfa-white);border:1px solid var(--border);border-radius:var(--radius);padding:10px;cursor:pointer;transition:all .15s ease;position:relative;overflow:hidden;min-height:64px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 1px 3px rgba(0,0,0,0.05);}
   .tile:hover{border-color:var(--cfa-red);box-shadow:0 4px 12px rgba(227,28,35,0.1);}
   .tile:active{transform:scale(0.98);}
   .tile .cat{font-family:'Inter',sans-serif;font-size:9px;color:var(--cfa-red);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;font-weight:600;}
-  .tile .name{font-family:'Inter',sans-serif;font-weight:600;font-size:14px;line-height:1.3;color:var(--text-primary);}
-  .tile .name-es{font-size:10px;font-style:italic;color:var(--text-tertiary);margin-top:4px;}
-  .tile .cost{font-family:'Inter',sans-serif;font-size:12px;color:var(--text-secondary);margin-top:8px;font-weight:500;}
+  .tile .name{font-family:'Inter',sans-serif;font-weight:600;font-size:12.5px;line-height:1.25;color:var(--text-primary);}
+  .tile .name-es{font-size:9.5px;font-style:italic;color:var(--text-tertiary);margin-top:3px;}
+  .tile .cost{font-family:'Inter',sans-serif;font-size:11px;color:var(--text-secondary);margin-top:6px;font-weight:500;}
   .empty-state{text-align:center;padding:60px 20px;color:var(--text-secondary);}
 
   .tape-wrap{margin-top:28px;}
