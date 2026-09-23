@@ -74,7 +74,9 @@ function renderGrid(){
   }
   const groups = groupProductsByCategory(filtered);
   grid.innerHTML = groups.map(({cat, items})=>{
-    const entries = groupSizeVariants(items);
+    // Three-size items (S/M/L) lead their category so they line up together.
+    const grouped = groupSizeVariants(items);
+    const entries = [...grouped.filter(e=>e.type==='sizegroup'), ...grouped.filter(e=>e.type!=='sizegroup')];
     const tilesHtml = entries.map(entry =>
       entry.type === 'sizegroup' ? renderSizeGroupTile(entry.base, entry.variants) : renderTile(entry.product)
     ).join('');

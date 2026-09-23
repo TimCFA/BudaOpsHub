@@ -99,6 +99,8 @@ async function loadState(){
       products = [...data.products, ...missingDefaults];
       const renameFixes = {foh26:'5 ct Grilled Nugget', foh27:'8 ct Grilled Nugget', foh28:'12 ct Grilled Nugget'};
       products.forEach(p=>{ if(renameFixes[p.id]) p.name = renameFixes[p.id]; });
+      const sideIds = ['foh6','foh7','foh8','foh9','foh10','foh11','foh15','foh18','foh19','foh20'];
+      products.forEach(p=>{ if(sideIds.includes(p.id)) p.cat = 'Sides'; });
     } else {
       products = defaultProducts;
     }
