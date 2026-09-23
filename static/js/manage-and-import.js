@@ -1,3 +1,9 @@
+// Resolves once loadState() (bottom of this file) has the saved data. Manage
+// must not render before then: it would show — and edit — the built-in
+// defaults instead of the saved products, team, targets and scoreboards.
+let resolveStateLoaded;
+const stateLoaded = new Promise(resolve => { resolveStateLoaded = resolve; });
+
 document.getElementById('btnPinGo').addEventListener('click',checkPin);
 document.getElementById('pinInput').addEventListener('keydown',(e)=>{ if(e.key==='Enter') checkPin(); });
 
@@ -11,6 +17,7 @@ async function checkPin(){
     });
     const result = await res.json();
     if(res.ok && result.success){
+      await stateLoaded;
       document.getElementById('pinGate').style.display = 'none';
       document.getElementById('manageContent').style.display = 'block';
       renderManage();
@@ -36,6 +43,7 @@ document.getElementById('btnLock').addEventListener('click', async ()=>{
     const res = await fetch(`${API_BASE}/api/manager/status`);
     const {isManager} = await res.json();
     if(isManager){
+      await stateLoaded;
       document.getElementById('pinGate').style.display = 'none';
       document.getElementById('manageContent').style.display = 'block';
       renderManage();
@@ -614,7 +622,11 @@ document.getElementById('btnDownloadTodayCsv').addEventListener('click', ()=>{
 });
 
 (async function(){
-  await loadState();
+  try{
+    await loadState();
+  } finally {
+    resolveStateLoaded();
+  }
   renderGrid();
   renderTape();
   renderScoreboardView();
