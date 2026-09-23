@@ -1,39 +1,58 @@
-// A product named "X (Small)" / "X (Medium)" / "X (Large)" is a size variant
-// of the same item — group those into one row with S/M/L buttons instead of
-// scattering them through the category, purely for visual grouping.
-const SIZE_SUFFIX_RE = /^(.*)\s\((Small|Medium|Large)\)$/;
+// Products named "Base (Option)" in the same category — "Waffle Fries (Small)",
+// "Nuggets (5 ct)", "Hash Browns (Regular)" — collapse into one row with a
+// button per option, so adding "Nuggets (30 ct)" in Manage just adds a button.
+const VARIANT_SUFFIX_RE = /^(.*)\s\(([^)]+)\)$/;
+const VARIANT_SIZE_RANK = {Small:0, Regular:0, Medium:1, Large:2};
+const VARIANT_SIZE_SHORT = {Small:'S', Regular:'R', Medium:'M', Large:'L'};
 
-function groupProductsByCategory(list){
-  const order = [];
-  const byCat = {};
-  list.forEach(p=>{
-    if(!byCat[p.cat]){ byCat[p.cat] = []; order.push(p.cat); }
-    byCat[p.cat].push(p);
-  });
-  return order.map(cat => ({cat, items: byCat[cat]}));
+function variantCount(option){
+  const m = option.match(/^(\d+)\s*ct$/i);
+  return m ? parseInt(m[1], 10) : null;
 }
 
-function groupSizeVariants(items){
-  const sizeOrder = {Small:0, Medium:1, Large:2};
+// Button text: sizes as one letter (S/M/L/R), counts as the number ("5 ct" -> "5").
+function variantLabel(option){
+  if(VARIANT_SIZE_SHORT[option]) return VARIANT_SIZE_SHORT[option];
+  const n = variantCount(option);
+  return n !== null ? String(n) : option;
+}
+
+// Sizes small→large, counts low→high, anything else keeps its list order.
+function variantRank(option, index){
+  if(option in VARIANT_SIZE_RANK) return VARIANT_SIZE_RANK[option];
+  const n = variantCount(option);
+  return n !== null ? n : 1000 + index;
+}
+
+function groupProductsByCategory(list){
+  const byCat = {};
+  const seen = [];
+  list.forEach(p=>{
+    if(!byCat[p.cat]){ byCat[p.cat] = []; seen.push(p.cat); }
+    byCat[p.cat].push(p);
+  });
+  const section = list.length ? list[0].section : currentSection;
+  return sortCategories(section, seen).map(cat => ({cat, items: byCat[cat]}));
+}
+
+function groupVariants(items){
   const bases = {};
   const order = [];
-  const seenBase = new Set();
-  items.forEach(p=>{
-    const m = p.name.match(SIZE_SUFFIX_RE);
+  items.forEach((p, index)=>{
+    const m = p.name.match(VARIANT_SUFFIX_RE);
     if(m){
       const base = m[1];
-      if(!bases[base]) bases[base] = [];
-      bases[base].push({size: m[2], product: p});
-      if(!seenBase.has(base)){ seenBase.add(base); order.push({type:'sizegroup', base}); }
+      if(!bases[base]){ bases[base] = []; order.push({type:'variants', base}); }
+      bases[base].push({option: m[2], rank: variantRank(m[2], index), product: p});
     } else {
       order.push({type:'single', product: p});
     }
   });
   return order.map(entry=>{
-    if(entry.type !== 'sizegroup') return entry;
-    const variants = bases[entry.base].slice().sort((a,b)=>sizeOrder[a.size]-sizeOrder[b.size]);
+    if(entry.type !== 'variants') return entry;
+    const variants = bases[entry.base].slice().sort((a,b)=>a.rank-b.rank);
     if(variants.length < 2) return {type:'single', product: variants[0].product};
-    return {type:'sizegroup', base: entry.base, variants};
+    return {type:'variants', base: entry.base, variants};
   });
 }
 
@@ -54,8 +73,8 @@ function renderItemRow(p){
   `;
 }
 
-// Size variants share one row: the item name, then a S/M/L button per size.
-function renderSizeGroupRow(base, variants){
+// Option variants share one row: the item name, then a button per option.
+function renderVariantRow(base, variants){
   const es = (variants[0].product.es || '').replace(/\s*\([^)]*\)$/, '');
   return `
     <div class="waste-item">
@@ -63,20 +82,14 @@ function renderSizeGroupRow(base, variants){
         <div class="waste-item-name">${escapeHtml(base)}</div>
         ${es ? `<div class="waste-item-es">${escapeHtml(es)}</div>` : ''}
       </div>
-      <div class="waste-sizes">
+      <div class="waste-sizes${variants.some(v=>variantLabel(v.option).length > 2) ? ' waste-sizes-words' : ''}">
         ${variants.map(v => {
           const cost = wasteCostLabel(v.product.cost);
-          return `<button type="button" class="waste-size-btn" data-id="${v.product.id}" title="${escapeHtml(v.product.name)}" aria-label="${escapeHtml(v.product.name)}">${v.size.charAt(0)}${cost ? `<small>${cost}</small>` : ''}</button>`;
+          return `<button type="button" class="waste-size-btn" data-id="${v.product.id}" title="${escapeHtml(v.product.name)}" aria-label="${escapeHtml(v.product.name)}">${escapeHtml(variantLabel(v.option))}${cost ? `<small>${cost}</small>` : ''}</button>`;
         }).join('')}
       </div>
     </div>
   `;
-}
-
-// "5 ct", "8 ct", "12 ct" items list smallest count first.
-function wasteCountOf(p){
-  const m = p.name.match(/^(\d+) ct\b/);
-  return m ? parseInt(m[1], 10) : null;
 }
 
 function renderGrid(){
@@ -88,16 +101,15 @@ function renderGrid(){
   }
   const groups = groupProductsByCategory(filtered);
   grid.innerHTML = groups.map(({cat, items})=>{
-    if(items.every(p=>wasteCountOf(p)!==null)) items = items.slice().sort((a,b)=>wasteCountOf(a)-wasteCountOf(b));
-    // Three-size items (S/M/L) lead their category so they line up together.
-    const grouped = groupSizeVariants(items);
-    const entries = [...grouped.filter(e=>e.type==='sizegroup'), ...grouped.filter(e=>e.type!=='sizegroup')];
+    // Option rows lead their category so their buttons line up together.
+    const grouped = groupVariants(items);
+    const entries = [...grouped.filter(e=>e.type==='variants'), ...grouped.filter(e=>e.type!=='variants')];
     const rowsHtml = entries.map(entry =>
-      entry.type === 'sizegroup' ? renderSizeGroupRow(entry.base, entry.variants) : renderItemRow(entry.product)
+      entry.type === 'variants' ? renderVariantRow(entry.base, entry.variants) : renderItemRow(entry.product)
     ).join('');
     return `
       <section class="waste-cat-card">
-        <div class="waste-cat-heading"><span>${escapeHtml(cat)}</span><span class="waste-cat-count">${entries.length}</span></div>
+        <div class="waste-cat-heading"><span>${escapeHtml(cat)}</span><span class="waste-cat-count">${items.length}</span></div>
         ${rowsHtml}
       </section>
     `;

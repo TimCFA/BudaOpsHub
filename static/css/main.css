@@ -113,8 +113,11 @@
   .prod-group{margin-bottom:14px;}
   .prod-group-header{display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-secondary);padding:6px 0;border-bottom:2px solid var(--border);min-height:34px;box-sizing:border-box;}
   .prod-group-count{font-weight:600;color:var(--text-tertiary);margin-left:4px;}
-  .prod-cat-rename,.prod-cat-save,.prod-cat-cancel{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;cursor:pointer;border:1px solid var(--border);background:var(--cfa-white);color:var(--text-secondary);text-transform:none;letter-spacing:0;transition:all .15s ease;flex:none;}
-  .prod-cat-rename:hover,.prod-cat-cancel:hover{border-color:var(--cfa-red);color:var(--cfa-red);}
+  .prod-group-actions{display:flex;gap:4px;flex:none;}
+  .prod-cat-move{width:26px;padding:4px 0 !important;font-size:12px !important;}
+  .prod-cat-move:disabled{opacity:.35;cursor:default;pointer-events:none;}
+  .prod-cat-move,.prod-cat-rename,.prod-cat-save,.prod-cat-cancel{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;cursor:pointer;border:1px solid var(--border);background:var(--cfa-white);color:var(--text-secondary);text-transform:none;letter-spacing:0;transition:all .15s ease;flex:none;}
+  .prod-cat-move:hover,.prod-cat-rename:hover,.prod-cat-cancel:hover{border-color:var(--cfa-red);color:var(--cfa-red);}
   .prod-cat-save{background:var(--cfa-red);border-color:var(--cfa-red);color:var(--cfa-white);}
   .prod-cat-input{flex:1;text-transform:none;font-weight:600;}
   .prod-row{padding:6px 0;border-bottom:1px solid var(--border);}
@@ -174,7 +177,15 @@
      narrower screens) with its items as compact tap rows, so columns line up
      and the page reads like a menu board. */
   #grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
-  @media (max-width:760px){ #grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;} }
+  @media (max-width:760px){
+    #grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+    /* Option buttons drop under the name here — stretch them to fill the row evenly */
+    .waste-item .waste-sizes{width:100%;gap:3px;flex-wrap:nowrap;}
+    .waste-sizes .waste-size-btn{flex:1 1 0;min-width:0;padding:5px 2px;}
+    /* Word options (Cone, Shake…) wrap instead of squeezing */
+    .waste-item .waste-sizes-words{flex-wrap:wrap;}
+    .waste-sizes-words .waste-size-btn{flex:1 1 auto;padding:5px 6px;}
+  }
   .waste-cat-card{background:var(--cfa-white);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden;display:flex;flex-direction:column;}
   .waste-cat-heading{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:9px 12px 8px;border-bottom:1px solid var(--border);font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-secondary);font-weight:700;box-shadow:inset 3px 0 0 var(--cfa-red);}
   .waste-cat-count{font-size:10px;font-weight:600;color:var(--text-tertiary);letter-spacing:0;}
@@ -187,7 +198,7 @@
   .waste-item-name{font-family:'Inter',sans-serif;font-weight:600;font-size:12.5px;line-height:1.25;color:var(--text-primary);}
   .waste-item-es{font-size:9.5px;font-style:italic;color:var(--text-tertiary);margin-top:1px;}
   .waste-item-cost{font-size:11px;color:var(--text-secondary);font-weight:500;white-space:nowrap;}
-  .waste-sizes{display:flex;gap:4px;flex:none;}
+  .waste-sizes{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px;flex:none;max-width:100%;}
   .waste-size-btn{min-width:30px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--cfa-white);font-family:'Inter',sans-serif;font-size:11.5px;font-weight:700;color:var(--text-primary);cursor:pointer;display:flex;flex-direction:column;align-items:center;line-height:1.15;transition:all .15s ease;}
   .waste-size-btn:hover{border-color:var(--cfa-red);color:var(--cfa-red);}
   .waste-size-btn:active{transform:scale(0.95);}
