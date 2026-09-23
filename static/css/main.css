@@ -154,34 +154,28 @@
   .view.active{display:block;animation:fadein .2s ease;}
   @keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
 
-  /* Categories flow side by side and wrap (instead of one category per row),
-     each sized to its own tiles, so small categories like Beverages or Fries
-     share a row rather than leaving the rest of the line empty. */
-  #grid{container-type:inline-size;display:flex;flex-wrap:wrap;align-items:flex-start;gap:14px 24px;--tile-w:128px;}
-  .waste-cat-group{flex:0 1 auto;min-width:0;max-width:100%;}
-  .waste-cat-heading{font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-secondary);font-weight:700;margin:0 0 6px;padding-left:7px;border-left:2px solid var(--cfa-red);line-height:1.2;}
-  .grid{display:flex;flex-wrap:wrap;gap:8px;}
-  .grid > .tile, .grid > .tile-sizegroup{width:var(--tile-w);box-sizing:border-box;}
-  /* Phones: three tiles across the full width, and categories pack with the
-     same 8px gap so e.g. a 1-tile and a 2-tile category fill one row. */
-  @media (max-width:560px){
-    #grid{gap:12px 8px;--tile-w:calc((100cqw - 17px) / 3);}
-  }
-  .tile-sizegroup{background:var(--cfa-white);border:1px solid var(--border);border-radius:var(--radius);padding:10px;box-shadow:0 1px 3px rgba(0,0,0,0.05);display:flex;flex-direction:column;justify-content:space-between;}
-  .tile-sizegroup-name{font-family:'Inter',sans-serif;font-weight:600;font-size:12.5px;line-height:1.25;color:var(--text-primary);margin-bottom:8px;}
-  .tile-sizegroup-sizes{display:flex;gap:4px;}
-  .tile-sizegroup-row{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 2px;border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all .15s ease;}
-  .tile-sizegroup-row:hover{border-color:var(--cfa-red);background:var(--cfa-light);}
-  .tile-sizegroup-row:active{transform:scale(0.96);}
-  .tile-sizegroup-size{font-size:11.5px;font-weight:700;color:var(--text-primary);}
-  .tile-sizegroup-cost{font-size:9.5px;color:var(--text-tertiary);font-weight:500;}
-  .tile{background:var(--cfa-white);border:1px solid var(--border);border-radius:var(--radius);padding:10px;cursor:pointer;transition:all .15s ease;position:relative;overflow:hidden;min-height:64px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 1px 3px rgba(0,0,0,0.05);}
-  .tile:hover{border-color:var(--cfa-red);box-shadow:0 4px 12px rgba(227,28,35,0.1);}
-  .tile:active{transform:scale(0.98);}
-  .tile .cat{font-family:'Inter',sans-serif;font-size:9px;color:var(--cfa-red);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;font-weight:600;}
-  .tile .name{font-family:'Inter',sans-serif;font-weight:600;font-size:12.5px;line-height:1.25;color:var(--text-primary);}
-  .tile .name-es{font-size:9.5px;font-style:italic;color:var(--text-tertiary);margin-top:3px;}
-  .tile .cost{font-family:'Inter',sans-serif;font-size:11px;color:var(--text-secondary);margin-top:6px;font-weight:500;}
+  /* Log Waste: each category is a card in an even grid (3 across, 2 on
+     narrower screens) with its items as compact tap rows, so columns line up
+     and the page reads like a menu board. */
+  #grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
+  @media (max-width:760px){ #grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;} }
+  .waste-cat-card{background:var(--cfa-white);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden;display:flex;flex-direction:column;}
+  .waste-cat-heading{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:9px 12px 8px;border-bottom:1px solid var(--border);font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-secondary);font-weight:700;box-shadow:inset 3px 0 0 var(--cfa-red);}
+  .waste-cat-count{font-size:10px;font-weight:600;color:var(--text-tertiary);letter-spacing:0;}
+  .waste-item{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;min-height:40px;padding:7px 12px;border-bottom:1px solid var(--border);box-sizing:border-box;}
+  .waste-item:last-child{border-bottom:none;}
+  .waste-item[data-id]{cursor:pointer;transition:background .15s ease;}
+  .waste-item[data-id]:hover{background:var(--cfa-light);}
+  .waste-item[data-id]:active{background:var(--border);}
+  .waste-item-text{min-width:0;flex:1 1 90px;}
+  .waste-item-name{font-family:'Inter',sans-serif;font-weight:600;font-size:12.5px;line-height:1.25;color:var(--text-primary);}
+  .waste-item-es{font-size:9.5px;font-style:italic;color:var(--text-tertiary);margin-top:1px;}
+  .waste-item-cost{font-size:11px;color:var(--text-secondary);font-weight:500;white-space:nowrap;}
+  .waste-sizes{display:flex;gap:4px;flex:none;}
+  .waste-size-btn{min-width:30px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--cfa-white);font-family:'Inter',sans-serif;font-size:11.5px;font-weight:700;color:var(--text-primary);cursor:pointer;display:flex;flex-direction:column;align-items:center;line-height:1.15;transition:all .15s ease;}
+  .waste-size-btn:hover{border-color:var(--cfa-red);color:var(--cfa-red);}
+  .waste-size-btn:active{transform:scale(0.95);}
+  .waste-size-btn small{font-size:9px;font-weight:500;color:var(--text-tertiary);}
   .empty-state{text-align:center;padding:60px 20px;color:var(--text-secondary);}
 
   .tape-wrap{margin-top:28px;}

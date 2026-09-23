@@ -1,6 +1,6 @@
 // A product named "X (Small)" / "X (Medium)" / "X (Large)" is a size variant
-// of the same item — group those into one stacked tile instead of scattering
-// them across the grid, purely for visual/aesthetic grouping.
+// of the same item — group those into one row with S/M/L buttons instead of
+// scattering them through the category, purely for visual grouping.
 const SIZE_SUFFIX_RE = /^(.*)\s\((Small|Medium|Large)\)$/;
 
 function groupProductsByCategory(list){
@@ -37,32 +37,46 @@ function groupSizeVariants(items){
   });
 }
 
-function renderTile(p){
+function wasteCostLabel(cost){
+  return cost>0 ? '$'+cost.toFixed(2) : '';
+}
+
+function renderItemRow(p){
+  const cost = wasteCostLabel(p.cost);
   return `
-    <div class="tile" data-id="${p.id}">
-      <div>
-        <div class="name">${p.name}</div>
-        ${p.es ? `<div class="name-es">${p.es}</div>` : ''}
+    <div class="waste-item" data-id="${p.id}">
+      <div class="waste-item-text">
+        <div class="waste-item-name">${p.name}</div>
+        ${p.es ? `<div class="waste-item-es">${p.es}</div>` : ''}
       </div>
-      <div class="cost">${p.cost>0?'$'+p.cost.toFixed(2):'—'}</div>
+      ${cost ? `<span class="waste-item-cost">${cost}</span>` : ''}
     </div>
   `;
 }
 
-function renderSizeGroupTile(base, variants){
+// Size variants share one row: the item name, then a S/M/L button per size.
+function renderSizeGroupRow(base, variants){
+  const es = (variants[0].product.es || '').replace(/\s*\([^)]*\)$/, '');
   return `
-    <div class="tile-sizegroup">
-      <div class="tile-sizegroup-name">${base}</div>
-      <div class="tile-sizegroup-sizes">
-        ${variants.map(v => `
-          <div class="tile-sizegroup-row" data-id="${v.product.id}" title="${v.product.name}">
-            <span class="tile-sizegroup-size">${v.size.charAt(0)}</span>
-            <span class="tile-sizegroup-cost">${v.product.cost>0?'$'+v.product.cost.toFixed(2):'—'}</span>
-          </div>
-        `).join('')}
+    <div class="waste-item">
+      <div class="waste-item-text">
+        <div class="waste-item-name">${base}</div>
+        ${es ? `<div class="waste-item-es">${es}</div>` : ''}
+      </div>
+      <div class="waste-sizes">
+        ${variants.map(v => {
+          const cost = wasteCostLabel(v.product.cost);
+          return `<button type="button" class="waste-size-btn" data-id="${v.product.id}" title="${v.product.name}" aria-label="${v.product.name}">${v.size.charAt(0)}${cost ? `<small>${cost}</small>` : ''}</button>`;
+        }).join('')}
       </div>
     </div>
   `;
+}
+
+// "5 ct", "8 ct", "12 ct" items list smallest count first.
+function wasteCountOf(p){
+  const m = p.name.match(/^(\d+) ct\b/);
+  return m ? parseInt(m[1], 10) : null;
 }
 
 function renderGrid(){
@@ -74,20 +88,21 @@ function renderGrid(){
   }
   const groups = groupProductsByCategory(filtered);
   grid.innerHTML = groups.map(({cat, items})=>{
+    if(items.every(p=>wasteCountOf(p)!==null)) items = items.slice().sort((a,b)=>wasteCountOf(a)-wasteCountOf(b));
     // Three-size items (S/M/L) lead their category so they line up together.
     const grouped = groupSizeVariants(items);
     const entries = [...grouped.filter(e=>e.type==='sizegroup'), ...grouped.filter(e=>e.type!=='sizegroup')];
-    const tilesHtml = entries.map(entry =>
-      entry.type === 'sizegroup' ? renderSizeGroupTile(entry.base, entry.variants) : renderTile(entry.product)
+    const rowsHtml = entries.map(entry =>
+      entry.type === 'sizegroup' ? renderSizeGroupRow(entry.base, entry.variants) : renderItemRow(entry.product)
     ).join('');
     return `
-      <div class="waste-cat-group">
-        <div class="waste-cat-heading">${cat}</div>
-        <div class="grid">${tilesHtml}</div>
-      </div>
+      <section class="waste-cat-card">
+        <div class="waste-cat-heading"><span>${cat}</span><span class="waste-cat-count">${entries.length}</span></div>
+        ${rowsHtml}
+      </section>
     `;
   }).join('');
-  grid.querySelectorAll('.tile, .tile-sizegroup-row').forEach(el=>{
+  grid.querySelectorAll('[data-id]').forEach(el=>{
     el.addEventListener('click',()=>openLogModal(el.dataset.id));
   });
 }
