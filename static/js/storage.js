@@ -40,7 +40,7 @@ async function saveState(){
     fohOEDays, fohOEChecked, fohOECheckedDate,
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
-    safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, wasteMonthlyHistory,
+    safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, wasteMonthlyHistory,
     prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries
   };
   const serialized = JSON.stringify(snapshot);
@@ -57,7 +57,7 @@ function exportBackup(){
     fohOEDays, fohOEChecked, fohOECheckedDate,
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
-    safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, wasteMonthlyHistory,
+    safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, wasteMonthlyHistory,
     prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries
   };
   const blob = new Blob([JSON.stringify(snapshot, null, 2)], {type: 'application/json'});
@@ -97,13 +97,21 @@ async function loadState(){
       const savedIds = new Set(data.products.map(p=>p.id));
       const missingDefaults = defaultProducts.filter(p=>!savedIds.has(p.id) && !deletedProductIds.includes(p.id));
       products = [...data.products, ...missingDefaults];
-      const renameFixes = {foh26:'5 ct Grilled Nugget', foh27:'8 ct Grilled Nugget', foh28:'12 ct Grilled Nugget'};
-      products.forEach(p=>{ if(renameFixes[p.id]) p.name = renameFixes[p.id]; });
-      const sideIds = ['foh6','foh7','foh8','foh9','foh10','foh11','foh15','foh18','foh19','foh20'];
-      products.forEach(p=>{ if(sideIds.includes(p.id)) p.cat = 'Sides'; });
+      // Each fix runs once per saved list, so later edits in Manage (renames,
+      // category moves) aren't overwritten on the next load.
+      const fixesDone = data.productFixesVersion || 0;
+      if(fixesDone < 1){
+        const renameFixes = {foh26:'5 ct Grilled Nugget', foh27:'8 ct Grilled Nugget', foh28:'12 ct Grilled Nugget'};
+        products.forEach(p=>{ if(renameFixes[p.id]) p.name = renameFixes[p.id]; });
+      }
+      if(fixesDone < 2){
+        const sideIds = ['foh6','foh7','foh8','foh9','foh10','foh11','foh15','foh18','foh19','foh20'];
+        products.forEach(p=>{ if(sideIds.includes(p.id)) p.cat = 'Sides'; });
+      }
     } else {
       products = defaultProducts;
     }
+    productFixesVersion = PRODUCT_FIXES_VERSION;
     teamMembers = data.teamMembers || [...fohLeads, ...bohLeads];
     wasteTarget = data.wasteTarget || 100;
     safeCounts = data.safeCounts || [];

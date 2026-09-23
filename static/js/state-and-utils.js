@@ -3,6 +3,10 @@ let currentSection = 'foh';
 let entries = [];
 let products = [];
 let deletedProductIds = []; // ids of default products the user has explicitly removed — never re-added on load
+// One-time fixes to saved product lists (see loadState). Bump when adding one;
+// a fresh install starts current so the fixes never touch it.
+const PRODUCT_FIXES_VERSION = 2;
+let productFixesVersion = PRODUCT_FIXES_VERSION;
 let teamMembers = [];
 let wasteTarget = 100;
 const safeTarget = 4500; // hardcoded — this value never changes, no UI to edit it
