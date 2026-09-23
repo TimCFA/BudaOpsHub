@@ -952,14 +952,18 @@
 
           <div class="standup-card">
             <h3>Products</h3>
-            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Rarely changes — tucked down here since it's not a daily task</p>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">What shows on Log Waste. Change an item's category from its dropdown, or rename a whole category from its header.</p>
             <div id="prodList"></div>
             <div class="add-prod-form">
-              <select id="newSection">
+              <div class="add-prod-title">Add an item</div>
+              <select id="newSection" aria-label="Section">
                 <option value="foh">FOH</option>
                 <option value="boh">BOH</option>
               </select>
-              <input type="text" id="newName" placeholder="Product name / Nombre">
+              <select id="newCat" aria-label="Category"></select>
+              <input type="text" id="newCatName" placeholder="New category name" style="display:none;">
+              <input type="text" id="newName" placeholder="Product name">
+              <input type="text" id="newEs" placeholder="Nombre en español">
               <input type="text" id="newUnit" placeholder="Unit / Unidad">
               <input type="number" step="0.01" id="newCost" placeholder="Cost / Costo">
               <button id="btnAddProd">Add</button>

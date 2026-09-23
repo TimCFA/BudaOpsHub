@@ -73,53 +73,7 @@ async function renderManage(){
   renderNumbersTab();
   renderScoreboardManage();
   
-  const list = document.getElementById('prodList');
-  const prodGroups = {};
-  const prodGroupOrder = [];
-  products.forEach(p=>{
-    const key = p.section + '||' + p.cat;
-    if(!prodGroups[key]){ prodGroups[key] = {section: p.section, cat: p.cat, items: []}; prodGroupOrder.push(key); }
-    prodGroups[key].items.push(p);
-  });
-  list.innerHTML = prodGroupOrder.map(key=>{
-    const g = prodGroups[key];
-    const sectionLabel = g.section === 'foh' ? '🔴 FOH' : '🟠 BOH';
-    return `
-      <div class="prod-group">
-        <div class="prod-group-header">${sectionLabel} · ${escapeHtml(g.cat)}</div>
-        ${g.items.map(p=>`
-          <div class="prod-row" data-id="${p.id}">
-            <input class="prod-input prod-input-name" value="${escapeHtml(p.name)}" data-f="name" placeholder="Name">
-            <input class="prod-input prod-input-unit" value="${escapeHtml(p.unit)}" data-f="unit" placeholder="Unit">
-            <div class="prod-cost-wrap">
-              <span class="prod-cost-sign">$</span>
-              <input class="prod-input prod-input-cost" type="number" step="0.01" value="${p.cost}" data-f="cost" placeholder="0.00">
-            </div>
-            <button class="prod-del" title="Delete permanently">✕</button>
-          </div>
-        `).join('')}
-      </div>
-    `;
-  }).join('');
-  list.querySelectorAll('.prod-row').forEach(row=>{
-    const id = row.dataset.id;
-    row.querySelectorAll('.prod-input').forEach(inp=>{
-      inp.addEventListener('change', async ()=>{
-        const prod = products.find(p=>p.id===id);
-        const f = inp.dataset.f;
-        prod[f] = f==='cost' ? parseFloat(inp.value)||0 : inp.value;
-        await saveState();
-        renderGrid();
-      });
-    });
-    row.querySelector('.prod-del').addEventListener('click', async ()=>{
-      if(!confirm('Remove this product? It will not come back on future updates.')) return;
-      products = products.filter(p=>p.id!==id);
-      if(!deletedProductIds.includes(id)) deletedProductIds.push(id);
-      await saveState();
-      renderManage(); renderGrid();
-    });
-  });
+  renderProductManager();
 
   const tlist = document.getElementById('teamList');
   tlist.innerHTML = teamMembers.map((tm,i)=>`
@@ -136,19 +90,155 @@ window.deleteTeam = async function(i){
   renderManage();
 };
 
+// ---- Products (Log Waste items) ----
+// Categories aren't stored separately: a category is just the `cat` shared by
+// products in the same section, so renaming one rewrites those products and a
+// new category comes into being with the first item placed in it.
+const NEW_CATEGORY = '__new__';
+
+function productCategories(section){
+  const cats = [];
+  products.forEach(p=>{ if(p.section===section && !cats.includes(p.cat)) cats.push(p.cat); });
+  return cats;
+}
+
+function productCategoryOptions(section, selected){
+  return productCategories(section)
+    .map(c=>`<option value="${escapeHtml(c)}"${c===selected?' selected':''}>${escapeHtml(c)}</option>`)
+    .join('') + `<option value="${NEW_CATEGORY}">＋ New category…</option>`;
+}
+
+async function saveProductsAndRefresh(){
+  await saveState();
+  renderProductManager();
+  renderGrid();
+}
+
+function renderProductManager(){
+  const list = document.getElementById('prodList');
+  const groups = [];
+  const byKey = {};
+  products.forEach(p=>{
+    const key = p.section + '||' + p.cat;
+    if(!byKey[key]){ byKey[key] = {section: p.section, cat: p.cat, items: []}; groups.push(byKey[key]); }
+    byKey[key].items.push(p);
+  });
+  list.innerHTML = `
+    <div class="prod-cols" aria-hidden="true"><span>Item</span><span>Spanish</span><span>Category</span><span>Unit</span><span>Cost</span><span></span></div>
+  ` + groups.map((g, gi)=>`
+    <div class="prod-group">
+      <div class="prod-group-header" data-group="${gi}">
+        <span class="prod-group-title">${g.section === 'foh' ? '🔴 FOH' : '🟠 BOH'} · ${escapeHtml(g.cat)} <span class="prod-group-count">${g.items.length}</span></span>
+        <button type="button" class="prod-cat-rename">Rename</button>
+      </div>
+      ${g.items.map(p=>`
+        <div class="prod-row" data-id="${p.id}">
+          <input class="prod-input prod-input-name" value="${escapeHtml(p.name)}" data-f="name" placeholder="Name" aria-label="Item name">
+          <input class="prod-input prod-input-es" value="${escapeHtml(p.es || '')}" data-f="es" placeholder="Nombre" aria-label="Spanish name">
+          <select class="prod-input prod-input-cat" data-f="cat" aria-label="Category">${productCategoryOptions(p.section, p.cat)}</select>
+          <input class="prod-input prod-input-unit" value="${escapeHtml(p.unit)}" data-f="unit" placeholder="Unit" aria-label="Unit">
+          <div class="prod-cost-wrap">
+            <span class="prod-cost-sign">$</span>
+            <input class="prod-input prod-input-cost" type="number" step="0.01" value="${p.cost}" data-f="cost" placeholder="0.00" aria-label="Cost">
+          </div>
+          <button type="button" class="prod-del" title="Delete permanently" aria-label="Delete ${escapeHtml(p.name)}">✕</button>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.prod-row').forEach(row=>{
+    const id = row.dataset.id;
+    const prod = products.find(p=>p.id===id);
+    row.querySelectorAll('input.prod-input').forEach(inp=>{
+      inp.addEventListener('change', async ()=>{
+        const f = inp.dataset.f;
+        prod[f] = f==='cost' ? parseFloat(inp.value)||0 : inp.value.trim();
+        await saveState();
+        renderGrid();
+      });
+    });
+    const catSelect = row.querySelector('.prod-input-cat');
+    catSelect.addEventListener('change', async ()=>{
+      let cat = catSelect.value;
+      if(cat === NEW_CATEGORY){
+        cat = (prompt(`New category for "${prod.name}":`) || '').trim();
+        if(!cat){ catSelect.value = prod.cat; return; }
+      }
+      prod.cat = cat;
+      await saveProductsAndRefresh();
+      showToast(`✓ Moved to ${cat}`);
+    });
+    row.querySelector('.prod-del').addEventListener('click', async ()=>{
+      if(!confirm('Remove this product? It will not come back on future updates.')) return;
+      products = products.filter(p=>p.id!==id);
+      if(!deletedProductIds.includes(id)) deletedProductIds.push(id);
+      await saveProductsAndRefresh();
+    });
+  });
+
+  list.querySelectorAll('.prod-group-header').forEach(header=>{
+    const g = groups[header.dataset.group];
+    header.querySelector('.prod-cat-rename').addEventListener('click', ()=>{
+      header.innerHTML = `
+        <input class="prod-input prod-cat-input" value="${escapeHtml(g.cat)}" aria-label="Category name">
+        <button type="button" class="prod-cat-save">Save</button>
+        <button type="button" class="prod-cat-cancel">Cancel</button>
+      `;
+      const input = header.querySelector('.prod-cat-input');
+      input.focus(); input.select();
+      const commit = async ()=>{
+        const name = input.value.trim();
+        if(!name || name === g.cat){ renderProductManager(); return; }
+        if(productCategories(g.section).includes(name) &&
+           !confirm(`"${name}" already exists — merge these items into it?`)) return;
+        products.forEach(p=>{ if(p.section===g.section && p.cat===g.cat) p.cat = name; });
+        await saveProductsAndRefresh();
+        showToast(`✓ Renamed to ${name}`);
+      };
+      header.querySelector('.prod-cat-save').addEventListener('click', commit);
+      header.querySelector('.prod-cat-cancel').addEventListener('click', renderProductManager);
+      input.addEventListener('keydown', e=>{
+        if(e.key === 'Enter') commit();
+        if(e.key === 'Escape') renderProductManager();
+      });
+    });
+  });
+
+  refreshNewProductCategories();
+}
+
+function refreshNewProductCategories(){
+  const section = document.getElementById('newSection').value;
+  const select = document.getElementById('newCat');
+  const prev = select.value;
+  select.innerHTML = productCategoryOptions(section, prev);
+  toggleNewCategoryInput();
+}
+
+function toggleNewCategoryInput(){
+  const isNew = document.getElementById('newCat').value === NEW_CATEGORY;
+  document.getElementById('newCatName').style.display = isNew ? '' : 'none';
+}
+
+document.getElementById('newSection').addEventListener('change', refreshNewProductCategories);
+document.getElementById('newCat').addEventListener('change', toggleNewCategoryInput);
+
 document.getElementById('btnAddProd').addEventListener('click', async ()=>{
   const section = document.getElementById('newSection').value;
+  const catChoice = document.getElementById('newCat').value;
+  const cat = catChoice === NEW_CATEGORY ? document.getElementById('newCatName').value.trim() : catChoice;
   const name = document.getElementById('newName').value.trim();
+  const es = document.getElementById('newEs').value.trim();
   const unit = document.getElementById('newUnit').value.trim() || 'each';
   const cost = parseFloat(document.getElementById('newCost').value)||0;
-  if(!name) return;
-  products.push({id:'p'+Date.now(), section, cat:'Custom', name, unit, cost});
-  document.getElementById('newName').value='';
-  document.getElementById('newUnit').value='';
-  document.getElementById('newCost').value='';
-  await saveState();
-  renderManage(); renderGrid();
-  showToast('✓ Product Added');
+  if(!name){ showToast('Enter an item name'); return; }
+  if(!cat){ showToast('Name the new category'); return; }
+  products.push({id:'p'+Date.now(), section, cat, name, es, unit, cost});
+  ['newName','newEs','newUnit','newCost','newCatName'].forEach(id=>{ document.getElementById(id).value=''; });
+  document.getElementById('newCat').value = cat;
+  await saveProductsAndRefresh();
+  showToast(`✓ Added to ${cat}`);
 });
 
 document.getElementById('btnAddTeam').addEventListener('click', async ()=>{

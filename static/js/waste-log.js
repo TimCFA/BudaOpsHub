@@ -46,8 +46,8 @@ function renderItemRow(p){
   return `
     <div class="waste-item" data-id="${p.id}">
       <div class="waste-item-text">
-        <div class="waste-item-name">${p.name}</div>
-        ${p.es ? `<div class="waste-item-es">${p.es}</div>` : ''}
+        <div class="waste-item-name">${escapeHtml(p.name)}</div>
+        ${p.es ? `<div class="waste-item-es">${escapeHtml(p.es)}</div>` : ''}
       </div>
       ${cost ? `<span class="waste-item-cost">${cost}</span>` : ''}
     </div>
@@ -60,13 +60,13 @@ function renderSizeGroupRow(base, variants){
   return `
     <div class="waste-item">
       <div class="waste-item-text">
-        <div class="waste-item-name">${base}</div>
-        ${es ? `<div class="waste-item-es">${es}</div>` : ''}
+        <div class="waste-item-name">${escapeHtml(base)}</div>
+        ${es ? `<div class="waste-item-es">${escapeHtml(es)}</div>` : ''}
       </div>
       <div class="waste-sizes">
         ${variants.map(v => {
           const cost = wasteCostLabel(v.product.cost);
-          return `<button type="button" class="waste-size-btn" data-id="${v.product.id}" title="${v.product.name}" aria-label="${v.product.name}">${v.size.charAt(0)}${cost ? `<small>${cost}</small>` : ''}</button>`;
+          return `<button type="button" class="waste-size-btn" data-id="${v.product.id}" title="${escapeHtml(v.product.name)}" aria-label="${escapeHtml(v.product.name)}">${v.size.charAt(0)}${cost ? `<small>${cost}</small>` : ''}</button>`;
         }).join('')}
       </div>
     </div>
@@ -97,7 +97,7 @@ function renderGrid(){
     ).join('');
     return `
       <section class="waste-cat-card">
-        <div class="waste-cat-heading"><span>${cat}</span><span class="waste-cat-count">${entries.length}</span></div>
+        <div class="waste-cat-heading"><span>${escapeHtml(cat)}</span><span class="waste-cat-count">${entries.length}</span></div>
         ${rowsHtml}
       </section>
     `;
