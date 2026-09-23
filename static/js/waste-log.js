@@ -53,12 +53,14 @@ function renderSizeGroupTile(base, variants){
   return `
     <div class="tile-sizegroup">
       <div class="tile-sizegroup-name">${base}</div>
-      ${variants.map(v => `
-        <div class="tile-sizegroup-row" data-id="${v.product.id}">
-          <span class="tile-sizegroup-size">${v.size}</span>
-          <span class="tile-sizegroup-cost">${v.product.cost>0?'$'+v.product.cost.toFixed(2):'—'}</span>
-        </div>
-      `).join('')}
+      <div class="tile-sizegroup-sizes">
+        ${variants.map(v => `
+          <div class="tile-sizegroup-row" data-id="${v.product.id}" title="${v.product.name}">
+            <span class="tile-sizegroup-size">${v.size.charAt(0)}</span>
+            <span class="tile-sizegroup-cost">${v.product.cost>0?'$'+v.product.cost.toFixed(2):'—'}</span>
+          </div>
+        `).join('')}
+      </div>
     </div>
   `;
 }
@@ -72,7 +74,9 @@ function renderGrid(){
   }
   const groups = groupProductsByCategory(filtered);
   grid.innerHTML = groups.map(({cat, items})=>{
-    const entries = groupSizeVariants(items);
+    // Three-size items (S/M/L) lead their category so they line up together.
+    const grouped = groupSizeVariants(items);
+    const entries = [...grouped.filter(e=>e.type==='sizegroup'), ...grouped.filter(e=>e.type!=='sizegroup')];
     const tilesHtml = entries.map(entry =>
       entry.type === 'sizegroup' ? renderSizeGroupTile(entry.base, entry.variants) : renderTile(entry.product)
     ).join('');
