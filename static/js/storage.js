@@ -40,7 +40,7 @@ async function saveState(){
     fohOEDays, fohOEChecked, fohOECheckedDate,
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
-    safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, wasteMonthlyHistory,
+    safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
     prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries
   };
   const serialized = JSON.stringify(snapshot);
@@ -57,7 +57,7 @@ function exportBackup(){
     fohOEDays, fohOEChecked, fohOECheckedDate,
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
-    safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, wasteMonthlyHistory,
+    safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
     prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries
   };
   const blob = new Blob([JSON.stringify(snapshot, null, 2)], {type: 'application/json'});
@@ -108,10 +108,28 @@ async function loadState(){
         const sideIds = ['foh6','foh7','foh8','foh9','foh10','foh11','foh15','foh18','foh19','foh20'];
         products.forEach(p=>{ if(sideIds.includes(p.id)) p.cat = 'Sides'; });
       }
+      if(fixesDone < 3){
+        // Count items become "Base (N ct)" so they share one row of option
+        // buttons on Log Waste. Only renamed if still at their old default name.
+        const optionRenames = {
+          foh25: ['5 ct Nugget', 'Nuggets (5 ct)'], foh4: ['8 ct Nugget', 'Nuggets (8 ct)'], foh5: ['12 ct Nugget', 'Nuggets (12 ct)'],
+          foh26: ['5 ct Grilled Nugget', 'Grilled Nuggets (5 ct)'], foh27: ['8 ct Grilled Nugget', 'Grilled Nuggets (8 ct)'], foh28: ['12 ct Grilled Nugget', 'Grilled Nuggets (12 ct)'],
+          boh18: ['Strip', 'Strips (1 ct)']
+        };
+        products.forEach(p=>{
+          const fix = optionRenames[p.id];
+          if(fix && p.name === fix[0]){
+            p.name = fix[1];
+            const def = defaultProducts.find(d=>d.id===p.id);
+            if(def) p.es = def.es;
+          }
+        });
+      }
     } else {
       products = defaultProducts;
     }
     productFixesVersion = PRODUCT_FIXES_VERSION;
+    productCategoryOrder = Object.assign({foh: [], boh: []}, data.productCategoryOrder || {});
     teamMembers = data.teamMembers || [...fohLeads, ...bohLeads];
     wasteTarget = data.wasteTarget || 100;
     safeCounts = data.safeCounts || [];

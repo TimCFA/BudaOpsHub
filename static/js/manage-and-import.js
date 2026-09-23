@@ -99,7 +99,16 @@ const NEW_CATEGORY = '__new__';
 function productCategories(section){
   const cats = [];
   products.forEach(p=>{ if(p.section===section && !cats.includes(p.cat)) cats.push(p.cat); });
-  return cats;
+  return sortCategories(section, cats);
+}
+
+async function moveProductCategory(section, cat, dir){
+  const cats = productCategories(section);
+  const i = cats.indexOf(cat), j = i + dir;
+  if(i < 0 || j < 0 || j >= cats.length) return;
+  [cats[i], cats[j]] = [cats[j], cats[i]];
+  productCategoryOrder[section] = cats;
+  await saveProductsAndRefresh();
 }
 
 function productCategoryOptions(section, selected){
@@ -117,11 +126,14 @@ async function saveProductsAndRefresh(){
 function renderProductManager(){
   const list = document.getElementById('prodList');
   const groups = [];
-  const byKey = {};
-  products.forEach(p=>{
-    const key = p.section + '||' + p.cat;
-    if(!byKey[key]){ byKey[key] = {section: p.section, cat: p.cat, items: []}; groups.push(byKey[key]); }
-    byKey[key].items.push(p);
+  ['foh', 'boh'].forEach(section=>{
+    const cats = productCategories(section);
+    cats.forEach((cat, i)=>groups.push({
+      section, cat, first: i === 0, last: i === cats.length - 1,
+      // Same order as Log Waste: an item's options together, smallest first.
+      items: groupVariants(products.filter(p=>p.section===section && p.cat===cat))
+        .flatMap(e => e.type === 'variants' ? e.variants.map(v=>v.product) : [e.product])
+    }));
   });
   list.innerHTML = `
     <div class="prod-cols" aria-hidden="true"><span>Item</span><span>Spanish</span><span>Category</span><span>Unit</span><span>Cost</span><span></span></div>
@@ -129,7 +141,11 @@ function renderProductManager(){
     <div class="prod-group">
       <div class="prod-group-header" data-group="${gi}">
         <span class="prod-group-title">${g.section === 'foh' ? '🔴 FOH' : '🟠 BOH'} · ${escapeHtml(g.cat)} <span class="prod-group-count">${g.items.length}</span></span>
-        <button type="button" class="prod-cat-rename">Rename</button>
+        <span class="prod-group-actions">
+          <button type="button" class="prod-cat-move" data-dir="-1" title="Move category up" aria-label="Move ${escapeHtml(g.cat)} up"${g.first ? ' disabled' : ''}>↑</button>
+          <button type="button" class="prod-cat-move" data-dir="1" title="Move category down" aria-label="Move ${escapeHtml(g.cat)} down"${g.last ? ' disabled' : ''}>↓</button>
+          <button type="button" class="prod-cat-rename">Rename</button>
+        </span>
       </div>
       ${g.items.map(p=>`
         <div class="prod-row" data-id="${p.id}">
@@ -179,6 +195,9 @@ function renderProductManager(){
 
   list.querySelectorAll('.prod-group-header').forEach(header=>{
     const g = groups[header.dataset.group];
+    header.querySelectorAll('.prod-cat-move').forEach(btn=>{
+      btn.addEventListener('click', ()=>moveProductCategory(g.section, g.cat, parseInt(btn.dataset.dir, 10)));
+    });
     header.querySelector('.prod-cat-rename').addEventListener('click', ()=>{
       header.innerHTML = `
         <input class="prod-input prod-cat-input" value="${escapeHtml(g.cat)}" aria-label="Category name">
@@ -193,6 +212,12 @@ function renderProductManager(){
         if(productCategories(g.section).includes(name) &&
            !confirm(`"${name}" already exists — merge these items into it?`)) return;
         products.forEach(p=>{ if(p.section===g.section && p.cat===g.cat) p.cat = name; });
+        // Keep the renamed category in its spot (a merge keeps the target's spot).
+        const order = productCategoryOrder[g.section] || [];
+        const at = order.indexOf(g.cat);
+        if(at >= 0){
+          if(order.includes(name)) order.splice(at, 1); else order[at] = name;
+        }
         await saveProductsAndRefresh();
         showToast(`✓ Renamed to ${name}`);
       };
