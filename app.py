@@ -30,18 +30,28 @@ app.config.update(
 
 # Fields that require an authenticated manager session to change.
 # saveState() always resends the full snapshot, so we diff old vs. new
-# and only gate the write if one of THESE keys actually changed.
+# per key. The product bookkeeping keys travel with `products` so a
+# non-manager save can't leave them out of step with the stored list.
 MANAGER_ONLY_KEYS = {
     'wasteTarget', 'safeTarget', 'products', 'teamMembers',
+    'deletedProductIds', 'productFixesVersion', 'productCategoryOrder',
     'lxPillars', 'lxMetrics', 'lxLastUpdated',
     'gxData', 'txData', 'homeData',
 }
 
-def _touches_manager_fields(old_state, new_state):
+def _changed_manager_fields(old_state, new_state):
+    return sorted(
+        key for key in MANAGER_ONLY_KEYS
+        if json.dumps(old_state.get(key), sort_keys=True) != json.dumps(new_state.get(key), sort_keys=True)
+    )
+
+def _keep_stored_manager_fields(old_state, new_state):
     for key in MANAGER_ONLY_KEYS:
-        if json.dumps(old_state.get(key), sort_keys=True) != json.dumps(new_state.get(key), sort_keys=True):
-            return True
-    return False
+        if key in old_state:
+            new_state[key] = old_state[key]
+        else:
+            new_state.pop(key, None)
+    return new_state
 
 # Basic in-memory brute-force throttle for the login endpoint.
 # Resets on redeploy/restart — fine for a single small-team instance,
@@ -213,9 +223,13 @@ def firebase_write():
         if not path:
             return jsonify({'error': 'Missing path'}), 400
 
-        # Manager-field gate — only applies to the main app-state blob, and only
-        # blocks the write if a manager-only field is actually different from
-        # what's currently stored (not just re-sent unchanged).
+        # Manager-field gate — only applies to the main app-state blob. A
+        # non-manager save whose manager-only fields differ from what's stored
+        # keeps the STORED values for those fields and saves everything else.
+        # (It used to reject the whole write, so any drift in those fields —
+        # e.g. a deploy that changes the default product list — silently
+        # dropped every team member's waste entries, CEM uploads, etc.)
+        ignored_fields = []
         if path == 'appState' and isinstance(value, str):
             new_state = None
             try:
@@ -234,12 +248,16 @@ def firebase_write():
 
                 # If there's no prior state at all, this is first-ever bootstrap —
                 # let it through rather than locking out an empty Firebase project.
-                if old_state is not None and _touches_manager_fields(old_state, new_state):
-                    if not session.get('manager'):
-                        return jsonify({'error': 'Manager sign-in required for this change'}), 403
+                if old_state is not None and not session.get('manager'):
+                    ignored_fields = _changed_manager_fields(old_state, new_state)
+                    if ignored_fields:
+                        value = json.dumps(_keep_stored_manager_fields(old_state, new_state))
 
         db.reference(path).set(value)
         print(f"[FIREBASE WRITE] Path: {path}, OK")
+        if ignored_fields:
+            print(f"[FIREBASE WRITE] Kept stored manager-only fields (no manager session): {ignored_fields}")
+            return jsonify({'success': True, 'managerFieldsIgnored': ignored_fields})
         return jsonify({'success': True})
 
     except Exception as e:

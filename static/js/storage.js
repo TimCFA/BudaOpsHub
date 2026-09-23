@@ -47,6 +47,15 @@ async function saveState(){
   localStorage.setItem('cfaBudaOps', serialized);
   const result = await dbWrite('appState', serialized);
   setSyncStatus(result ? 'Synced' : 'Saved locally — sync failed', result ? 'ok' : 'error');
+  // The server saved everything except manager-only fields (products, team,
+  // targets, hub content) because there's no manager session. Harmless for
+  // team members; if Manage is open, the manager's sign-in has expired and
+  // their edits there didn't save, so say so and lock Manage again.
+  if(result && result.managerFieldsIgnored && document.getElementById('manageContent').style.display === 'block'){
+    document.getElementById('manageContent').style.display = 'none';
+    document.getElementById('pinGate').style.display = 'block';
+    showToast('Manager sign-in expired — sign in again and redo your Manage changes');
+  }
 }
 
 function exportBackup(){
