@@ -823,6 +823,28 @@
   .pb-bd-suggest button{font-size:10.5px;padding:4px 9px;flex-shrink:0;background:var(--cfa-white);border:1px solid #C97A1E;color:#C97A1E;border-radius:999px;cursor:pointer;font-family:'Inter';font-weight:600;}
   .pb-bd-suggest button:hover{background:#C97A1E;color:#fff;}
 
+  /* Prep Board — dated entries & seasonal forecast */
+  .pb-date-jump{display:flex;align-items:center;gap:6px;flex:none;font-size:11.5px;color:var(--text-tertiary);padding-left:4px;}
+  .pb-date-jump input, .pb-date-row input[type=date], .pb-date-fix input[type=date]{font-family:'Inter';font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;background:var(--cfa-white);color:var(--text-primary);}
+  .pb-date-row{display:flex;align-items:center;gap:10px;}
+  .pb-date-weekday{font-family:'Outfit',sans-serif;font-weight:600;font-size:13px;color:var(--cfa-red);}
+  .pb-field-hint{font-size:11px;color:var(--text-tertiary);margin-top:5px;}
+  .pb-forecast-note{font-size:12px;line-height:1.5;color:var(--text-secondary);background:var(--cfa-light);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin:-4px 0 16px;}
+  .pb-season-tag{font-weight:700;}
+  .pb-season-tag.up{color:var(--success);}
+  .pb-season-tag.down{color:#C97A1E;}
+  .pb-undated{color:#C97A1E;}
+  .pb-date-fix{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#FBEDD9;border-radius:8px;padding:8px 10px;margin:4px 0 10px;font-size:12px;color:var(--text-secondary);}
+  .pb-period-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
+  @media (max-width:560px){ .pb-period-grid{grid-template-columns:1fr;} }
+  .pb-period{border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:var(--cfa-white);}
+  .pb-period-title{font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);margin-bottom:6px;}
+  .pb-period-row{display:grid;grid-template-columns:1fr auto 56px;gap:8px;align-items:baseline;padding:5px 0;border-top:1px solid var(--border);font-size:12.5px;}
+  .pb-period-row:first-of-type{border-top:none;}
+  .pb-period-avg{font-weight:700;color:var(--text-primary);}
+  .pb-period-avg small{font-weight:500;color:var(--text-tertiary);margin-left:2px;}
+  .pb-period-days{font-size:11px;color:var(--text-tertiary);text-align:right;}
+  .pb-period-note{font-size:11.5px;color:var(--text-tertiary);margin:10px 0 0;}
   .pb-insight-controls{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;font-size:12px;color:var(--text-secondary);}
   .pb-insight-controls select{font-family:'Inter';font-size:12.5px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:var(--cfa-white);}
   .pb-hbar-list{display:flex;flex-direction:column;gap:2px;}
