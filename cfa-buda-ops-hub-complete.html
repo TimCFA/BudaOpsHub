@@ -226,10 +226,25 @@
 
   <!-- GX Content Hub View (numeric scoreboard moved to Scoreboard tab — see TIM-15) -->
   <div class="view" id="gxView">
+    <div class="gx-section wave-theory-section">
+      <div class="gx-section-title">🌊 Wave Theory</div>
+      <p style="font-size:13px;color:var(--text-secondary);margin:-8px 0 20px;line-height:1.5;">Wave Theory is a mindset of extreme hustle that transforms how we approach <b>TIME</b>, <b>ENERGY</b>, and <b>FOCUS</b>.</p>
+      <div class="wave-strip">
+        <div class="wave-segment wave-red">Commit to iPOS</div>
+        <div class="wave-segment wave-navy">Rule of Four</div>
+        <div class="wave-segment wave-red">Positional Excellence</div>
+        <div class="wave-segment wave-navy">Pass the Pressure</div>
+      </div>
+      <div class="wave-callout">
+        <div><span class="wave-callout-icon">⚡</span><b>In a Wave:</b> Every second matters, every detail counts.</div>
+        <div><span class="wave-callout-icon">🔄</span><b>Out of a Wave:</b> Reset &amp; Recover.</div>
+      </div>
+    </div>
+
     <div class="standup-card content-hub-placeholder">
       <div class="chp-icon">😊</div>
-      <h3>Guest Experience content hub — coming soon</h3>
-      <p>This is becoming a home for guest-experience content, graphics, and resources, not a metrics dashboard. GX numbers and CEM Trends now live under the Scoreboard tab.</p>
+      <h3>More guest experience content coming soon</h3>
+      <p>A home for guest-experience content, graphics, and resources. GX numbers and CEM Trends live under the Scoreboard tab.</p>
     </div>
   </div>
 
@@ -238,18 +253,6 @@
     <div class="celeb-banner">
       <div class="celeb-banner-title">🎉 Celebrations This Month 🎉</div>
       <div class="celeb-scroll" id="txCelebrationContainer"></div>
-    </div>
-
-    <div style="margin-bottom:20px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--cfa-white);">
-      <iframe 
-        src="https://app.levelset.io/public/positional-excellence/TJXV5MLEXJZC" 
-        style="width:100%;height:600px;border:none;"
-        title="Levelset Positional Excellence Scores"
-        allowfullscreen>
-      </iframe>
-      <div style="padding:12px 16px;background:var(--bg-secondary);text-align:center;border-top:1px solid var(--border);">
-        <a href="https://app.levelset.io/public/positional-excellence/TJXV5MLEXJZC" target="_blank" style="font-size:12px;color:var(--cfa-red);text-decoration:none;font-weight:600;">Open Levelset Scores in Full Window →</a>
-      </div>
     </div>
 
     <a href="https://dl.connecteam.com?l=app/b9109fcb-c582-45f5-b237-933c83c0a9ec/14242282/0&j=%7B%22lpid%22%3A%22b9109fcb-c582-45f5-b237-933c83c0a9ec%22%2C%22courseId%22%3A14242282%2C%22forceUserView%22%3Atrue%7D" target="_blank" style="display:flex;align-items:center;justify-content:space-between;background:var(--cfa-white);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:20px;text-decoration:none;box-shadow:0 1px 3px rgba(0,0,0,0.05);transition:all .2s ease;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='none';this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';">
@@ -682,21 +685,6 @@
         <div class="gx-metrics-grid" id="gxDtMetrics"></div>
       </div>
 
-      <div class="gx-section wave-theory-section">
-        <div class="gx-section-title">🌊 Wave Theory</div>
-        <p style="font-size:13px;color:var(--text-secondary);margin:-8px 0 20px;line-height:1.5;">Wave Theory is a mindset of extreme hustle that transforms how we approach <b>TIME</b>, <b>ENERGY</b>, and <b>FOCUS</b>.</p>
-        <div class="wave-strip">
-          <div class="wave-segment wave-red">Commit to iPOS</div>
-          <div class="wave-segment wave-navy">Rule of Four</div>
-          <div class="wave-segment wave-red">Positional Excellence</div>
-          <div class="wave-segment wave-navy">Pass the Pressure</div>
-        </div>
-        <div class="wave-callout">
-          <div><span class="wave-callout-icon">⚡</span><b>In a Wave:</b> Every second matters, every detail counts.</div>
-          <div><span class="wave-callout-icon">🔄</span><b>Out of a Wave:</b> Reset &amp; Recover.</div>
-        </div>
-      </div>
-
       <div class="gx-section gx-satisfaction" style="text-align:center;">
         <div class="gx-section-title">😊 Guest Satisfaction</div>
         <div id="gxSatisfactionMetrics"></div>
@@ -738,6 +726,18 @@
     </div>
 
     <div class="sb-panel" id="sbPanelTx">
+      <div style="margin-bottom:20px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--cfa-white);">
+        <iframe 
+          src="https://app.levelset.io/public/positional-excellence/TJXV5MLEXJZC" 
+          style="width:100%;height:600px;border:none;"
+          title="Levelset Positional Excellence Scores"
+          allowfullscreen>
+        </iframe>
+        <div style="padding:12px 16px;background:var(--bg-secondary);text-align:center;border-top:1px solid var(--border);">
+          <a href="https://app.levelset.io/public/positional-excellence/TJXV5MLEXJZC" target="_blank" style="font-size:12px;color:var(--cfa-red);text-decoration:none;font-weight:600;">Open Levelset Scores in Full Window →</a>
+        </div>
+      </div>
+
       <div class="standup-card">
         <div id="trainerTrialRoot"></div>
       </div>
