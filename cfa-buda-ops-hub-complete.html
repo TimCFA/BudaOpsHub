@@ -148,15 +148,6 @@
     </div>
   </div>
 
-  <!-- Zone Reset Checklist Modal -->
-  <div class="overlay" id="zoneChecklistTaskModal">
-    <div class="sheet" style="max-width:480px;">
-      <h2 id="zcTaskModalTitle">Zone</h2>
-      <div class="sub" id="zcTaskModalProgress"></div>
-      <div id="zcTaskModalList" style="max-height:400px;overflow-y:auto;margin:16px 0;"></div>
-      <button id="zcTaskModalClose" class="btn btn-ghost">Close</button>
-    </div>
-  </div>
 
   <!-- Walkthrough (OE Walkthrough category) Checklist Modal -->
   <div class="overlay" id="walkthroughTaskModal">
@@ -425,13 +416,16 @@
         <h3 style="margin:0;">🎯 Zone Reset</h3>
         <span class="zone-overall-pct" id="zoneOverallPct">0%</span>
       </div>
-      <div class="sub" style="margin-bottom:10px;">Pick a daypart to see that transition's reset lists</div>
+      <div class="sub" style="margin-bottom:10px;">Pick a daypart, then tap a zone to open its reset list</div>
       <div class="day-picker" id="zoneDaypartPicker"></div>
-      <div class="checklist-tile-grid" id="zoneButtonRow"></div>
+      <div class="zone-acc" id="zoneButtonRow"></div>
       <div class="zone-reset-scoreboard" id="zoneResetScoreboard"></div>
     </div>
 
-    <div class="standup-card">
+    <!-- OE Walkthrough: hidden from the page for now (Tim, Sept 2026). Its
+         checklist data, code and saved history are all kept; remove the
+         `hidden` attribute to bring it back. -->
+    <div class="standup-card" id="oeWalkthroughCard" hidden>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
         <h3 style="margin:0;">🎯 Operational Excellence Walkthrough</h3>
         <span class="zone-overall-pct" id="oeWalkthroughOverallPct">0%</span>

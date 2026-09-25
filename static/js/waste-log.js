@@ -24,6 +24,12 @@ function variantRank(option, index){
   return n !== null ? n : 1000 + index;
 }
 
+// Each category card gets its own hue, assigned by the category's position in
+// the section's order (so neighbours never match and renames keep the color).
+// Ordered so adjacent hues contrast: blue, orange, green, violet, coral, teal,
+// amber, indigo, pink, lime.
+const WASTE_CATEGORY_HUES = [205, 30, 145, 265, 8, 178, 45, 228, 322, 95];
+
 function groupProductsByCategory(list){
   const byCat = {};
   const seen = [];
@@ -100,7 +106,7 @@ function renderGrid(){
     return;
   }
   const groups = groupProductsByCategory(filtered);
-  grid.innerHTML = groups.map(({cat, items})=>{
+  grid.innerHTML = groups.map(({cat, items}, catIndex)=>{
     // Option rows lead their category so their buttons line up together.
     const grouped = groupVariants(items);
     const entries = [...grouped.filter(e=>e.type==='variants'), ...grouped.filter(e=>e.type!=='variants')];
@@ -108,7 +114,7 @@ function renderGrid(){
       entry.type === 'variants' ? renderVariantRow(entry.base, entry.variants) : renderItemRow(entry.product)
     ).join('');
     return `
-      <section class="waste-cat-card">
+      <section class="waste-cat-card" style="--cat-h:${WASTE_CATEGORY_HUES[catIndex % WASTE_CATEGORY_HUES.length]}">
         <div class="waste-cat-heading"><span>${escapeHtml(cat)}</span><span class="waste-cat-count">${items.length}</span></div>
         ${rowsHtml}
       </section>
