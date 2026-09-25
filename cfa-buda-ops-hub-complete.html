@@ -31,6 +31,7 @@
         <button type="button" class="tab-group-label" aria-haspopup="true" aria-expanded="false">OE <span class="chevron-mini">▾</span></button>
         <div class="tab-dropdown" role="menu">
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="zoneresetView" data-view="zonereset">Zone Reset & Walkthroughs <span class="sub-inline">Reinicio y Recorridos</span></button>
+          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="foodsafetyView" data-view="foodsafety">Food Safety Walkthrough <span class="sub-inline">Seguridad Alimentaria</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="wastelogView" data-view="wastelog">Log Waste <span class="sub-inline">Desperdicio</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="safecountView" data-view="safecount">Daily Safe Count <span class="sub-inline">Caja Fuerte</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="prepboardView" data-view="prepboard">Prep Board <span class="sub-inline">Tablero de Preparación</span></button>
@@ -453,16 +454,14 @@
         <h3 style="margin:0;">🛡️ Food Safety Walkthrough</h3>
         <span class="zone-overall-pct" id="foodSafetyBadge">Not yet</span>
       </div>
-      <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Complete your daily food safety checklist</p>
-      <div class="iframe-wrap" id="iframeContainer" style="display:none;">
-        <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSfNM3MiBZ8pLKwxw5qgjarWCqkb9iicp7bzCN06iPq9lzjhxQ/viewform?embedded=true" height="500" frameborder="0" marginheight="0" marginwidth="0"></iframe>
-      </div>
-      <div id="formFallback" style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;margin-bottom:12px;">
-        <p style="margin:0 0 12px;font-size:13px;color:var(--text-secondary);">Open the form in a new tab to complete your daily checklist</p>
-        <a href="https://docs.google.com/forms/d/e/1FAIpQLSfNM3MiBZ8pLKwxw5qgjarWCqkb9iicp7bzCN06iPq9lzjhxQ/viewform" target="_blank" style="display:inline-block;background:var(--cfa-red);color:white;padding:10px 20px;border-radius:var(--radius);text-decoration:none;font-weight:600;font-size:12px;text-transform:uppercase;">Open Food Safety Form ↗</a>
-      </div>
-      <button id="btnMarkFormDone" class="standup-btn">Mark Complete</button>
+      <p id="foodSafetySummaryLine" style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Not started today</p>
+      <button type="button" id="btnOpenFoodSafety" class="standup-btn">Start Walkthrough →</button>
     </div>
+  </div>
+
+  <!-- Food Safety Walkthrough View (replaces the Google Form — see food-safety.js, TIM-5) -->
+  <div class="view" id="foodsafetyView">
+    <div class="standup-card" id="foodSafetyRoot"></div>
   </div>
 
   <!-- Daily Safe Count View -->
@@ -1020,6 +1019,7 @@
 <script src="/static/js/navigation.js"></script>
 <script src="/static/js/waste-log.js"></script>
 <script src="/static/js/fohoe-and-safecount.js"></script>
+<script src="/static/js/food-safety.js"></script>
 <script src="/static/js/daypicker-and-positions.js"></script>
 <script src="/static/js/custom-scoreboards.js"></script>
 <script src="/static/js/operational-intelligence.js"></script>
