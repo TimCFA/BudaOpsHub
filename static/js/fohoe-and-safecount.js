@@ -1,4 +1,4 @@
-// ===== WALKTHROUGHS (OE Walkthrough + Leader Transition List + Food Safety) =====
+// ===== WALKTHROUGHS (OE Walkthrough + Leader Transition List + Food Safety summary card) =====
 
 let currentWalkthroughCat = '';
 let currentOEWalkthroughDaypart = '';
@@ -141,18 +141,8 @@ function renderWalkthroughsPage(){
   renderLeaderTransitionDaypartPicker();
   renderLeaderTransitionCard();
 
-  // --- Food Safety Walkthrough ---
-  const fsBadge = document.getElementById('foodSafetyBadge');
-  if(formDone){
-    fsBadge.textContent = '✓ Done';
-    fsBadge.classList.add('high');
-  } else {
-    fsBadge.textContent = 'Not yet';
-    fsBadge.classList.remove('high');
-  }
-  const formBtn = document.getElementById('btnMarkFormDone');
-  formBtn.textContent = formDone ? '✓ Completed Today' : 'Mark Complete';
-  formBtn.disabled = formDone;
+  // --- Food Safety Walkthrough (full checklist lives on its own page) ---
+  fsRenderSummaryCard();
 }
 
 window.openWalkthroughCategory = function(cat){
@@ -237,17 +227,6 @@ document.getElementById('fohLeaderTransitionChecklist').addEventListener('click'
   fohLeaderTransitionDate = today;
   await saveState();
   renderLeaderTransitionCard();
-});
-
-document.getElementById('btnMarkFormDone').addEventListener('click', async ()=>{
-  formDone = true;
-  if(!foodSafetyDays.includes(today)){
-    foodSafetyDays.push(today);
-    calcStreak();
-  }
-  await saveState();
-  renderWalkthroughsPage();
-  showToast('✓ Food Safety Marked Complete!');
 });
 
 // ===== DAILY SAFE COUNT =====

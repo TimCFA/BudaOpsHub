@@ -70,6 +70,10 @@ let pbCurrentDay = 'Monday';
 let pbCurrentDate = null;      // Build-To target date (ISO); defaults to the next open day
 let pbTrendItem = null;        // item picked in Insights → Sales over time
 let pbDatesMigrated = false;
+let pbEntryDates = { sold: null, waste: null };  // date picked in each upload panel (kept between uploads)
+let pbListFilter = 'all';                         // Sold Counts / Waste Log history: 'all' or a weekday
+let pbOpenEntries = new Set();                    // history entries expanded to show their items
+let pbJustAdded = new Set();                      // entries from the latest upload, tagged "New"
 let pbCurrentPage = 'buildto';
 let pbDismissedSuggestions = {};
 let pbInsightItem = null;
@@ -91,8 +95,28 @@ async function pbSeedHistoryIfNeeded(){
   await saveState();
 }
 
+// POS "Sales Mix Items Totals" reports use short names ("Frt Cup SM",
+// "Cob Nug", "MktSld GRL", "SWSld Cold GRL Spcy"). Map them onto the same
+// build-to items as the spelled-out Analytics Hub names below.
+function pbMapPosAbbreviation(l){
+  if(/^frt cup\b/.test(l)){
+    if(/\bsm\b/.test(l)) return 'Fruit Cup, Small';
+    if(/\blg\b/.test(l)) return 'Fruit Cup, Large';
+    if(/\bmd\b/.test(l) || l === 'frt cup') return 'Fruit Cup, Medium';   // plain "Frt Cup" = medium (SM/LG are listed separately)
+    return 'Fruit Cup, Other Size';
+  }
+  if(/^kale crnch/.test(l)) return 'Kale Salad';
+  if(/^side sld\b/.test(l)) return 'Side Salad';
+  if(/^cob(sld)?\b|^cob\s/.test(l)) return 'Cobb Salad';
+  if(/^mktsld\b/.test(l)) return (/\bgrl\b/.test(l) && !/\bhot\b/.test(l)) ? 'Mkt Salad — Grilled Filet (Cold)' : 'Mkt Salad — Other Chicken';
+  if(/^swsld\b/.test(l)) return (/\bcold\b/.test(l) && /\bgrl\b/.test(l) && /\bspcy\b/.test(l)) ? 'Spicy SW Salad — Spicy Grilled Filet (Cold)' : 'Spicy SW Salad — Other Chicken';
+  return null;
+}
+
 function pbMapToTrackedItem(rawName){
-  const l = rawName.trim().toLowerCase();
+  const l = rawName.trim().toLowerCase().replace(/\s+/g, ' ');
+  const pos = pbMapPosAbbreviation(l);
+  if(pos) return pos;
   if(l.startsWith('fruit cup')){
     if(l.includes('small')) return 'Fruit Cup, Small';
     if(l.includes('medium')) return 'Fruit Cup, Medium';
@@ -301,28 +325,37 @@ function pbParsePaste(text){
     const cells = line.split('\t');
     if(cells.length < 2) return;
     const name = cells[0].trim();
-    const count = parseFloat(cells[1]);
+    const count = pbNum(cells[1]);
     if(!name || isNaN(count)) return;
     if(name.toLowerCase() === 'menu level') return;
-    const l = name.toLowerCase();
-    if((l.includes('salad') || l.includes('wrap') || l.includes('fruit cup') || l.includes('kale crunch') || l.includes('parfait')) && !l.includes('add-on') && !l.includes('tray')){
-      counts[name] = count;
-    } else {
-      skipped++;
-    }
+    if(pbIsTrackedName(name)) counts[name] = (counts[name] || 0) + count;
+    else skipped++;
   });
   return { counts, skipped };
 }
 
+// Cold-side items only: salads, wraps, fruit cups, kale, parfaits — spelled
+// out or as POS abbreviations. Add-ons and trays are left out.
 function pbIsTrackedName(name){
-  const l = String(name).trim().toLowerCase();
-  return (l.includes('salad') || l.includes('wrap') || l.includes('fruit cup') || l.includes('kale crunch') || l.includes('parfait'))
-    && !l.includes('add-on') && !l.includes('tray');
+  const l = String(name).trim().toLowerCase().replace(/\s+/g, ' ');
+  if(l.includes('add-on') || l.includes('tray')) return false;
+  if(pbMapPosAbbreviation(l)) return true;
+  return l.includes('salad') || l.includes('wrap') || l.includes('fruit cup') || l.includes('kale crunch') || l.includes('parfait');
 }
 
 const PB_IMPORT_NAME_HINTS = /(item|product|menu|name)/;
-const PB_IMPORT_COUNT_HINTS = /(qty|quantity|count|sold|units|waste|thrown|amount)/;
-const PB_IMPORT_DAY_HINTS = /(day|date)/;
+// Count columns: quantities only — never dollar/percent columns.
+const PB_IMPORT_COUNT_HINTS = /(qty|quantity|count|sold|units|waste|thrown)/;
+const PB_IMPORT_NOT_COUNT = /(\$|amount|sales|price|revenue|cost|%|percent|pct)/;
+// A Date/Day column — but not "Daypart" or "Hour".
+const PB_IMPORT_DAY_HINTS = /(^|[^a-z])(date|day)([^a-z]|$)/;
+
+// Numbers as exported: "1,234", "$12.50", " 61.0 " → 1234 / 12.5 / 61.
+function pbNum(v){
+  if(v == null || v === '') return NaN;
+  if(typeof v === 'number') return v;
+  return parseFloat(String(v).replace(/[,\s$]/g, ''));
+}
 const PB_DAY_NAME_MAP = { sun:'Sunday', mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday', fri:'Friday', sat:'Saturday' };
 
 // A date cell → ISO date. Full dates are used as-is (a year-less "Sep 14" is
@@ -351,33 +384,56 @@ function pbResolveDateFromValue(val, anchorISO){
   return null;
 }
 
+// Works out which columns hold the item name, the count and (optionally) the
+// date. Doesn't trust header wording alone: reports like Analytics Hub often
+// have a "Menu Level" category column before the item column, so the name
+// column is the one holding the most DISTINCT tracked item names.
 function pbDetectColumns(rows){
   if(rows.length === 0) return null;
-  const header = rows[0].map(c => String(c == null ? '' : c).toLowerCase().trim());
-  let nameCol = -1, countCol = -1, dayCol = -1;
-  header.forEach((h, i) => {
-    if(nameCol < 0 && PB_IMPORT_NAME_HINTS.test(h)) nameCol = i;
-    if(countCol < 0 && PB_IMPORT_COUNT_HINTS.test(h)) countCol = i;
-    if(dayCol < 0 && PB_IMPORT_DAY_HINTS.test(h)) dayCol = i;
-  });
-  const headerLooksLikeData = nameCol < 0 && countCol < 0 && dayCol < 0;
-  const dataStart = headerLooksLikeData ? 0 : 1;
-  if(nameCol < 0) nameCol = 0;
-  if(countCol < 0){
-    const width = Math.max.apply(null, rows.map(r => r.length));
-    let best = -1, bestScore = -1;
-    for(let c = 0; c < width; c++){
-      if(c === nameCol || c === dayCol) continue;
-      let score = 0;
-      for(let r = dataStart; r < rows.length; r++){
-        const v = rows[r][c];
-        if(v !== '' && v != null && !isNaN(parseFloat(v))) score++;
-      }
-      if(score > bestScore){ bestScore = score; best = c; }
-    }
-    countCol = best;
+  const cell = (r, c) => { const v = rows[r] && rows[r][c]; return v == null ? '' : String(v).trim(); };
+  const width = Math.max.apply(null, rows.map(r => (r || []).length));
+
+  // Header row: the first of the top 10 rows with a name or count heading.
+  let headerRow = -1;
+  for(let r = 0; r < Math.min(10, rows.length) && headerRow < 0; r++){
+    const hs = (rows[r] || []).map(c => String(c == null ? '' : c).toLowerCase().trim());
+    if(hs.some(h => PB_IMPORT_NAME_HINTS.test(h)) && hs.some(h => PB_IMPORT_COUNT_HINTS.test(h) && !PB_IMPORT_NOT_COUNT.test(h))) headerRow = r;
   }
-  return { nameCol, countCol, dayCol, dataStart };
+  const header = headerRow >= 0 ? rows[headerRow].map(c => String(c == null ? '' : c).toLowerCase().trim()) : [];
+  const dataStart = headerRow >= 0 ? headerRow + 1 : 0;
+
+  let dayCol = header.findIndex(h => PB_IMPORT_DAY_HINTS.test(h) && !/part|hour|time/.test(h));
+
+  // Name column: most distinct tracked names; header hint breaks ties.
+  let nameCol = -1, bestDistinct = 0;
+  for(let c = 0; c < width; c++){
+    if(c === dayCol) continue;
+    const distinct = new Set();
+    for(let r = dataStart; r < rows.length; r++){ const v = cell(r, c); if(v && pbIsTrackedName(v) && isNaN(pbNum(v))) distinct.add(v.toLowerCase()); }
+    const bonus = /item|product|name/.test(header[c] || '') ? 0.5 : 0;
+    if(distinct.size + bonus > bestDistinct){ bestDistinct = distinct.size + bonus; nameCol = c; }
+  }
+  if(nameCol < 0){ nameCol = header.findIndex(h => PB_IMPORT_NAME_HINTS.test(h)); if(nameCol < 0) nameCol = 0; }
+
+  // Count column: a quantity heading if there is one, else the most numeric column
+  // that isn't money or a percentage.
+  // "Total Count" first: free-offer and promo items still had to be prepped.
+  const countOrder = [/total/, /qty|quantity/, /sold|units/, /count/, /waste|thrown/];
+  let countCol = -1;
+  for(const re of countOrder){
+    countCol = header.findIndex((h, i) => i !== nameCol && i !== dayCol && re.test(h) && !PB_IMPORT_NOT_COUNT.test(h));
+    if(countCol >= 0) break;
+  }
+  if(countCol < 0){
+    let bestScore = 0;
+    for(let c = 0; c < width; c++){
+      if(c === nameCol || c === dayCol || PB_IMPORT_NOT_COUNT.test(header[c] || '')) continue;
+      let score = 0;
+      for(let r = dataStart; r < rows.length; r++){ const v = cell(r, c); if(v && !/[$%]/.test(v) && !isNaN(pbNum(v))) score++; }
+      if(score > bestScore){ bestScore = score; countCol = c; }
+    }
+  }
+  return { nameCol, countCol, dayCol, dataStart, headerRow };
 }
 
 // Groups a sheet's rows by calendar date. Rows without a usable date column
@@ -386,48 +442,63 @@ function pbDetectColumns(rows){
 function pbRowsToDateEntries(rows, fallbackISO){
   const cols = pbDetectColumns(rows);
   const byDate = {};
-  if(!cols || cols.countCol < 0) return { byDate, skipped: rows.length };
-  let skipped = 0;
+  if(!cols || cols.countCol < 0) return { byDate, skipped: rows.length, usedDateColumn: false };
+  let skipped = 0, usedDateColumn = false;
   for(let r = cols.dataStart; r < rows.length; r++){
     const row = rows[r];
     if(!row) continue;
     const rawName = row[cols.nameCol];
     const name = rawName == null ? '' : String(rawName).trim();
-    const count = parseFloat(row[cols.countCol]);
+    const count = pbNum(row[cols.countCol]);
     if(!name || isNaN(count) || !pbIsTrackedName(name)){ skipped++; continue; }
     let iso = fallbackISO;
     if(cols.dayCol >= 0){
       const resolved = pbResolveDateFromValue(row[cols.dayCol], fallbackISO);
-      if(resolved) iso = resolved;
+      if(resolved){ iso = resolved; usedDateColumn = true; }
     }
     if(!iso || pbWeekdayOf(iso) === 'Sunday'){ skipped++; continue; }
     if(!byDate[iso]) byDate[iso] = {};
     byDate[iso][name] = (byDate[iso][name] || 0) + count;
   }
-  return { byDate, skipped };
+  return { byDate, skipped, usedDateColumn };
 }
 
 // Adds one dated entry per date, replacing any entry already on file for that
 // date so re-uploading a day never double-counts it. Returns counts for the toast.
 function pbAddDatedEntries(list, byDate, source){
   let replaced = 0, items = 0;
+  const ids = [];
   Object.keys(byDate).forEach(iso => {
     const existing = list.findIndex(e => e.date === iso);
     if(existing !== -1){ list.splice(existing, 1); replaced++; }
-    list.push({ id: pbUid(), date: iso, day: pbWeekdayOf(iso), label: pbFormatDate(iso, {year: true}), items: byDate[iso], source });
+    const id = pbUid();
+    list.push({ id, date: iso, day: pbWeekdayOf(iso), label: pbFormatDate(iso, {year: true}), items: byDate[iso], source });
+    ids.push(id);
     items += Object.keys(byDate[iso]).length;
   });
-  return { dates: Object.keys(byDate).length, replaced, items };
+  return { dates: Object.keys(byDate).length, replaced, items, ids };
+}
+
+// Text exports (CSV/TSV/TXT) are decoded by their byte-order mark — Analytics
+// Hub saves UTF-16, which read as UTF-8 comes out as garbage — then parsed with
+// tab or comma separators, whichever the first line uses.
+function pbDecodeText(buffer){
+  const bytes = new Uint8Array(buffer);
+  let encoding = 'utf-8';
+  if(bytes[0] === 0xFF && bytes[1] === 0xFE) encoding = 'utf-16le';
+  else if(bytes[0] === 0xFE && bytes[1] === 0xFF) encoding = 'utf-16be';
+  else if(bytes.length > 3 && bytes[1] === 0 && bytes[3] === 0) encoding = 'utf-16le';
+  return new TextDecoder(encoding).decode(bytes).replace(/^\uFEFF/, '');
 }
 
 function pbReadWorkbookRows(file, cb){
   const reader = new FileReader();
-  const isCSV = /\.csv$/i.test(file.name);
+  const isText = /\.(csv|tsv|txt)$/i.test(file.name);
   reader.onload = function(e){
     try{
       let wb;
-      if(isCSV){
-        const text = e.target.result;
+      if(isText){
+        const text = pbDecodeText(e.target.result);
         const firstLine = text.split(/\r?\n/)[0] || '';
         const opts = { type: 'string' };
         if((firstLine.match(/\t/g) || []).length > (firstLine.match(/,/g) || []).length) opts.FS = '\t';
@@ -441,7 +512,7 @@ function pbReadWorkbookRows(file, cb){
     }catch(err){ cb(err, null); }
   };
   reader.onerror = function(){ cb(reader.error || new Error('read failed'), null); };
-  if(isCSV) reader.readAsText(file); else reader.readAsArrayBuffer(file);
+  reader.readAsArrayBuffer(file);
 }
 
 // ---------- insights math ----------
@@ -589,13 +660,6 @@ function pbHbarChart(rows, opts){
   }).join('')}</div>`;
 }
 
-function pbDayNavHtml(){
-  return `<nav class="pb-days">${PB_DAYS.map(d => {
-    const buf = prepBuffers[d] != null ? prepBuffers[d] : 10;
-    return `<button class="pb-day-btn ${d===pbCurrentDay?'active':''}" data-pb-select-day="${d}">${d.slice(0,3)}<span class="pb-buf-tag">${buf}%</span></button>`;
-  }).join('')}</nav>`;
-}
-
 // Build-To picks a calendar date: the next six open days, or any date via the picker.
 function pbDateNavHtml(){
   const days = [];
@@ -675,10 +739,24 @@ function pbRenderBuildTo(){
   return html;
 }
 
-function pbRenderEntryCards(list, day, removeAttr, kind){
-  if(list.length === 0) return `<div class="pb-empty-day">Nothing recorded yet for ${day}.</div>`;
-  return pbSortByDateDesc(list).map(entry => {
+// Sold Counts / Waste Log history: All days (default) or one weekday.
+function pbListFilterNavHtml(list){
+  const counts = {};
+  list.forEach(e => { counts[e.day] = (counts[e.day] || 0) + 1; });
+  const btn = (value, label, n) => `<button class="pb-day-btn ${pbListFilter===value?'active':''}" data-pb-list-filter="${value}">${label}<span class="pb-buf-tag">${n}</span></button>`;
+  return `<nav class="pb-days">${btn('all', 'All', list.length)}${PB_DAYS.map(d => btn(d, d.slice(0,3), counts[d] || 0)).join('')}</nav>`;
+}
+
+// Newest first; each entry is a dropdown whose items are numbered so the count
+// can be checked against the report at a glance.
+function pbRenderEntryCards(list, removeAttr, kind){
+  const shown = pbListFilter === 'all' ? list : list.filter(e => e.day === pbListFilter);
+  if(shown.length === 0) return `<div class="pb-empty-day">Nothing recorded yet${pbListFilter === 'all' ? '' : ' for ' + pbListFilter + 's'}.</div>`;
+  return pbSortByDateDesc(shown).map(entry => {
     const itemNames = Object.keys(entry.items || {}).sort((a,b) => entry.items[b] - entry.items[a]);
+    const total = itemNames.reduce((sum, n) => sum + (Number(entry.items[n]) || 0), 0);
+    const open = pbOpenEntries.has(entry.id);
+    const isNew = pbJustAdded.has(entry.id);
     const title = entry.date
       ? escapeHtml(pbFormatDate(entry.date, {year: true}))
       : `<span class="pb-undated">Undated${entry.label ? ' — ' + escapeHtml(entry.label) : ''}</span>`;
@@ -688,50 +766,63 @@ function pbRenderEntryCards(list, day, removeAttr, kind){
         <input type="date" max="${today}" data-pb-set-date="${entry.id}" data-kind="${kind}">
       </div>`;
     return `
-      <div class="pb-entry-card">
+      <div class="pb-entry-card ${open ? 'open' : ''} ${isNew ? 'new' : ''}">
         <div class="pb-entry-head">
-          <span class="pb-entry-title">${title} <span class="pb-src-tag">${escapeHtml(entry.source || 'manual')}</span></span>
+          <button type="button" class="pb-entry-toggle" data-pb-toggle-entry="${entry.id}" aria-expanded="${open}">
+            <span class="pb-entry-title">${title}</span>
+            <span class="pb-entry-sum">${itemNames.length} item${itemNames.length===1?'':'s'} · ${Math.round(total*10)/10} total</span>
+            ${isNew ? '<span class="pb-new-tag">New</span>' : ''}
+            <span class="pb-src-tag">${escapeHtml(entry.source || 'manual')}</span>
+            <span class="pb-entry-chevron">▾</span>
+          </button>
           <button class="pb-entry-remove" data-${removeAttr}="${entry.id}">Remove</button>
         </div>
         ${dateFix}
-        <div class="pb-entry-items">
-          ${itemNames.map(name => `<div class="pb-en">${escapeHtml(name)}</div><div class="pb-ec">${entry.items[name]}</div>`).join('')}
-        </div>
+        ${open ? `<div class="pb-entry-items">
+          ${itemNames.map((name, i) => `<div class="pb-en"><span class="pb-en-num">${i + 1}.</span>${escapeHtml(name)}</div><div class="pb-ec">${entry.items[name]}</div>`).join('')}
+        </div>` : ''}
       </div>
     `;
   }).join('');
 }
 
-// Shared date field for the Sold Counts / Waste Log panels.
-function pbDateFieldHtml(attr, question){
-  const iso = pbDefaultEntryDate();
+// Shared date field for the Sold Counts / Waste Log panels. Keeps the picked
+// date between uploads, with day-step buttons for entering many days in a row.
+function pbDateFieldHtml(attr, question, kind){
+  const iso = pbEntryDates[kind] || pbDefaultEntryDate();
   return `
     <div class="pb-field">
       <label>${question}</label>
       <div class="pb-date-row">
+        <button type="button" class="pb-step-btn" data-pb-step-date="${kind}" data-delta="-1" aria-label="Previous day">← Prev day</button>
         <input type="date" ${attr} value="${iso}" max="${today}">
+        <button type="button" class="pb-step-btn" data-pb-step-date="${kind}" data-delta="1" aria-label="Next day" ${iso >= today ? 'disabled' : ''}>Next day →</button>
         <span class="pb-date-weekday" data-pb-weekday-for="${attr}">${pbWeekdayOf(iso)}</span>
       </div>
-      <div class="pb-field-hint">Files with a date column use each row's own date; this date is used for rows without one.</div>
+      <div class="pb-field-hint">Stays on this date after each upload — tap Next day to move on. Files with a date column use each row's own date.</div>
     </div>`;
 }
 
+function pbHistorySubline(list, noun){
+  const n = pbListFilter === 'all' ? list.length : list.filter(e => e.day === pbListFilter).length;
+  return `<p class="pb-subline">${pbListFilter === 'all' ? 'All days' : pbListFilter + 's'} · ${n} ${noun}${n===1?'':'s'} recorded · newest first</p>`;
+}
+
 function pbRenderRecorded(){
-  const entries = pbEntriesFor(prepSoldEntries, pbCurrentDay);
-  let html = `<p class="pb-subline">${pbCurrentDay} · ${entries.length} ${entries.length===1?'entry':'entries'} recorded</p>`;
+  let html = pbHistorySubline(prepSoldEntries, 'day');
   html += `
     <div class="pb-panel">
       <button class="pb-panel-toggle" data-pb-toggle-panel="add">${pbAddPanelOpen?'−':'+'} Add sold counts</button>
       ${pbAddPanelOpen ? `
         <div class="pb-panel-body">
-          ${pbDateFieldHtml('data-pb-sold-date', 'What date are these sales from?')}
+          ${pbDateFieldHtml('data-pb-sold-date', 'What date are these sales from?', 'sold')}
           <div class="pb-field">
             <label>Paste item name + sold count (tab-separated)</label>
             <textarea data-pb-paste-area rows="5" placeholder="Salad, Cobb w/ Nuggets&#9;61.0"></textarea>
           </div>
           <div class="pb-field">
             <label>...or upload a CSV / Excel file</label>
-            <input type="file" data-pb-sold-file accept=".csv,.xlsx,.xls">
+            <input type="file" data-pb-sold-file accept=".csv,.tsv,.txt,.xlsx,.xls">
           </div>
           <div class="pb-panel-actions">
             <button class="btn btn-primary" style="width:auto;padding:9px 18px;" data-pb-add-day>Add this day</button>
@@ -741,26 +832,25 @@ function pbRenderRecorded(){
       ` : ''}
     </div>
   `;
-  html += pbRenderEntryCards(entries, pbCurrentDay, 'pb-remove-sold', 'sold');
+  html += pbRenderEntryCards(prepSoldEntries, 'pb-remove-sold', 'sold');
   return html;
 }
 
 function pbRenderWaste(){
-  const entries = pbEntriesFor(prepWasteEntries, pbCurrentDay);
-  let html = `<p class="pb-subline">${pbCurrentDay} · ${entries.length} ${entries.length===1?'waste entry':'waste entries'} recorded</p>`;
+  let html = pbHistorySubline(prepWasteEntries, 'waste day');
   html += `
     <div class="pb-panel">
       <button class="pb-panel-toggle" data-pb-toggle-panel="waste">${pbWastePanelOpen?'−':'+'} Log waste</button>
       ${pbWastePanelOpen ? `
         <div class="pb-panel-body">
-          ${pbDateFieldHtml('data-pb-waste-date', 'What date is this waste from?')}
+          ${pbDateFieldHtml('data-pb-waste-date', 'What date is this waste from?', 'waste')}
           <div class="pb-field">
             <label>Paste item name + count thrown away (tab-separated)</label>
             <textarea data-pb-waste-paste-area rows="5" placeholder="Salad, Cobb w/ Nuggets&#9;4"></textarea>
           </div>
           <div class="pb-field">
             <label>...or upload a CSV / Excel file</label>
-            <input type="file" data-pb-waste-file accept=".csv,.xlsx,.xls">
+            <input type="file" data-pb-waste-file accept=".csv,.tsv,.txt,.xlsx,.xls">
           </div>
           <div class="pb-panel-actions">
             <button class="btn btn-primary" style="width:auto;padding:9px 18px;" data-pb-add-waste>Add this day's waste</button>
@@ -770,7 +860,7 @@ function pbRenderWaste(){
       ` : ''}
     </div>
   `;
-  html += pbRenderEntryCards(entries, pbCurrentDay, 'pb-remove-waste', 'waste');
+  html += pbRenderEntryCards(prepWasteEntries, 'pb-remove-waste', 'waste');
   return html;
 }
 
@@ -938,7 +1028,8 @@ function renderPrepBoard(){
   `;
 
   if(pbCurrentPage === 'buildto') html += pbDateNavHtml();
-  else if(pbCurrentPage !== 'buffers' && pbCurrentPage !== 'insights') html += pbDayNavHtml();
+  else if(pbCurrentPage === 'recorded') html += pbListFilterNavHtml(prepSoldEntries);
+  else if(pbCurrentPage === 'waste') html += pbListFilterNavHtml(prepWasteEntries);
   html += pbSuggestBannerHtml();
 
   if(pbCurrentPage === 'buildto') html += pbRenderBuildTo();
@@ -988,12 +1079,15 @@ async function pbFinishAdd(kind, result, skipped){
   // New waste data changes the buffer suggestions, so show them again.
   if(kind === 'waste') pbDismissedSuggestions = {};
   await saveState();
-  const newest = pbSortByDateDesc(PB_KIND[kind].list())[0];
-  if(newest) pbCurrentDay = newest.day;
+  pbJustAdded = new Set(result.ids);
+  const addedDays = new Set(PB_KIND[kind].list().filter(e => pbJustAdded.has(e.id)).map(e => e.day));
+  if(pbListFilter !== 'all' && !addedDays.has(pbListFilter)) pbListFilter = 'all';
   renderPrepBoard();
-  const parts = [`✓ ${result.items} item${result.items===1?'':'s'} ${PB_KIND[kind].noun} across ${result.dates} date${result.dates===1?'':'s'}`];
+  const added = PB_KIND[kind].list().filter(e => pbJustAdded.has(e.id));
+  const where = result.dates === 1 && added[0] ? pbFormatDate(added[0].date) : `${result.dates} dates`;
+  const parts = [`✓ ${result.items} prep item${result.items===1?'':'s'} ${PB_KIND[kind].noun} · ${where}`];
   if(result.replaced) parts.push(`replaced ${result.replaced} existing date${result.replaced===1?'':'s'}`);
-  if(skipped) parts.push(`${skipped} skipped`);
+  if(skipped) parts.push(`${skipped} other menu item${skipped===1?'':'s'} ignored`);
   showToast(parts.join(' · '));
 }
 
@@ -1007,6 +1101,14 @@ function pbAddPasted(kind){
   pbFinishAdd(kind, result, skipped);
 }
 
+function pbDateFromFileName(name){
+  let m = String(name).match(/(20\d{2})[-_.](\d{1,2})[-_.](\d{1,2})/);
+  if(m) return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
+  m = String(name).match(/(\d{1,2})[-_.](\d{1,2})[-_.](20\d{2})/);
+  if(m) return `${m[3]}-${String(m[1]).padStart(2,'0')}-${String(m[2]).padStart(2,'0')}`;
+  return null;
+}
+
 function pbImportFile(kind, input){
   const file = input.files[0];
   const iso = pbPanelDate(kind);
@@ -1015,6 +1117,15 @@ function pbImportFile(kind, input){
     if(err || !rows || rows.length === 0){ pbFeedback(kind, 'Couldn’t read that file — make sure it’s a CSV or Excel export.'); input.value = ''; return; }
     const parsed = pbRowsToDateEntries(rows, iso);
     if(Object.keys(parsed.byDate).length === 0){ pbFeedback(kind, 'Nothing usable in that file — check it has an item-name column and a count column.'); input.value = ''; return; }
+    // Report exports often carry the business date in the file name
+    // (…_2026-09-19.csv). If it disagrees with the picked date, ask.
+    const nameDate = pbDateFromFileName(file.name);
+    if(!parsed.usedDateColumn && nameDate && nameDate !== iso && pbWeekdayOf(nameDate) !== 'Sunday'){
+      if(confirm(`This file's name says ${pbFormatDate(nameDate, {year: true})}, but the date picked is ${pbFormatDate(iso, {year: true})}.\n\nOK = use ${pbFormatDate(nameDate, {year: true})} (from the file name)\nCancel = use ${pbFormatDate(iso, {year: true})} (picked)`)){
+        parsed.byDate = { [nameDate]: parsed.byDate[iso] };
+        pbEntryDates[kind] = nameDate;
+      }
+    }
     const result = pbAddDatedEntries(PB_KIND[kind].list(), parsed.byDate, 'import');
     pbFinishAdd(kind, result, parsed.skipped);
   });
@@ -1026,8 +1137,28 @@ document.getElementById('prepBoardRoot').addEventListener('click', function(e){
   const pageBtn = e.target.closest('[data-pb-set-page]');
   if(pageBtn){ pbCurrentPage = pageBtn.dataset.pbSetPage; renderPrepBoard(); return; }
 
-  const dayBtn = e.target.closest('[data-pb-select-day]');
-  if(dayBtn){ pbCurrentDay = dayBtn.dataset.pbSelectDay; renderPrepBoard(); return; }
+  const filterBtn = e.target.closest('[data-pb-list-filter]');
+  if(filterBtn){ pbListFilter = filterBtn.dataset.pbListFilter; renderPrepBoard(); return; }
+
+  const entryToggle = e.target.closest('[data-pb-toggle-entry]');
+  if(entryToggle){
+    const id = entryToggle.dataset.pbToggleEntry;
+    if(pbOpenEntries.has(id)) pbOpenEntries.delete(id); else pbOpenEntries.add(id);
+    renderPrepBoard();
+    return;
+  }
+
+  const stepBtn = e.target.closest('[data-pb-step-date]');
+  if(stepBtn){
+    const kind = stepBtn.dataset.pbStepDate;
+    const delta = parseInt(stepBtn.dataset.delta, 10);
+    let iso = pbEntryDates[kind] || pbDefaultEntryDate();
+    do { iso = pbAddDays(iso, delta); } while(pbWeekdayOf(iso) === 'Sunday');
+    if(iso > today) return;
+    pbEntryDates[kind] = iso;
+    renderPrepBoard();
+    return;
+  }
 
   const dateBtn = e.target.closest('[data-pb-select-date]');
   if(dateBtn){ pbCurrentDate = dateBtn.dataset.pbSelectDate; renderPrepBoard(); return; }
@@ -1108,6 +1239,9 @@ document.getElementById('prepBoardRoot').addEventListener('change', function(e){
   }
   if(e.target.matches('[data-pb-sold-date], [data-pb-waste-date]')){
     const attr = e.target.hasAttribute('data-pb-sold-date') ? 'data-pb-sold-date' : 'data-pb-waste-date';
+    if(e.target.value) pbEntryDates[attr === 'data-pb-sold-date' ? 'sold' : 'waste'] = e.target.value;
+    const stepNext = e.target.parentElement.querySelector('[data-delta="1"]');
+    if(stepNext) stepNext.disabled = !e.target.value || e.target.value >= today;
     const label = document.querySelector(`[data-pb-weekday-for="${attr}"]`);
     if(label) label.textContent = e.target.value ? pbWeekdayOf(e.target.value) : '';
     return;

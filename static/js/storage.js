@@ -41,7 +41,7 @@ async function saveState(){
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
-    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries
+    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs
   };
   const serialized = JSON.stringify(snapshot);
   localStorage.setItem('cfaBudaOps', serialized);
@@ -67,7 +67,7 @@ function exportBackup(){
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
-    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries
+    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs
   };
   const blob = new Blob([JSON.stringify(snapshot, null, 2)], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
@@ -143,6 +143,7 @@ async function loadState(){
     wasteTarget = data.wasteTarget || 100;
     safeCounts = data.safeCounts || [];
     foodSafetyDays = data.foodSafetyDays || [];
+    foodSafetyWalkthroughs = data.foodSafetyWalkthroughs || {};
     wasteDays = data.wasteDays || [];
     breakCountdowns = data.breakCountdowns || {};
     completedBreaks = data.completedBreaks || {};
@@ -196,7 +197,8 @@ async function loadState(){
     const migrated = migrateLegacyWeekdayKeys();
     const prunedDates = pruneOldDateData();
     const prunedChecklists = pruneZoneChecklistData();
-    if(migrated || prunedDates || prunedChecklists) await saveState();
+    const prunedFoodSafety = fsPruneOldWalkthroughs();
+    if(migrated || prunedDates || prunedChecklists || prunedFoodSafety) await saveState();
     calcStreak();
   }
 }
