@@ -173,8 +173,9 @@ function migrateLegacyWeekdayKeys(){
   return migrated;
 }
 
-// Set Ups/Numbers don't need long-term history, so anything older than 2 weeks
-// is quietly cleaned up rather than accumulating forever
+// Set Ups/Numbers only need two weeks live, so anything older is quietly
+// cleaned up rather than accumulating forever. Finished set ups are copied to
+// setupHistory (setup-history.js) first, so rotation history isn't lost.
 function pruneOldDateData(){
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 14);
