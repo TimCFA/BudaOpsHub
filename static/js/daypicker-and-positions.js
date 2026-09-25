@@ -172,7 +172,9 @@ function daypartTimeWindow(dayparts, index){
   return {startMin, endMin};
 }
 
-function countEligibleForDaypart(dayName, dpIndex, dayparts){
+// People on the roster whose shift overlaps this daypart — the people
+// available to be assigned a position.
+function availableForDaypart(dayName, dpIndex, dayparts){
   const roster = currentPosSection === 'foh' ? fohRoster : bohRoster;
   const dayRoster = roster[dayName] || [];
   const {startMin, endMin} = daypartTimeWindow(dayparts, dpIndex);
@@ -181,7 +183,20 @@ function countEligibleForDaypart(dayName, dpIndex, dayparts){
     const e = parseShiftTimeToMinutes(p.end);
     if(s === null || e === null) return true;
     return s < endMin && e > startMin;
-  }).length;
+  });
+}
+
+// Everyone holding a position in this daypart, including both names of a
+// split ("John/Bill") handoff, lowercased for matching against the roster.
+function assignedNamesForDaypart(dayName, dpName){
+  const prefix = currentPosSection + '||' + dayName + '||' + dpName + '||';
+  const names = new Set();
+  Object.keys(posAssignments).forEach(k=>{
+    if(k.startsWith(prefix) && posAssignments[k]){
+      posAssignments[k].split('/').map(n => n.trim().toLowerCase()).filter(Boolean).forEach(n => names.add(n));
+    }
+  });
+  return names;
 }
 
 function renderPositionsTab(){
@@ -208,19 +223,19 @@ function renderAllDayparts(){
   dayparts.forEach((dp, dpIndex)=>{
     const positions = posMap[dp.name] || [];
     const isExpanded = expandedDayparts.has(dp.name);
-    const filledCount = positions.filter(pos=>{
-      const key = currentPosSection + '||' + dayName + '||' + dp.name + '||' + pos;
-      return !!posAssignments[key];
-    }).length;
-    const eligibleCount = countEligibleForDaypart(dayName, dpIndex, dayparts);
+    // "3/7 assigned": of the people working this daypart, how many have a
+    // position. Green once every one of them is placed.
+    const available = availableForDaypart(dayName, dpIndex, dayparts);
+    const assignedNames = assignedNamesForDaypart(dayName, dp.name);
+    const assignedCount = available.filter(p => assignedNames.has(p.name.trim().toLowerCase())).length;
+    const allAssigned = available.length > 0 && assignedCount === available.length;
     
     html += `
       <div class="daypart-card ${isExpanded ? 'expanded' : ''}">
         <div class="daypart-header" onclick="toggleDaypart('${dp.name.replace(/'/g, "\\'")}')">
           <div class="daypart-title">
             <span class="daypart-name">${dp.name}</span>
-            <span class="daypart-fill ${filledCount === positions.length ? 'full' : ''}">${filledCount}/${positions.length} filled</span>
-            <span class="daypart-eligible">${eligibleCount} eligible</span>
+            <span class="daypart-fill ${allAssigned ? 'full' : ''}" title="People assigned a position / people working this daypart">${assignedCount}/${available.length} assigned</span>
           </div>
           <span class="chevron">▾</span>
         </div>

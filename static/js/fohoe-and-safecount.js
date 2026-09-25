@@ -2,6 +2,7 @@
 
 let currentWalkthroughCat = '';
 let currentOEWalkthroughDaypart = '';
+let currentLeaderTransitionDaypart = '';
 
 // fohOEChecked is keyed [daypart][cat][itemIndex] — same daypart set as Zone
 // Reset (getZoneDayparts()), so a leader picks a daypart the same way a TM
@@ -69,30 +70,76 @@ function renderOEWalkthroughCard(){
   }
 }
 
+// ===== Leader Transition List =====
+// Same daypart set and daily reset as the OE Walkthrough:
+// fohLeaderTransitionChecked is keyed [daypart][itemIndex] = {initials, ts}.
+function getLeaderTransitionCompletion(daypart){
+  const state = fohLeaderTransitionChecked[daypart] || {};
+  const checked = fohLeaderTransitionItems.filter((_, i) => state[i]).length;
+  return {checked, total: fohLeaderTransitionItems.length};
+}
+
+function getLeaderTransitionOverall(){
+  let checked = 0, total = 0;
+  getZoneDayparts().forEach(daypart=>{
+    const c = getLeaderTransitionCompletion(daypart);
+    checked += c.checked;
+    total += c.total;
+  });
+  return total > 0 ? Math.round((checked/total)*100) : 0;
+}
+
+function renderLeaderTransitionDaypartPicker(){
+  const picker = document.getElementById('leaderTransitionDaypartPicker');
+  picker.innerHTML = getZoneDayparts().map(dp=>`<div class="day-pill ${dp === currentLeaderTransitionDaypart ? 'active' : ''}" data-daypart="${dp.replace(/"/g, '&quot;')}">${dp}</div>`).join('');
+  picker.querySelectorAll('.day-pill').forEach(pill=>{
+    pill.addEventListener('click', ()=>{
+      picker.querySelectorAll('.day-pill').forEach(p=>p.classList.remove('active'));
+      pill.classList.add('active');
+      currentLeaderTransitionDaypart = pill.dataset.daypart;
+      renderLeaderTransitionCard();
+    });
+  });
+}
+
+function renderLeaderTransitionCard(){
+  const container = document.getElementById('fohLeaderTransitionChecklist');
+  const daypart = currentLeaderTransitionDaypart;
+  if(!daypart){
+    container.innerHTML = `<div class="pos-option-empty">Pick a daypart above to see that handoff's checklist</div>`;
+  } else {
+    const state = fohLeaderTransitionChecked[daypart] || {};
+    const {checked, total} = getLeaderTransitionCompletion(daypart);
+    container.innerHTML = `<div class="lt-progress ${checked === total ? 'done' : ''}">${checked}/${total} complete • ${escapeHtml(daypart)}</div>` +
+      fohLeaderTransitionItems.map((item,i)=>{
+        const entry = state[i];
+        const isChecked = !!entry;
+        const stamp = isChecked ? `<span style="font-size:10px;color:var(--text-tertiary);font-style:italic;margin-left:auto;white-space:nowrap;">${escapeHtml(entry.initials)} · ${formatShortTime(entry.ts)}</span>` : '';
+        return `<div class="checklist-item-elevated ${isChecked?'checked':''}" data-lidx="${i}">
+          <input type="checkbox" ${isChecked?'checked':''}>
+          <span>${item}</span>
+          ${stamp}
+        </div>`;
+      }).join('');
+  }
+  const overall = getLeaderTransitionOverall();
+  const badge = document.getElementById('leaderTransitionBadge');
+  badge.textContent = overall + '%';
+  badge.classList.toggle('high', overall >= 95);
+}
+
 function renderWalkthroughsPage(){
   if(fohOECheckedDate !== today){ fohOEChecked = {}; fohOECheckedDate = today; }
-  if(fohLeaderTransitionDate !== today){ fohLeaderTransitionChecked = {}; fohLeaderTransitionDate = today; }
+  // Older saves kept one flat list ({itemIndex: ...}); per-daypart state is
+  // keyed by daypart name, so a flat entry means old data — start fresh.
+  const ltIsOldFormat = Object.values(fohLeaderTransitionChecked).some(v => v && v.initials);
+  if(fohLeaderTransitionDate !== today || ltIsOldFormat){ fohLeaderTransitionChecked = {}; fohLeaderTransitionDate = today; }
 
   renderOEDaypartPicker();
   renderOEWalkthroughCard();
 
-  // --- Leader Transition List ---
-  const leaderContainer = document.getElementById('fohLeaderTransitionChecklist');
-  let lDone = 0;
-  leaderContainer.innerHTML = fohLeaderTransitionItems.map((item,i)=>{
-    const entry = fohLeaderTransitionChecked[i];
-    const checked = !!entry;
-    if(checked) lDone++;
-    const stamp = checked ? `<span style="font-size:10px;color:var(--text-tertiary);font-style:italic;margin-left:auto;white-space:nowrap;">${escapeHtml(entry.initials)} · ${formatShortTime(entry.ts)}</span>` : '';
-    return `<div class="checklist-item-elevated ${checked?'checked':''}" data-lidx="${i}">
-      <input type="checkbox" ${checked?'checked':''}>
-      <span>${item}</span>
-      ${stamp}
-    </div>`;
-  }).join('');
-  const leaderBadge = document.getElementById('leaderTransitionBadge');
-  leaderBadge.textContent = `${lDone}/${fohLeaderTransitionItems.length}`;
-  leaderBadge.classList.toggle('high', lDone === fohLeaderTransitionItems.length);
+  renderLeaderTransitionDaypartPicker();
+  renderLeaderTransitionCard();
 
   // --- Food Safety Walkthrough ---
   const fsBadge = document.getElementById('foodSafetyBadge');
@@ -175,26 +222,21 @@ document.getElementById('btnMarkFOHOEDone').addEventListener('click', async ()=>
 
 document.getElementById('fohLeaderTransitionChecklist').addEventListener('click', async (e)=>{
   const row = e.target.closest('.checklist-item-elevated');
-  if(!row) return;
+  const daypart = currentLeaderTransitionDaypart;
+  if(!row || !daypart) return;
   const idx = row.dataset.lidx;
-  if(fohLeaderTransitionChecked[idx]){
-    delete fohLeaderTransitionChecked[idx];
+  if(!fohLeaderTransitionChecked[daypart]) fohLeaderTransitionChecked[daypart] = {};
+  const bucket = fohLeaderTransitionChecked[daypart];
+  if(bucket[idx]){
+    delete bucket[idx];
   } else {
     const initials = getInitials();
-    if(!initials){ showToast('Set your initials first (top right)'); beginEditInitials(); return; }
-    fohLeaderTransitionChecked[idx] = {initials, ts: Date.now()};
+    if(!initials){ showToast('Set your initials first (top right)'); beginEditInitials(); renderLeaderTransitionCard(); return; }
+    bucket[idx] = {initials, ts: Date.now()};
   }
   fohLeaderTransitionDate = today;
   await saveState();
-  renderWalkthroughsPage();
-});
-
-document.getElementById('btnResetLeaderTransition').addEventListener('click', async ()=>{
-  fohLeaderTransitionChecked = {};
-  fohLeaderTransitionDate = today;
-  await saveState();
-  renderWalkthroughsPage();
-  showToast('✓ Leader Transition List Reset');
+  renderLeaderTransitionCard();
 });
 
 document.getElementById('btnMarkFormDone').addEventListener('click', async ()=>{

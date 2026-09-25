@@ -245,6 +245,8 @@
   .btn-ghost{background:transparent;color:var(--text-secondary);margin-top:12px;border:1px solid var(--border);}
   .btn-add-tm{background:var(--cfa-white);color:var(--cfa-red);border:1.5px solid var(--cfa-red);border-radius:var(--radius);padding:8px 14px;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s ease;}
   .btn-add-tm:hover{background:var(--cfa-red);color:var(--cfa-white);}
+  .lt-progress{font-size:12px;font-weight:600;color:var(--text-secondary);margin:4px 0 10px;}
+  .lt-progress.done{color:var(--success);}
   .checklist-tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px;}
   .checklist-tile{display:flex;flex-direction:column;gap:8px;background:var(--cfa-light);border:1.5px solid var(--border);border-radius:12px;padding:14px 12px;cursor:pointer;transition:all .15s ease;text-align:left;font-family:inherit;}
   .checklist-tile:hover{border-color:var(--cfa-red);transform:translateY(-1px);box-shadow:0 4px 10px rgba(0,0,0,0.07);}
@@ -277,7 +279,6 @@
   .rolling-arrow-expanded:hover{background:var(--cfa-red);color:var(--cfa-white);}
   .su-week-toggle-btn{background:none;border:none;padding:7px 16px;border-radius:16px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;transition:all .15s ease;user-select:none;}
   .su-week-toggle-btn.active{background:var(--cfa-white);color:var(--cfa-red);box-shadow:0 1px 3px rgba(0,0,0,0.08);}
-  .daypart-eligible{font-size:11px;font-weight:600;color:#1565C0;background:#E3F2FD;padding:3px 8px;border-radius:10px;}
   .roster-custom-badge{display:inline-block;font-size:10px;font-weight:700;color:#1565C0;background:#E3F2FD;padding:2px 7px;border-radius:8px;margin-left:6px;vertical-align:middle;}
   .pos-option-list{max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);}
   .pos-option{padding:12px 14px;font-family:'Inter',sans-serif;font-size:14px;color:var(--text-primary);cursor:pointer;transition:background .12s ease;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
