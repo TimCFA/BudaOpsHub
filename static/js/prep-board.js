@@ -67,6 +67,9 @@ let prepHistorySeeded = false;
 
 // session-only
 let pbCurrentDay = 'Monday';
+let pbCurrentDate = null;      // Build-To target date (ISO); defaults to the next open day
+let pbTrendItem = null;        // item picked in Insights → Sales over time
+let pbDatesMigrated = false;
 let pbCurrentPage = 'buildto';
 let pbDismissedSuggestions = {};
 let pbInsightItem = null;
@@ -130,30 +133,132 @@ function pbBucketTotals(entry){
 
 function pbEntriesFor(list, day){ return list.filter(e => e.day === day); }
 
-function pbComputeStats(dayName){
-  const dayEntries = pbEntriesFor(prepSoldEntries, dayName);
-  const n = dayEntries.length;
-  const bufferPct = prepBuffers[dayName] != null ? prepBuffers[dayName] : 10;
-  const bucketSums = {};
-  dayEntries.forEach(entry => {
-    const totals = pbBucketTotals(entry);
-    Object.keys(totals).forEach(bucket => { bucketSums[bucket] = (bucketSums[bucket] || 0) + totals[bucket]; });
-  });
-  const wasteForDay = pbEntriesFor(prepWasteEntries, dayName);
-  const wasteBucketSums = {};
-  wasteForDay.forEach(entry => {
-    const totals = pbBucketTotals(entry);
-    Object.keys(totals).forEach(bucket => { wasteBucketSums[bucket] = (wasteBucketSums[bucket] || 0) + totals[bucket]; });
-  });
-  const stats = [];
-  Object.keys(bucketSums).forEach(bucket => {
-    const avg = n ? bucketSums[bucket] / n : 0;
-    const buildTo = Math.ceil(avg * (1 + bufferPct / 100));
-    const wasteAvg = wasteForDay.length ? (wasteBucketSums[bucket] || 0) / wasteForDay.length : null;
-    stats.push({ name: bucket, avg, buildTo, n, category: pbCategoryOf(bucket), wasteAvg, wasteN: wasteForDay.length });
-  });
-  stats.sort((a,b) => b.buildTo - a.buildTo);
-  return { stats, n, bufferPct };
+// ---------- dates ----------
+// Every sold/waste entry carries a real calendar date (ISO "YYYY-MM-DD"), so
+// build-to numbers can follow the season instead of treating every Monday of
+// the year the same. `day` (weekday name) is kept alongside for the per-weekday
+// buffers and history lists.
+
+const PB_WEEKDAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const PB_MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function pbDateFromISO(iso){ const p = iso.split('-').map(Number); return new Date(p[0], p[1]-1, p[2]); }
+function pbAddDays(iso, n){ const d = pbDateFromISO(iso); d.setDate(d.getDate() + n); return toLocalISODate(d); }
+function pbDaysBetween(aISO, bISO){ return Math.round((pbDateFromISO(bISO) - pbDateFromISO(aISO)) / 86400000); }
+function pbWeekdayOf(iso){ return PB_WEEKDAY_NAMES[pbDateFromISO(iso).getDay()]; }
+function pbFormatDate(iso, opts){
+  const d = pbDateFromISO(iso);
+  const base = (opts && opts.weekday === false ? '' : PB_WEEKDAY_NAMES[d.getDay()].slice(0,3) + ', ') + PB_MONTHS_SHORT[d.getMonth()] + ' ' + d.getDate();
+  return (opts && opts.year) ? base + ', ' + d.getFullYear() : base;
+}
+// Sold/waste uploads default to yesterday (skipping Sunday — the store is closed).
+function pbDefaultEntryDate(){
+  let iso = pbAddDays(today, -1);
+  if(pbWeekdayOf(iso) === 'Sunday') iso = pbAddDays(iso, -1);
+  return iso;
+}
+// Build-To defaults to today, or Monday when today is Sunday.
+function pbDefaultPrepDate(){
+  return pbWeekdayOf(today) === 'Sunday' ? pbAddDays(today, 1) : today;
+}
+
+// Older entries only had a weekday and a free-text label like "Sept 7". Give
+// them a real date when the label parses to that weekday this year or last.
+function pbInferDateFromLabel(label, day){
+  if(!label || !day) return null;
+  const year = pbDateFromISO(today).getFullYear();
+  for(const y of [year, year - 1]){
+    const d = new Date(String(label).replace(/\bSept\b/i, 'Sep') + ' ' + y);
+    if(isNaN(d.getTime())) continue;
+    const iso = toLocalISODate(d);
+    if(iso <= today && PB_WEEKDAY_NAMES[d.getDay()] === day) return iso;
+  }
+  return null;
+}
+
+function pbMigrateEntryDates(){
+  let changed = false;
+  [prepSoldEntries, prepWasteEntries].forEach(list => list.forEach(e => {
+    if(e.date) return;
+    const iso = pbInferDateFromLabel(e.label, e.day);
+    if(iso){ e.date = iso; changed = true; }
+  }));
+  return changed;
+}
+
+// Newest first, undated entries last.
+function pbSortByDateDesc(list){
+  return list.slice().sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+}
+
+// ---------- forecasting ----------
+// Build-to for a specific date = recent level × seasonal factor × (1 + buffer).
+//  • Recent level: the last PB_RECENT_COUNT same-weekday days before the date,
+//    newer weeks weighted more (half-life PB_HALF_LIFE_WEEKS).
+//  • Seasonal factor: how sales moved LAST YEAR from those same recent weeks to
+//    the weeks around this date (±PB_SEASON_WINDOW_DAYS). Needs a year of dated
+//    history; until then the factor is 1 and the sheet says so.
+const PB_RECENT_COUNT = 6;
+const PB_HALF_LIFE_WEEKS = 4;
+const PB_SEASON_WINDOW_DAYS = 21;
+const PB_SEASON_MIN_DAYS = 2;
+const PB_SEASON_CLAMP = [0.5, 2];
+
+function pbAvgFor(entries, bucket){
+  if(entries.length === 0) return null;
+  return entries.reduce((sum, e) => sum + (pbBucketTotals(e)[bucket] || 0), 0) / entries.length;
+}
+
+function pbForecast(targetISO){
+  const weekday = pbWeekdayOf(targetISO);
+  const bufferPct = prepBuffers[weekday] != null ? prepBuffers[weekday] : 10;
+  const sameDay = prepSoldEntries.filter(e => e.day === weekday);
+  const dated = pbSortByDateDesc(sameDay.filter(e => e.date && e.date < targetISO));
+  const recent = dated.slice(0, PB_RECENT_COUNT);
+  // With no dated history yet, fall back to a plain average of whatever is on file.
+  const basis = recent.length ? recent : sameDay;
+  const weights = basis.map(e => recent.length ? Math.pow(0.5, (pbDaysBetween(e.date, targetISO) / 7) / PB_HALF_LIFE_WEEKS) : 1);
+  const weightSum = weights.reduce((a,b) => a+b, 0);
+
+  // Last year's matching windows (364 days = 52 weeks, so weekdays line up).
+  const allDated = sameDay.filter(e => e.date);
+  const lyTarget = pbAddDays(targetISO, -364);
+  const seasonEntries = allDated.filter(e => Math.abs(pbDaysBetween(e.date, lyTarget)) <= PB_SEASON_WINDOW_DAYS);
+  let refEntries = [];
+  if(recent.length){
+    const refFrom = pbAddDays(recent[recent.length-1].date, -364 - 3);
+    const refTo = pbAddDays(recent[0].date, -364 + 3);
+    refEntries = allDated.filter(e => e.date >= refFrom && e.date <= refTo);
+  }
+  const seasonal = seasonEntries.length >= PB_SEASON_MIN_DAYS && refEntries.length >= PB_SEASON_MIN_DAYS;
+  const lastYearDay = allDated.find(e => Math.abs(pbDaysBetween(e.date, lyTarget)) <= 3) || null;
+
+  const buckets = {};
+  basis.forEach(e => Object.keys(pbBucketTotals(e)).forEach(b => { buckets[b] = true; }));
+  const wasteForDay = pbEntriesFor(prepWasteEntries, weekday);
+
+  const stats = Object.keys(buckets).map(bucket => {
+    const level = weightSum ? basis.reduce((sum, e, i) => sum + weights[i] * (pbBucketTotals(e)[bucket] || 0), 0) / weightSum : 0;
+    let factor = 1;
+    if(seasonal){
+      const aSeason = pbAvgFor(seasonEntries, bucket), aRef = pbAvgFor(refEntries, bucket);
+      if(aRef > 0) factor = Math.min(PB_SEASON_CLAMP[1], Math.max(PB_SEASON_CLAMP[0], aSeason / aRef));
+    }
+    const forecast = level * factor;
+    const wasteAvg = wasteForDay.length ? pbAvgFor(wasteForDay, bucket) : null;
+    return {
+      name: bucket, category: pbCategoryOf(bucket), level, factor, forecast,
+      buildTo: Math.ceil(forecast * (1 + bufferPct / 100)),
+      n: basis.length, wasteAvg,
+      lastYear: lastYearDay ? (pbBucketTotals(lastYearDay)[bucket] || 0) : null
+    };
+  }).sort((a,b) => b.buildTo - a.buildTo);
+
+  return {
+    stats, weekday, bufferPct, n: basis.length, usingDated: recent.length > 0,
+    seasonal, seasonDays: seasonEntries.length, lyTarget,
+    lastYearDate: lastYearDay ? lastYearDay.date : null
+  };
 }
 
 function pbConfidenceClass(n){
@@ -219,17 +324,29 @@ const PB_IMPORT_NAME_HINTS = /(item|product|menu|name)/;
 const PB_IMPORT_COUNT_HINTS = /(qty|quantity|count|sold|units|waste|thrown|amount)/;
 const PB_IMPORT_DAY_HINTS = /(day|date)/;
 const PB_DAY_NAME_MAP = { sun:'Sunday', mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday', fri:'Friday', sat:'Saturday' };
-const PB_WEEKDAY_ABBR = ['sun','mon','tue','wed','thu','fri','sat'];
 
-function pbResolveDayFromValue(val){
+// A date cell → ISO date. Full dates are used as-is (a year-less "Sep 14" is
+// taken as its most recent occurrence); a bare weekday ("Mon") becomes that
+// weekday on or before `anchorISO` — the date picked for the upload.
+function pbResolveDateFromValue(val, anchorISO){
   if(val == null || val === '') return null;
   const s = String(val).trim();
   const abbr = s.slice(0,3).toLowerCase();
-  if(PB_DAY_NAME_MAP[abbr] && PB_DAYS.indexOf(PB_DAY_NAME_MAP[abbr]) !== -1) return PB_DAY_NAME_MAP[abbr];
-  const d = new Date(s);
-  if(!isNaN(d.getTime())){
-    const wd = PB_DAY_NAME_MAP[PB_WEEKDAY_ABBR[d.getDay()]];
-    return wd && PB_DAYS.indexOf(wd) !== -1 ? wd : null;
+  if(PB_DAY_NAME_MAP[abbr] && /^[a-z]+\.?$/i.test(s)){
+    const target = PB_DAY_NAME_MAP[abbr];
+    let iso = anchorISO;
+    for(let i = 0; i < 7 && pbWeekdayOf(iso) !== target; i++) iso = pbAddDays(iso, -1);
+    return iso;
+  }
+  const hasYear = /\b\d{4}\b|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/.test(s);
+  if(hasYear){
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : toLocalISODate(d);
+  }
+  const year = pbDateFromISO(anchorISO).getFullYear();
+  for(const y of [year, year - 1]){
+    const d = new Date(s.replace(/\bSept\b/i, 'Sep') + ' ' + y);
+    if(!isNaN(d.getTime()) && toLocalISODate(d) <= pbAddDays(anchorISO, 1)) return toLocalISODate(d);
   }
   return null;
 }
@@ -263,29 +380,44 @@ function pbDetectColumns(rows){
   return { nameCol, countCol, dayCol, dataStart };
 }
 
-function pbRowsToDayEntries(rows, fallbackDay, fallbackLabel){
+// Groups a sheet's rows by calendar date. Rows without a usable date column
+// fall back to `fallbackISO` (the date picked in the panel). Sunday rows are
+// skipped — the store is closed.
+function pbRowsToDateEntries(rows, fallbackISO){
   const cols = pbDetectColumns(rows);
-  const byDay = {};
-  if(!cols || cols.countCol < 0) return { byDay, skipped: rows.length, daysDetected: 0 };
-  let skipped = 0, daysDetected = 0;
+  const byDate = {};
+  if(!cols || cols.countCol < 0) return { byDate, skipped: rows.length };
+  let skipped = 0;
   for(let r = cols.dataStart; r < rows.length; r++){
     const row = rows[r];
     if(!row) continue;
     const rawName = row[cols.nameCol];
-    const rawCount = row[cols.countCol];
     const name = rawName == null ? '' : String(rawName).trim();
-    const count = parseFloat(rawCount);
+    const count = parseFloat(row[cols.countCol]);
     if(!name || isNaN(count) || !pbIsTrackedName(name)){ skipped++; continue; }
-    let dayKey = fallbackDay, label = fallbackLabel;
+    let iso = fallbackISO;
     if(cols.dayCol >= 0){
-      const resolved = pbResolveDayFromValue(row[cols.dayCol]);
-      if(resolved){ dayKey = resolved; label = String(row[cols.dayCol]).trim(); }
+      const resolved = pbResolveDateFromValue(row[cols.dayCol], fallbackISO);
+      if(resolved) iso = resolved;
     }
-    if(!dayKey){ skipped++; continue; }
-    if(!byDay[dayKey]){ byDay[dayKey] = { label: label || null, items: {} }; daysDetected++; }
-    byDay[dayKey].items[name] = count;
+    if(!iso || pbWeekdayOf(iso) === 'Sunday'){ skipped++; continue; }
+    if(!byDate[iso]) byDate[iso] = {};
+    byDate[iso][name] = (byDate[iso][name] || 0) + count;
   }
-  return { byDay, skipped, daysDetected };
+  return { byDate, skipped };
+}
+
+// Adds one dated entry per date, replacing any entry already on file for that
+// date so re-uploading a day never double-counts it. Returns counts for the toast.
+function pbAddDatedEntries(list, byDate, source){
+  let replaced = 0, items = 0;
+  Object.keys(byDate).forEach(iso => {
+    const existing = list.findIndex(e => e.date === iso);
+    if(existing !== -1){ list.splice(existing, 1); replaced++; }
+    list.push({ id: pbUid(), date: iso, day: pbWeekdayOf(iso), label: pbFormatDate(iso, {year: true}), items: byDate[iso], source });
+    items += Object.keys(byDate[iso]).length;
+  });
+  return { dates: Object.keys(byDate).length, replaced, items };
 }
 
 function pbReadWorkbookRows(file, cb){
@@ -361,14 +493,6 @@ function pbRatioStatus(ratio){
   return { cls: 'watch', label: 'watch' };
 }
 
-function pbParseLabelDate(label){
-  if(!label) return null;
-  let d = new Date(label + ' ' + new Date().getFullYear());
-  if(!isNaN(d.getTime())) return d;
-  d = new Date(label);
-  return isNaN(d.getTime()) ? null : d;
-}
-
 function pbAllBucketNames(){
   const set = {};
   prepSoldEntries.forEach(e => Object.keys(pbBucketTotals(e)).forEach(b => { set[b] = true; }));
@@ -381,21 +505,54 @@ function pbWasteTrendForBucket(bucket){
   prepWasteEntries.forEach(e => {
     const totals = pbBucketTotals(e);
     if(!(bucket in totals)) return;
-    rows.push({ label: e.label || e.day, day: e.day, value: totals[bucket], date: pbParseLabelDate(e.label) });
+    rows.push({ label: e.date ? pbFormatDate(e.date, {weekday: false}) : (e.label || e.day), value: totals[bucket], date: e.date || '' });
   });
-  rows.sort((a,b) => {
-    if(a.date && b.date) return a.date - b.date;
-    if(a.date) return -1;
-    if(b.date) return 1;
-    return 0;
-  });
+  rows.sort((a,b) => (a.date || '9999').localeCompare(b.date || '9999'));
   return rows;
+}
+
+// Weekly sold totals for one item (weeks start Monday), oldest first.
+function pbWeeklySoldForBucket(bucket){
+  const weeks = {};
+  prepSoldEntries.forEach(e => {
+    if(!e.date) return;
+    const d = pbDateFromISO(e.date);
+    const monday = pbAddDays(e.date, -((d.getDay() + 6) % 7));
+    if(!weeks[monday]) weeks[monday] = { value: 0, days: 0 };
+    weeks[monday].value += pbBucketTotals(e)[bucket] || 0;
+    weeks[monday].days++;
+  });
+  return Object.keys(weeks).sort().map(w => ({ label: 'wk of ' + pbFormatDate(w, {weekday: false}), value: weeks[w].value, days: weeks[w].days }));
+}
+
+const PB_SEASON_OF_MONTH = ['Winter','Winter','Spring','Spring','Spring','Summer','Summer','Summer','Fall','Fall','Fall','Winter'];
+
+// Average sold per open day for one item, by month and by season.
+function pbPeriodAveragesForBucket(bucket){
+  const months = {}, seasons = {};
+  prepSoldEntries.forEach(e => {
+    if(!e.date) return;
+    const d = pbDateFromISO(e.date);
+    const v = pbBucketTotals(e)[bucket] || 0;
+    const mKey = e.date.slice(0, 7);
+    const sName = PB_SEASON_OF_MONTH[d.getMonth()];
+    const sYear = d.getMonth() === 11 ? d.getFullYear() + 1 : d.getFullYear();
+    const sKey = sYear + '-' + ['Winter','Spring','Summer','Fall'].indexOf(sName);
+    (months[mKey] = months[mKey] || { total: 0, days: 0, label: PB_MONTHS_SHORT[d.getMonth()] + ' ' + d.getFullYear() });
+    (seasons[sKey] = seasons[sKey] || { total: 0, days: 0, label: sName + ' ' + sYear });
+    months[mKey].total += v; months[mKey].days++;
+    seasons[sKey].total += v; seasons[sKey].days++;
+  });
+  const toRows = obj => Object.keys(obj).sort().reverse().map(k => ({ label: obj[k].label, avg: obj[k].total / obj[k].days, days: obj[k].days }));
+  return { months: toRows(months), seasons: toRows(seasons) };
 }
 
 // ---------- rendering ----------
 
-function pbTrendSvg(rows){
-  if(rows.length === 0) return '<div class="pb-empty">No waste logged yet for this item.</div>';
+function pbTrendSvg(rows, opts){
+  opts = opts || {};
+  const unit = opts.unit || 'wasted';
+  if(rows.length === 0) return `<div class="pb-empty">${opts.emptyText || 'No waste logged yet for this item.'}</div>`;
   const W = 600, H = 160, padL = 8, padR = 8, padT = 14, padB = 22;
   const maxV = Math.max.apply(null, rows.map(r => r.value)) || 1;
   const stepX = rows.length > 1 ? (W - padL - padR) / (rows.length - 1) : 0;
@@ -409,7 +566,7 @@ function pbTrendSvg(rows){
       <line x1="${padL}" x2="${W-padR}" y1="${H-padB}" y2="${H-padB}" stroke="var(--border)" stroke-width="1"></line>
       <path d="${areaPath}" fill="rgba(227,28,35,0.12)" stroke="none"></path>
       <polyline points="${linePts}" fill="none" stroke="var(--cfa-red)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>
-      ${rows.map((r,i) => `<circle cx="${xAt(i)}" cy="${yAt(r.value).toFixed(1)}" r="3.5" fill="var(--cfa-white)" stroke="var(--cfa-red)" stroke-width="2"><title>${escapeHtml(r.label || r.day)} · ${r.value} wasted</title></circle>`).join('')}
+      ${rows.map((r,i) => `<circle cx="${xAt(i)}" cy="${yAt(r.value).toFixed(1)}" r="3.5" fill="var(--cfa-white)" stroke="var(--cfa-red)" stroke-width="2"><title>${escapeHtml(r.label || r.day)} · ${r.value} ${unit}</title></circle>`).join('')}
       ${labelIdxs.map(i => `<text x="${xAt(i)}" y="${H-6}" font-size="9" fill="var(--text-tertiary)" text-anchor="${i===0?'start':(i===rows.length-1?'end':'middle')}">${escapeHtml(rows[i].label || rows[i].day)}</text>`).join('')}
     </svg>
   `;
@@ -439,6 +596,23 @@ function pbDayNavHtml(){
   }).join('')}</nav>`;
 }
 
+// Build-To picks a calendar date: the next six open days, or any date via the picker.
+function pbDateNavHtml(){
+  const days = [];
+  let iso = pbDefaultPrepDate();
+  while(days.length < 6){
+    if(pbWeekdayOf(iso) !== 'Sunday') days.push(iso);
+    iso = pbAddDays(iso, 1);
+  }
+  return `<nav class="pb-days">${days.map(d => {
+    const wd = pbWeekdayOf(d);
+    const buf = prepBuffers[wd] != null ? prepBuffers[wd] : 10;
+    const md = pbDateFromISO(d);
+    return `<button class="pb-day-btn ${d===pbCurrentDate?'active':''}" data-pb-select-date="${d}">${wd.slice(0,3)} ${md.getMonth()+1}/${md.getDate()}<span class="pb-buf-tag">${buf}%</span></button>`;
+  }).join('')}
+  <label class="pb-date-jump">or <input type="date" data-pb-prep-date value="${pbCurrentDate}"></label></nav>`;
+}
+
 function pbSuggestBannerHtml(){
   if(pbCurrentPage !== 'buildto') return '';
   const s = pbComputeSuggestion(pbCurrentDay);
@@ -456,25 +630,40 @@ function pbSuggestBannerHtml(){
 }
 
 function pbRenderBuildTo(){
-  const { stats, n, bufferPct } = pbComputeStats(pbCurrentDay);
-  const dayLabel = n === 0 ? 'no data yet' : (n + (n === 1 ? ' day' : ' days') + ' on record');
-  let html = `<p class="pb-subline">${pbCurrentDay} · ${dayLabel} · ${bufferPct}% buffer</p>`;
-  if(stats.length === 0){
-    return html + `<div class="pb-empty-day">No data yet for ${pbCurrentDay} — switch to Sold Counts to add a day's numbers.</div>`;
+  const f = pbForecast(pbCurrentDate);
+  const plural = f.weekday + 's';
+  const basisText = f.n === 0 ? 'no data yet' : `${f.n} ${f.n === 1 ? f.weekday : plural} on record`;
+  let html = `<p class="pb-subline">${pbFormatDate(pbCurrentDate, {year: true})} · ${basisText} · ${f.bufferPct}% buffer</p>`;
+  if(f.stats.length === 0){
+    return html + `<div class="pb-empty-day">No sold counts on file for ${plural} yet — switch to Sold Counts to add some.</div>`;
   }
+  let note;
+  if(f.seasonal){
+    note = `<b>Seasonal adjustment on.</b> Recent ${plural} are adjusted by how sales moved last year from those weeks into the weeks around ${pbFormatDate(f.lyTarget, {year: true})}.`;
+  } else if(f.usingDated){
+    note = `Based on the last ${f.n} ${f.n === 1 ? f.weekday : plural}, newest weighted most. <b>Seasonal adjustment</b> starts once there are sold counts from around ${pbFormatDate(f.lyTarget, {year: true})} (same time last year).`;
+  } else {
+    note = `Based on a plain average of ${plural} on file — these entries have no dates yet. Give them dates on Sold Counts to weight recent weeks.`;
+  }
+  html += `<div class="pb-forecast-note">${note}</div>`;
   ['Salads','Wraps','Sides','Other'].forEach(cat => {
-    const items = stats.filter(s => s.category === cat);
+    const items = f.stats.filter(it => it.category === cat);
     if(items.length === 0) return;
     html += `
       <section class="pb-category">
         <div class="pb-category-head"><h3>${cat}</h3><span class="pb-count">${items.length} items</span></div>
         ${items.map(it => {
-          const wasteText = it.wasteAvg !== null ? `<span class="pb-waste-flag">avg ${it.wasteAvg.toFixed(1)} wasted</span>` : '';
+          const seasonPct = Math.round((it.factor - 1) * 100);
+          const how = f.seasonal && seasonPct !== 0
+            ? `forecast ${it.forecast.toFixed(1)} = recent ${it.level.toFixed(1)} × <span class="pb-season-tag ${seasonPct > 0 ? 'up' : 'down'}">${seasonPct > 0 ? '+' : ''}${seasonPct}% season</span>`
+            : `forecast ${it.forecast.toFixed(1)} · ${f.usingDated ? 'recent' : 'avg'} ${it.n} ${it.n === 1 ? f.weekday : plural}`;
+          const lastYear = it.lastYear !== null ? ` · last year ${it.lastYear}` : '';
+          const waste = it.wasteAvg !== null ? ` · <span class="pb-waste-flag">avg ${it.wasteAvg.toFixed(1)} wasted</span>` : '';
           return `
             <div class="pb-item-row">
               <div class="pb-item-left">
                 <div class="pb-item-name">${escapeHtml(it.name)}</div>
-                <div class="pb-item-meta"><span class="pb-confidence ${pbConfidenceClass(it.n)}"></span>avg ${it.avg.toFixed(1)} sold · ${it.n} ${it.n===1?'day':'days'}${wasteText ? ' · ' + wasteText : ''}</div>
+                <div class="pb-item-meta"><span class="pb-confidence ${pbConfidenceClass(it.n)}"></span>${how}${lastYear}${waste}</div>
               </div>
               <div class="pb-item-buildto">${it.buildTo}</div>
             </div>
@@ -486,16 +675,25 @@ function pbRenderBuildTo(){
   return html;
 }
 
-function pbRenderEntryCards(list, day, removeAttr){
+function pbRenderEntryCards(list, day, removeAttr, kind){
   if(list.length === 0) return `<div class="pb-empty-day">Nothing recorded yet for ${day}.</div>`;
-  return list.map((entry, idx) => {
+  return pbSortByDateDesc(list).map(entry => {
     const itemNames = Object.keys(entry.items || {}).sort((a,b) => entry.items[b] - entry.items[a]);
+    const title = entry.date
+      ? escapeHtml(pbFormatDate(entry.date, {year: true}))
+      : `<span class="pb-undated">Undated${entry.label ? ' — ' + escapeHtml(entry.label) : ''}</span>`;
+    const dateFix = entry.date ? '' : `
+      <div class="pb-date-fix">
+        <label>Set the date for this entry</label>
+        <input type="date" max="${today}" data-pb-set-date="${entry.id}" data-kind="${kind}">
+      </div>`;
     return `
       <div class="pb-entry-card">
         <div class="pb-entry-head">
-          <span class="pb-entry-title">Entry ${idx + 1}${entry.label ? ' — ' + escapeHtml(entry.label) : ''} <span class="pb-src-tag">${escapeHtml(entry.source || 'manual')}</span></span>
+          <span class="pb-entry-title">${title} <span class="pb-src-tag">${escapeHtml(entry.source || 'manual')}</span></span>
           <button class="pb-entry-remove" data-${removeAttr}="${entry.id}">Remove</button>
         </div>
+        ${dateFix}
         <div class="pb-entry-items">
           ${itemNames.map(name => `<div class="pb-en">${escapeHtml(name)}</div><div class="pb-ec">${entry.items[name]}</div>`).join('')}
         </div>
@@ -504,22 +702,29 @@ function pbRenderEntryCards(list, day, removeAttr){
   }).join('');
 }
 
+// Shared date field for the Sold Counts / Waste Log panels.
+function pbDateFieldHtml(attr, question){
+  const iso = pbDefaultEntryDate();
+  return `
+    <div class="pb-field">
+      <label>${question}</label>
+      <div class="pb-date-row">
+        <input type="date" ${attr} value="${iso}" max="${today}">
+        <span class="pb-date-weekday" data-pb-weekday-for="${attr}">${pbWeekdayOf(iso)}</span>
+      </div>
+      <div class="pb-field-hint">Files with a date column use each row's own date; this date is used for rows without one.</div>
+    </div>`;
+}
+
 function pbRenderRecorded(){
   const entries = pbEntriesFor(prepSoldEntries, pbCurrentDay);
   let html = `<p class="pb-subline">${pbCurrentDay} · ${entries.length} ${entries.length===1?'entry':'entries'} recorded</p>`;
   html += `
     <div class="pb-panel">
-      <button class="pb-panel-toggle" data-pb-toggle-panel="add">${pbAddPanelOpen?'−':'+'} Add a day's sold counts</button>
+      <button class="pb-panel-toggle" data-pb-toggle-panel="add">${pbAddPanelOpen?'−':'+'} Add sold counts</button>
       ${pbAddPanelOpen ? `
         <div class="pb-panel-body">
-          <div class="pb-field">
-            <label>Which day is this data from?</label>
-            <select data-pb-day-select>${PB_DAYS.map(d => `<option value="${d}" ${d===pbCurrentDay?'selected':''}>${d}</option>`).join('')}</select>
-          </div>
-          <div class="pb-field">
-            <label>Label this entry (optional, e.g. a date)</label>
-            <input type="text" data-pb-label-input placeholder="e.g. Sept 14">
-          </div>
+          ${pbDateFieldHtml('data-pb-sold-date', 'What date are these sales from?')}
           <div class="pb-field">
             <label>Paste item name + sold count (tab-separated)</label>
             <textarea data-pb-paste-area rows="5" placeholder="Salad, Cobb w/ Nuggets&#9;61.0"></textarea>
@@ -536,7 +741,7 @@ function pbRenderRecorded(){
       ` : ''}
     </div>
   `;
-  html += pbRenderEntryCards(entries, pbCurrentDay, 'pb-remove-sold');
+  html += pbRenderEntryCards(entries, pbCurrentDay, 'pb-remove-sold', 'sold');
   return html;
 }
 
@@ -545,17 +750,10 @@ function pbRenderWaste(){
   let html = `<p class="pb-subline">${pbCurrentDay} · ${entries.length} ${entries.length===1?'waste entry':'waste entries'} recorded</p>`;
   html += `
     <div class="pb-panel">
-      <button class="pb-panel-toggle" data-pb-toggle-panel="waste">${pbWastePanelOpen?'−':'+'} Log today's waste</button>
+      <button class="pb-panel-toggle" data-pb-toggle-panel="waste">${pbWastePanelOpen?'−':'+'} Log waste</button>
       ${pbWastePanelOpen ? `
         <div class="pb-panel-body">
-          <div class="pb-field">
-            <label>Which day is this waste from?</label>
-            <select data-pb-waste-day-select>${PB_DAYS.map(d => `<option value="${d}" ${d===pbCurrentDay?'selected':''}>${d}</option>`).join('')}</select>
-          </div>
-          <div class="pb-field">
-            <label>Label this entry (optional, e.g. a date)</label>
-            <input type="text" data-pb-waste-label-input placeholder="e.g. Sept 14">
-          </div>
+          ${pbDateFieldHtml('data-pb-waste-date', 'What date is this waste from?')}
           <div class="pb-field">
             <label>Paste item name + count thrown away (tab-separated)</label>
             <textarea data-pb-waste-paste-area rows="5" placeholder="Salad, Cobb w/ Nuggets&#9;4"></textarea>
@@ -572,7 +770,7 @@ function pbRenderWaste(){
       ` : ''}
     </div>
   `;
-  html += pbRenderEntryCards(entries, pbCurrentDay, 'pb-remove-waste');
+  html += pbRenderEntryCards(entries, pbCurrentDay, 'pb-remove-waste', 'waste');
   return html;
 }
 
@@ -605,6 +803,28 @@ function pbRenderBuffers(){
 
 function pbRenderInsights(){
   let html = `<p class="pb-subline">Cross-day trends · pulled from every Sold Counts and Waste Log entry on file</p>`;
+
+  // Sales over time: weekly totals + month / season averages for one item.
+  const soldNames = {};
+  prepSoldEntries.forEach(e => { if(e.date) Object.keys(pbBucketTotals(e)).forEach(b => { soldNames[b] = true; }); });
+  const trendNames = Object.keys(soldNames).sort();
+  if(!pbTrendItem || trendNames.indexOf(pbTrendItem) === -1) pbTrendItem = trendNames[0] || null;
+  html += `<section class="pb-category"><div class="pb-category-head"><h3>Sales over time</h3><span class="pb-count">weeks, months &amp; seasons</span></div>`;
+  if(!pbTrendItem){
+    html += `<div class="pb-empty">Add dated Sold Counts to see sales trends.</div>`;
+  } else {
+    html += `<div class="pb-insight-controls"><label>Item</label><select data-pb-trend-item>${trendNames.map(n => `<option value="${escapeHtml(n)}" ${n===pbTrendItem?'selected':''}>${escapeHtml(n)}</option>`).join('')}</select></div>`;
+    html += `<div class="pb-trend-wrap">${pbTrendSvg(pbWeeklySoldForBucket(pbTrendItem), {unit: 'sold that week', emptyText: 'No dated sales for this item yet.'})}</div>`;
+    const periods = pbPeriodAveragesForBucket(pbTrendItem);
+    const periodTable = (title, rows) => `
+      <div class="pb-period">
+        <div class="pb-period-title">${title}</div>
+        ${rows.map(r => `<div class="pb-period-row"><span>${escapeHtml(r.label)}</span><span class="pb-period-avg">${r.avg.toFixed(1)}<small>/day</small></span><span class="pb-period-days">${r.days} ${r.days === 1 ? 'day' : 'days'}</span></div>`).join('')}
+      </div>`;
+    html += `<div class="pb-period-grid">${periodTable('By month', periods.months)}${periodTable('By season', periods.seasons)}</div>`;
+    html += `<p class="pb-period-note">Average sold per open day. Build-To starts adjusting for the season automatically once a year of dated sales is on file.</p>`;
+  }
+  html += '</section>';
 
   html += `<section class="pb-category"><div class="pb-category-head"><h3>Highest volatility</h3><span class="pb-count">day-to-day swing in sold counts</span></div>`;
   html += pbHbarChart(pbComputeVolatility().slice(0, 10), {
@@ -694,6 +914,12 @@ function renderPrepBoard(){
     pbSeedHistoryIfNeeded().then(renderPrepBoard);
     return;
   }
+  if(!pbDatesMigrated){
+    pbDatesMigrated = true;
+    if(pbMigrateEntryDates()) saveState();
+  }
+  if(!pbCurrentDate) pbCurrentDate = pbDefaultPrepDate();
+  if(pbCurrentPage === 'buildto') pbCurrentDay = pbWeekdayOf(pbCurrentDate);
 
   const pages = [
     { id: 'buildto', label: 'Build-To Sheet' },
@@ -711,7 +937,8 @@ function renderPrepBoard(){
     </nav>
   `;
 
-  if(pbCurrentPage !== 'buffers' && pbCurrentPage !== 'insights') html += pbDayNavHtml();
+  if(pbCurrentPage === 'buildto') html += pbDateNavHtml();
+  else if(pbCurrentPage !== 'buffers' && pbCurrentPage !== 'insights') html += pbDayNavHtml();
   html += pbSuggestBannerHtml();
 
   if(pbCurrentPage === 'buildto') html += pbRenderBuildTo();
@@ -740,6 +967,59 @@ async function pbRemoveEntry(list, id){
   renderPrepBoard();
 }
 
+// ---------- adding dated entries ----------
+
+const PB_KIND = {
+  sold:  { list: () => prepSoldEntries,  dateAttr: 'data-pb-sold-date',  paste: '[data-pb-paste-area]',       feedback: '[data-pb-feedback]',       noun: 'sold' },
+  waste: { list: () => prepWasteEntries, dateAttr: 'data-pb-waste-date', paste: '[data-pb-waste-paste-area]', feedback: '[data-pb-waste-feedback]', noun: 'wasted' }
+};
+
+function pbPanelDate(kind){
+  const input = document.querySelector('[' + PB_KIND[kind].dateAttr + ']');
+  return input && input.value ? input.value : null;
+}
+
+function pbFeedback(kind, msg){
+  const el = document.querySelector(PB_KIND[kind].feedback);
+  if(el){ el.className = 'pb-feedback warn'; el.textContent = msg; }
+}
+
+async function pbFinishAdd(kind, result, skipped){
+  // New waste data changes the buffer suggestions, so show them again.
+  if(kind === 'waste') pbDismissedSuggestions = {};
+  await saveState();
+  const newest = pbSortByDateDesc(PB_KIND[kind].list())[0];
+  if(newest) pbCurrentDay = newest.day;
+  renderPrepBoard();
+  const parts = [`✓ ${result.items} item${result.items===1?'':'s'} ${PB_KIND[kind].noun} across ${result.dates} date${result.dates===1?'':'s'}`];
+  if(result.replaced) parts.push(`replaced ${result.replaced} existing date${result.replaced===1?'':'s'}`);
+  if(skipped) parts.push(`${skipped} skipped`);
+  showToast(parts.join(' · '));
+}
+
+function pbAddPasted(kind){
+  const iso = pbPanelDate(kind);
+  if(!iso){ pbFeedback(kind, 'Pick the date this data is from.'); return; }
+  if(pbWeekdayOf(iso) === 'Sunday'){ pbFeedback(kind, 'That date is a Sunday — the store is closed. Double-check the date.'); return; }
+  const { counts, skipped } = pbParsePaste(document.querySelector(PB_KIND[kind].paste).value);
+  if(Object.keys(counts).length === 0){ pbFeedback(kind, 'Nothing added — check that the pasted text has item names and counts separated by tabs.'); return; }
+  const result = pbAddDatedEntries(PB_KIND[kind].list(), { [iso]: counts }, 'manual');
+  pbFinishAdd(kind, result, skipped);
+}
+
+function pbImportFile(kind, input){
+  const file = input.files[0];
+  const iso = pbPanelDate(kind);
+  if(!iso){ pbFeedback(kind, 'Pick a date first — it’s used for any rows without their own date.'); input.value = ''; return; }
+  pbReadWorkbookRows(file, (err, rows) => {
+    if(err || !rows || rows.length === 0){ pbFeedback(kind, 'Couldn’t read that file — make sure it’s a CSV or Excel export.'); input.value = ''; return; }
+    const parsed = pbRowsToDateEntries(rows, iso);
+    if(Object.keys(parsed.byDate).length === 0){ pbFeedback(kind, 'Nothing usable in that file — check it has an item-name column and a count column.'); input.value = ''; return; }
+    const result = pbAddDatedEntries(PB_KIND[kind].list(), parsed.byDate, 'import');
+    pbFinishAdd(kind, result, parsed.skipped);
+  });
+}
+
 // ---------- events ----------
 
 document.getElementById('prepBoardRoot').addEventListener('click', function(e){
@@ -748,6 +1028,9 @@ document.getElementById('prepBoardRoot').addEventListener('click', function(e){
 
   const dayBtn = e.target.closest('[data-pb-select-day]');
   if(dayBtn){ pbCurrentDay = dayBtn.dataset.pbSelectDay; renderPrepBoard(); return; }
+
+  const dateBtn = e.target.closest('[data-pb-select-date]');
+  if(dateBtn){ pbCurrentDate = dateBtn.dataset.pbSelectDate; renderPrepBoard(); return; }
 
   const togglePanel = e.target.closest('[data-pb-toggle-panel]');
   if(togglePanel){
@@ -788,41 +1071,10 @@ document.getElementById('prepBoardRoot').addEventListener('click', function(e){
   if(removeWaste){ pbRemoveEntry(prepWasteEntries, removeWaste.dataset.pbRemoveWaste); return; }
 
   const addDayBtn = e.target.closest('[data-pb-add-day]');
-  if(addDayBtn){
-    const day = document.querySelector('[data-pb-day-select]').value;
-    const label = document.querySelector('[data-pb-label-input]').value.trim();
-    const text = document.querySelector('[data-pb-paste-area]').value;
-    const { counts, skipped } = pbParsePaste(text);
-    const feedback = document.querySelector('[data-pb-feedback]');
-    const added = Object.keys(counts).length;
-    if(added === 0){ feedback.className = 'pb-feedback warn'; feedback.textContent = 'Nothing added — check that the pasted text has item names and counts separated by tabs.'; return; }
-    prepSoldEntries.push({ id: pbUid(), day, label: label || null, items: counts, source: 'manual' });
-    saveState().then(() => {
-      pbCurrentDay = day;
-      renderPrepBoard();
-      showToast(`✓ Added ${added} item${added===1?'':'s'} to ${day}${skipped ? ` (${skipped} skipped)` : ''}`);
-    });
-    return;
-  }
+  if(addDayBtn){ pbAddPasted('sold'); return; }
 
   const addWasteBtn = e.target.closest('[data-pb-add-waste]');
-  if(addWasteBtn){
-    const day = document.querySelector('[data-pb-waste-day-select]').value;
-    const label = document.querySelector('[data-pb-waste-label-input]').value.trim();
-    const text = document.querySelector('[data-pb-waste-paste-area]').value;
-    const { counts, skipped } = pbParsePaste(text);
-    const feedback = document.querySelector('[data-pb-waste-feedback]');
-    const added = Object.keys(counts).length;
-    if(added === 0){ feedback.className = 'pb-feedback warn'; feedback.textContent = 'Nothing added — check that the pasted text has item names and counts separated by tabs.'; return; }
-    prepWasteEntries.push({ id: pbUid(), day, label: label || null, items: counts, source: 'manual' });
-    delete pbDismissedSuggestions[day];
-    saveState().then(() => {
-      pbCurrentDay = day;
-      renderPrepBoard();
-      showToast(`✓ Logged ${added} item${added===1?'':'s'} wasted on ${day}${skipped ? ` (${skipped} skipped)` : ''}`);
-    });
-    return;
-  }
+  if(addWasteBtn){ pbAddPasted('waste'); return; }
 
   const logStockout = e.target.closest('[data-pb-log-stockout]');
   if(logStockout){
@@ -841,44 +1093,44 @@ document.getElementById('prepBoardRoot').addEventListener('change', function(e){
     renderPrepBoard();
     return;
   }
+  if(e.target.matches('[data-pb-trend-item]')){
+    pbTrendItem = e.target.value;
+    renderPrepBoard();
+    return;
+  }
+  if(e.target.matches('[data-pb-prep-date]')){
+    if(!e.target.value) return;
+    let iso = e.target.value;
+    if(pbWeekdayOf(iso) === 'Sunday'){ iso = pbAddDays(iso, 1); showToast('Closed Sundays — showing Monday'); }
+    pbCurrentDate = iso;
+    renderPrepBoard();
+    return;
+  }
+  if(e.target.matches('[data-pb-sold-date], [data-pb-waste-date]')){
+    const attr = e.target.hasAttribute('data-pb-sold-date') ? 'data-pb-sold-date' : 'data-pb-waste-date';
+    const label = document.querySelector(`[data-pb-weekday-for="${attr}"]`);
+    if(label) label.textContent = e.target.value ? pbWeekdayOf(e.target.value) : '';
+    return;
+  }
+  if(e.target.matches('[data-pb-set-date]')){
+    const iso = e.target.value;
+    if(!iso) return;
+    if(pbWeekdayOf(iso) === 'Sunday'){ showToast('That’s a Sunday — the store is closed'); e.target.value = ''; return; }
+    const list = e.target.dataset.kind === 'waste' ? prepWasteEntries : prepSoldEntries;
+    const entry = list.find(x => x.id === e.target.dataset.pbSetDate);
+    if(!entry) return;
+    const clash = list.find(x => x.date === iso && x.id !== entry.id);
+    if(clash && !confirm(`There's already an entry for ${pbFormatDate(iso, {year: true})}. Replace it with this one?`)){ e.target.value = ''; return; }
+    if(clash) list.splice(list.indexOf(clash), 1);
+    entry.date = iso;
+    entry.day = pbWeekdayOf(iso);
+    entry.label = pbFormatDate(iso, {year: true});
+    pbCurrentDay = entry.day;
+    saveState().then(() => { renderPrepBoard(); showToast('✓ Date set'); });
+    return;
+  }
   const soldFile = e.target.closest('[data-pb-sold-file]');
-  if(soldFile && soldFile.files && soldFile.files[0]){
-    const file = soldFile.files[0];
-    const fallbackDay = document.querySelector('[data-pb-day-select]').value;
-    pbReadWorkbookRows(file, (err, rows) => {
-      const feedback = document.querySelector('[data-pb-feedback]');
-      if(err || !rows || rows.length === 0){ feedback.className = 'pb-feedback warn'; feedback.textContent = 'Couldn’t read that file — make sure it’s a CSV or Excel export.'; soldFile.value = ''; return; }
-      const parsed = pbRowsToDayEntries(rows, fallbackDay, file.name.replace(/\.[^.]+$/, ''));
-      const dayKeys = Object.keys(parsed.byDay);
-      if(dayKeys.length === 0){ feedback.className = 'pb-feedback warn'; feedback.textContent = 'Nothing usable in that file — check it has an item-name column and a count column.'; soldFile.value = ''; return; }
-      dayKeys.forEach(day => prepSoldEntries.push({ id: pbUid(), day, label: parsed.byDay[day].label, items: parsed.byDay[day].items, source: 'import' }));
-      const itemTotal = dayKeys.reduce((sum, d) => sum + Object.keys(parsed.byDay[d].items).length, 0);
-      saveState().then(() => {
-        pbCurrentDay = dayKeys[0];
-        renderPrepBoard();
-        showToast(`✓ Imported ${itemTotal} item${itemTotal===1?'':'s'} across ${dayKeys.length} day${dayKeys.length===1?'':'s'}`);
-      });
-    });
-    return;
-  }
+  if(soldFile && soldFile.files && soldFile.files[0]){ pbImportFile('sold', soldFile); return; }
   const wasteFile = e.target.closest('[data-pb-waste-file]');
-  if(wasteFile && wasteFile.files && wasteFile.files[0]){
-    const file = wasteFile.files[0];
-    const fallbackDay = document.querySelector('[data-pb-waste-day-select]').value;
-    pbReadWorkbookRows(file, (err, rows) => {
-      const feedback = document.querySelector('[data-pb-waste-feedback]');
-      if(err || !rows || rows.length === 0){ feedback.className = 'pb-feedback warn'; feedback.textContent = 'Couldn’t read that file — make sure it’s a CSV or Excel export.'; wasteFile.value = ''; return; }
-      const parsed = pbRowsToDayEntries(rows, fallbackDay, file.name.replace(/\.[^.]+$/, ''));
-      const dayKeys = Object.keys(parsed.byDay);
-      if(dayKeys.length === 0){ feedback.className = 'pb-feedback warn'; feedback.textContent = 'Nothing usable in that file — check it has an item-name column and a count column.'; wasteFile.value = ''; return; }
-      dayKeys.forEach(day => { prepWasteEntries.push({ id: pbUid(), day, label: parsed.byDay[day].label, items: parsed.byDay[day].items, source: 'import' }); delete pbDismissedSuggestions[day]; });
-      const itemTotal = dayKeys.reduce((sum, d) => sum + Object.keys(parsed.byDay[d].items).length, 0);
-      saveState().then(() => {
-        pbCurrentDay = dayKeys[0];
-        renderPrepBoard();
-        showToast(`✓ Imported ${itemTotal} waste item${itemTotal===1?'':'s'} across ${dayKeys.length} day${dayKeys.length===1?'':'s'}`);
-      });
-    });
-    return;
-  }
+  if(wasteFile && wasteFile.files && wasteFile.files[0]){ pbImportFile('waste', wasteFile); return; }
 });

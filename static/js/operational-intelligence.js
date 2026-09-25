@@ -229,9 +229,11 @@ function renderComplianceTrendCard(){
 
   const thisWeekDates = getWeekDays(0).map(d=>d.date);
   const lastWeekDates = getWeekDays(-1).map(d=>d.date);
+  // The OE Walkthrough is hidden from Zone Reset & Walkthroughs for now, so it
+  // is left out here too (it would read 0% every day). To bring it back, add
+  // {label: 'FOH OE Walkthrough', doneDates: fohOEDays} and restore the card title.
   const rows = [
-    {label: 'Food Safety', doneDates: foodSafetyDays},
-    {label: 'FOH OE Walkthrough', doneDates: fohOEDays}
+    {label: 'Food Safety', doneDates: foodSafetyDays}
   ];
 
   let html = '';

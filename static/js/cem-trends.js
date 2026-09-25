@@ -36,6 +36,13 @@ let cemTrendMetric = 'overall';
 let cemTrendView = 'total';
 let cemVisibleSegments = new Set([...CT_DAYPART_ORDER, ...CT_DOW_ORDER]);
 let cemFocusPeriod = null;
+// Insights scope: rolling window of the latest N logged months, all months, or one month.
+const CT_SCOPE_OPTIONS = [
+  { value:'3', label:'Last 3 months' }, { value:'6', label:'Last 6 months' }, { value:'12', label:'Last 12 months' },
+  { value:'all', label:'All logged' }, { value:'month', label:'One month' }
+];
+let cemInsightScope = 'all';
+let cemScopeMonth = null;
 let cemImportText = '';
 let cemImportMsg = null;
 
@@ -265,6 +272,25 @@ function ctPeriods(){
 }
 function ctMonthPeriods(){ return ctPeriods().filter((p) => p.periodType === 'month'); }
 
+// Months the Insights tab is currently looking at (see CT_SCOPE_OPTIONS).
+function ctScopedMonths(){
+  const months = ctMonthPeriods();
+  if(cemInsightScope === 'month'){
+    const m = months.find((p) => p.periodKey === cemScopeMonth) || months[months.length-1];
+    return m ? [m] : [];
+  }
+  if(cemInsightScope === 'all') return months;
+  return months.slice(-parseInt(cemInsightScope, 10));
+}
+function ctScopeDescription(scoped){
+  if(scoped.length === 0) return 'no months';
+  if(cemInsightScope === 'month') return `${scoped[0].periodLabel} only`;
+  const span = scoped.length === 1 ? scoped[0].periodLabel : `${scoped[0].periodLabel} – ${scoped[scoped.length-1].periodLabel}`;
+  const wanted = parseInt(cemInsightScope, 10);
+  const short = !isNaN(wanted) && scoped.length < wanted ? ` (only ${scoped.length} logged so far)` : '';
+  return `${span} · ${scoped.length} logged month${scoped.length!==1?'s':''}${short}`;
+}
+
 function ctEntriesForPeriod(periodKey){ return cemEntries.filter((e) => e.periodKey === periodKey); }
 function ctTotalEntry(periodKey){ return ctEntriesForPeriod(periodKey).find((e) => e.dimension === 'total'); }
 
@@ -319,8 +345,8 @@ function ctAllEntriesSorted(){
   });
 }
 
-function ctMonthlyTotalSeries(){
-  const months = ctMonthPeriods();
+function ctMonthlyTotalSeries(months){
+  months = months || ctMonthPeriods();
   const out = {};
   CT_METRICS.forEach((m) => {
     out[m.key] = months.map((p) => {
@@ -331,20 +357,35 @@ function ctMonthlyTotalSeries(){
   return out;
 }
 
+// Per-metric movement within the insight scope. Rolling windows: first → last
+// month in the window. One month: vs the previous logged month and vs the same
+// month a year earlier (when logged).
 function ctMetricTrends(){
-  const series = ctMonthlyTotalSeries();
+  const scoped = ctScopedMonths();
+  const full = ctMonthlyTotalSeries();
+  const round = (v) => Math.round(v*10)/10;
   return CT_METRICS.map((m) => {
-    const s = series[m.key];
+    const all = full[m.key];
+    if(cemInsightScope === 'month'){
+      const focus = scoped[0];
+      const idx = focus ? all.findIndex((x) => x.periodKey === focus.periodKey) : -1;
+      if(idx < 0) return { metricKey:m.key, metricLabel:m.label, series:[], insufficient:true };
+      const cur = all[idx];
+      const rows = [];
+      if(idx > 0) rows.push({ delta: round(cur.value - all[idx-1].value), text: `vs ${all[idx-1].periodLabel}` });
+      const [y, mo] = focus.periodKey.split('-');
+      const lastYearKey = `${parseInt(y,10)-1}-${mo}`;
+      const ly = all.find((x) => x.periodKey === lastYearKey);
+      if(ly) rows.push({ delta: round(cur.value - ly.value), text: `vs same month last year (${ly.periodLabel})` });
+      if(rows.length === 0) return { metricKey:m.key, metricLabel:m.label, series:all.slice(Math.max(0, idx-5), idx+1), insufficient:true };
+      return { metricKey:m.key, metricLabel:m.label, series: all.slice(Math.max(0, idx-5), idx+1), rows };
+    }
+    const keys = new Set(scoped.map((p) => p.periodKey));
+    const s = all.filter((x) => keys.has(x.periodKey));
     if(s.length < 2) return { metricKey:m.key, metricLabel:m.label, series:s, insufficient:true };
-    const last = s[s.length-1];
-    const threeWindow = s.slice(Math.max(0, s.length-3));
-    const threeStart = threeWindow[0];
-    const ytdStart = s[0];
-    return {
-      metricKey:m.key, metricLabel:m.label, series:s, last,
-      threeMonth: { startLabel:threeStart.periodLabel, delta: Math.round((last.value-threeStart.value)*10)/10, months: threeWindow.map((x)=>x.periodLabel) },
-      ytd: { startLabel:ytdStart.periodLabel, delta: Math.round((last.value-ytdStart.value)*10)/10, spanMonths: s.length }
-    };
+    const first = s[0], last = s[s.length-1];
+    return { metricKey:m.key, metricLabel:m.label, series:s,
+      rows: [{ delta: round(last.value - first.value), text: `over ${s.length} logged months (${s.map((x) => x.periodLabel).join(' → ')})` }] };
   });
 }
 
@@ -392,7 +433,7 @@ function ctNotableExtremes(){
 }
 
 function ctPersistentPatterns(){
-  const monthKeys = ctMonthPeriods().map((p) => p.periodKey);
+  const monthKeys = ctScopedMonths().map((p) => p.periodKey);
   const results = [];
   [ { dimension:'daypart', order:CT_DAYPART_ORDER }, { dimension:'dow', order:CT_DOW_ORDER } ].forEach(({ dimension, order }) => {
     order.forEach((segment) => {
@@ -422,7 +463,7 @@ function ctPersistentPatterns(){
 }
 
 function ctDriverCorrelations(){
-  const monthKeys = new Set(ctMonthPeriods().map((p) => p.periodKey));
+  const monthKeys = new Set(ctScopedMonths().map((p) => p.periodKey));
   const rows = cemEntries.filter((e) => monthKeys.has(e.periodKey) && (e.dimension==='daypart' || e.dimension==='dow'));
   const others = CT_METRICS.filter((m) => m.key !== 'overall');
   const out = [];
@@ -585,7 +626,12 @@ function ctRenderTrendsTab(){
 function ctRenderInsightsTab(){
   const months = ctMonthPeriods();
   if(months.length === 0) return `<div class="ct-empty">Import at least one month of data to generate insights.</div>`;
-  if(!cemFocusPeriod || !months.find((p) => p.periodKey === cemFocusPeriod)) cemFocusPeriod = months[months.length-1].periodKey;
+  if(!cemScopeMonth || !months.find((p) => p.periodKey === cemScopeMonth)) cemScopeMonth = months[months.length-1].periodKey;
+  const scoped = ctScopedMonths();
+  // The headline month is the latest month in scope (or the one picked).
+  cemFocusPeriod = scoped[scoped.length-1].periodKey;
+  const scopeDesc = ctScopeDescription(scoped);
+  const focusLabel = scoped[scoped.length-1].periodLabel;
 
   const sotu = ctStateOfTheUnion();
   const metricTrends = ctMetricTrends();
@@ -594,12 +640,20 @@ function ctRenderInsightsTab(){
   const driverCorrelations = ctDriverCorrelations();
   const persistentPatterns = ctPersistentPatterns();
 
-  let html = '';
+  let html = `
+    <div class="ct-scope-bar">
+      <span class="ct-scope-label">Insights for</span>
+      <div class="ct-metric-toggle">${CT_SCOPE_OPTIONS.map((o) => `<button class="ct-chip ${cemInsightScope===o.value?'active':''}" data-ct-set-scope="${o.value}">${o.label}</button>`).join('')}</div>
+      ${cemInsightScope === 'month' ? `<label class="ct-select ct-scope-month"><select data-ct-scope-month>${[...months].reverse().map((p) => `<option value="${p.periodKey}" ${p.periodKey===cemScopeMonth?'selected':''}>${escapeHtml(p.periodLabel)}</option>`).join('')}</select></label>` : ''}
+    </div>
+    <p class="ct-scope-desc">Using <b>${escapeHtml(scopeDesc)}</b> for trends, patterns and drivers. Rankings and records still compare against every logged month.</p>
+  `;
 
   if(sotu){
     html += `
       <div class="ct-insight-block ct-sotu">
         <h3>State of the Union — ${escapeHtml(sotu.focusLabel)}</h3>
+        ${cemInsightScope !== 'month' ? `<p class="ct-hint" style="margin-top:-4px;">Latest month in ${escapeHtml(scopeDesc)}. Concerns, strengths and drivers below are pooled across that range.</p>` : ''}
         <p class="ct-sotu-headline">
           OSAT is ${sotu.osatComparison ? sotu.osatComparison.value + '%' : '—'}
           ${sotu.osatComparison ? ` (${ctOrdinal(sotu.osatComparison.rank)} of ${sotu.osatComparison.count} logged months)` : ''}
@@ -628,28 +682,25 @@ function ctRenderInsightsTab(){
     `;
   }
 
-  html += `<div class="ct-insight-block"><h3>Trend</h3><p class="ct-hint">How each metric has moved recently, using only logged monthly totals — the quarter rollup is left out so visits aren't counted twice.</p>`;
-  if(months.length < 2){
-    html += `<div class="ct-empty">Import at least two months to see a trend.</div>`;
-  } else {
-    html += `<div class="ct-trend-list">${metricTrends.map((t) => `
-      <div class="ct-trend-row">
-        <div class="ct-trend-label">${t.metricLabel}</div>
-        ${t.insufficient ? `<div class="ct-trend-note">Not enough logged months yet</div>` : `
-          ${ctSparklineSvg(t.series, '#e8b93f')}
-          <div class="ct-trend-stats">
-            <div class="ct-trend-stat ${t.threeMonth.delta>0?'up':t.threeMonth.delta<0?'down':'flat'}">${t.threeMonth.delta>0?'▲':t.threeMonth.delta<0?'▼':'—'} ${t.threeMonth.delta>0?'+':''}${t.threeMonth.delta} pts over last ${t.threeMonth.months.length} logged month${t.threeMonth.months.length!==1?'s':''} (${t.threeMonth.months.join(' → ')})</div>
-            <div class="ct-trend-stat ${t.ytd.delta>0?'up':t.ytd.delta<0?'down':'flat'}">${t.ytd.delta>0?'▲':t.ytd.delta<0?'▼':'—'} ${t.ytd.delta>0?'+':''}${t.ytd.delta} pts since ${t.ytd.startLabel} (first logged month · ${t.ytd.spanMonths} logged total)</div>
-          </div>
-        `}
-      </div>
-    `).join('')}</div>`;
-  }
+  const trendHint = cemInsightScope === 'month'
+    ? `How ${escapeHtml(focusLabel)} compares with the month before it and with the same month last year, using logged monthly totals.`
+    : `How each metric moved across ${escapeHtml(scopeDesc)}, using logged monthly totals — the quarter rollup is left out so visits aren't counted twice.`;
+  html += `<div class="ct-insight-block"><h3>Trend</h3><p class="ct-hint">${trendHint}</p>`;
+  html += `<div class="ct-trend-list">${metricTrends.map((t) => `
+    <div class="ct-trend-row">
+      <div class="ct-trend-label">${t.metricLabel}</div>
+      ${t.insufficient ? `<div class="ct-trend-note">${cemInsightScope === 'month' ? 'No earlier month logged to compare with' : 'Needs at least 2 logged months in this range'}</div>` : `
+        ${ctSparklineSvg(t.series, '#e8b93f')}
+        <div class="ct-trend-stats">
+          ${t.rows.map((r) => `<div class="ct-trend-stat ${r.delta>0?'up':r.delta<0?'down':'flat'}">${r.delta>0?'▲':r.delta<0?'▼':'—'} ${r.delta>0?'+':''}${r.delta} pts ${escapeHtml(r.text)}</div>`).join('')}
+        </div>
+      `}
+    </div>
+  `).join('')}</div>`;
   html += '</div>';
 
-  html += `<div class="ct-insight-block"><h3>This month vs the year</h3>`;
-  if(months.length >= 2) html += `<div class="ct-controls" style="margin-bottom:12px;"><label class="ct-select"><span>Compare</span><select data-ct-sel-focus-period>${months.map((p) => `<option value="${p.periodKey}" ${p.periodKey===cemFocusPeriod?'selected':''}>${escapeHtml(p.periodLabel)}</option>`).join('')}</select></label></div>`;
-  html += `<p class="ct-hint">Store-wide totals for the selected month, ranked against every other logged month.</p>`;
+  html += `<div class="ct-insight-block"><h3>${escapeHtml(focusLabel)} vs every logged month</h3>`;
+  html += `<p class="ct-hint">Store-wide totals for ${escapeHtml(focusLabel)}, ranked against every other logged month.</p>`;
   if(months.length < 2){
     html += `<div class="ct-empty">Import at least two months to compare.</div>`;
   } else {
@@ -684,7 +735,7 @@ function ctRenderInsightsTab(){
   }
   html += '</div>';
 
-  html += `<div class="ct-insight-block"><h3>What drives OSAT</h3><p class="ct-hint">Correlation between each metric and OSAT across every daypart / day-of-week reading (${driverCorrelations.length > 0 ? driverCorrelations[0].n : 0} data points).</p>`;
+  html += `<div class="ct-insight-block"><h3>What drives OSAT</h3><p class="ct-hint">Correlation between each metric and OSAT across every daypart / day-of-week reading in ${escapeHtml(scopeDesc)} (${driverCorrelations.length > 0 ? driverCorrelations[0].n : 0} data points).</p>`;
   if(driverCorrelations.length === 0){
     html += `<div class="ct-empty">Not enough daypart or day-of-week data yet to compute this.</div>`;
   } else {
@@ -698,7 +749,7 @@ function ctRenderInsightsTab(){
   }
   html += '</div>';
 
-  html += `<div class="ct-insight-block"><h3>Persistent patterns</h3><p class="ct-hint">Segments statistically different from every other visit once all monthly data is pooled together.</p>`;
+  html += `<div class="ct-insight-block"><h3>Persistent patterns</h3><p class="ct-hint">Dayparts and days of the week statistically different from every other visit, pooled across ${escapeHtml(scopeDesc)}.</p>`;
   if(persistentPatterns.length === 0){
     html += `<div class="ct-empty">Nothing clears statistical significance yet — import more months to sharpen this.</div>`;
   } else {
@@ -821,6 +872,9 @@ document.getElementById('cemTrendsRoot').addEventListener('click', function(e){
   const tabBtn = e.target.closest('[data-ct-set-tab]');
   if(tabBtn){ cemTab = tabBtn.dataset.ctSetTab; renderCemTrends(); return; }
 
+  const scopeChip = e.target.closest('[data-ct-set-scope]');
+  if(scopeChip){ cemInsightScope = scopeChip.dataset.ctSetScope; renderCemTrends(); return; }
+
   const metricChip = e.target.closest('[data-ct-set-trend-metric]');
   if(metricChip){ cemTrendMetric = metricChip.dataset.ctSetTrendMetric; renderCemTrends(); return; }
 
@@ -859,7 +913,7 @@ document.getElementById('cemTrendsRoot').addEventListener('change', function(e){
   if(e.target.matches('[data-ct-sel-view]')){ cemSelView = e.target.value; cemSelSegment = null; renderCemTrends(); return; }
   if(e.target.matches('[data-ct-sel-segment]')){ cemSelSegment = e.target.value; renderCemTrends(); return; }
   if(e.target.matches('[data-ct-sel-trend-view]')){ cemTrendView = e.target.value; renderCemTrends(); return; }
-  if(e.target.matches('[data-ct-sel-focus-period]')){ cemFocusPeriod = e.target.value; renderCemTrends(); return; }
+  if(e.target.matches('[data-ct-scope-month]')){ cemScopeMonth = e.target.value; renderCemTrends(); return; }
   if(e.target.matches('[data-ct-file-input]')){ ctProcessFiles(e.target.files); e.target.value = ''; return; }
 });
 
