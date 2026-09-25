@@ -447,13 +447,11 @@
     <div class="standup-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
         <h3 style="margin:0;">🧭 Leader Transition List <span class="sub"><i>Lista de Transición — Líderes</i></span></h3>
-        <span class="zone-overall-pct" id="leaderTransitionBadge">0/0</span>
+        <span class="zone-overall-pct" id="leaderTransitionBadge">0%</span>
       </div>
-      <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Complete before handing off to the next leader</p>
+      <div class="sub" style="margin-bottom:10px;">Pick a daypart to see that handoff's checklist — complete it before handing off to the next leader</div>
+      <div class="day-picker" id="leaderTransitionDaypartPicker"></div>
       <div id="fohLeaderTransitionChecklist"></div>
-      <div style="display:flex;justify-content:flex-end;margin-top:12px;">
-        <button id="btnResetLeaderTransition" class="btn btn-secondary" style="width:auto;padding:10px 20px;">Reset for Next Shift</button>
-      </div>
     </div>
 
     <div class="standup-card">
