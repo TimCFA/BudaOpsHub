@@ -86,45 +86,73 @@ function renderZoneDaypartPicker(){
       picker.querySelectorAll('.day-pill').forEach(p=>p.classList.remove('active'));
       pill.classList.add('active');
       currentZoneDaypart = pill.dataset.daypart;
+      currentChecklistZone = '';
       renderZoneResetCard();
     });
   });
 }
 
-window.openZoneChecklistTasks = function(zoneName){
-  currentChecklistZone = zoneName;
-  renderZoneChecklistModal();
-  document.getElementById('zoneChecklistTaskModal').classList.add('active');
-};
+// Zones render as dropdown rows: tap a zone to open its checklist in place
+// (one open at a time), the same inline style as the Leader Transition List.
+function renderZoneResetCard(){
+  const container = document.getElementById('zoneButtonRow');
+  if(!currentZoneDaypart){
+    container.innerHTML = `<div class="pos-option-empty">Pick a daypart above to see its reset lists</div>`;
+  } else {
+    const dayState = (zoneChecklistState[today] && zoneChecklistState[today][currentZoneDaypart]) || {};
+    container.innerHTML = ALL_ZONE_NAMES.map(zone=>{
+      const {checked, total} = getZoneCompletion(today, currentZoneDaypart, zone);
+      const done = total > 0 && checked === total;
+      const open = zone === currentChecklistZone;
+      const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
+      const state = dayState[zone] || {};
+      const body = open ? `<div class="zone-acc-body">${getZoneItems(zone).map((item, i)=>{
+        const entry = state[item];
+        const isChecked = !!entry;
+        const stamp = isChecked ? `<span style="font-size:10px;color:var(--text-tertiary);font-style:italic;margin-left:auto;white-space:nowrap;">${escapeHtml(entry.initials)} · ${formatShortTime(entry.ts)}</span>` : '';
+        return `<div class="checklist-item-elevated ${isChecked?'checked':''}" data-zone-item="${i}">
+          <input type="checkbox" ${isChecked?'checked':''}>
+          <span>${escapeHtml(item)}</span>
+          ${stamp}
+        </div>`;
+      }).join('')}</div>` : '';
+      return `
+        <div class="zone-acc-item ${open ? 'open' : ''} ${done ? 'done' : ''}" data-zone="${escapeHtml(zone)}">
+          <button type="button" class="zone-acc-head" aria-expanded="${open}">
+            <span class="zone-acc-icon">${ZONE_ICONS[zone] || ''}</span>
+            <span class="zone-acc-name">${escapeHtml(zone)}</span>
+            <span class="zone-acc-track"><span class="zone-acc-fill" style="width:${pct}%"></span></span>
+            <span class="zone-acc-count">${done ? '✓ ' : ''}${checked}/${total}</span>
+            <span class="zone-acc-chevron">▾</span>
+          </button>
+          ${body}
+        </div>`;
+    }).join('');
+  }
 
-function renderZoneChecklistModal(){
-  const zoneName = currentChecklistZone;
-  if(!zoneName || !currentZoneDaypart) return;
-  const items = getZoneItems(zoneName);
-  const state = (zoneChecklistState[today] && zoneChecklistState[today][currentZoneDaypart] && zoneChecklistState[today][currentZoneDaypart][zoneName]) || {};
-  const {checked, total} = getZoneCompletion(today, currentZoneDaypart, zoneName);
-  
-  document.getElementById('zcTaskModalTitle').textContent = (ZONE_ICONS[zoneName] || '') + ' ' + zoneName;
-  document.getElementById('zcTaskModalProgress').textContent = `${checked}/${total} complete • ${currentZoneDaypart} • ${formatVerboseDate(today)}`;
-  document.getElementById('zcTaskModalList').innerHTML = items.map(item=>{
-    const entry = state[item];
-    const isChecked = !!entry;
-    const escapedItem = item.replace(/'/g, "\\'");
-    const escapedZone = zoneName.replace(/'/g, "\\'");
-    const stamp = isChecked ? `<span style="font-size:10px;color:var(--text-tertiary);font-style:italic;white-space:nowrap;">${escapeHtml(entry.initials)} · ${formatShortTime(entry.ts)}</span>` : '';
-    return `
-      <label style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--border);cursor:pointer;">
-        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleChecklistItem('${escapedZone}','${escapedItem}')" style="width:18px;height:18px;flex-shrink:0;">
-        <span style="${isChecked ? 'text-decoration:line-through;color:var(--text-tertiary);' : ''}font-size:13px;flex:1;">${item}</span>
-        ${stamp}
-      </label>
-    `;
-  }).join('');
+  const overall = getOverallCompletion(today);
+  const pctEl = document.getElementById('zoneOverallPct');
+  pctEl.textContent = overall + '%';
+  pctEl.classList.toggle('high', overall >= 95);
 }
 
-window.toggleChecklistItem = async function(zoneName, itemText){
+document.getElementById('zoneButtonRow').addEventListener('click', async (e)=>{
+  const itemEl = e.target.closest('.zone-acc-item');
+  if(!itemEl || !currentZoneDaypart) return;
+  const zoneName = itemEl.dataset.zone;
+
+  if(e.target.closest('.zone-acc-head')){
+    currentChecklistZone = currentChecklistZone === zoneName ? '' : zoneName;
+    renderZoneResetCard();
+    return;
+  }
+
+  const row = e.target.closest('[data-zone-item]');
+  if(!row) return;
+  e.preventDefault();
+  const itemText = getZoneItems(zoneName)[parseInt(row.dataset.zoneItem, 10)];
+  if(itemText === undefined) return;
   const daypart = currentZoneDaypart;
-  if(!daypart) return;
   if(!zoneChecklistState[today]) zoneChecklistState[today] = {};
   if(!zoneChecklistState[today][daypart]) zoneChecklistState[today][daypart] = {};
   if(!zoneChecklistState[today][daypart][zoneName]) zoneChecklistState[today][daypart][zoneName] = {};
@@ -136,33 +164,15 @@ window.toggleChecklistItem = async function(zoneName, itemText){
     if(!initials){
       showToast('Set your initials first (top right)');
       beginEditInitials();
-      renderZoneChecklistModal();
+      renderZoneResetCard();
       return;
     }
     bucket[itemText] = {initials, ts: Date.now()};
   }
   recomputeChecklistHistory(today);
-  await saveState();
-  renderZoneChecklistModal();
   renderZoneResetCard();
-};
-
-function renderZoneResetCard(){
-  if(!currentZoneDaypart){
-    renderChecklistTiles('zoneButtonRow', null, null, 'Pick a daypart above to see its reset lists');
-  } else {
-    const tiles = ALL_ZONE_NAMES.map(zone=>{
-      const {checked, total} = getZoneCompletion(today, currentZoneDaypart, zone);
-      return {key: zone, icon: ZONE_ICONS[zone], name: zone, checked, total};
-    });
-    renderChecklistTiles('zoneButtonRow', tiles, 'openZoneChecklistTasks');
-  }
-
-  const overall = getOverallCompletion(today);
-  const pctEl = document.getElementById('zoneOverallPct');
-  pctEl.textContent = overall + '%';
-  pctEl.classList.toggle('high', overall >= 95);
-}
+  await saveState();
+});
 
 function renderZoneResetScoreboard(){
   const container = document.getElementById('zoneResetScoreboard');
@@ -196,12 +206,6 @@ function renderZoneResetView(){
   renderZoneResetScoreboard();
 }
 
-document.getElementById('zcTaskModalClose').addEventListener('click', ()=>{
-  document.getElementById('zoneChecklistTaskModal').classList.remove('active');
-});
-document.getElementById('zoneChecklistTaskModal').addEventListener('click', (e)=>{
-  if(e.target === document.getElementById('zoneChecklistTaskModal')) document.getElementById('zoneChecklistTaskModal').classList.remove('active');
-});
 
 const fohLeads = ['Carlos', 'Nestor', 'Aurora', 'Kaiya', 'Jacob', 'Dom', 'Luke', 'Vanessa'];
 const bohLeads = ['Doris', 'Nansi', 'Bessie', 'Jason', 'Angeles', 'Alex', 'Jenny', 'Grecia'];
