@@ -41,7 +41,7 @@ async function saveState(){
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
-    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory
+    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings
   };
   const serialized = JSON.stringify(snapshot);
   localStorage.setItem('cfaBudaOps', serialized);
@@ -67,7 +67,7 @@ function exportBackup(){
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
-    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory
+    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings
   };
   const blob = new Blob([JSON.stringify(snapshot, null, 2)], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
@@ -195,6 +195,7 @@ async function loadState(){
     scoreboardItems = data.scoreboardItems || [];
     posVacancyFlags = data.posVacancyFlags || {};
     setupHistory = normalizeSetupHistory(data.setupHistory);
+    peaRatings = normalizePeaRatings(data.peaRatings);
     const migrated = migrateLegacyWeekdayKeys();
     // Log finished set ups before the two-week prune removes them.
     const archivedSetups = archiveSetupHistory();

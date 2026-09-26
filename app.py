@@ -11,6 +11,8 @@ from anthropic import Anthropic
 import firebase_admin
 from firebase_admin import credentials, db
 
+from pea_parser import parse_pea_pdf, PeaParseError
+
 app = Flask(__name__)
 CORS(app)
 
@@ -37,6 +39,7 @@ MANAGER_ONLY_KEYS = {
     'deletedProductIds', 'productFixesVersion', 'productCategoryOrder',
     'lxPillars', 'lxMetrics', 'lxLastUpdated',
     'gxData', 'txData', 'homeData',
+    'peaRatings',
 }
 
 def _changed_manager_fields(old_state, new_state):
@@ -194,6 +197,27 @@ def manager_set_pin():
 
     db.reference('secure/managerPinHash').set(generate_password_hash(new_pin))
     return jsonify({'success': True})
+
+# ===== LEVELSET PEA RATINGS =====
+
+@app.route('/api/pea/parse', methods=['POST'])
+def pea_parse():
+    """Reads a Levelset Positional Excellence Ratings PDF and returns the
+    ratings. Nothing is stored here — the page merges them into app state."""
+    if not session.get('manager'):
+        return jsonify({'error': 'Manager sign-in required'}), 403
+    upload = request.files.get('file')
+    if not upload or not upload.filename:
+        return jsonify({'error': 'No file uploaded'}), 400
+    if not upload.filename.lower().endswith('.pdf'):
+        return jsonify({'error': 'Upload the PDF export from Levelset'}), 400
+    try:
+        return jsonify(parse_pea_pdf(upload.stream))
+    except PeaParseError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        print(f"[PEA PARSE ERROR] {e}")
+        return jsonify({'error': 'Could not read that PDF'}), 500
 
 # ===== FIREBASE PROXY ROUTES =====
 
