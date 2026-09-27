@@ -262,7 +262,8 @@ window.openPosModal = function(key, pos, daypart){
   const daypartPrefix = currentPosSection + '||' + dayName + '||' + daypart + '||';
   const takenElsewhere = new Set();
   Object.keys(posAssignments).forEach(k=>{
-    if(k !== key && k.startsWith(daypartPrefix) && posAssignments[k]){
+    // The Lead Captain also works a spot, so that key doesn't count.
+    if(k !== key && k.startsWith(daypartPrefix) && posAssignments[k] && !k.endsWith('||' + SU_LEAD_CAPTAIN)){
       const names = posAssignments[k].split('/').map(n => n.trim());
       takenElsewhere.add(names[names.length - 1]);
     }

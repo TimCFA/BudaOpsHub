@@ -12,6 +12,10 @@
 //                 and anyone in the same position for most recent shifts
 //   Rating due  — placements with no PEA rating in that position, or none in
 //                 30+ days
+//   Shift changes — spots that go vacant when someone leaves mid-daypart or
+//                 sit empty until someone arrives (TIM-43)
+//   Outside     — iPOS/OMD past 3.5 hours in a row (risk) or two outside
+//                 dayparts running (rotation)
 const SU_ROTATION_DAYS = 14;
 const SU_STREAK_WINDOW = 5;   // last 5 recorded shifts...
 const SU_STREAK_SAME = 4;     // ...4 in the same position = stuck
@@ -73,7 +77,10 @@ function evaluateSetup(section, date, dpName){
 
   // Risk
   const risks = [];
-  entries.filter(e => e.captain && (e.tier === 'notyet' || e.tier === 'unrated')).forEach(e=>{
+  // An unrated Team Lead or Trainer in a captain slot is where Tim wants
+  // them — that's a PEA to complete (Rating due), not a risk.
+  const isLeader = name => !!suLeaderRole(section, date, name, strength);
+  entries.filter(e => e.captain && (e.tier === 'notyet' || (e.tier === 'unrated' && !isLeader(e.name)))).forEach(e=>{
     risks.push({name: e.name, text: `in Captain slot ${e.slot} — ${e.tier === 'notyet' ? `Not Yet on ${e.position} (${e.cell.avg.toFixed(2)})` : `no ${e.positions.join('/')} rating`}`});
   });
   entries.filter(e => e.captain && e.peaName && !SU_LEADER_ROLES.includes(strength[e.peaName].role)).forEach(e=>{
@@ -150,7 +157,56 @@ function evaluateSetup(section, date, dpName){
   const leaders = leaderReview(section, date, dpName, entries);
   risks.push(...leaders.risks);
 
-  return {entries, counts, risks, development, ratingDue, rotation, leadership: leaders.leadership, hasPea, historyDays};
+  // Shift changes and outside time (TIM-43).
+  const coverage = [];
+  const dpIndex = suDaypartsFor(section).findIndex(d => d.name === dpName);
+  if(dpIndex !== -1){
+    const timing = suDaypartTiming(section, date, dpIndex);
+    const placedLo = new Set(entries.map(e => e.name.toLowerCase()));
+    const leadName = section === 'foh' ? (posAssignments[suEvalKey(section, date, dpName) + '||' + SU_LEAD_CAPTAIN] || '') : '';
+    if(leadName) placedLo.add(leadName.toLowerCase());
+    slots.forEach(slot=>{
+      const names = suSplitNames(posAssignments[suEvalKey(section, date, dpName) + '||' + slot]);
+      if(!names.length) return;
+      const last = suTimingFor(timing, names[names.length - 1]);
+      const first = suTimingFor(timing, names[0]);
+      if(last && last.leaves !== null){
+        const pr = suPairFor(timing, last.name);
+        const cover = pr && !placedLo.has(pr.in.toLowerCase()) ? ` — hand it to ${pr.in} (arrives ${suClock(pr.arrives)})` : ' — nobody is arriving to take it; plan who covers';
+        risks.push({name: slot, text: `goes vacant at ${suClock(last.leaves)} when ${last.name} leaves${cover}`});
+      }
+      if(names.length > 1 && first && last && first !== last && first.leaves !== null && last.arrives !== null && last.arrives > first.leaves + 5){
+        coverage.push({name: slot, text: `is open ${suClock(first.leaves)}–${suClock(last.arrives)} between ${first.name} and ${last.name} — someone nearby covers`});
+      }
+      if(first && first.arrives !== null){
+        const text = `is empty until ${suClock(first.arrives)} (${first.name} arrives then)`;
+        (SU_CAPTAIN_RE.test(slot) ? risks : coverage).push({name: slot, text});
+      }
+    });
+    timing.pairs.forEach(pr=>{
+      if(!placedLo.has(pr.out.toLowerCase()) && !placedLo.has(pr.in.toLowerCase())) coverage.push({name: `${pr.out} → ${pr.in}`, text: `can share one spot — switch @ ${suClock(pr.at)}`});
+    });
+    timing.arrivals.filter(p => !placedLo.has(p.name.toLowerCase())).forEach(p => coverage.push({name: p.name, text: `arrives ${suClock(p.arrives)} — not placed yet`}));
+
+    // Outside time: once per person per outside slot, their part of it.
+    entries.forEach(e=>{
+      if(!suIsOutside(section, e.slot)) return;
+      const names = suSplitNames(posAssignments[suEvalKey(section, date, dpName) + '||' + e.slot]);
+      const me = suTimingFor(timing, e.name);
+      let from = me ? me.from : timing.window.startMin, to = me ? me.to : timing.window.endMin;
+      if(names.length > 1){
+        const a = suTimingFor(timing, names[0]), b = suTimingFor(timing, names[1]);
+        const at = a && a.leaves !== null ? a.leaves : b && b.arrives !== null ? b.arrives : null;
+        if(at !== null){ if(names[0].toLowerCase() === e.name.toLowerCase()) to = at; else from = at; }
+      }
+      const run = suOutsideRun(section, date, e.name, dpName, from, to);
+      const where = run.touching.length ? ` (with ${run.touching.map(suShortDaypart).join(', ')})` : '';
+      if(run.minutes > SU_OUTSIDE_LIMIT_MIN) risks.push({name: e.name, text: `is outside ${(run.minutes / 60).toFixed(1)} hours in a row${where} — keep iPOS/OMD under 3.5 hours; rotate inside`});
+      else if(run.touching.length) rotation.push({name: e.name, text: `is outside again after ${run.touching.map(suShortDaypart).join(', ')} — rotate inside if you can`});
+    });
+  }
+
+  return {entries, counts, risks, development, ratingDue, rotation, coverage, leadership: leaders.leadership, hasPea, historyDays};
 }
 
 // ----- Rendering (inside each daypart card on Set Ups) -----
@@ -188,7 +244,7 @@ function renderSetupEvaluation(section, date, dp){
   if(c.na) notes.push(`${c.na} slot${c.na === 1 ? ' isn’t' : 's aren’t'} rated in Levelset (zones, Traffic Lane, etc.) and ${c.na === 1 ? 'is' : 'are'} left out.`);
   if(r.rotation.length && r.historyDays >= SU_ROTATION_DAYS) notes.push(`Rotation covers positions each person is rated in or has worked. (Nd) = days since they last worked it; no number = not at all in the ${r.historyDays} days of set-up history.`);
   if(r.historyDays < SU_ROTATION_DAYS) notes.push(`Rotation has ${r.historyDays} day${r.historyDays === 1 ? '' : 's'} of set-up history so far; "hasn’t worked" flags need ${SU_ROTATION_DAYS}.`);
-  const nothing = !r.risks.length && !r.development.length && !r.rotation.length && !r.ratingDue.length && !(r.leadership || []).length;
+  const nothing = !r.risks.length && !r.development.length && !r.rotation.length && !r.ratingDue.length && !(r.leadership || []).length && !(r.coverage || []).length;
   return `
     <div class="su-eval has-result ${stale ? 'is-stale' : ''}">
       <div class="su-eval-head">
@@ -198,6 +254,7 @@ function renderSetupEvaluation(section, date, dp){
       ${stale ? '<div class="su-eval-stale">Set up changed since this evaluation — press Re-evaluate.</div>' : ''}
       ${chips ? `<div class="su-eval-chips">${chips}</div>` : ''}
       ${suEvalListHtml('Risk', '⚠️', 'is-risk', r.risks)}
+      ${suEvalListHtml('Shift changes', '🕒', 'is-due', r.coverage || [])}
       ${suEvalListHtml('Development', '🌱', 'is-dev', r.development)}
       ${suEvalListHtml('Rotation', '🔄', 'is-rot', r.rotation)}
       ${suEvalListHtml('Leadership', '🧭', 'is-lead', r.leadership || [])}

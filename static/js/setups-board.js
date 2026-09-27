@@ -83,6 +83,7 @@ function suDaypartModel(section, date, dp, dpIndex){
   const slots = posMap[dp.name] || [];
   const key = suEvalKey(section, date, dp.name);
   const onShift = availableForDaypart(date, dpIndex, suDaypartsFor(section));
+  const timing = suDaypartTiming(section, date, dpIndex);
   const strength = peaStrengthByPerson();
   const peaNames = Object.keys(strength);
   const dev = setupDevelopResults[key];
@@ -99,10 +100,12 @@ function suDaypartModel(section, date, dp, dpIndex){
       slot, rank: i + 1, names, positions, cell,
       tier: !first ? 'open' : !positions.length ? 'na' : cell ? cell.tier.key : 'unrated',
       develop: first ? devNames.has(first.toLowerCase()) : false,
-      flagged: !!posVacancyFlags[key + '||' + slot]
+      flagged: !!posVacancyFlags[key + '||' + slot],
+      timeNote: suSlotTimeNote(timing, names)
     };
   });
-  const headcount = onShift.length;
+  // A mid-daypart handoff pair shares one spot, so it counts once.
+  const headcount = timing.people.length ? timing.effective : onShift.length;
   tiles.forEach(t => { t.needed = !t.names.length && headcount > 0 && t.rank <= headcount; });
 
   const zoneDefs = SU_ZONES[section] || [];
@@ -117,7 +120,7 @@ function suDaypartModel(section, date, dp, dpIndex){
   tiles.forEach(t => { t.leaderRole = t.names.length ? suLeaderRole(section, date, t.names[0], strength) : null; });
   const unplaced = onShift.filter(p => !placed.has(p.name.trim().toLowerCase())).map(p => p.name);
   const filled = tiles.filter(t => t.names.length).length;
-  return {key, tiles, zones: zones.filter(z => z.tiles.length), headcount, unplaced, filled};
+  return {key, tiles, zones: zones.filter(z => z.tiles.length), headcount, onShift: onShift.length, timing, unplaced, filled};
 }
 
 // ----- Pieces -----
@@ -127,7 +130,7 @@ function suDaypartChipsHtml(section, date, current){
     const posMap = section === 'foh' ? fohPositions : bohPositions;
     const key = suEvalKey(section, date, dp.name);
     const filled = (posMap[dp.name] || []).filter(s => posAssignments[key + '||' + s]).length;
-    const onShift = availableForDaypart(date, i, suDaypartsFor(section)).length;
+    const onShift = suDaypartTiming(section, date, i).effective;
     const active = dp.name === current;
     return `<button type="button" role="tab" aria-selected="${active}" class="su-chip ${active ? 'active' : ''}" data-su-daypart="${escapeHtml(dp.name)}">
       <span class="su-chip-name">${escapeHtml(suShortDaypart(dp.name))}</span>
@@ -139,7 +142,7 @@ function suDaypartChipsHtml(section, date, current){
 function suGamePlanHtml(section, date, dp, dpIndex, m){
   const t = suDayType(section, date, dp);
   const nums = getNumbersForDaypart(date, dp) || {};
-  const facts = [nums.projectedSales ? `${nums.projectedSales} projected` : '', nums.productivityGoal ? `goal ${nums.productivityGoal}` : '', nums.specialEvents || '', `${m.headcount} on shift`].filter(Boolean);
+  const facts = [nums.projectedSales ? `${nums.projectedSales} projected` : '', nums.productivityGoal ? `goal ${nums.productivityGoal}` : '', nums.specialEvents || '', `${m.onShift} on shift`, m.timing.pairs.length ? `${m.timing.pairs.length} handoff${m.timing.pairs.length === 1 ? '' : 's'} = ${m.headcount} spots` : ''].filter(Boolean);
 
   const dev = setupDevelopResults[m.key];
   const devStale = dev && dev.signature !== suDevelopSignature(section, date, dp, dpIndex);
@@ -169,13 +172,38 @@ function suGamePlanHtml(section, date, dp, dpIndex, m){
         ${section === 'foh' ? suLeadCaptainLineHtml(date, dp) : ''}
         <div class="su-plan-line"><span class="su-plan-tag is-dev">Develop</span><span>${escapeHtml(devText)}${devStale ? ' <em>· out of date</em>' : ''}</span></div>
         <div class="su-plan-line"><span class="su-plan-tag is-watch">Watch</span><span>${escapeHtml(watchText)}${evStale ? ' <em>· out of date</em>' : ''}</span></div>
+        ${suChangesLineHtml(m)}
         <div class="su-plan-line su-plan-open"><span class="su-plan-tag is-open">Open</span><span>${escapeHtml(openText)}</span>${needed.length && m.unplaced.length ? '<button type="button" class="su-plan-link" data-su-tool="fill">Fill</button>' : ''}</div>
       </div>
     </section>`;
 }
 
+// People arriving or leaving part-way through the daypart, and the handoffs
+// that keep their spots covered. "Split" writes the ready handoffs into the
+// leavers' spots.
+function suSplitsReady(m){
+  const lo = s => s.trim().toLowerCase();
+  const placed = new Set(m.tiles.flatMap(t => t.names.map(lo)));
+  return m.timing.pairs.map(pr => ({pr, tile: m.tiles.find(t => t.names.length === 1 && lo(t.names[0]) === lo(pr.out))}))
+    .filter(x => x.tile && !placed.has(lo(x.pr.in)));
+}
+
+function suChangesLineHtml(m){
+  const t = m.timing;
+  if(!t.pairs.length && !t.arrivals.length && !t.leavers.length) return '';
+  const first = n => n.split(/\s+/)[0];
+  const bits = [
+    ...t.pairs.map(p => `${first(p.out)} → ${first(p.in)} @ ${suClock(p.at)}${p.gap > 5 ? ` (${first(p.in)} in ${suClock(p.arrives)})` : ''}`),
+    ...t.leavers.map(p => `${first(p.name)} leaves ${suClock(p.leaves)}`),
+    ...t.arrivals.map(p => `${first(p.name)} from ${suClock(p.arrives)}`)
+  ];
+  const ready = suSplitsReady(m);
+  return `<div class="su-plan-line"><span class="su-plan-tag is-watch">Changes</span><span>${escapeHtml(bits.join(' · '))}</span>${ready.length ? `<button type="button" class="su-plan-link" data-su-apply-splits="1">Split ${ready.length}</button>` : ''}</div>`;
+}
+
 function suTileHtml(t){
-  const name = t.names.length ? t.names.join(' → ') : t.needed ? 'Needed' : 'Open';
+  // A handoff shows the first name; the time note under it names who's next.
+  const name = t.names.length ? (t.names.length > 1 && t.timeNote ? t.names[0] : t.names.join(' → ')) : t.needed ? 'Needed' : 'Open';
   const avatar = t.names.length ? suInitials(t.names[0]) : '+';
   const label = `${t.slot}, priority ${t.rank}: ${t.names.length ? t.names.join(' then ') : (t.needed ? 'needed' : 'open')}${t.cell ? `, ${t.cell.tier.label} ${t.cell.avg.toFixed(2)}` : ''}`;
   return `
@@ -185,6 +213,7 @@ function suTileHtml(t){
         <span class="su-avatar su-av-${t.tier}" aria-hidden="true">${escapeHtml(avatar)}</span>
         <span class="su-tile-name">${escapeHtml(name)}${t.develop ? ' <span class="su-star" title="Development focus">★</span>' : ''}</span>
       </span>
+      ${t.timeNote ? `<span class="su-tile-time ${t.timeNote.warn ? 'is-warn' : ''}">${escapeHtml(t.timeNote.text)}</span>` : ''}
       ${t.flagged ? '<span class="su-tile-flag">Needs coverage</span>' : ''}
     </button>`;
 }
@@ -386,6 +415,15 @@ document.getElementById('allDayparts').addEventListener('click', e=>{
   if(handoff){ suSheet = null; renderAllDayparts(); openVacancyModal(keyFor(handoff.dataset.suHandoff), handoff.dataset.suHandoff, dp.name); return; }
   const swap = t.closest('[data-su-swap]');
   if(swap){ suApplySwap(swap); return; }
+  if(t.closest('[data-su-apply-splits]')){
+    const {dpIndex} = suCurrentDaypart(currentPosSection, date);
+    const ready = suSplitsReady(suDaypartModel(currentPosSection, date, dp, dpIndex));
+    ready.forEach(({pr, tile}) => { posAssignments[keyFor(tile.slot)] = `${tile.names[0]}/${pr.in}`; });
+    renderAllDayparts();
+    saveState();
+    showToast(`✓ ${ready.length} handoff${ready.length === 1 ? '' : 's'} added`);
+    return;
+  }
   const dayType = t.closest('[data-su-toggle-daytype]');
   if(dayType){
     const key = suEvalKey(currentPosSection, date, dp.name);
