@@ -18,27 +18,27 @@ const DU_FREQUENCIES = {
 
 const DU_SOURCES = [
   {
-    key: 'cem', icon: '⭐', name: 'CEM guest scores', freq: 'weekly',
+    key: 'cem', short: 'CEM reports', icon: '⭐', name: 'CEM guest scores', freq: 'weekly', accept: '.csv,.xlsx,.xls', multiple: true,
     how: 'CEM → Comparison Report for this month to date (the 1st through yesterday). Export it twice — Time of Day, and Day of Visit — as CSV or Excel.',
     feeds: 'Guest Obsession scoreboard · CEM Trends · CEM insights'
   },
   {
-    key: 'roster', icon: '🗓️', name: 'HotSchedules weekly roster', freq: 'weekly', fixedFreq: true,
+    key: 'roster', short: 'roster CSV', icon: '🗓️', name: 'HotSchedules weekly roster', freq: 'weekly', fixedFreq: true, accept: '.csv',
     how: 'HotSchedules → Weekly Roster CSV for next week. Keep the file name — it carries the dates.',
     feeds: 'Set Ups · Fill · Evaluate · Lead Captain · shift changes'
   },
   {
-    key: 'pea', icon: '📊', name: 'PEA ratings (Levelset)', freq: 'weekly',
+    key: 'pea', short: 'PEA PDFs', icon: '📊', name: 'PEA ratings (Levelset)', freq: 'weekly', accept: '.pdf', multiple: true,
     how: 'Levelset → Positional Excellence Ratings PDF, FOH and BOH. Overlapping dates are fine — ratings already saved are skipped.',
     feeds: 'Strength map · Coverage Check · Set Ups Fill, Evaluate, Plan B, Develop'
   },
   {
-    key: 'productivity', icon: '⏱️', name: 'Productivity by hour', freq: 'monthly',
+    key: 'productivity', short: 'productivity reports', icon: '⏱️', name: 'Productivity by hour', freq: 'monthly', accept: '.csv,.txt', multiple: true,
     how: 'Productivity dashboard → Total | Daypart | Productivity, export as CSV, one per weekday (it says “for Tuesday” etc.). Month to date or longer.',
     feeds: 'Break planner — keeps breaks out of each day’s busiest hours'
   },
   {
-    key: 'salesMix', icon: '🧾', name: 'Sales Mix (items sold)', freq: 'weekly',
+    key: 'salesMix', short: 'Sales Mix', icon: '🧾', name: 'Sales Mix (items sold)', freq: 'weekly', accept: '.csv,.xlsx,.xls,.txt', multiple: true,
     how: 'Sales Mix Items Totals report, one file per day (the date in the file name is used). Drop several days at once.',
     feeds: 'Prep Board build-to and sold history'
   }
@@ -47,6 +47,8 @@ const DU_SOURCES = [
 let dataUploadLog = {};        // {sourceKey: [{at, file, summary, periodEnd?}]} newest last
 let dataUploadSettings = {};   // {freq: {sourceKey: 'weekly' | ...}}
 let duResults = [];            // session-only: what the last drop did
+let duPending = [];            // session-only: files waiting for a day / weekday
+let duPendingSeq = 0;
 
 function duFreq(src){
   const f = dataUploadSettings.freq && dataUploadSettings.freq[src.key];
@@ -295,15 +297,10 @@ async function duImportPea(file){
   return `${up.read} ratings read · ${up.added} new${up.rangeStart ? ` · ${duShort(up.rangeStart)}–${duShort(up.rangeEnd)}` : ''} (${(up.areas || []).join(', ')})`;
 }
 
-function duImportSalesMix(file){
+// A Sales Mix report is one business day. The day comes from the file name
+// (…_2026-09-19.csv); without one the file waits for the leader to pick it.
+function duImportSalesMix(file, iso){
   return new Promise((resolve, reject)=>{
-    let iso = pbDateFromFileName(file.name);
-    if(!iso){
-      const y = duISO(duAddDays(new Date(), -1));
-      const ans = prompt(`${file.name} has no date in its name. What day are these sales from? (YYYY-MM-DD)`, y);
-      iso = ans && /^\d{4}-\d{2}-\d{2}$/.test(ans.trim()) ? ans.trim() : null;
-      if(!iso) return reject(new Error('Skipped — no date given for this Sales Mix file.'));
-    }
     pbReadWorkbookRows(file, async (err, rows)=>{
       if(err || !rows || !rows.length) return reject(new Error('Couldn’t read that file.'));
       const parsed = pbRowsToDateEntries(rows, iso);
@@ -348,14 +345,19 @@ const duNum = v => { const n = parseFloat(String(v).replace(/[$,\s]/g, '')); ret
 // Total | Daypart | Productivity export → one profile per weekday: for each
 // hour, sales per labor hour, labor hours, and (from the Sales/Transactions
 // variant) average sales per day.
-async function duImportProductivity(file, text){
+// Weekday the export was filtered to ("…time of day for Tuesday"), if any.
+function duProductivityDay(text){
+  const m = text.match(/time of day for (Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i);
+  return m ? m[1][0].toUpperCase() + m[1].slice(1).toLowerCase() : null;
+}
+
+async function duImportProductivity(file, text, dayChoice){
   const rows = duParseTsv(text.replace(/^\uFEFF/, ''));
   const header = rows[0].map(h => h.trim());
   const hourCol = header.findIndex(h => /Daypart Hours Swap/i.test(h));
   const valCol = header.length - 1, nameCol = header.length - 2;
   if(hourCol === -1) throw new Error('This productivity export doesn’t have the hour column it should.');
-  const dayMatch = text.match(/time of day for (Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i);
-  const day = dayMatch ? dayMatch[1][0].toUpperCase() + dayMatch[1].slice(1).toLowerCase() : 'All';
+  const day = dayChoice || duProductivityDay(text) || 'All';
   const hours = {};
   rows.slice(1).forEach(r=>{
     const h = duHourToMin(r[hourCol]);
@@ -386,7 +388,9 @@ async function duImportProductivity(file, text){
   return `${day === 'All' ? 'All days' : day} · ${n} hours${peak ? ` · busiest hour ${suClock(+peak[0])}` : ''} → break planner`;
 }
 
-async function duHandleFiles(fileList){
+// `hint`: the report row the files were uploaded from. A file that's
+// clearly something else is still filed where it belongs.
+async function duHandleFiles(fileList, hint){
   const files = Array.from(fileList || []);
   if(!files.length) return;
   duResults = files.map(f => ({file: f.name, state: 'working', text: 'Reading…'}));
@@ -403,7 +407,7 @@ async function duHandleFiles(fileList){
       const buffer = isPdf ? null : await duReadFile(file, true);
       const text = buffer && !isExcel ? pbDecodeText(buffer) : '';
       const workbook = isExcel ? XLSX.read(new Uint8Array(buffer), {type: 'array'}) : null;
-      jobs.push({i, file, kind: duDetect(file, text, workbook), text, buffer});
+      jobs.push({i, file, kind: duDetect(file, text, workbook) || hint || null, text, buffer});
     }catch(err){
       duResults[i] = {file: file.name, state: 'error', text: err.message};
     }
@@ -415,9 +419,16 @@ async function duHandleFiles(fileList){
       let text;
       if(job.kind === 'cem') text = await duImportCem(job.file, job.text, job.buffer);
       else if(job.kind === 'pea') text = await duImportPea(job.file);
-      else if(job.kind === 'salesMix') text = await duImportSalesMix(job.file);
+      else if(job.kind === 'salesMix'){
+        const iso = pbDateFromFileName(job.file.name);
+        if(!iso){ duWait(job, 'date'); continue; }
+        text = await duImportSalesMix(job.file, iso);
+      }
       else if(job.kind === 'roster') text = duImportRoster(job.file, job.text);
-      else if(job.kind === 'productivity') text = await duImportProductivity(job.file, job.text);
+      else if(job.kind === 'productivity'){
+        if(!duProductivityDay(job.text)){ duWait(job, 'weekday'); continue; }
+        text = await duImportProductivity(job.file, job.text);
+      }
       else throw new Error('Didn’t recognize this file. Expected a CEM Comparison Report, HotSchedules roster CSV, Levelset PEA PDF, or Sales Mix report.');
       duResults[job.i] = {file: job.file.name, state: 'ok', kind: src ? src.name : job.kind, text};
     }catch(err){
@@ -425,8 +436,64 @@ async function duHandleFiles(fileList){
     }
     renderDataUploads();
   }
+  renderDataUploads();
   const ok = duResults.filter(r => r.state === 'ok').length;
-  showToast(ok === files.length ? `✓ ${ok} file${ok === 1 ? '' : 's'} filed` : `${ok} of ${files.length} files filed — see Data Uploads`);
+  const waiting = duResults.filter(r => r.state === 'waiting').length;
+  showToast(waiting ? `${waiting} file${waiting === 1 ? '' : 's'} need${waiting === 1 ? 's' : ''} a day — pick it in Data Uploads` : ok === files.length ? `✓ ${ok} file${ok === 1 ? '' : 's'} filed` : `${ok} of ${files.length} files filed — see Data Uploads`);
+}
+
+// Park a file that needs a day (Sales Mix) or weekday (productivity).
+function duWait(job, need){
+  duPending.push({id: ++duPendingSeq, kind: job.kind, need, file: job.file, text: job.text});
+  const src = DU_SOURCES.find(s => s.key === job.kind);
+  duResults[job.i] = {file: job.file.name, state: 'waiting', kind: src ? src.name : job.kind, text: need === 'date' ? 'No date in this file — pick the day in the Sales Mix row below.' : 'No weekday in this export — pick it in the Productivity row below.'};
+}
+
+async function duResolvePending(id, value){
+  const item = duPending.find(p => p.id === id);
+  if(!item) return;
+  duPending = duPending.filter(p => p !== item);
+  const r = duResults.find(x => x.file === item.file.name && x.state === 'waiting');
+  const src = DU_SOURCES.find(s => s.key === item.kind);
+  try{
+    const text = item.kind === 'salesMix' ? await duImportSalesMix(item.file, value) : await duImportProductivity(item.file, item.text, value);
+    if(r) Object.assign(r, {state: 'ok', text});
+    else duResults.push({file: item.file.name, state: 'ok', kind: src ? src.name : item.kind, text});
+    showToast(`✓ ${item.file.name} filed`);
+  }catch(err){
+    if(r) Object.assign(r, {state: 'error', text: err.message});
+  }
+  renderDataUploads();
+}
+
+// The day picker for a waiting Sales Mix file: the last week's open days as
+// one-tap chips (yesterday first), plus a calendar for anything older.
+function duPendingHtml(item){
+  const name = `<div class="du-pending-file">📄 ${escapeHtml(item.file.name)}</div>`;
+  if(item.need === 'weekday'){
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return `<div class="du-pending">${name}
+      <div class="du-pending-q">Which day of the week is this report for?</div>
+      <div class="du-chips">${days.map(d => `<button type="button" class="du-chip" data-du-pending="${item.id}" data-du-value="${d}">${d.slice(0, 3)}</button>`).join('')}<button type="button" class="du-chip" data-du-pending="${item.id}" data-du-value="All">All days</button></div>
+      <button type="button" class="du-pending-skip" data-du-pending-skip="${item.id}">Skip this file</button>
+    </div>`;
+  }
+  const today0 = duStartOfDay(new Date());
+  // The last six open days (closed Sundays), newest first.
+  const days = [];
+  for(let n = 1; days.length < 6 && n < 14; n++){ const d = duAddDays(today0, -n); if(d.getDay() !== 0) days.push({n, d}); }
+  const chips = days.map(({n, d})=>{
+    const top = n === 1 ? 'Yesterday' : d.toLocaleDateString('en-US', {weekday: 'short'});
+    return `<button type="button" class="du-chip" data-du-pending="${item.id}" data-du-value="${duISO(d)}"><span>${top}</span><b>${d.toLocaleDateString('en-US', {month: 'short', day: 'numeric'})}</b></button>`;
+  }).join('');
+  return `<div class="du-pending">${name}
+    <div class="du-pending-q">What day are these sales from?</div>
+    <div class="du-chips is-days">${chips}</div>
+    <div class="du-pending-row">
+      <label class="du-date-other">Another day <input type="date" max="${duISO(duAddDays(today0, -1))}" data-du-pending-date="${item.id}"></label>
+      <button type="button" class="du-pending-skip" data-du-pending-skip="${item.id}">Skip</button>
+    </div>
+  </div>`;
 }
 
 // ----- Rendering -----
@@ -465,6 +532,8 @@ function renderDataUploads(){
           </div>
           <div class="du-cover">${escapeHtml(st.cover)}</div>
           ${st.note ? `<div class="du-note">${escapeHtml(st.note)}</div>` : ''}
+          ${duPending.filter(p => p.kind === src.key).map(duPendingHtml).join('')}
+          <label class="du-row-upload"><input type="file" accept="${src.accept}" ${src.multiple ? 'multiple' : ''} data-du-row-input="${src.key}"><span>⬆ Upload ${escapeHtml(src.short || src.name.split(' (')[0])}</span></label>
           <details class="du-more">
             <summary>How to get it · ${src.fixedFreq ? DU_FREQUENCIES[st.freq] : `<span>${DU_FREQUENCIES[st.freq]}</span>`}</summary>
             <p>${escapeHtml(src.how)}</p>
@@ -481,6 +550,14 @@ document.getElementById('dataUploadsRoot').addEventListener('change', async e=>{
   if(e.target.matches('[data-du-input]')){
     const files = e.target.files;
     await duHandleFiles(files);
+    return;
+  }
+  if(e.target.matches('[data-du-row-input]')){
+    await duHandleFiles(e.target.files, e.target.dataset.duRowInput);
+    return;
+  }
+  if(e.target.matches('[data-du-pending-date]') && e.target.value){
+    await duResolvePending(+e.target.dataset.duPendingDate, e.target.value);
     return;
   }
   const freq = e.target.closest('[data-du-freq]');
@@ -508,4 +585,18 @@ document.getElementById('dataUploadsRoot').addEventListener('drop', e=>{
   e.preventDefault();
   drop.classList.remove('is-over');
   duHandleFiles(e.dataTransfer.files);
+});
+
+document.getElementById('dataUploadsRoot').addEventListener('click', e=>{
+  const pick = e.target.closest('[data-du-pending]');
+  if(pick){ duResolvePending(+pick.dataset.duPending, pick.dataset.duValue); return; }
+  const skip = e.target.closest('[data-du-pending-skip]');
+  if(skip){
+    const id = +skip.dataset.duPendingSkip;
+    const item = duPending.find(p => p.id === id);
+    duPending = duPending.filter(p => p.id !== id);
+    const r = item && duResults.find(x => x.file === item.file.name && x.state === 'waiting');
+    if(r) Object.assign(r, {state: 'error', text: 'Skipped.'});
+    renderDataUploads();
+  }
 });

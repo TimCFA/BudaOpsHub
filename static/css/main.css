@@ -1465,3 +1465,20 @@
   .su-bt-foot{font-size:11px;color:var(--su-muted);margin:10px 0 0;line-height:1.45;}
   .su-row-note.is-break{color:#6B4E16;}
   .roster-break-plan{color:#6B4E16;font-weight:600;}
+  .du-result.is-waiting{border-left-color:#E0A100;}
+  .du-row-upload{display:inline-flex;align-items:center;gap:6px;margin-top:8px;min-height:40px;padding:8px 14px;border:1.5px solid var(--text-primary);border-radius:999px;font-size:12px;font-weight:700;color:var(--text-primary);cursor:pointer;position:relative;overflow:hidden;}
+  .du-row-upload:hover{background:var(--cfa-light);}
+  .du-row-upload input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0;}
+  .du-row-upload:focus-within{outline:2px solid var(--cfa-red);outline-offset:2px;}
+  .du-pending{margin-top:10px;padding:12px;border-radius:12px;background:#FFF8E6;border:1px solid #F1D48A;}
+  .du-pending-file{font-size:12px;font-weight:600;color:var(--text-secondary);overflow-wrap:anywhere;}
+  .du-pending-q{font-size:14px;font-weight:700;color:var(--text-primary);margin:4px 0 8px;}
+  .du-chips{display:flex;flex-wrap:wrap;gap:6px;}
+  .du-chip{border:1px solid #E6D3A0;background:#fff;border-radius:10px;padding:6px 10px;min-height:40px;min-width:56px;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-family:inherit;font-size:13px;font-weight:700;color:var(--text-primary);cursor:pointer;}
+  .du-chip span{font-size:10px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;}
+  .du-chip:hover{border-color:var(--text-primary);}
+  .du-chip:focus-visible{outline:2px solid var(--cfa-red);outline-offset:2px;}
+  .du-pending-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;flex-wrap:wrap;}
+  .du-date-other{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--text-secondary);}
+  .du-date-other input{padding:7px 8px;border:1px solid #E6D3A0;border-radius:8px;font-family:inherit;font-size:13px;background:#fff;color:var(--text-primary);min-height:36px;}
+  .du-pending-skip{border:0;background:transparent;font-family:inherit;font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;min-height:36px;padding:0 4px;}
