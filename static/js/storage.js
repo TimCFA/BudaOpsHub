@@ -34,7 +34,7 @@ async function dbWrite(path, data){
 
 async function saveState(){
   const snapshot = {
-    entries, products, teamMembers, wasteTarget, formDone,
+    entries, products, wasteTarget, formDone,
     formDoneDate: formDone ? today : null, foodSafetyDays, wasteDays, breakCountdowns, completedBreaks, posAssignments,
     fohRoster, bohRoster, lxPillars, lxMetrics, lxLastUpdated, gxData, txData, homeData,
     fohOEDays, fohOEChecked, fohOECheckedDate,
@@ -60,7 +60,7 @@ async function saveState(){
 
 function exportBackup(){
   const snapshot = {
-    entries, products, teamMembers, wasteTarget, formDone,
+    entries, products, wasteTarget, formDone,
     formDoneDate: formDone ? today : null, foodSafetyDays, wasteDays, breakCountdowns, completedBreaks, posAssignments,
     fohRoster, bohRoster, lxPillars, lxMetrics, lxLastUpdated, gxData, txData, homeData,
     fohOEDays, fohOEChecked, fohOECheckedDate,
@@ -139,7 +139,6 @@ async function loadState(){
     }
     productFixesVersion = PRODUCT_FIXES_VERSION;
     productCategoryOrder = Object.assign({foh: [], boh: []}, data.productCategoryOrder || {});
-    teamMembers = data.teamMembers || [...fohLeads, ...bohLeads];
     wasteTarget = data.wasteTarget || 100;
     safeCounts = data.safeCounts || [];
     foodSafetyDays = data.foodSafetyDays || [];

@@ -16,7 +16,6 @@ function sortCategories(section, cats){
   const rank = c => { const i = order.indexOf(c); return i < 0 ? order.length + cats.indexOf(c) : i; };
   return cats.slice().sort((a, b) => rank(a) - rank(b));
 }
-let teamMembers = [];
 let wasteTarget = 100;
 const safeTarget = 4500; // hardcoded — this value never changes, no UI to edit it
 let safeCounts = [];
