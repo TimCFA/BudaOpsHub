@@ -281,8 +281,13 @@ async function duImportPea(file){
 
 function duImportSalesMix(file){
   return new Promise((resolve, reject)=>{
-    const iso = pbDateFromFileName(file.name);
-    if(!iso) return reject(new Error('No date in the file name (…_2026-09-19.csv) — add this one from the Prep Board with its date picked.'));
+    let iso = pbDateFromFileName(file.name);
+    if(!iso){
+      const y = duISO(duAddDays(new Date(), -1));
+      const ans = prompt(`${file.name} has no date in its name. What day are these sales from? (YYYY-MM-DD)`, y);
+      iso = ans && /^\d{4}-\d{2}-\d{2}$/.test(ans.trim()) ? ans.trim() : null;
+      if(!iso) return reject(new Error('Skipped — no date given for this Sales Mix file.'));
+    }
     pbReadWorkbookRows(file, async (err, rows)=>{
       if(err || !rows || !rows.length) return reject(new Error('Couldn’t read that file.'));
       const parsed = pbRowsToDateEntries(rows, iso);

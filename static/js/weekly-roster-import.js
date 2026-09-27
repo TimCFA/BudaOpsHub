@@ -22,18 +22,6 @@ let weeklyImportActiveDay = 'Mon';
 let weeklyImportFileStart = null;   // Sunday ISO from the file name, if any
 let weeklyImportOffFloor = {};
 
-document.querySelectorAll('[data-weekly-offset]').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    document.querySelectorAll('[data-weekly-offset]').forEach(b=>{
-      b.classList.remove('active');
-      b.setAttribute('aria-pressed', 'false');
-    });
-    btn.classList.add('active');
-    btn.setAttribute('aria-pressed', 'true');
-    weeklyImportOffset = parseInt(btn.dataset.weeklyOffset, 10);
-  });
-});
-
 function parseCsv(text){
   const rows = [];
   let row = [], field = '', inQuotes = false;
@@ -193,42 +181,6 @@ function mergeImportedDayRoster(existingList, importedList){
 
 let weeklyImportPendingFile = null;   // file name, for the Data Uploads log
 
-document.getElementById('btnImportWeeklyRoster').addEventListener('click', ()=>{
-  const file = document.getElementById('weeklyRosterUpload').files[0];
-  const status = document.getElementById('weeklyImportStatus');
-  if(!file){
-    status.textContent = '❌ Choose a CSV file first';
-    status.style.color = 'var(--cfa-red)';
-    return;
-  }
-  status.textContent = '⏳ Reading roster...';
-  status.style.color = 'var(--text-secondary)';
-
-  const reader = new FileReader();
-  reader.onload = (e)=>{
-    try{
-      const {result, unrecognized, offFloor} = parseWeeklyRosterCsv(e.target.result);
-      weeklyImportParsed = result;
-      weeklyImportUnrecognized = unrecognized;
-      weeklyImportOffFloor = offFloor;
-      weeklyImportFileStart = weeklyRosterStartFromFileName(file.name);
-      weeklyImportActiveDay = HS_DAY_ORDER[0];
-      weeklyImportPendingFile = file.name;
-      showWeeklyImportPreview();
-      const totalFoh = HS_DAY_ORDER.reduce((sum,d)=> sum + result[d].foh.length, 0);
-      const totalBoh = HS_DAY_ORDER.reduce((sum,d)=> sum + result[d].boh.length, 0);
-      const leaders = new Set(HS_DAY_ORDER.flatMap(d => [...result[d].foh, ...result[d].boh].filter(p => p.leader).map(p => p.name))).size;
-      status.textContent = `✓ Parsed ${totalFoh} FOH + ${totalBoh} BOH shifts across the week · ${leaders} Team Leader${leaders === 1 ? '' : 's'}. Review below and confirm.`;
-      status.style.color = 'var(--success)';
-    }catch(err){
-      status.textContent = '❌ ' + err.message;
-      status.style.color = 'var(--cfa-red)';
-      console.error(err);
-    }
-  };
-  reader.readAsText(file);
-});
-
 function createWeeklyImportPreviewModal(){
   const html = `
     <div class="overlay" id="weeklyImportPreviewModal">
@@ -261,7 +213,24 @@ function showWeeklyImportPreview(){
   const rangeLabel = weekDays.length ? `${weekDays[0].label} – ${weekDays[weekDays.length-1].label}` : '';
   document.getElementById('weeklyImportWeekLabel').textContent = weeklyImportFileStart
     ? `Applying to: ${rangeLabel} (dates from the file name)`
-    : `Applying to: ${weeklyImportOffset === 0 ? 'This Week' : 'Next Week'} (${rangeLabel})`;
+    : `Applying to: ${weeklyImportOffset === 0 ? 'This Week' : 'Next Week'} (${rangeLabel}) — the file name has no dates`;
+  // No dates in the file name: let the leader pick the week here.
+  let weekPick = document.getElementById('weeklyImportWeekPick');
+  if(!weekPick){
+    weekPick = document.createElement('div');
+    weekPick.id = 'weeklyImportWeekPick';
+    weekPick.className = 'week-toggle';
+    weekPick.style.margin = '8px 0 12px';
+    document.getElementById('weeklyImportWeekLabel').after(weekPick);
+    weekPick.addEventListener('click', e=>{
+      const b = e.target.closest('[data-weekly-offset]');
+      if(!b) return;
+      weeklyImportOffset = parseInt(b.dataset.weeklyOffset, 10);
+      showWeeklyImportPreview();
+    });
+  }
+  weekPick.style.display = weeklyImportFileStart ? 'none' : '';
+  weekPick.innerHTML = [0, 1].map(o => `<button type="button" class="wri-week-btn ${weeklyImportOffset === o ? 'active' : ''}" aria-pressed="${weeklyImportOffset === o}" data-weekly-offset="${o}">${o ? 'Next Week' : 'This Week'}</button>`).join('');
 
   const tabsEl = document.getElementById('weeklyImportDayTabs');
   tabsEl.innerHTML = HS_DAY_ORDER.map(day=>`<div class="day-pill ${day===weeklyImportActiveDay?'active':''}" data-hsday="${day}">${day}</div>`).join('');
@@ -320,7 +289,6 @@ async function confirmWeeklyImport(){
   duRecord('roster', {file: weeklyImportPendingFile, summary: `${weekDays[0].label} – ${weekDays[weekDays.length - 1].label}`});
   await saveState();
   document.getElementById('weeklyImportPreviewModal').classList.remove('active');
-  document.getElementById('weeklyRosterUpload').value = '';
   weeklyImportFileStart = null;
   renderRoster();
   renderAllDayparts();

@@ -820,10 +820,7 @@ function pbRenderRecorded(){
             <label>Paste item name + sold count (tab-separated)</label>
             <textarea data-pb-paste-area rows="5" placeholder="Salad, Cobb w/ Nuggets&#9;61.0"></textarea>
           </div>
-          <div class="pb-field">
-            <label>...or upload a CSV / Excel file</label>
-            <input type="file" data-pb-sold-file accept=".csv,.tsv,.txt,.xlsx,.xls">
-          </div>
+          <p class="pb-subline">Sales Mix report files go in Manage → Data Uploads (the date comes from the file name).</p>
           <div class="pb-panel-actions">
             <button class="btn btn-primary" style="width:auto;padding:9px 18px;" data-pb-add-day>Add this day</button>
           </div>
@@ -1264,8 +1261,6 @@ document.getElementById('prepBoardRoot').addEventListener('change', function(e){
     saveState().then(() => { renderPrepBoard(); showToast('✓ Date set'); });
     return;
   }
-  const soldFile = e.target.closest('[data-pb-sold-file]');
-  if(soldFile && soldFile.files && soldFile.files[0]){ pbImportFile('sold', soldFile); return; }
   const wasteFile = e.target.closest('[data-pb-waste-file]');
   if(wasteFile && wasteFile.files && wasteFile.files[0]){ pbImportFile('waste', wasteFile); return; }
 });

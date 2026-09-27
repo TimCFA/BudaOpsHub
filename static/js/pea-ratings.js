@@ -401,11 +401,6 @@ function renderPeaManage(){
   `;
 }
 
-document.getElementById('peaUpload').addEventListener('change', e=>{
-  const file = e.target.files[0];
-  e.target.value = '';
-  if(file) peaHandleUpload(file);
-});
 document.getElementById('btnPeaClear').addEventListener('click', peaClearAll);
 document.getElementById('peaStrengthRoot').addEventListener('click', e=>{
   const view = e.target.closest('[data-pea-view]');
