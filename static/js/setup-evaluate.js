@@ -152,19 +152,6 @@ function evaluateSetup(section, date, dpName){
 
 // ----- Rendering (inside each daypart card on Set Ups) -----
 
-function suEvalTileBadge(section, date, dpName, slot, assigned){
-  const ev = setupEvaluations[suEvalKey(section, date, dpName)];
-  if(!ev || !assigned) return '';
-  const names = suSplitNames(assigned);
-  const hits = ev.result.entries.filter(e => e.slot === slot && names.includes(e.name));
-  if(!hits.length) return '';
-  return `<div class="su-tile-tiers">${hits.map(e=>{
-    if(e.tier === 'na') return '';
-    const label = e.tier === 'unrated' ? 'Unrated' : `${e.cell.tier.label} ${e.cell.avg.toFixed(2)}`;
-    return `<span class="su-tile-tier su-${e.tier}" title="${escapeHtml(e.name)}: ${label}">${e.tier === 'unrated' ? '—' : e.cell.avg.toFixed(2)}</span>`;
-  }).join('')}</div>`;
-}
-
 function suEvalListHtml(title, icon, cls, items){
   if(!items.length) return '';
   return `

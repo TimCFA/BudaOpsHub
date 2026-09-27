@@ -76,7 +76,7 @@ function planBForDaypart(section, date, dp, dpIndex){
           const c = crushingIn(x, positions);
           if(!c) return;
           if(!x.slot){
-            swaps.push({name: x.name, avg: c.avg, rank: 0 + roleRank(x) / 10, text: `steps in (not placed · ${x.role || 'team member'} · ${c.avg.toFixed(2)})`});
+            swaps.push({name: x.name, kind: 'in', role: x.role || 'Team Member', avg: c.avg, rank: 0 + roleRank(x) / 10, text: `steps in (not placed · ${x.role || 'team member'} · ${c.avg.toFixed(2)})`});
             return;
           }
           // A trade: can the struggling person hold the other person's slot?
@@ -85,7 +85,7 @@ function planBForDaypart(section, date, dp, dpIndex){
           const hold = theirPositions.length ? cellIn(me, theirPositions) : null;
           if(theirPositions.length && !(hold && (hold.tier.key === 'crushing' || hold.tier.key === 'rise'))) return;
           const holdText = theirPositions.length ? `${name} takes ${x.slot} (${hold.tier.label} ${hold.avg.toFixed(2)})` : `${name} takes ${x.slot}`;
-          swaps.push({name: x.name, avg: c.avg, rank: 1 + roleRank(x) / 10, text: `trade (${x.role || 'team member'} · ${c.avg.toFixed(2)}) — ${holdText}`});
+          swaps.push({name: x.name, kind: 'trade', role: x.role || 'Team Member', avg: c.avg, theirSlot: x.slot, hold: hold ? `${hold.tier.label} ${hold.avg.toFixed(2)}` : null, rank: 1 + roleRank(x) / 10, text: `trade (${x.role || 'team member'} · ${c.avg.toFixed(2)}) — ${holdText}`});
         });
         swaps.sort((a, b) => a.rank - b.rank || b.avg - a.avg || a.name.localeCompare(b.name));
       }

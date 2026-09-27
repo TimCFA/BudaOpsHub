@@ -143,8 +143,6 @@ document.getElementById('setupsPrevWeekBtn').addEventListener('click', ()=>{
   setSetupsWeekOffset(setupsWeekOffset - 1);
 });
 
-let expandedDayparts = new Set();
-
 function parseShiftTimeToMinutes(str){
   if(!str) return null;
   const m = String(str).trim().toLowerCase().match(/^(\d{1,2}):(\d{2})\s*([ap])/);
@@ -215,80 +213,10 @@ function renderAllDayparts(){
   
   document.getElementById('daypartContainer').style.display = 'block';
   document.getElementById('rosterContainer').style.display = 'block';
-  
-  const dayparts = currentPosSection === 'foh' ? fohDayparts : bohDayparts;
-  const posMap = currentPosSection === 'foh' ? fohPositions : bohPositions;
-  
-  let html = '';
-  dayparts.forEach((dp, dpIndex)=>{
-    const positions = posMap[dp.name] || [];
-    const isExpanded = expandedDayparts.has(dp.name);
-    // "3/7 assigned": of the people working this daypart, how many have a
-    // position. Green once every one of them is placed.
-    const available = availableForDaypart(dayName, dpIndex, dayparts);
-    const assignedNames = assignedNamesForDaypart(dayName, dp.name);
-    const assignedCount = available.filter(p => assignedNames.has(p.name.trim().toLowerCase())).length;
-    const allAssigned = available.length > 0 && assignedCount === available.length;
-    
-    html += `
-      <div class="daypart-card ${isExpanded ? 'expanded' : ''}">
-        <div class="daypart-header" onclick="toggleDaypart('${dp.name.replace(/'/g, "\\'")}')">
-          <div class="daypart-title">
-            <span class="daypart-name">${dp.name}</span>
-            <span class="daypart-fill ${allAssigned ? 'full' : ''}" title="People assigned a position / people working this daypart">${assignedCount}/${available.length} assigned</span>
-            ${suDayTypeBadge(currentPosSection, dayName, dp)}
-          </div>
-          <span class="chevron">▾</span>
-        </div>
-        <div class="daypart-body">
-          ${(()=>{
-            const nums = getNumbersForDaypart(dayName, dp);
-            if(!nums || (!nums.projectedSales && !nums.productivityGoal && !nums.specialEvents)) return '';
-            return `
-              <div class="daypart-numbers">
-                ${nums.projectedSales ? `<div class="num-chip"><span class="num-label">Projected Sales</span><span class="num-value">${nums.projectedSales}</span></div>` : ''}
-                ${nums.productivityGoal ? `<div class="num-chip"><span class="num-label">Productivity Goal</span><span class="num-value">${nums.productivityGoal}</span></div>` : ''}
-                ${nums.specialEvents ? `<div class="num-chip num-event"><span class="num-label">📅 Event</span><span class="num-value">${nums.specialEvents}</span></div>` : ''}
-              </div>
-            `;
-          })()}
-          <div class="pos-grid">
-            ${positions.map(pos=>{
-              const key = currentPosSection + '||' + dayName + '||' + dp.name + '||' + pos;
-              const assigned = posAssignments[key] || '';
-              const flag = posVacancyFlags[key];
-              const escapedKey = key.replace(/'/g, "\\'");
-              const escapedPos = pos.replace(/'/g, "\\'");
-              const escapedDp = dp.name.replace(/'/g, "\\'");
-              return `
-                <div class="pos-tile ${assigned ? 'assigned' : ''} ${flag ? 'vacancy-flagged' : ''}" onclick="openPosModal('${key}', '${escapedPos}', '${escapedDp}')">
-                  ${assigned ? `<button class="pos-flag-btn ${flag ? 'flagged' : ''}" onclick="event.stopPropagation(); openVacancyModal('${escapedKey}', '${escapedPos}', '${escapedDp}')" title="Customize position">+</button>` : ''}                  <div>
-                    <div class="pos-name">${pos}</div>
-                    ${assigned ? `<div class="pos-assigned-name">${assigned}</div>` : '<div class="pos-empty">Tap to assign</div>'}
-                    ${flag ? `<div class="pos-vacancy-badge">🚨 Needs Coverage</div>` : ''}
-                    ${suEvalTileBadge(currentPosSection, dayName, dp.name, pos, assigned)}
-                  </div>
-                </div>
-              `;
-            }).join('')}
-          </div>
-          ${renderSetupDevelop(currentPosSection, dayName, dp, dpIndex)}
-          ${renderSetupEvaluation(currentPosSection, dayName, dp)}
-          ${renderSetupPlanB(currentPosSection, dayName, dp, dpIndex)}
-        </div>
-      </div>
-    `;
-  });
-  
-  document.getElementById('allDayparts').innerHTML = html;
+  // One daypart at a time: chips, game plan, zones, toolbar (setups-board.js).
+  document.getElementById('allDayparts').innerHTML = renderSetupsBoard(dayName);
   renderRoster();
 }
-
-window.toggleDaypart = function(dpName){
-  if(expandedDayparts.has(dpName)) expandedDayparts.delete(dpName);
-  else expandedDayparts.add(dpName);
-  renderAllDayparts();
-};
 
 let currentPosKey = '';
 let currentPosName = '';
