@@ -4,7 +4,8 @@
 // marked out of date once the set up differs from what was evaluated.
 //
 // It reads PEA tiers (pea-ratings.js) and set-up history (setup-history.js):
-//   Risk        — Captain slots held by someone Not Yet / unrated, and Not Yet
+//   Risk        — Captain slots held by someone Not Yet / unrated or who isn't
+//                 a Team Lead or Trainer, and Not Yet
 //                 placements with no Crushing It person in that position
 //   Development — people placed where they're On the Rise / Not Yet
 //   Rotation    — rated/worked positions someone hasn't worked in 2+ weeks,
@@ -16,6 +17,8 @@ const SU_STREAK_WINDOW = 5;   // last 5 recorded shifts...
 const SU_STREAK_SAME = 4;     // ...4 in the same position = stuck
 const SU_RATING_STALE_DAYS = 30;
 const SU_CAPTAIN_RE = /captain|cockpit cap/i;
+// Captain slots lead a group, so they're for Team Leads and Trainers.
+const SU_LEADER_ROLES = ['Trainer', 'Team Lead'];
 
 let setupEvaluations = {}; // "section||date||daypart" -> {at, signature, result}
 
@@ -72,6 +75,9 @@ function evaluateSetup(section, date, dpName){
   const risks = [];
   entries.filter(e => e.captain && (e.tier === 'notyet' || e.tier === 'unrated')).forEach(e=>{
     risks.push({name: e.name, text: `in Captain slot ${e.slot} — ${e.tier === 'notyet' ? `Not Yet on ${e.position} (${e.cell.avg.toFixed(2)})` : `no ${e.positions.join('/')} rating`}`});
+  });
+  entries.filter(e => e.captain && e.peaName && !SU_LEADER_ROLES.includes(strength[e.peaName].role)).forEach(e=>{
+    risks.push({name: e.name, text: `in Captain slot ${e.slot} is a ${strength[e.peaName].role || 'team member'} — Captain slots are for Team Leads and Trainers`});
   });
   entries.filter(e => e.tier === 'notyet').forEach(e=>{
     const support = entries.some(o => o !== e && o.position === e.position && o.tier === 'crushing');
