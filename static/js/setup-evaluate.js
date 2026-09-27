@@ -211,12 +211,17 @@ function evaluateSetup(section, date, dpName){
 
 // ----- Rendering (inside each daypart card on Set Ups) -----
 
+// Top three per section; the rest behind "more" so a result stays short.
+const SU_EVAL_SHOWN = 3;
 function suEvalListHtml(title, icon, cls, items){
   if(!items.length) return '';
+  const li = i => `<li><b>${escapeHtml(i.name)}</b> ${escapeHtml(i.text)}</li>`;
+  const rest = items.slice(SU_EVAL_SHOWN);
   return `
     <div class="su-eval-section ${cls}">
       <div class="su-eval-section-title">${icon} ${title} <span>${items.length}</span></div>
-      <ul>${items.map(i => `<li><b>${escapeHtml(i.name)}</b> ${escapeHtml(i.text)}</li>`).join('')}</ul>
+      <ul>${items.slice(0, SU_EVAL_SHOWN).map(li).join('')}</ul>
+      ${rest.length ? `<details class="su-eval-more"><summary>${rest.length} more</summary><ul>${rest.map(li).join('')}</ul></details>` : ''}
     </div>`;
 }
 

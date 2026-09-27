@@ -148,7 +148,8 @@ function renderSetupPlanB(section, date, dp, dpIndex){
       ${stale ? '<div class="su-eval-stale">The roster or set up changed — press Refresh.</div>' : ''}
       ${r.watch.length ? `
         <div class="su-planb-group">Most likely to need it</div>
-        <ul class="su-planb">${r.watch.map(suPlanBRowHtml).join('')}</ul>` : ''}
+        <ul class="su-planb">${r.watch.slice(0, 3).map(suPlanBRowHtml).join('')}</ul>
+        ${r.watch.length > 3 ? `<details class="su-planb-more"><summary>${r.watch.length - 3} more to watch</summary><ul class="su-planb">${r.watch.slice(3).map(suPlanBRowHtml).join('')}</ul></details>` : ''}` : ''}
       ${r.rest.length ? `
         <details class="su-planb-more" ${r.watch.length ? '' : 'open'}>
           <summary>Everyone else placed (${r.rest.length}) — Crushing It</summary>
