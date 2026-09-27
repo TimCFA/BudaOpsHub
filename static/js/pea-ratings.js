@@ -53,13 +53,77 @@ let peaOpenPosition = '';
 let peaPersonFilter = '';
 
 function emptyPeaRatings(){
-  return {names: [], positions: [], roles: [], rows: [], uploads: []};
+  return {names: [], positions: [], roles: [], rows: [], uploads: [], coverage: {FOH: [], BOH: []}};
 }
 
 function normalizePeaRatings(p){
   if(!p || typeof p !== 'object') return emptyPeaRatings();
   const arr = v => Array.isArray(v) ? v : [];
-  return {names: arr(p.names), positions: arr(p.positions), roles: arr(p.roles), rows: arr(p.rows), uploads: arr(p.uploads)};
+  const out = {names: arr(p.names), positions: arr(p.positions), roles: arr(p.roles), rows: arr(p.rows), uploads: arr(p.uploads), coverage: {FOH: [], BOH: []}};
+  if(p.coverage && typeof p.coverage === 'object'){
+    PEA_AREAS.forEach(a => out.coverage[a] = arr(p.coverage[a]));
+  } else {
+    // Saved before coverage was tracked: rebuild it from the upload log
+    // (those reports all covered FOH and BOH).
+    out.uploads.forEach(u => { if(u.rangeStart && u.rangeEnd) peaAddCoverage(out.coverage, PEA_AREAS, u.rangeStart, u.rangeEnd); });
+  }
+  return out;
+}
+
+// ----- Upload coverage: which dates the uploaded reports cover -----
+// Each upload adds its report's date range (per area, FOH/BOH) to
+// peaRatings.coverage as merged [start, end] ISO date ranges, so a missed
+// month shows up as a stretch no upload covers — separate from weeks that
+// were uploaded but simply had few ratings.
+const PEA_AREAS = ['FOH', 'BOH'];
+
+function peaShiftISO(iso, days){
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return toLocalISODate(d);
+}
+
+function peaAddCoverage(coverage, areas, start, end){
+  areas.filter(a => PEA_AREAS.includes(a)).forEach(a=>{
+    const list = [...(coverage[a] || []), [start, end]].sort((x, y) => x[0].localeCompare(y[0]));
+    const merged = [];
+    list.forEach(([s0, e0])=>{
+      const last = merged[merged.length - 1];
+      if(last && s0 <= peaShiftISO(last[1], 1)){ if(e0 > last[1]) last[1] = e0; }
+      else merged.push([s0, e0]);
+    });
+    coverage[a] = merged;
+  });
+}
+
+// Stretches from the first covered day up to today that no upload covers,
+// per area; ranges missing from both areas are listed once.
+function peaCoverageGaps(){
+  const cov = peaRatings.coverage;
+  const starts = PEA_AREAS.map(a => (cov[a][0] || [])[0]).filter(Boolean).sort();
+  if(!starts.length) return [];
+  const from = starts[0];
+  const perArea = {};
+  PEA_AREAS.forEach(a=>{
+    const gaps = [];
+    let cursor = from;
+    cov[a].forEach(([s0, e0])=>{
+      if(s0 > cursor) gaps.push([cursor, peaShiftISO(s0, -1)]);
+      if(peaShiftISO(e0, 1) > cursor) cursor = peaShiftISO(e0, 1);
+    });
+    if(cursor <= today) gaps.push([cursor, today]);
+    perArea[a] = gaps;
+  });
+  const key = g => g.join('|');
+  const both = perArea.FOH.filter(g => perArea.BOH.some(h => key(h) === key(g)));
+  const out = both.map(g => ({start: g[0], end: g[1], areas: PEA_AREAS}));
+  PEA_AREAS.forEach(a => perArea[a].forEach(g => { if(!both.some(b => key(b) === key(g))) out.push({start: g[0], end: g[1], areas: [a]}); }));
+  return out.sort((x, y) => x.start.localeCompare(y.start));
+}
+
+// How many areas (FOH/BOH) an upload covers on this date: 0, 1 or 2.
+function peaAreasCovered(iso){
+  return PEA_AREAS.filter(a => peaRatings.coverage[a].some(([s0, e0]) => iso >= s0 && iso <= e0)).length;
 }
 
 function peaPositionsForSlot(section, slot){
@@ -120,9 +184,10 @@ function peaPruneOldRatings(){
   const cutoffISO = toLocalISODate(cutoff);
   const keep = peaAllRatings().filter(r => r.date >= cutoffISO);
   if(keep.length === peaRatings.rows.length) return false;
-  const uploads = peaRatings.uploads;
+  const {uploads, coverage} = peaRatings;
   peaRatings = emptyPeaRatings();
   peaRatings.uploads = uploads;
+  PEA_AREAS.forEach(a => peaRatings.coverage[a] = (coverage[a] || []).filter(([, e0]) => e0 >= cutoffISO).map(([s0, e0]) => [s0 < cutoffISO ? cutoffISO : s0, e0]));
   peaMergeRatings(keep);
   return true;
 }
@@ -190,13 +255,20 @@ async function peaHandleUpload(file){
   const ratings = data.ratings || [];
   const added = peaMergeRatings(ratings);
   const s = data.summary || {};
-  peaRatings.uploads.push({at: new Date().toISOString(), file: file.name, rangeStart: s.rangeStart || null, rangeEnd: s.rangeEnd || null, read: ratings.length, added});
+  // Coverage is the report's own date range; without one, the span of its ratings.
+  const dates = ratings.map(r => r.at.slice(0, 10)).sort();
+  const covStart = s.rangeStart || dates[0], covEnd = s.rangeEnd || dates[dates.length - 1];
+  const areas = (s.areas && s.areas.length) ? s.areas.filter(a => PEA_AREAS.includes(a)) : PEA_AREAS;
+  if(covStart && covEnd) peaAddCoverage(peaRatings.coverage, areas, covStart, covEnd);
+  peaRatings.uploads.push({at: new Date().toISOString(), file: file.name, rangeStart: covStart || null, rangeEnd: covEnd || null, areas, read: ratings.length, added});
   peaRatings.uploads = peaRatings.uploads.slice(-10);
   peaPruneOldRatings();
   await saveState();
 
   const range = s.rangeStart && s.rangeEnd ? ` (${peaFormatDate(s.rangeStart)} – ${peaFormatDate(s.rangeEnd, true)})` : '';
-  const warnings = (data.warnings || []).length ? ` ⚠ ${data.warnings.join(' ')}` : '';
+  const areaNote = areas.length < PEA_AREAS.length ? ` This report only covers ${areas.join(', ') || 'no known area'} — upload the ${PEA_AREAS.filter(a => !areas.includes(a)).join(', ')} report for the same dates too.` : '';
+  const warnList = [...(data.warnings || []), areaNote.trim()].filter(Boolean);
+  const warnings = warnList.length ? ` ⚠ ${warnList.join(' ')}` : '';
   status.textContent = `✓ ${ratings.length} ratings read${range} · ${added} new · ${ratings.length - added} already saved.${warnings}`;
   showToast(added ? `✓ ${added} new PEA ratings saved` : 'No new ratings — all were already saved');
   renderPeaManage();
@@ -305,6 +377,7 @@ function renderPeaManage(){
   document.getElementById('btnPeaClear').style.display = peaRatings.rows.length ? '' : 'none';
 
   renderPeaNameMatching();
+  renderPeaCoverage();
   const root = document.getElementById('peaStrengthRoot');
   if(!peaRatings.rows.length){
     root.innerHTML = '<p class="pea-muted">Upload a PEA ratings PDF above to see where each team member stands in each position.</p>';
@@ -507,3 +580,113 @@ document.getElementById('peaNameMatchRoot').addEventListener('click', async e=>{
   await saveState();
   renderPeaNameMatching();
 });
+
+// ----- Coverage Check card (Manage) -----
+
+function peaWeekStart(iso){
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // Monday
+  return toLocalISODate(d);
+}
+
+// One entry per week (Mon–Sun) from the first covered day to today:
+// {start, count, days, coveredDays, status: ok | quiet | partial | missing}
+function peaWeeklyCoverage(){
+  const starts = PEA_AREAS.map(a => (peaRatings.coverage[a][0] || [])[0]).filter(Boolean).sort();
+  const firstRating = peaRatings.rows.length ? peaRatings.rows[0][0].slice(0, 10) : null;
+  const from = [starts[0], firstRating].filter(Boolean).sort()[0];
+  if(!from) return [];
+  const counts = {};
+  peaRatings.rows.forEach(r => { const w = peaWeekStart(r[0].slice(0, 10)); counts[w] = (counts[w] || 0) + 1; });
+  // Days after the latest upload aren't a gap yet — they just haven't been
+  // uploaded. Weeks past that point show as "not uploaded yet".
+  const trailing = peaCoverageGaps().find(g => g.end === today && g.areas.length === PEA_AREAS.length);
+  const limit = trailing ? peaShiftISO(trailing.start, -1) : today;
+  const weeks = [];
+  for(let w = peaWeekStart(from); w <= today && weeks.length < 60; w = peaShiftISO(w, 7)){
+    let days = 0, covered = 0, touched = 0;
+    for(let i = 0; i < 7; i++){
+      const d = peaShiftISO(w, i);
+      if(d < from || d > limit) continue;
+      days++;
+      const n = peaAreasCovered(d);
+      if(n === PEA_AREAS.length) covered++;
+      if(n) touched++;
+    }
+    weeks.push({start: w, count: counts[w] || 0, days, coveredDays: covered, touchedDays: touched});
+  }
+  // "Few ratings" is judged against this store's own normal week.
+  const full = weeks.filter(w => w.coveredDays === w.days && w.days >= 5).map(w => w.count).sort((a, b) => a - b);
+  const median = full.length ? full[Math.floor(full.length / 2)] : 0;
+  const quietBelow = Math.max(2, Math.round(median * 0.3));
+  weeks.forEach(w=>{
+    // A week with only a day or two in range (the first or last week) is too
+    // short to call quiet.
+    w.status = w.days === 0 ? 'pending' : w.touchedDays === 0 ? 'missing' : w.coveredDays < w.days ? 'partial'
+      : (w.days >= 4 && w.count < quietBelow) ? 'quiet' : 'ok';
+  });
+  return {weeks, median, quietBelow};
+}
+
+function peaRangeText(start, end){
+  const days = Math.round((new Date(end + 'T00:00:00') - new Date(start + 'T00:00:00')) / 86400000) + 1;
+  return `${peaFormatDate(start)} – ${peaFormatDate(end, true)} (${days} day${days === 1 ? '' : 's'})`;
+}
+
+function renderPeaCoverage(){
+  const root = document.getElementById('peaCoverageRoot');
+  if(!root) return;
+  const data = peaWeeklyCoverage();
+  if(!data.weeks || !data.weeks.length){ root.innerHTML = '<p class="pea-muted">Upload a PEA ratings PDF to check coverage.</p>'; return; }
+  const {weeks, median, quietBelow} = data;
+
+  const gaps = peaCoverageGaps();
+  const trailing = gaps.find(g => g.end === today && g.areas.length === PEA_AREAS.length);
+  const inner = gaps.filter(g => g !== trailing);
+  const quiet = weeks.filter(w => w.status === 'quiet');
+  const lastCovered = PEA_AREAS.map(a => { const c = peaRatings.coverage[a]; return c.length ? c[c.length - 1][1] : null; }).filter(Boolean).sort()[0];
+  const sinceDays = lastCovered ? Math.round((new Date(today + 'T00:00:00') - new Date(lastCovered + 'T00:00:00')) / 86400000) : null;
+
+  const max = Math.max(1, ...weeks.map(w => w.count));
+  const monthLabel = w => {
+    for(let i = 0; i < 7; i++){ const d = peaShiftISO(w.start, i); if(d.endsWith('-01')) return new Date(d + 'T00:00:00').toLocaleDateString('en-US', {month: 'short'}); }
+    return '';
+  };
+  const statusText = {ok: 'uploaded', quiet: 'uploaded · few ratings', partial: 'some days or areas not uploaded', missing: 'not uploaded', pending: 'not uploaded yet'};
+  const bars = weeks.map(w=>{
+    const label = `Week of ${peaFormatDate(w.start, true)} · ${w.count} rating${w.count === 1 ? '' : 's'} · ${statusText[w.status]}`;
+    const h = w.status === 'missing' || w.status === 'pending' ? 100 : Math.max(w.count ? 6 : 3, Math.round(w.count / max * 100));
+    return `<div class="pea-cov-week is-${w.status}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}"><span class="pea-cov-bar" style="height:${h}%"></span></div>`;
+  }).join('');
+  const months = weeks.map(w => `<span>${monthLabel(w)}</span>`).join('');
+
+  const firstCovered = PEA_AREAS.map(a => (peaRatings.coverage[a][0] || [])[0]).filter(Boolean).sort()[0] || weeks[0].start;
+  const headline = inner.length
+    ? `<div class="pea-cov-head is-bad">⚠ ${inner.length} gap${inner.length === 1 ? '' : 's'} in your uploads — some dates have never been uploaded.</div>`
+    : `<div class="pea-cov-head is-good">✓ No gaps — uploads cover every day from ${peaFormatDate(firstCovered, true)} to ${lastCovered ? peaFormatDate(lastCovered, true) : 'today'}.</div>`;
+
+  root.innerHTML = `
+    ${headline}
+    <div class="pea-cov-chart" role="img" aria-label="Ratings per week, ${weeks.length} weeks">${bars}</div>
+    <div class="pea-cov-months" aria-hidden="true">${months}</div>
+    <div class="pea-cov-key">
+      <span><i class="k-ok"></i>Ratings per week (typical ${median})</span>
+      <span><i class="k-quiet"></i>Uploaded, few ratings (under ${quietBelow})</span>
+      <span><i class="k-missing"></i>Not uploaded (gap)</span>
+      ${weeks.some(w => w.status === 'pending') ? '<span><i class="k-pending"></i>Since latest upload</span>' : ''}
+    </div>
+    ${inner.length ? `
+      <div class="pea-cov-list is-bad">
+        <b>Missing uploads</b>
+        <ul>${inner.map(g => `<li>${peaRangeText(g.start, g.end)}${g.areas.length < PEA_AREAS.length ? ` — ${g.areas.join(', ')} missing (${PEA_AREAS.filter(a => !g.areas.includes(a)).join(', ')} uploaded)` : ''}</li>`).join('')}</ul>
+        <span class="pea-muted">In Levelset, run the Positional Excellence Ratings report for these dates (FOH and BOH) and upload it. Ratings already saved are skipped.</span>
+      </div>` : ''}
+    ${quiet.length ? `
+      <div class="pea-cov-list is-warn">
+        <b>Uploaded, but few ratings</b>
+        <ul>${quiet.map(w => `<li>Week of ${peaFormatDate(w.start, true)} — ${w.count} rating${w.count === 1 ? '' : 's'}</li>`).join('')}</ul>
+        <span class="pea-muted">These weeks were uploaded — leaders just completed few PEAs then. Nothing to re-upload.</span>
+      </div>` : ''}
+    ${trailing && sinceDays !== null ? `<div class="pea-cov-note ${sinceDays > 45 ? 'is-warn' : ''}">Latest upload covers through ${peaFormatDate(lastCovered, true)}${sinceDays > 0 ? ` (${sinceDays} day${sinceDays === 1 ? '' : 's'} ago)` : ''}.${sinceDays > 45 ? ' Upload a new report soon so this stretch doesn’t become a gap.' : ''}</div>` : ''}
+  `;
+}
