@@ -7,7 +7,6 @@ import time
 from flask import Flask, request, jsonify, send_file, session
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
-from anthropic import Anthropic
 import firebase_admin
 from firebase_admin import credentials, db
 
@@ -86,72 +85,6 @@ else:
 @app.route('/')
 def serve_html():
     return send_file('cfa-buda-ops-hub-complete.html')
-
-@app.route('/api/import-roster', methods=['POST'])
-def import_roster():
-    try:
-        data = request.json
-        file_data = data.get('fileData')
-        file_type = data.get('fileType')
-
-        if not file_data:
-            return jsonify({'error': 'Missing file'}), 400
-
-        api_key = os.environ.get('ANTHROPIC_API_KEY')
-        if not api_key:
-            return jsonify({'error': 'Server is not configured with an ANTHROPIC_API_KEY'}), 500
-
-        client = Anthropic(api_key=api_key, timeout=30.0)
-
-        prompt = """You are a scheduling assistant. Analyze this roster and extract EVERY team member with:
-1. Their full name
-2. Their shift times (e.g., "5:30a - 1:30p")
-3. Their job title/department which will say "FOH" or "BOH"
-Return EXACTLY this JSON format (no markdown, no preamble):
-{
-  "foh": [
-    {"name": "Person Name", "start": "5:30a", "end": "1:30p"}
-  ],
-  "boh": [
-    {"name": "BOH Person", "start": "5:30a", "end": "1:30p"}
-  ]
-}
-Be thorough and extract EVERY person visible."""
-
-        message_content = [
-            {
-                "type": "document" if file_type == "application/pdf" else "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": file_type,
-                    "data": file_data
-                }
-            },
-            {
-                "type": "text",
-                "text": prompt
-            }
-        ]
-
-        response = client.messages.create(
-            model="claude-opus-5",
-            max_tokens=4000,
-            messages=[{
-                "role": "user",
-                "content": message_content
-            }]
-        )
-
-        text = response.content[0].text
-        json_start = text.find('{')
-        json_end = text.rfind('}') + 1
-        json_str = text[json_start:json_end]
-        parsed = json.loads(json_str)
-
-        return jsonify(parsed)
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 # ===== MANAGER AUTH ROUTES =====
 

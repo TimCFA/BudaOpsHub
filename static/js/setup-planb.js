@@ -25,6 +25,8 @@ function planBForDaypart(section, date, dp, dpIndex){
   // Everyone on shift this daypart, with their PEA record and current slot.
   const slotOf = {};
   (posMap[dp.name] || []).forEach(slot => suSplitNames(posAssignments[key + '||' + slot]).forEach(n => slotOf[n.toLowerCase()] = slot));
+  // The Lead Captain runs the floor: counted as placed, never pulled to swap.
+  suSplitNames(posAssignments[key + '||' + SU_LEAD_CAPTAIN]).forEach(n => slotOf[n.toLowerCase()] = SU_LEAD_CAPTAIN);
   const byName = {};
   const addPerson = name=>{
     const k = name.toLowerCase();

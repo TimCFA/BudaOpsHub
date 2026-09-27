@@ -1337,3 +1337,19 @@
   @media (max-width:420px){ .su-tiles{gap:6px;} .su-tile{padding:8px;} }
   /* Let the board shrink to the screen: grid items default to their content's min width. */
   #positionsView .setups-layout > *,#positionsView #allDayparts{min-width:0;}
+  .roster-leader-badge{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:999px;background:#1C1B19;color:#fff;font-size:9px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;vertical-align:2px;}
+
+  /* ===== Leadership on Set Ups (Lead Captain, zone leaders) ===== */
+  .su-plan-tag.is-lead{background:#CFE0F5;color:#123A66;}
+  .su-plan-line.su-plan-lead{align-items:center;}
+  .su-plan-line.su-plan-lead > span:nth-child(2){flex-grow:1;}
+  .su-plan-link{flex:0 0 auto;border:1px solid #6B665E;background:transparent;color:#fff;border-radius:999px;padding:5px 12px;min-height:32px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;}
+  .su-plan-link:hover{background:#2C2A27;}
+  .su-zone-leaders{display:flex;flex-wrap:wrap;gap:6px;margin-top:-2px;}
+  .su-zone-leader{font-size:11px;font-weight:700;color:#123A66;background:#E4ECF7;border-radius:999px;padding:3px 9px;}
+  .su-suggest{display:inline-block;margin-left:6px;font-size:10px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#123A66;background:#E4ECF7;border-radius:999px;padding:2px 7px;vertical-align:2px;}
+  .su-current{flex:0 0 auto;font-size:12px;font-weight:700;color:var(--su-muted);padding:0 6px;}
+  .su-sheet-rule{font-size:13px;color:var(--su-muted);margin:0 0 12px;line-height:1.45;}
+  .su-eval-section.is-lead{border-left-color:#1565C0;}
+  /* Keep toasts clear of the Set Ups toolbar. */
+  body:has(#positionsView.active) .toast{bottom:104px;}

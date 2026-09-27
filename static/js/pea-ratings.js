@@ -441,15 +441,37 @@ function peaNameForms(name){
   return {first: plain[0] || '', firsts: [plain[0], ...nicknames].filter(Boolean), rest: plain.slice(1), all: plain};
 }
 
+// True when two words differ by at most one letter (added, dropped or
+// changed): "Makenzi" / "Makenzie".
+function peaOneEditApart(a, b){
+  if(a === b) return true;
+  if(Math.abs(a.length - b.length) > 1) return false;
+  let i = 0, j = 0, edits = 0;
+  while(i < a.length && j < b.length){
+    if(a[i] === b[j]){ i++; j++; continue; }
+    if(++edits > 1) return false;
+    if(a.length > b.length) i++;
+    else if(b.length > a.length) j++;
+    else { i++; j++; }
+  }
+  return edits + (a.length - i) + (b.length - j) <= 1;
+}
+
 function peaNameMatches(rosterName, peaName){
   const r = peaNameForms(rosterName), p = peaNameForms(peaName);
   if(!r.first || !p.first) return false;
   if(r.all.join(' ') === p.all.join(' ')) return true;
-  if(!p.firsts.includes(r.first) && !r.firsts.includes(p.first)) return false;
+  // First names: the same, a nickname, or one letter apart on names of 4+
+  // letters ("Makenzi" / "Makenzie").
+  const sameFirst = p.firsts.includes(r.first) || r.firsts.includes(p.first)
+    || (r.first.length >= 4 && p.first.length >= 4 && peaOneEditApart(r.first, p.first));
+  if(!sameFirst) return false;
   if(!r.rest.length || !p.rest.length) return false;
-  // Every roster last-name part must appear in the Levelset name; a lone
-  // initial ("Ana D.") matches a last name starting with that letter.
-  return r.rest.every(t => t.length === 1 ? p.rest.some(x => x[0] === t) : p.rest.includes(t));
+  // Last names: every roster part appears in the Levelset name (a lone
+  // initial matches a last name starting with it), or the other way round
+  // ("Lucia Jurado Tavera" / "Lucia Tavera"), or the final surnames agree.
+  const within = (xs, ys) => xs.every(t => t.length === 1 ? ys.some(y => y[0] === t) : ys.includes(t));
+  return within(r.rest, p.rest) || within(p.rest, r.rest) || r.rest[r.rest.length - 1] === p.rest[p.rest.length - 1];
 }
 
 // Links a leader made by hand in Manage, for names the matcher can't pair:

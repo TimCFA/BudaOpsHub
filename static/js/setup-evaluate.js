@@ -147,7 +147,10 @@ function evaluateSetup(section, date, dpName){
     }
   });
 
-  return {entries, counts, risks, development, ratingDue, rotation, hasPea, historyDays};
+  const leaders = leaderReview(section, date, dpName, entries);
+  risks.push(...leaders.risks);
+
+  return {entries, counts, risks, development, ratingDue, rotation, leadership: leaders.leadership, hasPea, historyDays};
 }
 
 // ----- Rendering (inside each daypart card on Set Ups) -----
@@ -185,7 +188,7 @@ function renderSetupEvaluation(section, date, dp){
   if(c.na) notes.push(`${c.na} slot${c.na === 1 ? ' isn’t' : 's aren’t'} rated in Levelset (zones, Traffic Lane, etc.) and ${c.na === 1 ? 'is' : 'are'} left out.`);
   if(r.rotation.length && r.historyDays >= SU_ROTATION_DAYS) notes.push(`Rotation covers positions each person is rated in or has worked. (Nd) = days since they last worked it; no number = not at all in the ${r.historyDays} days of set-up history.`);
   if(r.historyDays < SU_ROTATION_DAYS) notes.push(`Rotation has ${r.historyDays} day${r.historyDays === 1 ? '' : 's'} of set-up history so far; "hasn’t worked" flags need ${SU_ROTATION_DAYS}.`);
-  const nothing = !r.risks.length && !r.development.length && !r.rotation.length && !r.ratingDue.length;
+  const nothing = !r.risks.length && !r.development.length && !r.rotation.length && !r.ratingDue.length && !(r.leadership || []).length;
   return `
     <div class="su-eval has-result ${stale ? 'is-stale' : ''}">
       <div class="su-eval-head">
@@ -197,6 +200,7 @@ function renderSetupEvaluation(section, date, dp){
       ${suEvalListHtml('Risk', '⚠️', 'is-risk', r.risks)}
       ${suEvalListHtml('Development', '🌱', 'is-dev', r.development)}
       ${suEvalListHtml('Rotation', '🔄', 'is-rot', r.rotation)}
+      ${suEvalListHtml('Leadership', '🧭', 'is-lead', r.leadership || [])}
       ${suEvalListHtml('PEA rating due', '📝', 'is-due', r.ratingDue)}
       ${nothing ? '<div class="su-eval-clear">✓ No risks, development placements or rotation flags.</div>' : ''}
       ${notes.map(n => `<div class="su-eval-note">${n}</div>`).join('')}
