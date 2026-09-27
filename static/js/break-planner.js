@@ -6,8 +6,10 @@
 //  - No breaks 10:00–10:30 or 12:00–1:00.
 // On top of that the planner keeps breaks out of the busiest hours (from the
 // uploaded productivity report when there is one — sales per labor hour by
-// hour of day), caps how many people from a side are off at once, and keeps
-// two Team Leaders from being off together.
+// hour of day), and keeps two Team Leaders from being off together.
+// Tim: up to 2 people on break at once (per side), always staggered by
+// 10–15 minutes, so there's never more than a 15-minute wait for someone to
+// return if the business needs break running paused.
 //
 // Recurring tasks (restrooms, lemonades, trash, restock) get default times in
 // the quieter windows, using Tim's durations.
@@ -17,7 +19,8 @@ const BREAK_LEN = 30;
 const BREAK_BLACKOUTS = [[600, 630], [720, 780]];   // 10:00–10:30, 12:00–1:00
 const BREAK_EDGE = 120;             // not in someone's first or last 2 hours
 const BREAK_STEP = 15;
-const BREAK_PER_ON_FLOOR = 7;       // one person off per 7 on the floor (at least 1)
+const BREAK_MAX_OFF = 2;            // people on break at once, per side
+const BREAK_MIN_STAGGER = 10;       // overlapping breaks start at least this far apart
 
 // When there's no productivity upload yet: lunch and dinner are the rushes.
 const BREAK_DEFAULT_BUSY = {11: 0.8, 12: 1, 13: 0.7, 16: 0.5, 17: 0.8, 18: 0.9, 19: 0.6};
@@ -86,7 +89,6 @@ function planBreaks(section, date){
     return {name: entry.name, leader: !!entry.leader, blocks, onFloor, from: Math.min(...blocks.map(b => b[0])), to: Math.max(...blocks.map(b => b[1]))};
   }).filter(Boolean);
 
-  const onFloorAt = t => people.filter(p => p.blocks.some(([s, e]) => s <= t && t < e)).length;
   const breaks = [];
   const offAt = t => breaks.filter(b => b.start <= t && t < b.end);
 
@@ -100,11 +102,11 @@ function planBreaks(section, date){
           if(BREAK_BLACKOUTS.some(([bs, be]) => t < be && t + BREAK_LEN > bs)) continue;
           let cost = t < mid ? (mid - t) / 60 : (t - mid) / 60 * 1.6;   // sooner beats later
           cost += (busy[Math.floor(t / 60)] || 0) * 3 + (busy[Math.floor((t + BREAK_LEN - 1) / 60)] || 0) * 1.5;
-          let full = false;
+          // Never two starting together: the second waits 10–15 minutes.
+          let full = breaks.some(b => b.start !== null && Math.abs(b.start - t) < BREAK_MIN_STAGGER);
           for(let m = t; m < t + BREAK_LEN; m += BREAK_STEP){
             const off = offAt(m);
-            const cap = Math.max(1, Math.floor(onFloorAt(m) / BREAK_PER_ON_FLOOR));
-            if(off.length >= cap) full = true;
+            if(off.length >= BREAK_MAX_OFF) full = true;
             if(p.leader && off.some(o => o.leader)) cost += 3;
             cost += off.length * 0.4;
           }
@@ -174,6 +176,6 @@ function suBreaksCardHtml(section, date, dpIndex){
       ${here.length ? `<ul class="su-bt-list">${breakRows}</ul>` : '<p class="su-bt-none">No breaks start this daypart.</p>'}
       ${unplanned.map(b => `<p class="su-bt-warn">${escapeHtml(suDisplayName(b.name))} is owed a break — ${escapeHtml(b.warn)}.</p>`).join('')}
       ${tasks.length ? `<h4>Tasks</h4><ul class="su-bt-list is-tasks">${taskRows}</ul>` : ''}
-      <p class="su-bt-foot">30-minute breaks for shifts of 6+ hours, nearer the middle (earlier over later), none 10–10:30 or 12–1${plan.source ? `, steered by the ${escapeHtml(plan.source)} productivity report` : ''}.</p>
+      <p class="su-bt-foot">30-minute breaks for shifts of 6+ hours, nearer the middle (earlier over later), none 10–10:30 or 12–1, up to 2 off at once and staggered so the next person is back within 15 minutes${plan.source ? `, steered by the ${escapeHtml(plan.source)} productivity report` : ''}.</p>
     </section>`;
 }
