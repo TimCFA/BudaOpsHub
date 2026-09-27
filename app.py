@@ -34,7 +34,7 @@ app.config.update(
 # per key. The product bookkeeping keys travel with `products` so a
 # non-manager save can't leave them out of step with the stored list.
 MANAGER_ONLY_KEYS = {
-    'wasteTarget', 'safeTarget', 'products', 'teamMembers',
+    'wasteTarget', 'safeTarget', 'products',
     'deletedProductIds', 'productFixesVersion', 'productCategoryOrder',
     'lxPillars', 'lxMetrics', 'lxLastUpdated',
     'gxData', 'txData', 'homeData',

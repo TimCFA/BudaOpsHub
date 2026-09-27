@@ -84,21 +84,7 @@ async function renderManage(){
   renderScoreboardManage();
   
   renderProductManager();
-
-  const tlist = document.getElementById('teamList');
-  tlist.innerHTML = teamMembers.map((tm,i)=>`
-    <div style="display:flex;justify-content:space-between;align-items:center;background:var(--cfa-light);padding:8px 12px;border-radius:6px;margin-bottom:6px;">
-      <span style="font-size:12px;">${tm}</span>
-      <button onclick="deleteTeam(${i})" style="background:none;border:none;color:var(--cfa-red);cursor:pointer;font-weight:bold;">✕</button>
-    </div>
-  `).join('');
 }
-
-window.deleteTeam = async function(i){
-  teamMembers.splice(i,1);
-  await saveState();
-  renderManage();
-};
 
 // ---- Products (Log Waste items) ----
 // Categories aren't stored separately: a category is just the `cat` shared by
@@ -274,17 +260,6 @@ document.getElementById('btnAddProd').addEventListener('click', async ()=>{
   document.getElementById('newCat').value = cat;
   await saveProductsAndRefresh();
   showToast(`✓ Added to ${cat}`);
-});
-
-document.getElementById('btnAddTeam').addEventListener('click', async ()=>{
-  const name = document.getElementById('newTeamName').value.trim();
-  if(name && !teamMembers.includes(name)){
-    teamMembers.push(name);
-    document.getElementById('newTeamName').value='';
-    await saveState();
-    renderManage();
-    showToast('✓ Team Member Added');
-  }
 });
 
 document.getElementById('btnSaveLX').addEventListener('click', saveLXScoreboard);

@@ -207,8 +207,6 @@ function renderZoneResetView(){
 }
 
 
-const fohLeads = ['Carlos', 'Nestor', 'Aurora', 'Kaiya', 'Jacob', 'Dom', 'Luke', 'Vanessa'];
-const bohLeads = ['Doris', 'Nansi', 'Bessie', 'Jason', 'Angeles', 'Alex', 'Jenny', 'Grecia'];
 
 const fohProducts = [
   {id:'foh1', section:'foh', cat:'Beverages', name:'Lemonade (Quart)', es:'Limonada (Cuarto)', unit:'each', cost:0},
@@ -266,7 +264,6 @@ const bohProducts = [
 ];
 
 products = [...fohProducts, ...bohProducts];
-teamMembers = [...fohLeads, ...bohLeads];
 
 const fohDayparts = [
   {name: 'Early Breakfast (6:00-8:00)', time: '6:00'},
