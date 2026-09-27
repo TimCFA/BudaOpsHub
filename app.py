@@ -56,20 +56,49 @@ def _keep_stored_manager_fields(old_state, new_state):
             new_state.pop(key, None)
     return new_state
 
+# ===== FIREBASE PROXY LIMITS =====
+# The page only ever reads and writes one path: the app-state blob. The proxy
+# refuses everything else. In particular secure/managerPinHash must never be
+# reachable: reading it would let anyone brute-force a short PIN offline, and
+# writing it would let anyone set their own PIN and unlock Manage.
+APP_STATE_PATH = 'appState'
+MAX_STATE_BYTES = 8 * 1024 * 1024   # far above today's state; stops junk floods
+
+def _state_path_or_error(data):
+    path = (data or {}).get('path', '')
+    if path != APP_STATE_PATH:
+        return None, (jsonify({'error': 'Path not allowed'}), 403)
+    return path, None
+
 # Basic in-memory brute-force throttle for the login endpoint.
 # Resets on redeploy/restart — fine for a single small-team instance,
-# not a substitute for a real long-term PIN if this ever needs to scale.
+# not a substitute for a longer PIN.
 _login_failures = defaultdict(list)
+_all_login_failures = []
 LOGIN_MAX_ATTEMPTS = 5
 LOGIN_LOCKOUT_SECONDS = 60
+# Across every address: a guesser rotating addresses still gets only this
+# many tries per window. (A real manager is locked out for the same window
+# while it trips, which is the trade-off for a 4-digit PIN.)
+LOGIN_GLOBAL_MAX_ATTEMPTS = 30
+LOGIN_GLOBAL_WINDOW_SECONDS = 600
+
+def _client_ip():
+    # Render appends the connecting address to X-Forwarded-For; anything
+    # before it came from the client and can be forged to dodge the throttle.
+    forwarded = request.headers.get('X-Forwarded-For', '')
+    return forwarded.split(',')[-1].strip() if forwarded else request.remote_addr
 
 def _too_many_attempts(ip):
     now = time.time()
     _login_failures[ip] = [t for t in _login_failures[ip] if now - t < LOGIN_LOCKOUT_SECONDS]
-    return len(_login_failures[ip]) >= LOGIN_MAX_ATTEMPTS
+    _all_login_failures[:] = [t for t in _all_login_failures if now - t < LOGIN_GLOBAL_WINDOW_SECONDS]
+    return len(_login_failures[ip]) >= LOGIN_MAX_ATTEMPTS or len(_all_login_failures) >= LOGIN_GLOBAL_MAX_ATTEMPTS
 
 def _record_failure(ip):
-    _login_failures[ip].append(time.time())
+    now = time.time()
+    _login_failures[ip].append(now)
+    _all_login_failures.append(now)
 
 # Firebase config
 FIREBASE_DB_URL = 'https://cfa-buda-ops-hub-default-rtdb.firebaseio.com'
@@ -91,7 +120,7 @@ def serve_html():
 
 @app.route('/api/manager/login', methods=['POST'])
 def manager_login():
-    ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    ip = _client_ip()
     if _too_many_attempts(ip):
         return jsonify({'error': 'Too many attempts. Try again in a minute.'}), 429
 
@@ -154,62 +183,65 @@ def pea_parse():
         return jsonify({'error': 'Could not read that PDF'}), 500
 
 # ===== FIREBASE PROXY ROUTES =====
+# Only the app-state blob, and only read and write (see APP_STATE_PATH). There
+# are no update/delete routes: the page never used them, and open ones let
+# anyone change or wipe any path.
 
 @app.route('/api/firebase/read', methods=['POST'])
 def firebase_read():
+    path, error = _state_path_or_error(request.get_json(silent=True))
+    if error:
+        return error
     try:
-        data = request.json
-        path = data.get('path', '')
-
-        if not path:
-            return jsonify({'error': 'Missing path'}), 400
-
-        value = db.reference(path).get()
-        return jsonify(value)
-
+        return jsonify(db.reference(path).get())
     except Exception as e:
-        print(f"[FIREBASE READ ERROR] Path: {path}, {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        print(f"[FIREBASE READ ERROR] Path: {path}, {e}")
+        return jsonify({'error': 'Read failed'}), 500
 
 @app.route('/api/firebase/write', methods=['POST'])
 def firebase_write():
+    data = request.get_json(silent=True) or {}
+    path, error = _state_path_or_error(data)
+    if error:
+        return error
+    value = data.get('value')
+
+    # The app state is saved as one JSON string holding an object.
+    if not isinstance(value, str):
+        return jsonify({'error': 'App state must be a JSON string'}), 400
+    if len(value.encode('utf-8')) > MAX_STATE_BYTES:
+        return jsonify({'error': 'App state is too large'}), 413
     try:
-        data = request.json
-        path = data.get('path', '')
-        value = data.get('value', {})
+        new_state = json.loads(value)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'App state is not valid JSON'}), 400
+    if not isinstance(new_state, dict):
+        return jsonify({'error': 'App state must be an object'}), 400
 
-        if not path:
-            return jsonify({'error': 'Missing path'}), 400
-
-        # Manager-field gate — only applies to the main app-state blob. A
-        # non-manager save whose manager-only fields differ from what's stored
-        # keeps the STORED values for those fields and saves everything else.
-        # (It used to reject the whole write, so any drift in those fields —
-        # e.g. a deploy that changes the default product list — silently
-        # dropped every team member's waste entries, CEM uploads, etc.)
+    try:
+        # Manager-field gate. A non-manager save whose manager-only fields
+        # differ from what's stored keeps the STORED values for those fields
+        # and saves everything else. (It used to reject the whole write, so
+        # any drift in those fields — e.g. a deploy that changes the default
+        # product list — silently dropped every team member's waste entries,
+        # CEM uploads, etc.)
         ignored_fields = []
-        if path == 'appState' and isinstance(value, str):
-            new_state = None
+        raw_old = db.reference(path).get()
+        old_state = None
+        if isinstance(raw_old, str):
             try:
-                new_state = json.loads(value)
+                old_state = json.loads(raw_old)
             except (TypeError, ValueError):
                 pass
+        if not isinstance(old_state, dict):
+            old_state = None
 
-            if new_state is not None:
-                raw_old = db.reference('appState').get()
-                old_state = None
-                if isinstance(raw_old, str):
-                    try:
-                        old_state = json.loads(raw_old)
-                    except (TypeError, ValueError):
-                        pass
-
-                # If there's no prior state at all, this is first-ever bootstrap —
-                # let it through rather than locking out an empty Firebase project.
-                if old_state is not None and not session.get('manager'):
-                    ignored_fields = _changed_manager_fields(old_state, new_state)
-                    if ignored_fields:
-                        value = json.dumps(_keep_stored_manager_fields(old_state, new_state))
+        # If there's no prior state at all, this is first-ever bootstrap —
+        # let it through rather than locking out an empty Firebase project.
+        if old_state is not None and not session.get('manager'):
+            ignored_fields = _changed_manager_fields(old_state, new_state)
+            if ignored_fields:
+                value = json.dumps(_keep_stored_manager_fields(old_state, new_state))
 
         db.reference(path).set(value)
         print(f"[FIREBASE WRITE] Path: {path}, OK")
@@ -219,43 +251,8 @@ def firebase_write():
         return jsonify({'success': True})
 
     except Exception as e:
-        print(f"[FIREBASE WRITE ERROR] Path: {path}, {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/firebase/update', methods=['POST'])
-def firebase_update():
-    try:
-        data = request.json
-        path = data.get('path', '')
-        value = data.get('value', {})
-
-        if not path:
-            return jsonify({'error': 'Missing path'}), 400
-
-        db.reference(path).update(value)
-        print(f"[FIREBASE UPDATE] Path: {path}, OK")
-        return jsonify({'success': True})
-
-    except Exception as e:
-        print(f"[FIREBASE UPDATE ERROR] Path: {path}, {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/firebase/delete', methods=['POST'])
-def firebase_delete():
-    try:
-        data = request.json
-        path = data.get('path', '')
-
-        if not path:
-            return jsonify({'error': 'Missing path'}), 400
-
-        db.reference(path).delete()
-        print(f"[FIREBASE DELETE] Path: {path}, OK")
-        return jsonify({'success': True})
-
-    except Exception as e:
-        print(f"[FIREBASE DELETE ERROR] Path: {path}, {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        print(f"[FIREBASE WRITE ERROR] Path: {path}, {e}")
+        return jsonify({'error': 'Write failed'}), 500
 
 # ===== ERROR HANDLING =====
 
