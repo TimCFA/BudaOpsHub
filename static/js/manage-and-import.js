@@ -73,6 +73,7 @@ async function renderManage(){
     ? `Last closed out: ${new Date(wasteLogLastClosedOut).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})} · ${entries.length} entries since`
     : `Never closed out yet · ${entries.length} entries logged so far`;
   document.getElementById('setupHistoryStatus').textContent = setupHistoryStatusText();
+  renderDataUploads();
   renderPeaManage();
 
   renderLXManage();

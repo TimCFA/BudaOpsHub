@@ -84,7 +84,7 @@ function suLeadCaptainLineHtml(date, dp){
     const where = working
       ? ` · working ${escapeHtml(working)}${SU_CAPTAIN_RE.test(working) ? ' <em>· also a zone captain — one hat only</em>' : ''}`
       : ' · <em>no working spot yet</em>';
-    return `<div class="su-plan-line su-plan-lead"><span class="su-plan-tag is-lead">Lead</span><span><b>${escapeHtml(current)}</b> is Lead Captain${where}</span><button type="button" class="su-plan-link" data-su-lead-open="1">Change</button></div>`;
+    return `<div class="su-plan-line su-plan-lead"><span class="su-plan-tag is-lead">Lead</span><span><b>${escapeHtml(suDisplayName(current))}</b> is Lead Captain${where}</span><button type="button" class="su-plan-link" data-su-lead-open="1">Change</button></div>`;
   }
   return `<div class="su-plan-line su-plan-lead"><span class="su-plan-tag is-lead">Lead</span><span>No Lead Captain yet</span><button type="button" class="su-plan-link" data-su-lead-open="1">Choose</button></div>`;
 }
@@ -219,14 +219,14 @@ document.getElementById('allDayparts').addEventListener('click', async e=>{
     if(!posAssignments[slotKey] && posAssignments[key]) posAssignments[slotKey] = posAssignments[key];
     suSheet = null;
     renderAllDayparts();
-    await saveState();
     showToast(`✓ ${posAssignments[key]} is working ${home.dataset.suLeadHome}`);
+    saveState();
     return;
   }
   if(set) posAssignments[key] = set.dataset.suSetLead;
   if(clear) delete posAssignments[key];
   suSheet = null;
   renderAllDayparts();
-  await saveState();
+  saveState();
   showToast(set ? `✓ ${set.dataset.suSetLead} is Lead Captain` : 'Lead Captain cleared');
 });

@@ -1357,3 +1357,36 @@
   body:has(#positionsView.active) .toast{bottom:104px;}
   .su-plan-line.su-plan-open{align-items:center;}
   .su-plan-line.su-plan-open > span:nth-child(2){flex-grow:1;}
+
+  /* ===== Data Uploads (TIM-46) ===== */
+  .du-summary{font-size:13px;font-weight:700;color:var(--success);margin:0 0 10px;}
+  .du-summary.has-due{color:#9A5B00;}
+  .du-drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:96px;padding:16px;border:2px dashed var(--border);border-radius:var(--radius);background:var(--cfa-light);text-align:center;cursor:pointer;position:relative;}
+  .du-drop.is-over{border-color:var(--cfa-red);background:#FFF5F5;}
+  .du-drop input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+  .du-drop-main{font-size:14px;font-weight:700;color:var(--text-primary);}
+  .du-drop-sub{font-size:11px;color:var(--text-secondary);max-width:320px;}
+  .du-results{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px;}
+  .du-result{font-size:12px;padding:8px 10px;border-radius:8px;background:var(--cfa-light);border-left:3px solid var(--border);overflow-wrap:anywhere;}
+  .du-result span{color:var(--text-secondary);}
+  .du-result div{margin-top:2px;color:var(--text-primary);}
+  .du-result.is-ok{border-left-color:var(--success);}
+  .du-result.is-error{border-left-color:var(--cfa-red);}
+  .du-result.is-error div{color:var(--cfa-red);}
+  .du-list{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:8px;}
+  .du-row{border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;background:var(--cfa-white, #fff);}
+  .du-row-head{display:flex;align-items:center;gap:8px;min-width:0;}
+  .du-row-icon{flex:0 0 auto;font-size:16px;}
+  .du-row-name{flex:1 1 auto;min-width:0;font-size:13px;font-weight:700;color:var(--text-primary);}
+  .du-status{flex:0 0 auto;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap;}
+  .du-status.is-fresh{background:#E8F5E9;color:#1B5E20;}
+  .du-status.is-due{background:#FFF3CD;color:#7A4B00;}
+  .du-status.is-overdue{background:#FDECEA;color:#9B1C1C;}
+  .du-cover{font-size:12px;color:var(--text-secondary);margin-top:4px;}
+  .du-note{font-size:12px;color:#7A4B00;margin-top:4px;}
+  .du-more{margin-top:6px;}
+  .du-more summary{font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;min-height:28px;display:flex;align-items:center;}
+  .du-more p{font-size:12px;color:var(--text-primary);margin:4px 0;}
+  .du-more .du-feeds{color:var(--text-secondary);}
+  .du-freq{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary);margin-top:6px;}
+  .du-freq select{padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:12px;background:var(--cfa-white, #fff);color:var(--text-primary);}

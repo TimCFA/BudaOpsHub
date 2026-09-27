@@ -111,7 +111,9 @@ function renderGXScoreboard(){
   `;
 
   if(gxData.lastUpdated){
-    document.getElementById('gxUpdateTime').textContent = new Date(gxData.lastUpdated).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+    const src = gxData.cemSource;
+    document.getElementById('gxUpdateTime').textContent = new Date(gxData.lastUpdated).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})
+      + (src ? ` · CEM ${src.label}${src.n ? ` (${src.n} surveys)` : ''}` : '');
   }
 }
 

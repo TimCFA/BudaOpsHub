@@ -1127,6 +1127,7 @@ function pbImportFile(kind, input){
       }
     }
     const result = pbAddDatedEntries(PB_KIND[kind].list(), parsed.byDate, 'import');
+    if(kind === 'sold') duRecord('salesMix', {file: file.name, summary: `${result.items} prep items`});
     pbFinishAdd(kind, result, parsed.skipped);
   });
 }

@@ -768,6 +768,21 @@
       </div>
 
 
+      <!-- GROUP: Data Uploads (TIM-46) -->
+      <div class="manage-group open">
+        <div class="manage-group-header" onclick="toggleManageGroup(this)">
+          <span class="manage-group-title">📥 Data Uploads</span>
+          <span class="manage-group-chevron">▾</span>
+        </div>
+        <div class="manage-group-body">
+          <div class="standup-card">
+            <h3>What's due</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">One upload per report keeps every scoreboard, tool and insight that uses it up to date.</p>
+            <div id="dataUploadsRoot"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- GROUP: Team & Scheduling -->
       <div class="manage-group">
         <div class="manage-group-header" onclick="toggleManageGroup(this)">
@@ -860,13 +875,7 @@
             <h3>Guest Obsession Scoreboard (Weekly Update)</h3>
             <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Updated every Monday by admin team</p>
 
-            <div style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:16px;">
-              <div style="font-weight:600;font-size:12px;color:var(--text-primary);margin-bottom:8px;">📄 Import CEM Comparison Report</div>
-              <p style="font-size:11px;color:var(--text-secondary);margin:0 0 10px;">Upload the CEM "Comparison Report" as CSV or Excel (.xlsx/.xls) to auto-fill the store-total scores below. Review before saving.</p>
-              <input type="file" id="cemUpload" accept=".csv,.xlsx,.xls">
-              <button id="btnImportCem" class="btn btn-secondary" style="width:auto;padding:8px 14px;font-size:11px;">Import CEM Data</button>
-              <div id="cemImportStatus" style="font-size:11px;color:var(--text-secondary);margin-top:8px;"></div>
-            </div>
+            <p style="font-size:11px;color:var(--text-secondary);margin:0 0 12px;">CEM scores fill in automatically from <b>Data Uploads</b> at the top of this page (the latest month uploaded). Everything else here is typed in.</p>
 
             <div id="gxManageList" style="margin-bottom:16px;"></div>
             <button id="btnSaveGX" class="btn btn-primary">Save Guest Obsession Scoreboard</button>
@@ -1046,5 +1055,6 @@
 <script src="/static/js/team-lead-trial.js"></script>
 <script src="/static/js/prep-board.js"></script>
 <script src="/static/js/cem-trends.js"></script>
+<script src="/static/js/data-uploads.js"></script>
 </body>
 </html>

@@ -191,6 +191,8 @@ function mergeImportedDayRoster(existingList, importedList){
   return [...manual, ...importedFiltered];
 }
 
+let weeklyImportPendingFile = null;   // file name, for the Data Uploads log
+
 document.getElementById('btnImportWeeklyRoster').addEventListener('click', ()=>{
   const file = document.getElementById('weeklyRosterUpload').files[0];
   const status = document.getElementById('weeklyImportStatus');
@@ -211,6 +213,7 @@ document.getElementById('btnImportWeeklyRoster').addEventListener('click', ()=>{
       weeklyImportOffFloor = offFloor;
       weeklyImportFileStart = weeklyRosterStartFromFileName(file.name);
       weeklyImportActiveDay = HS_DAY_ORDER[0];
+      weeklyImportPendingFile = file.name;
       showWeeklyImportPreview();
       const totalFoh = HS_DAY_ORDER.reduce((sum,d)=> sum + result[d].foh.length, 0);
       const totalBoh = HS_DAY_ORDER.reduce((sum,d)=> sum + result[d].boh.length, 0);
@@ -314,6 +317,7 @@ async function confirmWeeklyImport(){
     bohRoster[dateISO] = mergeImportedDayRoster(bohRoster[dateISO], dayData.boh);
     touchLastUpdated(dateISO);
   });
+  duRecord('roster', {file: weeklyImportPendingFile, summary: `${weekDays[0].label} – ${weekDays[weekDays.length - 1].label}`});
   await saveState();
   document.getElementById('weeklyImportPreviewModal').classList.remove('active');
   document.getElementById('weeklyRosterUpload').value = '';
@@ -321,5 +325,6 @@ async function confirmWeeklyImport(){
   renderRoster();
   renderAllDayparts();
   updateSelectedDayInfo('daySelect', 'daySelectedInfo');
+  renderDataUploads();
   showToast('✓ Weekly Roster Imported!');
 }

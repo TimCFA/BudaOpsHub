@@ -72,6 +72,48 @@ function suCurrentDaypart(section, date){
   return {dp: dayparts[dpIndex], dpIndex};
 }
 
+// Board names: first name only. When two people share a first name, each
+// gets their last-name initials — "Daniel M.", and "Daniel V.C." for a
+// two-word last name (Van Cleave). If the initials match too, the full last
+// name. A nickname in parentheses is used as the first name. Built from
+// everyone on the saved rosters, so a name reads the same every day.
+let suNameMap = null;
+
+function suNameParts(full){
+  let s = String(full).trim();
+  if(s && s === s.toUpperCase()) s = s.toLowerCase().replace(/(^|[\s'-])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+  const nick = (s.match(/\(([^)]+)\)/) || [])[1];
+  const words = s.replace(/\([^)]*\)/g, ' ').split(/\s+/).filter(Boolean);
+  return {first: nick ? nick.trim() : (words[0] || s), last: words.slice(1)};
+}
+
+function suBuildNameMap(){
+  const all = new Set();
+  [fohRoster, bohRoster].forEach(r => Object.values(r).forEach(list => (Array.isArray(list) ? list : []).forEach(p => p && p.name && all.add(p.name.trim()))));
+  Object.values(posAssignments).forEach(v => suSplitNames(v).forEach(n => all.add(n)));
+  const byFirst = {};
+  [...all].forEach(n => { const k = suNameParts(n).first.toLowerCase(); (byFirst[k] = byFirst[k] || new Set()).add(n.toLowerCase()); });
+  const fulls = {};
+  [...all].forEach(n => { fulls[n.toLowerCase()] = n; });
+  const map = {};
+  Object.values(byFirst).forEach(group=>{
+    const names = [...group].map(k => fulls[k]);
+    if(names.length === 1){ map[names[0].toLowerCase()] = suNameParts(names[0]).first; return; }
+    const withInitials = names.map(n => { const p = suNameParts(n); return {n, p, label: p.last.length ? `${p.first} ${p.last.map(w => w[0].toUpperCase() + '.').join('')}` : p.first}; });
+    withInitials.forEach(x=>{
+      const clash = withInitials.filter(y => y.label === x.label).length > 1;
+      map[x.n.toLowerCase()] = clash && x.p.last.length ? `${x.p.first} ${x.p.last.join(' ')}` : x.label;
+    });
+  });
+  return map;
+}
+
+function suDisplayName(full){
+  if(!full) return '';
+  if(!suNameMap) suNameMap = suBuildNameMap();
+  return suNameMap[String(full).trim().toLowerCase()] || suNameParts(full).first;
+}
+
 function suInitials(name){
   const parts = String(name).replace(/\(.*?\)/g, ' ').split(/[\s,]+/).filter(Boolean);
   return ((parts[0] || '?')[0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
@@ -148,7 +190,7 @@ function suGamePlanHtml(section, date, dp, dpIndex, m){
   const devStale = dev && dev.signature !== suDevelopSignature(section, date, dp, dpIndex);
   const pick = dev && dev.result.picks[0];
   const devText = !dev ? 'Tap Develop below to pick today’s focus.'
-    : pick ? `${pick.name}${pick.target ? ` on ${pick.target.pos}` : ''}${pick.pair ? `, with ${pick.pair.name}` : ''}${dev.result.picks.length > 1 ? ` · +${dev.result.picks.length - 1} more` : ''}`
+    : pick ? `${suDisplayName(pick.name)}${pick.target ? ` on ${pick.target.pos}` : ''}${pick.pair ? `, with ${suDisplayName(pick.pair.name)}` : ''}${dev.result.picks.length > 1 ? ` · +${dev.result.picks.length - 1} more` : ''}`
     : dev.result.room ? 'Nobody needs a development focus right now.' : 'No room to develop this daypart.';
 
   const ev = setupEvaluations[m.key];
@@ -158,8 +200,8 @@ function suGamePlanHtml(section, date, dp, dpIndex, m){
 
   const needed = m.tiles.filter(x => x.needed);
   const openText = needed.length
-    ? `${needed.slice(0, 3).map(x => `${x.slot} (#${x.rank})`).join(', ')}${needed.length > 3 ? ` +${needed.length - 3}` : ''}${m.unplaced.length ? ` — ${m.unplaced.slice(0, 3).join(', ')} ${m.unplaced.length === 1 ? 'is' : 'are'} on shift, not placed` : ''}`
-    : m.unplaced.length ? `All priority spots filled · not placed: ${m.unplaced.slice(0, 4).join(', ')}` : m.headcount ? 'Every priority spot is filled.' : 'No roster for this daypart yet.';
+    ? `${needed.slice(0, 3).map(x => `${x.slot} (#${x.rank})`).join(', ')}${needed.length > 3 ? ` +${needed.length - 3}` : ''}${m.unplaced.length ? ` — ${m.unplaced.slice(0, 3).map(suDisplayName).join(', ')} ${m.unplaced.length === 1 ? 'is' : 'are'} on shift, not placed` : ''}`
+    : m.unplaced.length ? `All priority spots filled · not placed: ${m.unplaced.slice(0, 4).map(suDisplayName).join(', ')}` : m.headcount ? 'Every priority spot is filled.' : 'No roster for this daypart yet.';
 
   return `
     <section class="su-plan" aria-label="Game plan">
@@ -191,7 +233,7 @@ function suSplitsReady(m){
 function suChangesLineHtml(m){
   const t = m.timing;
   if(!t.pairs.length && !t.arrivals.length && !t.leavers.length) return '';
-  const first = n => n.split(/\s+/)[0];
+  const first = suDisplayName;
   const bits = [
     ...t.pairs.map(p => `${first(p.out)} → ${first(p.in)} @ ${suClock(p.at)}${p.gap > 5 ? ` (${first(p.in)} in ${suClock(p.arrives)})` : ''}`),
     ...t.leavers.map(p => `${first(p.name)} leaves ${suClock(p.leaves)}`),
@@ -203,7 +245,7 @@ function suChangesLineHtml(m){
 
 function suTileHtml(t){
   // A handoff shows the first name; the time note under it names who's next.
-  const name = t.names.length ? (t.names.length > 1 && t.timeNote ? t.names[0] : t.names.join(' → ')) : t.needed ? 'Needed' : 'Open';
+  const name = t.names.length ? (t.names.length > 1 && t.timeNote ? suDisplayName(t.names[0]) : t.names.map(suDisplayName).join(' → ')) : t.needed ? 'Needed' : 'Open';
   const avatar = t.names.length ? suInitials(t.names[0]) : '+';
   const label = `${t.slot}, priority ${t.rank}: ${t.names.length ? t.names.join(' then ') : (t.needed ? 'needed' : 'open')}${t.cell ? `, ${t.cell.tier.label} ${t.cell.avg.toFixed(2)}` : ''}`;
   return `
@@ -226,7 +268,7 @@ function suZonesHtml(m){
     const filled = z.tiles.filter(t => t.names.length).length;
     const needed = z.tiles.filter(t => t.needed).length;
     const count = z.key === 'extra' && !filled ? 'when staffing allows' : `${filled} placed${needed ? ` · ${needed} needed` : ''}`;
-    const leaders = z.tiles.filter(t => t.leaderRole).map(t => `<span class="su-zone-leader" title="${escapeHtml(t.leaderRole)}">${escapeHtml(t.names[0].split(/\s+/)[0])} · ${t.leaderRole === 'Team Lead' ? 'TL' : 'Trainer'}</span>`).join('');
+    const leaders = z.tiles.filter(t => t.leaderRole).map(t => `<span class="su-zone-leader" title="${escapeHtml(t.leaderRole)}">${escapeHtml(suDisplayName(t.names[0]))} · ${t.leaderRole === 'Team Lead' ? 'TL' : 'Trainer'}</span>`).join('');
     return `
       <section class="su-zone" aria-label="${escapeHtml(z.name)}">
         <div class="su-zone-head"><h3>${escapeHtml(z.name)}</h3><span>${count}</span></div>
@@ -335,6 +377,7 @@ function suSheetHtml(section, date, dp, dpIndex, m){
 
 function renderSetupsBoard(date){
   const section = currentPosSection;
+  suNameMap = null;   // rebuilt from the current rosters on first use
   const {dp, dpIndex} = suCurrentDaypart(section, date);
   const m = suDaypartModel(section, date, dp, dpIndex);
   return `
@@ -379,9 +422,9 @@ async function suApplySwap(btn){
     posAssignments[prefix + slot] = replaceIn(slot, outgoing, incoming);
   }
   suSheet = null;
-  await saveState();
   renderAllDayparts();
   showToast('✓ Set up updated');
+  saveState();
 }
 
 function setupsSlotsFor(dpName){

@@ -2,13 +2,11 @@
 // Ported from a standalone React artifact Tim built (Buda CEM Scoreboard). Reimplemented as
 // plain JS/DOM template rendering to match this app's pattern (no React/JSX/build step
 // anywhere else here — see trainer-trial.js) and persisted through this app's real
-// Firebase-backed saveState()/loadState(). This is a SEPARATE tool from the existing GX
-// Manage "Import CEM Report" feature (management-views.js's CEM_FIELD_MAP/parseCemCsv),
-// which only updates this month's live scoreboard tiles from a single snapshot. CEM Trends
-// instead keeps a multi-period history (monthly/quarterly) and computes trend/correlation/
-// significance insights across it — by design they coexist rather than merge (per Tim).
-// All function/constant names use a CT_/ct prefix specifically to avoid colliding with the
-// existing CEM_FIELD_MAP importer's globals of the same shape.
+// Firebase-backed saveState()/loadState(). cemEntries is the one master copy
+// of CEM (TIM-46): every import — here or through Manage → Data Uploads —
+// also points the Guest Obsession scoreboard at the latest month logged
+// (cemSyncScoreboard in data-uploads.js).
+// Function/constant names use a CT_/ct prefix.
 
 const CT_METRICS = [
   { key: 'overall', label: 'OSAT', short: 'OSAT' },
@@ -126,7 +124,7 @@ function ctParseRows(rows){
   const buckets = new Map();
   const getBucket = (dimension, segment) => {
     const fullKey = `${dimension}::${segment}`;
-    if(!buckets.has(fullKey)) buckets.set(fullKey, { dimension, segment, n: null, scores: {}, benchmark: {} });
+    if(!buckets.has(fullKey)) buckets.set(fullKey, { dimension, segment, n: null, scores: {}, benchmark: {}, more: {} });
     return buckets.get(fullKey);
   };
 
@@ -147,8 +145,19 @@ function ctParseRows(rows){
       const isBenchmark = storeLabel.toLowerCase().startsWith('top 5%');
       const measureName = (row[1] || '').toString().trim();
       const metricKey = ctNormalizeMetricKey(measureName);
-      if(!metricKey) continue;
       const rawSegment = hasSegmentCol ? ctCleanSegmentLabel(row[2]) : '';
+      if(!metricKey){
+        // Other store-total measures (portion size, fries temperature, …)
+        // are kept for the Guest Obsession scoreboard (data-uploads.js).
+        if(rawSegment || !measureName) continue;
+        const raw = row[scoreCol];
+        let v = raw == null ? NaN : parseFloat(raw.toString().replace('%', ''));
+        if(isNaN(v)) continue;
+        if(v <= 1 && !raw.toString().includes('%')) v *= 100;
+        const m = getBucket('total', 'Overall').more[measureName] = getBucket('total', 'Overall').more[measureName] || {};
+        m[isBenchmark ? 'top5' : 'value'] = Math.round(v * 100) / 100;
+        continue;
+      }
       const dimension = rawSegment ? fileDim : 'total';
       const segment = rawSegment || 'Overall';
       const bucket = getBucket(dimension, segment);
@@ -177,7 +186,7 @@ function ctParseRows(rows){
     key: `${period.periodKey}::${b.dimension}::${b.segment}`,
     periodKey: period.periodKey, periodLabel: period.periodLabel, periodStart: period.periodStart,
     periodEnd: period.periodEnd, periodType: period.periodType, dimension: b.dimension, segment: b.segment,
-    n: b.n, scores: b.scores, benchmark: b.benchmark
+    n: b.n, scores: b.scores, benchmark: b.benchmark, ...(Object.keys(b.more).length ? { more: b.more } : {})
   }));
   return { period, entries };
 }
@@ -209,7 +218,8 @@ function ctMergeEntries(existing, incoming){
       const benchmark = { ...prev.benchmark, ...e.benchmark };
       const scores = { ...prev.scores, ...e.scores };
       const n = e.n != null ? e.n : prev.n;
-      map.set(e.key, { ...e, scores, benchmark, n });
+      const more = { ...(prev.more || {}), ...(e.more || {}) };
+      map.set(e.key, { ...e, scores, benchmark, n, ...(Object.keys(more).length ? { more } : {}) });
     } else {
       map.set(e.key, e);
     }
@@ -811,7 +821,7 @@ function renderCemTrends(){
   const tabs = [ { id:'scoreboard', label:'Scoreboard' }, { id:'trends', label:'Trends' }, { id:'insights', label:'Insights' }, { id:'data', label:'Log Data' } ];
   let html = `
     <div class="ct-header-row"><h2 class="ct-title">📈 CEM Trends</h2></div>
-    <p class="ct-subtitle">Multi-month guest experience trends &amp; statistical insights — separate from this month's live scoreboard above</p>
+    <p class="ct-subtitle">Multi-month guest experience trends &amp; statistical insights — the Guest Obsession scoreboard above shows the latest month logged here</p>
     <nav class="ct-tabs">${tabs.map((t) => `<button class="ct-tab ${cemTab===t.id?'active':''}" data-ct-set-tab="${t.id}">${t.label}</button>`).join('')}</nav>
     <div class="ct-panel">
   `;
@@ -828,7 +838,11 @@ function renderCemTrends(){
 async function ctApplyImport(period, incoming){
   const merged = ctMergeEntries(cemEntries, incoming);
   cemEntries = merged;
+  // One copy of CEM: the Guest Obsession scoreboard follows (data-uploads.js).
+  cemSyncScoreboard();
+  duRecord('cem', { summary: period.periodLabel, periodEnd: period.periodEnd });
   await saveState();
+  renderGXScoreboard();
   cemSelPeriod = period.periodKey;
   return incoming.length;
 }

@@ -88,7 +88,7 @@ function suSlotTimeNote(timing, names){
     const a = suTimingFor(timing, names[0]), b = suTimingFor(timing, names[1]);
     const at = a && a.leaves !== null ? a.leaves : b && b.arrives !== null ? b.arrives : null;
     const gap = a && b && a.leaves !== null && b.arrives !== null && b.arrives > a.leaves + 5;
-    return at !== null ? {text: `→ ${names[1].split(/\s+/)[0]} @ ${suClock(at)}${gap ? ` (open till ${suClock(b.arrives)})` : ''}`, warn: gap} : null;
+    return at !== null ? {text: `→ ${suDisplayName(names[1])} @ ${suClock(at)}${gap ? ` (open till ${suClock(b.arrives)})` : ''}`, warn: gap} : null;
   }
   const p = names[0] ? suTimingFor(timing, names[0]) : null;
   if(!p) return null;

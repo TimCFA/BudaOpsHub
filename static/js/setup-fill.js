@@ -311,6 +311,6 @@ document.getElementById('allDayparts').addEventListener('click', async e=>{
   delete setupFillResults[key];
   suSheet = null;
   renderAllDayparts();
-  await saveState();
+  saveState();
   showToast(`✓ ${applied} placement${applied === 1 ? '' : 's'} applied — tap Evaluate to check`);
 });
