@@ -108,6 +108,7 @@ function peaMergeRatings(ratings){
     added++;
   });
   peaRatings.rows.sort((a, b) => a[0].localeCompare(b[0]));
+  if(added && typeof peaNameMatchCache !== 'undefined') peaNameMatchCache.clear();
   return added;
 }
 
@@ -345,3 +346,45 @@ document.getElementById('peaStrengthRoot').addEventListener('input', e=>{
   peaPersonFilter = e.target.value;
   document.getElementById('peaPersonList').innerHTML = peaRenderPersonList(peaStrengthByPerson());
 });
+
+// ----- Matching Set Ups (HotSchedules) names to Levelset names -----
+// The two systems don't always spell a name the same way: Levelset may carry
+// a nickname ("Jeniree (Jenny) Vasquez") or both last names ("Alexander
+// Ovalle Amado"), and a roster may read "Last, First". A roster name is only
+// linked when exactly one Levelset name fits; otherwise it counts as unrated.
+function peaNameTokens(name){
+  let n = String(name || '');
+  const comma = n.split(',');
+  if(comma.length === 2) n = comma[1] + ' ' + comma[0];
+  return n.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/[^a-z\s()'-]/g, ' ').replace(/['-]/g, ' ').split(/\s+/).filter(Boolean);
+}
+
+function peaNameForms(name){
+  const tokens = peaNameTokens(name);
+  const nicknames = tokens.filter(t => /^\(.*\)$/.test(t)).map(t => t.slice(1, -1));
+  const plain = tokens.filter(t => !/^\(.*\)$/.test(t)).map(t => t.replace(/[()]/g, ''));
+  return {first: plain[0] || '', firsts: [plain[0], ...nicknames].filter(Boolean), rest: plain.slice(1), all: plain};
+}
+
+function peaNameMatches(rosterName, peaName){
+  const r = peaNameForms(rosterName), p = peaNameForms(peaName);
+  if(!r.first || !p.first) return false;
+  if(r.all.join(' ') === p.all.join(' ')) return true;
+  if(!p.firsts.includes(r.first) && !r.firsts.includes(p.first)) return false;
+  if(!r.rest.length || !p.rest.length) return false;
+  // Every roster last-name part must appear in the Levelset name; a lone
+  // initial ("Ana D.") matches a last name starting with that letter.
+  return r.rest.every(t => t.length === 1 ? p.rest.some(x => x[0] === t) : p.rest.includes(t));
+}
+
+const peaNameMatchCache = new Map();
+function peaMatchName(rosterName, peaNames){
+  const key = rosterName + '\u0000' + peaNames.length;
+  if(peaNameMatchCache.has(key)) return peaNameMatchCache.get(key);
+  const exact = peaNames.find(n => n.trim().toLowerCase() === String(rosterName).trim().toLowerCase());
+  const hits = exact ? [exact] : peaNames.filter(n => peaNameMatches(rosterName, n));
+  const match = hits.length === 1 ? hits[0] : null;
+  peaNameMatchCache.set(key, match);
+  return match;
+}
