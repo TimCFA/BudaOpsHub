@@ -1134,3 +1134,41 @@
     .pea-detail-cols{grid-template-columns:1fr;}
     .pea-pos-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
   }
+
+  /* ===== Set Up Evaluation (Set Ups daypart cards) ===== */
+  .su-eval{margin-top:12px;padding-top:12px;border-top:1px dashed var(--border);display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;}
+  .su-eval.has-result{display:block;}
+  .su-eval-btn{padding:9px 16px;border-radius:20px;border:1.5px solid var(--cfa-red);background:var(--cfa-white);color:var(--cfa-red);font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s ease;}
+  .su-eval-btn:hover:not(:disabled){background:var(--cfa-red);color:var(--cfa-white);}
+  .su-eval-btn:disabled{border-color:var(--border);color:var(--text-tertiary);cursor:not-allowed;}
+  .su-eval-btn.small{padding:5px 12px;font-size:11px;}
+  .su-eval-hint{font-size:11px;color:var(--text-secondary);}
+  .su-eval-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
+  .su-eval-title{font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;}
+  .su-eval-time{font-family:'Inter',sans-serif;font-size:11px;font-weight:500;color:var(--text-secondary);text-transform:none;letter-spacing:0;}
+  .su-eval-stale{font-size:12px;font-weight:600;color:#8A6200;background:#FFF4E0;border:1px solid #F0D49A;border-radius:var(--radius);padding:6px 10px;margin-bottom:8px;}
+  .su-eval.is-stale .su-eval-chips,.su-eval.is-stale .su-eval-section{opacity:0.55;}
+  .su-eval-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+  .su-eval-chip{font-size:11px;font-weight:700;padding:3px 9px;border-radius:12px;color:#fff;}
+  .su-crushing{background:#2E7D32;color:#fff;}
+  .su-rise{background:#E0A100;color:#3D2B00;}
+  .su-notyet{background:#C62828;color:#fff;}
+  .su-unrated{background:#9E9E9E;color:#fff;}
+  .su-eval-section{margin-top:8px;padding:8px 10px;border-radius:var(--radius);background:var(--cfa-light);border-left:3px solid var(--border);}
+  .su-eval-section.is-risk{border-left-color:#C62828;}
+  .su-eval-section.is-dev{border-left-color:#E0A100;}
+  .su-eval-section.is-rot{border-left-color:#1565C0;}
+  .su-eval-section.is-due{border-left-color:#9E9E9E;}
+  .su-eval-section-title{font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;}
+  .su-eval-section-title span{color:var(--text-secondary);font-weight:600;}
+  .su-eval-section ul{margin:0;padding-left:18px;font-size:12px;line-height:1.5;}
+  .su-eval-clear{font-size:12px;font-weight:600;color:#2E7D32;margin-top:6px;}
+  .su-eval-note{font-size:11px;color:var(--text-secondary);margin-top:6px;}
+  .su-tile-tiers{display:flex;justify-content:center;gap:4px;margin-top:4px;}
+  .su-tile-tier{font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;font-variant-numeric:tabular-nums;}
+  .pea-match-list{display:flex;flex-direction:column;}
+  .pea-match-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;}
+  .pea-match-row select{flex:0 1 260px;min-width:0;max-width:100%;padding:7px 8px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter',sans-serif;font-size:12px;}
+  .pea-unlink{width:auto;margin:0;padding:4px 10px;font-size:11px;}
+  .pea-match-details{margin-top:12px;font-size:12px;}
+  .pea-match-details summary{cursor:pointer;font-weight:600;color:var(--text-secondary);padding:4px 0;}

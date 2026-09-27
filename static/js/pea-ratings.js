@@ -108,6 +108,7 @@ function peaMergeRatings(ratings){
     added++;
   });
   peaRatings.rows.sort((a, b) => a[0].localeCompare(b[0]));
+  if(added) peaNameMatchCache.clear();
   return added;
 }
 
@@ -303,6 +304,7 @@ function renderPeaManage(){
   statusLine.textContent = peaStatusText();
   document.getElementById('btnPeaClear').style.display = peaRatings.rows.length ? '' : 'none';
 
+  renderPeaNameMatching();
   const root = document.getElementById('peaStrengthRoot');
   if(!peaRatings.rows.length){
     root.innerHTML = '<p class="pea-muted">Upload a PEA ratings PDF above to see where each team member stands in each position.</p>';
@@ -344,4 +346,164 @@ document.getElementById('peaStrengthRoot').addEventListener('input', e=>{
   if(e.target.id !== 'peaPersonSearch') return;
   peaPersonFilter = e.target.value;
   document.getElementById('peaPersonList').innerHTML = peaRenderPersonList(peaStrengthByPerson());
+});
+
+// ----- Matching Set Ups (HotSchedules) names to Levelset names -----
+// The two systems don't always spell a name the same way: Levelset may carry
+// a nickname ("Jeniree (Jenny) Vasquez") or both last names ("Alexander
+// Ovalle Amado"), and a roster may read "Last, First". A roster name is only
+// linked when exactly one Levelset name fits; otherwise it counts as unrated.
+function peaNameTokens(name){
+  let n = String(name || '');
+  const comma = n.split(',');
+  if(comma.length === 2) n = comma[1] + ' ' + comma[0];
+  return n.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/[^a-z\s()'-]/g, ' ').replace(/['-]/g, ' ').split(/\s+/).filter(Boolean);
+}
+
+function peaNameForms(name){
+  const tokens = peaNameTokens(name);
+  const nicknames = tokens.filter(t => /^\(.*\)$/.test(t)).map(t => t.slice(1, -1));
+  const plain = tokens.filter(t => !/^\(.*\)$/.test(t)).map(t => t.replace(/[()]/g, ''));
+  return {first: plain[0] || '', firsts: [plain[0], ...nicknames].filter(Boolean), rest: plain.slice(1), all: plain};
+}
+
+function peaNameMatches(rosterName, peaName){
+  const r = peaNameForms(rosterName), p = peaNameForms(peaName);
+  if(!r.first || !p.first) return false;
+  if(r.all.join(' ') === p.all.join(' ')) return true;
+  if(!p.firsts.includes(r.first) && !r.firsts.includes(p.first)) return false;
+  if(!r.rest.length || !p.rest.length) return false;
+  // Every roster last-name part must appear in the Levelset name; a lone
+  // initial ("Ana D.") matches a last name starting with that letter.
+  return r.rest.every(t => t.length === 1 ? p.rest.some(x => x[0] === t) : p.rest.includes(t));
+}
+
+// Links a leader made by hand in Manage, for names the matcher can't pair:
+// {"roster name, lowercased": "Levelset name"}. Checked before automatic
+// matching.
+let peaNameAliases = {};
+
+function peaRosterKey(name){
+  return String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+const peaNameMatchCache = new Map();
+// {match, how: 'linked' | 'exact' | 'auto' | null, candidates}
+function peaMatchInfo(rosterName, peaNames){
+  const key = rosterName + '\u0000' + peaNames.length;
+  if(peaNameMatchCache.has(key)) return peaNameMatchCache.get(key);
+  let info;
+  const linked = peaNameAliases[peaRosterKey(rosterName)];
+  if(linked && peaNames.includes(linked)){
+    info = {match: linked, how: 'linked', candidates: [linked]};
+  } else {
+    const exact = peaNames.find(n => peaRosterKey(n) === peaRosterKey(rosterName));
+    const hits = exact ? [exact] : peaNames.filter(n => peaNameMatches(rosterName, n));
+    info = {match: hits.length === 1 ? hits[0] : null, how: hits.length === 1 ? (exact ? 'exact' : 'auto') : null, candidates: hits};
+  }
+  peaNameMatchCache.set(key, info);
+  return info;
+}
+
+function peaMatchName(rosterName, peaNames){
+  return peaMatchInfo(rosterName, peaNames).match;
+}
+
+// ----- Name Matching card (Manage) -----
+
+// Every name Set Ups knows: rosters still held (last two weeks), set-up
+// history (a year) and current assignments. {name: lastSeenISO}
+function peaRosterNamesSeen(){
+  const seen = {};
+  const note = (name, date)=>{
+    name = String(name || '').trim();
+    if(!name) return;
+    if(!isSetupDateKey(date)) date = '';
+    if(!seen[name] || (date && date > seen[name])) seen[name] = date || seen[name] || '';
+  };
+  [fohRoster, bohRoster].forEach(roster => Object.keys(roster).forEach(date => (roster[date] || []).forEach(p => note(p.name, date))));
+  Object.keys(posAssignments).forEach(k => suSplitNames(posAssignments[k]).forEach(n => note(n, k.split('||')[1])));
+  Object.keys(setupHistory.days).forEach(date => setupHistory.days[date].forEach(([, n]) => note(setupHistory.names[n], date)));
+  // One entry per person even if the roster spelled them two ways by case.
+  const byKey = {};
+  Object.entries(seen).forEach(([name, date])=>{
+    const k = peaRosterKey(name);
+    if(!byKey[k] || date > byKey[k].date) byKey[k] = {name, date};
+  });
+  return Object.values(byKey);
+}
+
+// Levelset names worth offering first for a roster name: same first or last name.
+function peaSuggestedNames(rosterName, peaNames){
+  const r = peaNameForms(rosterName);
+  const shared = n => { const p = peaNameForms(n); return p.firsts.some(f => r.firsts.includes(f)) || p.rest.some(t => r.rest.includes(t)); };
+  return peaNames.filter(shared);
+}
+
+function renderPeaNameMatching(){
+  const root = document.getElementById('peaNameMatchRoot');
+  if(!root) return;
+  const peaNames = Object.keys(peaStrengthByPerson()).sort((a, b) => a.localeCompare(b));
+  if(!peaNames.length){ root.innerHTML = '<p class="pea-muted">Upload PEA ratings first.</p>'; return; }
+  const roster = peaRosterNamesSeen().sort((a, b) => a.name.localeCompare(b.name));
+  if(!roster.length){ root.innerHTML = '<p class="pea-muted">No HotSchedules names yet — import a roster in Team & Scheduling.</p>'; return; }
+
+  const rows = roster.map(r => ({...r, info: peaMatchInfo(r.name, peaNames)}));
+  const unmatched = rows.filter(r => !r.info.match);
+  const linked = rows.filter(r => r.info.how === 'linked');
+  const auto = rows.filter(r => r.info.how === 'auto');
+  const matchedPea = new Set(rows.map(r => r.info.match).filter(Boolean));
+  const notOnRoster = peaNames.filter(n => !matchedPea.has(n));
+  const seenLabel = d => d ? ` · on a roster ${peaFormatDate(d)}` : '';
+
+  const options = name=>{
+    const suggested = peaSuggestedNames(name, peaNames).filter(n => !matchedPea.has(n));
+    const rest = peaNames.filter(n => !suggested.includes(n));
+    return `<option value="">Link to a Levelset name…</option>` +
+      (suggested.length ? `<optgroup label="Suggested">${suggested.map(n => `<option>${escapeHtml(n)}</option>`).join('')}</optgroup>` : '') +
+      `<optgroup label="Everyone in Levelset">${rest.map(n => `<option>${escapeHtml(n)}</option>`).join('')}</optgroup>`;
+  };
+
+  root.innerHTML = `
+    <p class="pea-muted pea-note">${rows.length} HotSchedules names checked · ${rows.length - unmatched.length} matched to Levelset · <b class="${unmatched.length ? 'pea-notyet-text' : 'pea-crushing-text'}">${unmatched.length} with no match</b>. Unmatched people show as Unrated when a set up is evaluated.</p>
+    ${unmatched.length ? `
+      <div class="pea-match-list">
+        ${unmatched.map(r => `
+          <div class="pea-match-row">
+            <div><b>${escapeHtml(r.name)}</b><span class="pea-muted">${r.info.candidates.length > 1 ? ` · could be ${r.info.candidates.length} people` : ''}${seenLabel(r.date)}</span></div>
+            <select data-pea-alias="${escapeHtml(r.name)}">${options(r.name)}</select>
+          </div>`).join('')}
+      </div>` : '<p class="pea-crushing-text" style="font-size:12px;font-weight:600;">✓ Every roster name has a Levelset match.</p>'}
+    ${linked.length ? `
+      <div class="pea-group-label" style="margin-top:14px;">Linked by hand</div>
+      ${linked.map(r => `<div class="pea-match-row"><div>${escapeHtml(r.name)} → <b>${escapeHtml(r.info.match)}</b></div><button type="button" class="btn btn-ghost pea-unlink" data-pea-unlink="${escapeHtml(r.name)}">Unlink</button></div>`).join('')}` : ''}
+    ${auto.length ? `
+      <details class="pea-match-details"><summary>Matched automatically with a different spelling (${auto.length}) — check these</summary>
+        ${auto.map(r => `<div class="pea-match-row"><div>${escapeHtml(r.name)} → <b>${escapeHtml(r.info.match)}</b></div></div>`).join('')}
+      </details>` : ''}
+    ${notOnRoster.length ? `
+      <details class="pea-match-details"><summary>In Levelset but not on any roster the site has seen (${notOnRoster.length})</summary>
+        <p class="pea-muted">Usually people who haven't been scheduled recently, left, or are spelled differently in HotSchedules.</p>
+        <div class="pea-muted" style="line-height:1.7;">${notOnRoster.map(escapeHtml).join(' · ')}</div>
+      </details>` : ''}
+  `;
+}
+
+document.getElementById('peaNameMatchRoot').addEventListener('change', async e=>{
+  const sel = e.target.closest('[data-pea-alias]');
+  if(!sel || !sel.value) return;
+  peaNameAliases[peaRosterKey(sel.dataset.peaAlias)] = sel.value;
+  peaNameMatchCache.clear();
+  await saveState();
+  showToast(`✓ Linked ${sel.dataset.peaAlias} → ${sel.value}`);
+  renderPeaNameMatching();
+});
+document.getElementById('peaNameMatchRoot').addEventListener('click', async e=>{
+  const btn = e.target.closest('[data-pea-unlink]');
+  if(!btn) return;
+  delete peaNameAliases[peaRosterKey(btn.dataset.peaUnlink)];
+  peaNameMatchCache.clear();
+  await saveState();
+  renderPeaNameMatching();
 });

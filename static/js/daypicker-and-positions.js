@@ -265,11 +265,13 @@ function renderAllDayparts(){
                     <div class="pos-name">${pos}</div>
                     ${assigned ? `<div class="pos-assigned-name">${assigned}</div>` : '<div class="pos-empty">Tap to assign</div>'}
                     ${flag ? `<div class="pos-vacancy-badge">🚨 Needs Coverage</div>` : ''}
+                    ${suEvalTileBadge(currentPosSection, dayName, dp.name, pos, assigned)}
                   </div>
                 </div>
               `;
             }).join('')}
           </div>
+          ${renderSetupEvaluation(currentPosSection, dayName, dp)}
         </div>
       </div>
     `;
