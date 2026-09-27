@@ -33,7 +33,7 @@ const SU_EXTRA_ZONE = {key: 'extra', name: 'Extra hands'};
 let suSelectedDaypart = {foh: '', boh: ''};   // daypart name per section
 let suSelectedDate = '';
 let suExpandedZones = new Set();              // zones showing their optional slots
-let suSheet = null;                           // {kind: 'develop'|'evaluate'|'planb'|'person', slot}
+let suSheet = null;                           // {kind: 'develop'|'evaluate'|'planb'|'person'|'lead', slot}
 
 function suShortDaypart(name){
   return name.replace(/\s*\(.*\)\s*$/, '');
@@ -113,6 +113,8 @@ function suDaypartModel(section, date, dp, dpIndex){
   });
 
   const placed = new Set(tiles.flatMap(t => t.names.map(n => n.toLowerCase())));
+  suSplitNames(posAssignments[key + '||' + SU_LEAD_CAPTAIN]).forEach(n => placed.add(n.toLowerCase()));
+  tiles.forEach(t => { t.leaderRole = t.names.length ? suLeaderRole(section, date, t.names[0], strength) : null; });
   const unplaced = onShift.filter(p => !placed.has(p.name.trim().toLowerCase())).map(p => p.name);
   const filled = tiles.filter(t => t.names.length).length;
   return {key, tiles, zones: zones.filter(z => z.tiles.length), headcount, unplaced, filled};
@@ -164,6 +166,7 @@ function suGamePlanHtml(section, date, dp, dpIndex, m){
       </div>
       <div class="su-plan-facts">${facts.map(escapeHtml).join(' · ')}</div>
       <div class="su-plan-lines">
+        ${section === 'foh' ? suLeadCaptainLineHtml(date, dp) : ''}
         <div class="su-plan-line"><span class="su-plan-tag is-dev">Develop</span><span>${escapeHtml(devText)}${devStale ? ' <em>· out of date</em>' : ''}</span></div>
         <div class="su-plan-line"><span class="su-plan-tag is-watch">Watch</span><span>${escapeHtml(watchText)}${evStale ? ' <em>· out of date</em>' : ''}</span></div>
         <div class="su-plan-line"><span class="su-plan-tag is-open">Open</span><span>${escapeHtml(openText)}</span></div>
@@ -194,9 +197,11 @@ function suZonesHtml(m){
     const filled = z.tiles.filter(t => t.names.length).length;
     const needed = z.tiles.filter(t => t.needed).length;
     const count = z.key === 'extra' && !filled ? 'when staffing allows' : `${filled} placed${needed ? ` · ${needed} needed` : ''}`;
+    const leaders = z.tiles.filter(t => t.leaderRole).map(t => `<span class="su-zone-leader" title="${escapeHtml(t.leaderRole)}">${escapeHtml(t.names[0].split(/\s+/)[0])} · ${t.leaderRole === 'Team Lead' ? 'TL' : 'Trainer'}</span>`).join('');
     return `
       <section class="su-zone" aria-label="${escapeHtml(z.name)}">
         <div class="su-zone-head"><h3>${escapeHtml(z.name)}</h3><span>${count}</span></div>
+        ${leaders ? `<div class="su-zone-leaders">${leaders}</div>` : ''}
         ${shown.length ? `<div class="su-tiles">${shown.map(suTileHtml).join('')}</div>` : ''}
         ${hidden.length ? `<button type="button" class="su-zone-more" data-su-zone-more="${z.key}">+ ${hidden.length} more if you have extra people (${hidden.slice(0, 4).map(t => '#' + t.rank).join(', ')}${hidden.length > 4 ? '…' : ''})</button>` : ''}
         ${expanded && m.headcount ? `<button type="button" class="su-zone-more" data-su-zone-less="${z.key}">Hide open extras</button>` : ''}
@@ -287,6 +292,7 @@ function suPersonSheetHtml(section, date, dp, dpIndex, m, slot){
 function suSheetHtml(section, date, dp, dpIndex, m){
   if(!suSheet) return '';
   if(suSheet.kind === 'person') return suPersonSheetHtml(section, date, dp, dpIndex, m, suSheet.slot);
+  if(suSheet.kind === 'lead') return section === 'foh' ? suLeadCaptainSheetHtml(date, dp, dpIndex) : '';
   const titles = {develop: 'Develop this shift', evaluate: 'Evaluate', planb: 'Plan B'};
   const body = suSheet.kind === 'develop' ? renderSetupDevelop(section, date, dp, dpIndex)
     : suSheet.kind === 'evaluate' ? renderSetupEvaluation(section, date, dp)

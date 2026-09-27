@@ -170,18 +170,29 @@ function daypartTimeWindow(dayparts, index){
   return {startMin, endMin};
 }
 
+// "5:30a - 1:30p", or each block of a split shift.
+function rosterTimeText(p){
+  return (p.blocks && p.blocks.length > 1 ? p.blocks : [p]).map(b => `${b.start} - ${b.end}`).join(', ');
+}
+
+// Does this roster entry work any part of [startMin, endMin)? A split shift
+// counts only its on-floor blocks.
+function rosterOverlaps(p, startMin, endMin){
+  return (p.blocks && p.blocks.length ? p.blocks : [p]).some(b=>{
+    const s = parseShiftTimeToMinutes(b.start);
+    const e = parseShiftTimeToMinutes(b.end);
+    if(s === null || e === null) return true;
+    return s < endMin && e > startMin;
+  });
+}
+
 // People on the roster whose shift overlaps this daypart — the people
 // available to be assigned a position.
 function availableForDaypart(dayName, dpIndex, dayparts){
   const roster = currentPosSection === 'foh' ? fohRoster : bohRoster;
   const dayRoster = roster[dayName] || [];
   const {startMin, endMin} = daypartTimeWindow(dayparts, dpIndex);
-  return dayRoster.filter(p=>{
-    const s = parseShiftTimeToMinutes(p.start);
-    const e = parseShiftTimeToMinutes(p.end);
-    if(s === null || e === null) return true;
-    return s < endMin && e > startMin;
-  });
+  return dayRoster.filter(p => rosterOverlaps(p, startMin, endMin));
 }
 
 // Everyone holding a position in this daypart, including both names of a
@@ -238,12 +249,7 @@ window.openPosModal = function(key, pos, daypart){
   let eligible = dayRoster;
   if(dpIndex !== -1){
     const {startMin, endMin} = daypartTimeWindow(dayparts, dpIndex);
-    eligible = dayRoster.filter(p=>{
-      const s = parseShiftTimeToMinutes(p.start);
-      const e = parseShiftTimeToMinutes(p.end);
-      if(s === null || e === null) return true;
-      return s < endMin && e > startMin;
-    });
+    eligible = dayRoster.filter(p => rosterOverlaps(p, startMin, endMin));
   }
   
   // Exclusive assignment: exclude anyone already placed in a DIFFERENT position
@@ -368,12 +374,7 @@ window.openVacancyModal = function(key, pos, daypart){
   let eligible = dayRoster;
   if(dpIndex !== -1){
     const {startMin, endMin} = daypartTimeWindow(dayparts, dpIndex);
-    eligible = dayRoster.filter(p=>{
-      const s = parseShiftTimeToMinutes(p.start);
-      const e = parseShiftTimeToMinutes(p.end);
-      if(s === null || e === null) return true;
-      return s < endMin && e > startMin;
-    });
+    eligible = dayRoster.filter(p => rosterOverlaps(p, startMin, endMin));
   }
 
   // No exclusivity filter here on purpose — someone already working another
@@ -504,8 +505,8 @@ function renderRoster(){
     return `
       <div class="roster-item">
         <button class="roster-remove" onclick="removeFromRoster('${escapedName}')" title="Remove from today's roster">✕</button>
-        <div class="roster-name">${person.name}${customBadge}${(isCompleted && !onBreak) ? `<button class="break-complete-badge" onclick="undoBreakComplete('${escapedName}')" title="Tap to undo">✓ Break Complete ↺</button>` : ''}</div>
-        <div class="roster-time">${person.start} - ${person.end}</div>
+        <div class="roster-name">${escapeHtml(person.name)}${person.leader ? '<span class="roster-leader-badge">Team Leader</span>' : ''}${customBadge}${(isCompleted && !onBreak) ? `<button class="break-complete-badge" onclick="undoBreakComplete('${escapedName}')" title="Tap to undo">✓ Break Complete ↺</button>` : ''}</div>
+        <div class="roster-time">${escapeHtml(rosterTimeText(person))}</div>
         ${onBreak ? `
           <div class="countdown" id="timer-${person.name}">${mins}:${secs<10?'0':''}${secs}</div>
           <button class="break-btn onbreak" disabled>On Break</button>
@@ -518,7 +519,7 @@ function renderRoster(){
   }).join('');
   
   if(roster.length === 0){
-    document.getElementById('rosterPanel').innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:20px;">No roster for ' + formatVerboseDate(dayName) + ' yet. Import a screenshot to populate.</div>';
+    document.getElementById('rosterPanel').innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:20px;">No roster for ' + formatVerboseDate(dayName) + ' yet. Import the weekly HotSchedules CSV in Manage to populate.</div>';
   } else {
     document.getElementById('rosterPanel').innerHTML = html;
     
