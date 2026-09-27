@@ -1297,7 +1297,7 @@
   .su-legend span{display:inline-flex;align-items:center;gap:5px;}
   .su-legend i{display:inline-block;width:10px;height:10px;border-radius:999px;}
 
-  .su-toolbar{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;width:min(480px,calc(100% - 24px));z-index:40;background:var(--su-ink);border-radius:20px;padding:8px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;box-shadow:0 10px 30px rgba(28,27,25,0.28);}
+  .su-toolbar{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;width:min(520px,calc(100% - 24px));z-index:40;background:var(--su-ink);border-radius:20px;padding:8px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;box-shadow:0 10px 30px rgba(28,27,25,0.28);}
   .su-tool{border:0;background:#2C2A27;color:#fff;border-radius:14px;padding:10px 6px;min-height:56px;display:flex;flex-direction:column;align-items:center;gap:4px;font-family:'DM Sans',system-ui,sans-serif;font-size:12px;font-weight:700;cursor:pointer;}
   .su-tool:hover,.su-tool.active{background:#3A3733;}
 
@@ -1353,3 +1353,5 @@
   .su-eval-section.is-lead{border-left-color:#1565C0;}
   /* Keep toasts clear of the Set Ups toolbar. */
   body:has(#positionsView.active) .toast{bottom:104px;}
+  .su-plan-line.su-plan-open{align-items:center;}
+  .su-plan-line.su-plan-open > span:nth-child(2){flex-grow:1;}
