@@ -364,6 +364,7 @@ function suPersonSheetHtml(section, date, dp, dpIndex, m, slot){
 function suSheetHtml(section, date, dp, dpIndex, m){
   if(!suSheet) return '';
   if(suSheet.kind === 'person') return suPersonSheetHtml(section, date, dp, dpIndex, m, suSheet.slot);
+  if(suSheet.kind === 'row') return suRowSheetHtml(section, date, dp, m, suSheet.slot);
   if(suSheet.kind === 'fill') return suFillSheetHtml(section, date, dp, dpIndex);
   if(suSheet.kind === 'lead') return section === 'foh' ? suLeadCaptainSheetHtml(date, dp, dpIndex) : '';
   const titles = {develop: 'Develop this shift', evaluate: 'Evaluate', planb: 'Plan B'};
@@ -380,8 +381,19 @@ function renderSetupsBoard(date){
   suNameMap = null;   // rebuilt from the current rosters on first use
   const {dp, dpIndex} = suCurrentDaypart(section, date);
   const m = suDaypartModel(section, date, dp, dpIndex);
+  // Default: the sheet view (setups-sheet.js). Coach: the full board.
+  if(suMode !== 'coach'){
+    return `
+    <div class="su-board is-sheet">
+      ${suModeBarHtml()}
+      ${suDaypartChipsHtml(section, date, dp.name)}
+      ${suSheetViewHtml(section, date, dp, dpIndex, m)}
+      ${suSheetHtml(section, date, dp, dpIndex, m)}
+    </div>`;
+  }
   return `
     <div class="su-board">
+      ${suModeBarHtml()}
       ${suDaypartChipsHtml(section, date, dp.name)}
       ${suGamePlanHtml(section, date, dp, dpIndex, m)}
       ${suZonesHtml(m)}
@@ -448,7 +460,7 @@ document.getElementById('allDayparts').addEventListener('click', e=>{
   const tile = t.closest('[data-su-tile]');
   if(tile){
     const slot = tile.dataset.suTile;
-    if(posAssignments[keyFor(slot)]){ suSheet = {kind: 'person', slot}; renderAllDayparts(); }
+    if(posAssignments[keyFor(slot)]){ suSheet = {kind: suMode === 'coach' ? 'person' : 'row', slot}; renderAllDayparts(); }
     else openPosModal(keyFor(slot), slot, dp.name);
     return;
   }

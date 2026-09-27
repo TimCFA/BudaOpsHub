@@ -312,5 +312,5 @@ document.getElementById('allDayparts').addEventListener('click', async e=>{
   suSheet = null;
   renderAllDayparts();
   saveState();
-  showToast(`✓ ${applied} placement${applied === 1 ? '' : 's'} applied — tap Evaluate to check`);
+  showToast(`✓ ${applied} placement${applied === 1 ? '' : 's'} applied${suMode === 'coach' ? ' — tap Evaluate to check' : ''}`);
 });
