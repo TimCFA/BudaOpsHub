@@ -1,9 +1,11 @@
 // ===== LEADERSHIP ON SET UPS (TIM-40 step 5) =====
 // Tim's rules:
-// - Lead Captain: FOH only, one per daypart, Team Leads only. The pick uses
-//   their Team Lead PEA alone: a Game Day gets the strongest Team Lead on
-//   shift; a Practice Day rotates to whoever hasn't been Lead Captain longest.
-// - Zone captain slots ("Captain" in the name): Team Leads or Trainers.
+// - Lead Captain: FOH only, one per daypart, Team Leads only. Everyone
+//   rotates through it on any day type: whoever hasn't been Lead Captain the
+//   longest comes first. One hat only — never also a zone captain. They also
+//   work a spot: Runner, Drinks 3 or FC Bagger (Afternoon: DT Bagger 2).
+// - Zone captain slots ("Captain" in the name): Team Leads first, Trainers
+//   once every Team Lead is leading.
 // - Coverage: at least a Trainer or Team Lead in iPOS, Bagging and Host. iPOS
 //   is walled off, so a leader there covers only iPOS; the Bagging captain
 //   also reaches OMD and Drinks. Stretch goal: a leader in Drinks and OMD too.
@@ -66,13 +68,11 @@ function leadCaptainOptions(date, dp, dpIndex){
     return {name: p.name, cell, last, since, ledToday};
   });
 
-  // Game Day: strongest Team Lead PEA first. Practice Day: longest since they
-  // last led (never in the history kept so far counts as longest).
-  const score = o => o.cell ? o.cell.avg : 0;
+  // Longest since they last led first, on Game and Practice Days alike (never
+  // in the history kept so far counts as longest). Someone already leading
+  // another daypart today goes after everyone who isn't.
   const gap = o => o.since === null ? Infinity : o.since;
-  options.sort(dayType.type === 'game'
-    ? (a, b) => score(b) - score(a) || gap(b) - gap(a) || a.name.localeCompare(b.name)
-    : (a, b) => gap(b) - gap(a) || score(a) - score(b) || a.name.localeCompare(b.name));
+  options.sort((a, b) => (a.ledToday.length > 0) - (b.ledToday.length > 0) || gap(b) - gap(a) || a.name.localeCompare(b.name));
   return {options, dayType, historyDays};
 }
 
@@ -80,7 +80,11 @@ function suLeadCaptainLineHtml(date, dp){
   const key = suEvalKey('foh', date, dp.name) + '||' + SU_LEAD_CAPTAIN;
   const current = posAssignments[key];
   if(current){
-    return `<div class="su-plan-line su-plan-lead"><span class="su-plan-tag is-lead">Lead</span><span><b>${escapeHtml(current)}</b> is Lead Captain</span><button type="button" class="su-plan-link" data-su-lead-open="1">Change</button></div>`;
+    const working = suLeadWorkingSlot(date, dp);
+    const where = working
+      ? ` · working ${escapeHtml(working)}${SU_CAPTAIN_RE.test(working) ? ' <em>· also a zone captain — one hat only</em>' : ''}`
+      : ' · <em>no working spot yet</em>';
+    return `<div class="su-plan-line su-plan-lead"><span class="su-plan-tag is-lead">Lead</span><span><b>${escapeHtml(current)}</b> is Lead Captain${where}</span><button type="button" class="su-plan-link" data-su-lead-open="1">Change</button></div>`;
   }
   return `<div class="su-plan-line su-plan-lead"><span class="su-plan-tag is-lead">Lead</span><span>No Lead Captain yet</span><button type="button" class="su-plan-link" data-su-lead-open="1">Choose</button></div>`;
 }
@@ -88,22 +92,27 @@ function suLeadCaptainLineHtml(date, dp){
 function suLeadCaptainSheetHtml(date, dp, dpIndex){
   const {options, dayType, historyDays} = leadCaptainOptions(date, dp, dpIndex);
   const current = posAssignments[suEvalKey('foh', date, dp.name) + '||' + SU_LEAD_CAPTAIN] || '';
-  const rule = dayType.type === 'game'
-    ? 'Game Day — the strongest Team Lead PEA on shift comes first.'
-    : 'Practice Day — whoever hasn’t been Lead Captain the longest comes first.';
+  const rule = 'Everyone rotates: whoever hasn’t been Lead Captain the longest comes first.';
+  const key = suEvalKey('foh', date, dp.name);
+  const slots = fohPositions[dp.name] || [];
+  const working = current ? suLeadWorkingSlot(date, dp) : null;
+  const headcount = suDaypartTiming('foh', date, dpIndex).effective;
+  const home = current && !working ? suPickLeadHome(dp, slots, headcount, s => !posAssignments[key + '||' + s], () => 0, () => 0) : null;
+  const captainOf = name => slots.find(s => SU_CAPTAIN_RE.test(s) && suSplitNames(posAssignments[key + '||' + s]).some(n => n.toLowerCase() === name.toLowerCase()));
   const lastText = o => o.ledToday.length ? `Leading ${o.ledToday.join(', ')} today`
     : o.last ? `Last led ${o.since === 1 ? 'yesterday' : `${o.since} days ago`}`
     : historyDays ? `Not Lead Captain in ${historyDays} days of history` : 'No Lead Captain history yet';
   const rows = options.map((o, i) => `
     <div class="su-pb-row">
       <span class="su-pb-v"><b>${escapeHtml(o.name)}${i === 0 ? ' <span class="su-suggest">Suggested</span>' : ''}</b>
-        <span>${o.cell ? `Team Lead ${o.cell.avg.toFixed(2)} · ${escapeHtml(o.cell.tier.label)} ×${o.cell.total}` : 'No Team Lead PEA yet'} · ${escapeHtml(lastText(o))}</span></span>
+        <span>${escapeHtml(lastText(o))} · ${o.cell ? `Team Lead ${o.cell.avg.toFixed(2)} · ${escapeHtml(o.cell.tier.label)} ×${o.cell.total}` : 'No Team Lead PEA yet'}${captainOf(o.name) ? ` · captaining ${escapeHtml(captainOf(o.name))} (one hat only)` : ''}</span></span>
       ${o.name.toLowerCase() === current.toLowerCase()
         ? '<span class="su-current">Current</span>'
         : `<button type="button" class="${i === 0 ? 'su-btn-dark' : 'su-btn-line'}" data-su-set-lead="${escapeHtml(o.name)}">Make Lead</button>`}
     </div>`).join('');
   const body = `
-    <p class="su-sheet-rule">${escapeHtml(rule)} Only Team Leads can be Lead Captain.</p>
+    <p class="su-sheet-rule">${escapeHtml(rule)} Only Team Leads can be Lead Captain, and they don’t also captain a zone. They work Runner if staffing allows, otherwise Drinks 3 or FC Bagger${/^afternoon/i.test(dp.name) ? ' (Afternoon: DT Bagger 2)' : ''}.</p>
+    ${current ? `<div class="su-note">${working ? `${escapeHtml(current)} is working ${escapeHtml(working)}.` : home ? `${escapeHtml(current)} has no working spot yet. <button type="button" class="su-btn-dark" data-su-lead-home="${escapeHtml(home.slot)}">Put on ${escapeHtml(home.slot)}</button>` : `${escapeHtml(current)} has no working spot, and Runner, Drinks 3 and FC Bagger are taken.`}</div>` : ''}
     ${options.length ? `<div class="su-pb">${rows}</div>` : '<div class="su-note">No Team Lead is on the FOH roster for this daypart. Import the weekly HotSchedules CSV so Team Leader shifts are marked.</div>'}
     ${current ? `<div class="su-person-actions" style="grid-template-columns:1fr"><button type="button" class="su-btn-line" data-su-clear-lead="1">Clear Lead Captain (${escapeHtml(current)})</button></div>` : ''}`;
   return suSheetFrame(`Lead Captain · ${suShortDaypart(dp.name)}`, body);
@@ -125,6 +134,11 @@ function leaderReview(section, date, dpName, entries){
     const lead = posAssignments[key + '||' + SU_LEAD_CAPTAIN];
     const teamLeadsOnShift = dpIndex >= 0 ? availableForDaypart(date, dpIndex, dayparts).filter(p => roleOf(p.name) === 'Team Lead') : [];
     if(lead && roleOf(lead) !== 'Team Lead') risks.push({name: lead, text: 'is Lead Captain but isn’t a Team Lead — only Team Leads can be Lead Captain'});
+    if(lead){
+      const hat = entries.find(e => e.captain && e.name.toLowerCase() === lead.toLowerCase());
+      if(hat) risks.push({name: lead, text: `is Lead Captain and also in ${hat.slot} — one hat only; move a Team Lead or Trainer into ${hat.slot}`});
+      else if(!entries.some(e => e.name.toLowerCase() === lead.toLowerCase())) leadership.push({name: lead, text: 'is Lead Captain with no working spot — Runner if staffing allows, else Drinks 3 or FC Bagger'});
+    }
     if(!lead && teamLeadsOnShift.length) risks.push({name: 'Lead Captain', text: `not set — ${teamLeadsOnShift.length} Team Lead${teamLeadsOnShift.length === 1 ? '' : 's'} on shift`});
 
     // Coverage: which zones have a Trainer or Team Lead in them.
@@ -140,6 +154,21 @@ function leaderReview(section, date, dpName, entries){
     SU_REQUIRED_LEADER_ZONES.forEach(z=>{
       if(!leadersIn[z]) risks.push({name: suZoneName('foh', z), text: 'has no Trainer or Team Lead this daypart'});
     });
+    // Stacking: a zone with 2+ leaders while a higher-priority zone has none.
+    SU_LEADER_ZONE_PRIORITY.forEach(z=>{
+      const n = (leadersIn[z] || []).length;
+      if(n < 2) return;
+      const bare = SU_LEADER_ZONE_PRIORITY.filter(o => o !== z && !leadersIn[o] && !(baggingCaptain && SU_BAGGING_CAPTAIN_REACH.includes(o)));
+      if(bare.length) leadership.push({name: suZoneName('foh', z), text: `has ${n} leaders (${leadersIn[z].join(', ')}) while ${bare.map(o => suZoneName('foh', o)).join(', ')} ${bare.length === 1 ? 'has' : 'have'} none — spread them out`});
+    });
+    // Team Leads first: a Team Lead in a regular spot while a Trainer or
+    // team member holds a captain slot.
+    const lo = s => s.toLowerCase();
+    const tlOff = entries.filter(e => !e.captain && roleOf(e.name) === 'Team Lead' && (!lead || lo(e.name) !== lo(lead)));
+    const weakCaptains = entries.filter(e => e.captain && roleOf(e.name) !== 'Team Lead');
+    if(tlOff.length && weakCaptains.length){
+      leadership.push({name: tlOff.map(e => e.name).join(', '), text: `${tlOff.length === 1 ? 'is a Team Lead' : 'are Team Leads'} in a regular spot while ${weakCaptains.map(e => `${e.name} (${roleOf(e.name) || 'team member'})`).join(', ')} ${weakCaptains.length === 1 ? 'holds' : 'hold'} ${weakCaptains.map(e => e.slot).join(', ')} — Team Leads captain first`});
+    }
     SU_STRETCH_LEADER_ZONES.forEach(z=>{
       if(leadersIn[z]) return;
       const reached = baggingCaptain && SU_BAGGING_CAPTAIN_REACH.includes(z);
@@ -178,12 +207,22 @@ document.getElementById('allDayparts').addEventListener('click', async e=>{
   const open = e.target.closest('[data-su-lead-open]');
   const set = e.target.closest('[data-su-set-lead]');
   const clear = e.target.closest('[data-su-clear-lead]');
-  if(!open && !set && !clear) return;
+  const home = e.target.closest('[data-su-lead-home]');
+  if(!open && !set && !clear && !home) return;
   e.stopPropagation();
   const date = document.getElementById('daySelect').value;
   const {dp} = suCurrentDaypart('foh', date);
   const key = suEvalKey('foh', date, dp.name) + '||' + SU_LEAD_CAPTAIN;
   if(open){ suSheet = {kind: 'lead'}; renderAllDayparts(); return; }
+  if(home){
+    const slotKey = suEvalKey('foh', date, dp.name) + '||' + home.dataset.suLeadHome;
+    if(!posAssignments[slotKey] && posAssignments[key]) posAssignments[slotKey] = posAssignments[key];
+    suSheet = null;
+    renderAllDayparts();
+    await saveState();
+    showToast(`✓ ${posAssignments[key]} is working ${home.dataset.suLeadHome}`);
+    return;
+  }
   if(set) posAssignments[key] = set.dataset.suSetLead;
   if(clear) delete posAssignments[key];
   suSheet = null;

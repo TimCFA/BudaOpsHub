@@ -25,8 +25,10 @@ function planBForDaypart(section, date, dp, dpIndex){
   // Everyone on shift this daypart, with their PEA record and current slot.
   const slotOf = {};
   (posMap[dp.name] || []).forEach(slot => suSplitNames(posAssignments[key + '||' + slot]).forEach(n => slotOf[n.toLowerCase()] = slot));
-  // The Lead Captain runs the floor: counted as placed, never pulled to swap.
-  suSplitNames(posAssignments[key + '||' + SU_LEAD_CAPTAIN]).forEach(n => slotOf[n.toLowerCase()] = SU_LEAD_CAPTAIN);
+  // The Lead Captain runs the floor: counted as placed (at their working
+  // spot if they have one), never pulled to swap or coach.
+  const leadLo = new Set(suSplitNames(posAssignments[key + '||' + SU_LEAD_CAPTAIN]).map(n => n.toLowerCase()));
+  leadLo.forEach(n => { if(!slotOf[n]) slotOf[n] = SU_LEAD_CAPTAIN; });
   const byName = {};
   const addPerson = name=>{
     const k = name.toLowerCase();
@@ -41,7 +43,7 @@ function planBForDaypart(section, date, dp, dpIndex){
 
   const cellIn = (x, positions) => x.person ? positions.map(p => x.person.positions[p]).filter(Boolean).sort((a, b) => b.avg - a.avg)[0] || null : null;
   const crushingIn = (x, positions) => { const c = cellIn(x, positions); return c && c.tier.key === 'crushing' ? c : null; };
-  const captaining = x => x.slot && SU_CAPTAIN_RE.test(x.slot);
+  const captaining = x => (x.slot && SU_CAPTAIN_RE.test(x.slot)) || leadLo.has(x.name.toLowerCase());
   const isRole = (x, role) => x.role === role;
   const roleRank = x => isRole(x, 'Trainer') ? 0 : isRole(x, 'Team Lead') ? 2 : 1;
 
