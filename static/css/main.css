@@ -1166,3 +1166,9 @@
   .su-eval-note{font-size:11px;color:var(--text-secondary);margin-top:6px;}
   .su-tile-tiers{display:flex;justify-content:center;gap:4px;margin-top:4px;}
   .su-tile-tier{font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;font-variant-numeric:tabular-nums;}
+  .pea-match-list{display:flex;flex-direction:column;}
+  .pea-match-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;}
+  .pea-match-row select{flex:0 1 260px;min-width:0;max-width:100%;padding:7px 8px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter',sans-serif;font-size:12px;}
+  .pea-unlink{width:auto;margin:0;padding:4px 10px;font-size:11px;}
+  .pea-match-details{margin-top:12px;font-size:12px;}
+  .pea-match-details summary{cursor:pointer;font-weight:600;color:var(--text-secondary);padding:4px 0;}

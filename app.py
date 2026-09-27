@@ -39,7 +39,7 @@ MANAGER_ONLY_KEYS = {
     'deletedProductIds', 'productFixesVersion', 'productCategoryOrder',
     'lxPillars', 'lxMetrics', 'lxLastUpdated',
     'gxData', 'txData', 'homeData',
-    'peaRatings',
+    'peaRatings', 'peaNameAliases',
 }
 
 def _changed_manager_fields(old_state, new_state):
