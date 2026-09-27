@@ -783,34 +783,6 @@
         </div>
       </div>
 
-      <!-- GROUP: Team & Scheduling -->
-      <div class="manage-group">
-        <div class="manage-group-header" onclick="toggleManageGroup(this)">
-          <span class="manage-group-title">👥 Team & Scheduling</span>
-          <span class="manage-group-chevron">▾</span>
-        </div>
-        <div class="manage-group-body">
-          <div class="standup-card">
-            <h3>Weekly Roster (HotSchedules CSV)</h3>
-            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Upload the week's HotSchedules roster CSV to fill Monday–Saturday for FOH and BOH at once, with Team Leaders marked. The week is read from the file name; the toggle below is only used when the name has no dates. Manually added team members are never overwritten.</p>
-
-            <div class="week-toggle" style="margin-bottom:14px;">
-              <button type="button" class="wri-week-btn active" aria-pressed="true" data-weekly-offset="0">This Week</button>
-              <button type="button" class="wri-week-btn" aria-pressed="false" data-weekly-offset="1">Next Week</button>
-            </div>
-
-            <div class="field">
-              <label>Upload Weekly Roster CSV</label>
-              <input type="file" id="weeklyRosterUpload" accept=".csv">
-              <div style="font-size:10px;color:var(--text-secondary);margin-top:4px;font-style:italic;">Sunday and off-floor shifts (Administrative, Truck, Maintenance, Training) are left out automatically</div>
-            </div>
-
-            <button id="btnImportWeeklyRoster" class="btn btn-primary" style="margin-top:12px;">Import Week</button>
-            <div id="weeklyImportStatus" style="font-size:12px;color:var(--text-secondary);margin-top:8px;text-align:center;"></div>
-          </div>
-        </div>
-      </div>
-
       <!-- GROUP: Know the Numbers -->
       <div class="manage-group">
         <div class="manage-group-header" onclick="toggleManageGroup(this)">
@@ -952,9 +924,8 @@
         </div>
         <div class="manage-group-body">
           <div class="standup-card">
-            <h3>Upload PEA Ratings</h3>
-            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">In Levelset, download the Positional Excellence Ratings report as a PDF and upload it here. Overlapping date ranges are fine — ratings already saved are skipped. Ratings older than a year are removed.</p>
-            <input type="file" id="peaUpload" accept=".pdf,application/pdf">
+            <h3>Saved PEA Ratings</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px;">Upload Levelset PEA PDFs in <b>Data Uploads</b> at the top of this page. Overlapping date ranges are fine — ratings already saved are skipped.</p>
             <div id="peaUploadStatus" style="font-size:12px;color:var(--text-primary);margin-top:8px;"></div>
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px;">
               <div id="peaDataStatus" style="font-size:11px;color:var(--text-secondary);"></div>

@@ -41,8 +41,6 @@ const CT_SCOPE_OPTIONS = [
 ];
 let cemInsightScope = 'all';
 let cemScopeMonth = null;
-let cemImportText = '';
-let cemImportMsg = null;
 
 function ctPad(n){ return String(n).padStart(2, '0'); }
 function ctToISO(d){ return `${d.getFullYear()}-${ctPad(d.getMonth() + 1)}-${ctPad(d.getDate())}`; }
@@ -579,7 +577,7 @@ function ctDeltaHtml(value, benchmark){
 
 function ctRenderScoreboardTab(){
   const periods = ctPeriods();
-  if(periods.length === 0) return `<div class="ct-empty">No data yet. Head to "Log Data" to import a CEM comparison report.</div>`;
+  if(periods.length === 0) return `<div class="ct-empty">No data yet. Upload a CEM Comparison Report in Manage → Data Uploads.</div>`;
   if(!cemSelPeriod || !periods.find((p) => p.periodKey === cemSelPeriod)) cemSelPeriod = periods[periods.length-1].periodKey;
   const segmentsForView = ctSegmentsForView(cemSelPeriod, cemSelView);
   if(cemSelView !== 'total' && segmentsForView.length > 0 && !segmentsForView.includes(cemSelSegment)) cemSelSegment = segmentsForView[0];
@@ -782,16 +780,8 @@ function ctRenderDataTab(){
   const rows = ctAllEntriesSorted();
   let html = `
     <div class="ct-import-box">
-      <h3>Import a comparison report</h3>
-      <p class="ct-hint">Drop one or more CEM Comparison Report exports below — CSV or Excel (.xlsx/.xls) both work — or paste raw CSV text. Monthly totals, daypart breakdowns, day-of-week breakdowns, and multi-month rollups (like a quarter) are all supported.</p>
-      <div class="ct-dropzone" data-ct-dropzone>⬆️ Drop CSV or Excel file(s) here, or click to choose</div>
-      <input type="file" data-ct-file-input accept=".csv,text/csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" multiple style="display:none;">
-      <details style="margin-top:12px;">
-        <summary style="cursor:pointer;color:var(--text-tertiary);font-size:12.5px;">Or paste CSV text instead</summary>
-        <textarea data-ct-import-text rows="6" placeholder="Paste CSV contents here…" style="margin-top:10px;">${escapeHtml(cemImportText)}</textarea>
-        <div class="ct-import-actions"><button class="btn btn-primary" style="width:auto;padding:9px 16px;" data-ct-import-pasted>⬆️ Import pasted text</button></div>
-      </details>
-      ${cemImportMsg ? `<div class="ct-import-msg ${cemImportMsg.type}">${escapeHtml(cemImportMsg.text)}</div>` : ''}
+      <h3>Adding CEM data</h3>
+      <p class="ct-hint">Upload each CEM Comparison Report once in <b>Manage → Data Uploads</b> — this month to date, by Time of Day and by Day of Visit. It updates these trends and the Guest Obsession scoreboard together. Rows below can be removed if one was logged by mistake.</p>
     </div>
     <div class="ct-table-wrap">
       <h3>Logged data</h3>
@@ -818,7 +808,7 @@ function ctRenderDataTab(){
 function renderCemTrends(){
   const root = document.getElementById('cemTrendsRoot');
   if(!root) return;
-  const tabs = [ { id:'scoreboard', label:'Scoreboard' }, { id:'trends', label:'Trends' }, { id:'insights', label:'Insights' }, { id:'data', label:'Log Data' } ];
+  const tabs = [ { id:'scoreboard', label:'Scoreboard' }, { id:'trends', label:'Trends' }, { id:'insights', label:'Insights' }, { id:'data', label:'Data' } ];
   let html = `
     <div class="ct-header-row"><h2 class="ct-title">📈 CEM Trends</h2></div>
     <p class="ct-subtitle">Multi-month guest experience trends &amp; statistical insights — the Guest Obsession scoreboard above shows the latest month logged here</p>
@@ -853,33 +843,6 @@ async function ctDeleteEntry(key){
   renderCemTrends();
 }
 
-async function ctProcessFiles(fileList){
-  const files = Array.from(fileList || []);
-  if(files.length === 0) return;
-  const isExcel = (file) => /\.(xlsx|xls)$/i.test(file.name);
-  const readOne = (file) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (evt) => resolve(evt.target.result);
-    reader.onerror = () => reject(new Error("Couldn't read the file."));
-    if(isExcel(file)) reader.readAsArrayBuffer(file); else reader.readAsText(file);
-  });
-  let successCount = 0, lastLabel = '';
-  const errors = [];
-  for(const file of files){
-    try{
-      const result = await readOne(file);
-      const { period, entries } = isExcel(file) ? ctParseWorkbook(result) : ctParseCsv(result);
-      await ctApplyImport(period, entries);
-      successCount += 1;
-      lastLabel = period.periodLabel;
-    }catch(err){ errors.push(`${file.name}: ${err.message}`); }
-  }
-  cemImportMsg = errors.length === 0
-    ? { type:'success', text:`Imported ${successCount} file${successCount!==1?'s':''}. Most recent: ${lastLabel}.` }
-    : { type:'error', text:`Imported ${successCount} of ${files.length} file(s). Problems: ${errors.join(' | ')}` };
-  renderCemTrends();
-}
-
 // ---------- events ----------
 
 document.getElementById('cemTrendsRoot').addEventListener('click', function(e){
@@ -900,24 +863,6 @@ document.getElementById('cemTrendsRoot').addEventListener('click', function(e){
     return;
   }
 
-  const dropzone = e.target.closest('[data-ct-dropzone]');
-  if(dropzone){ document.querySelector('[data-ct-file-input]').click(); return; }
-
-  const importPasted = e.target.closest('[data-ct-import-pasted]');
-  if(importPasted){
-    const text = document.querySelector('[data-ct-import-text]').value;
-    if(!text.trim()){ cemImportMsg = { type:'error', text:'Paste CSV text first.' }; renderCemTrends(); return; }
-    try{
-      const { period, entries } = ctParseCsv(text);
-      ctApplyImport(period, entries).then((count) => {
-        cemImportMsg = { type:'success', text:`Imported ${count} row(s) for ${period.periodLabel}.` };
-        cemImportText = '';
-        renderCemTrends();
-      });
-    }catch(err){ cemImportMsg = { type:'error', text: err.message || "Couldn't parse that text." }; renderCemTrends(); }
-    return;
-  }
-
   const deleteBtn = e.target.closest('[data-ct-delete-entry]');
   if(deleteBtn){ ctDeleteEntry(deleteBtn.dataset.ctDeleteEntry); return; }
 });
@@ -928,24 +873,5 @@ document.getElementById('cemTrendsRoot').addEventListener('change', function(e){
   if(e.target.matches('[data-ct-sel-segment]')){ cemSelSegment = e.target.value; renderCemTrends(); return; }
   if(e.target.matches('[data-ct-sel-trend-view]')){ cemTrendView = e.target.value; renderCemTrends(); return; }
   if(e.target.matches('[data-ct-scope-month]')){ cemScopeMonth = e.target.value; renderCemTrends(); return; }
-  if(e.target.matches('[data-ct-file-input]')){ ctProcessFiles(e.target.files); e.target.value = ''; return; }
 });
 
-document.getElementById('cemTrendsRoot').addEventListener('input', function(e){
-  if(e.target.matches('[data-ct-import-text]')) cemImportText = e.target.value;
-});
-
-document.getElementById('cemTrendsRoot').addEventListener('dragover', function(e){
-  if(e.target.closest('[data-ct-dropzone]')){ e.preventDefault(); e.target.closest('[data-ct-dropzone]').classList.add('active'); }
-});
-document.getElementById('cemTrendsRoot').addEventListener('dragleave', function(e){
-  const dz = e.target.closest('[data-ct-dropzone]');
-  if(dz) dz.classList.remove('active');
-});
-document.getElementById('cemTrendsRoot').addEventListener('drop', function(e){
-  const dz = e.target.closest('[data-ct-dropzone]');
-  if(!dz) return;
-  e.preventDefault();
-  dz.classList.remove('active');
-  ctProcessFiles(e.dataTransfer.files);
-});
