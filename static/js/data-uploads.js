@@ -306,6 +306,9 @@ function duImportSalesMix(file, iso){
       const parsed = pbRowsToDateEntries(rows, iso);
       if(!Object.keys(parsed.byDate).length) return reject(new Error('No prep items found in it.'));
       const result = pbAddDatedEntries(prepSoldEntries, parsed.byDate, 'import');
+      // Keep the file name on the day so Verify can catch a file saved to
+      // the wrong day.
+      prepSoldEntries.forEach(e => { if(result.ids.includes(e.id)) e.file = file.name; });
       duRecord('salesMix', {file: file.name, summary: `${duShort(iso)} · ${result.items} prep items`});
       await saveState();
       if(typeof renderPrepBoard === 'function') renderPrepBoard();
@@ -478,6 +481,14 @@ function duPendingHtml(item){
       <button type="button" class="du-pending-skip" data-du-pending-skip="${item.id}">Skip this file</button>
     </div>`;
   }
+  if(item.choices){
+    // Tapped a day on the calendar, but the file name says another day.
+    return `<div class="du-pending">${name}
+      <div class="du-pending-q">The file name says ${escapeHtml(duLongDay(item.choices[1]))}. Which day is it?</div>
+      <div class="du-chips">${item.choices.map((iso, i) => `<button type="button" class="du-chip is-wide" data-du-pending="${item.id}" data-du-value="${iso}"><span>${i ? 'File name' : 'Day you tapped'}</span><b>${escapeHtml(duLongDay(iso))}</b></button>`).join('')}</div>
+      <button type="button" class="du-pending-skip" data-du-pending-skip="${item.id}">Skip</button>
+    </div>`;
+  }
   const today0 = duStartOfDay(new Date());
   // The last six open days (closed Sundays), newest first.
   const days = [];
@@ -494,6 +505,125 @@ function duPendingHtml(item){
       <button type="button" class="du-pending-skip" data-du-pending-skip="${item.id}">Skip</button>
     </div>
   </div>`;
+}
+
+// ----- Sales Mix: which days are saved, and a check of each -----
+// A calendar of the last five weeks (Mon–Sat; closed Sundays): saved days
+// shaded, missing days highlighted and tappable to upload that day. Tapping a
+// saved day shows what was saved so a leader can verify it, with checks for
+// the usual mistakes: the same file saved to two days, a file saved to a day
+// other than the one in its name, and a total far from that weekday's norm.
+
+const DU_SM_WEEKS = 5;
+let duSmOpen = null;        // ISO date whose saved data is showing
+let duSmUploadFor = null;   // ISO date a calendar tap is uploading to
+
+function duLongDay(iso){
+  return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric'});
+}
+
+function duSmTotal(e){ return Object.values(e.items || {}).reduce((a, b) => a + (+b || 0), 0); }
+
+// {iso: [reason, ...]} for saved days that look wrong.
+function duSalesMixFlags(){
+  const dated = (prepSoldEntries || []).filter(e => e.date);
+  const flags = {};
+  const add = (iso, text) => { (flags[iso] = flags[iso] || []).push(text); };
+  const byCounts = {};
+  dated.forEach(e=>{
+    const k = JSON.stringify(Object.keys(e.items || {}).sort().map(n => [n, e.items[n]]));
+    (byCounts[k] = byCounts[k] || []).push(e.date);
+  });
+  Object.values(byCounts).filter(ds => ds.length > 1).forEach(ds => ds.forEach(iso => add(iso, `Same counts as ${ds.filter(d => d !== iso).map(duLongDay).join(', ')} — the same file may have been saved to both days.`)));
+  dated.forEach(e=>{
+    const named = e.file ? pbDateFromFileName(e.file) : null;
+    if(named && named !== e.date) add(e.date, `Saved to ${duLongDay(e.date)}, but the file name says ${duLongDay(named)}.`);
+    const wd = new Date(e.date + 'T00:00:00').getDay();
+    const peers = dated.filter(o => o !== e && new Date(o.date + 'T00:00:00').getDay() === wd).map(duSmTotal).sort((a, b) => a - b);
+    if(peers.length >= 2){
+      const med = peers[Math.floor(peers.length / 2)];
+      const tot = duSmTotal(e);
+      if(med > 0 && (tot < med * 0.5 || tot > med * 1.8)){
+        add(e.date, `${tot} items sold vs about ${med} on a usual ${new Date(e.date + 'T00:00:00').toLocaleDateString('en-US', {weekday: 'long'})} — check it’s the right day’s report.`);
+      }
+    }
+  });
+  return flags;
+}
+
+function duSalesMixCalendarHtml(){
+  const today0 = duStartOfDay(new Date());
+  const start = duAddDays(duMonday(today0), -7 * (DU_SM_WEEKS - 1));
+  const byDate = {};
+  (prepSoldEntries || []).forEach(e => { if(e.date) byDate[e.date] = e; });
+  const flags = duSalesMixFlags();
+  const missing = [];
+  let saved = 0, expected = 0;
+  const weeks = [];
+  for(let w = 0; w < DU_SM_WEEKS; w++){
+    const cells = [];
+    for(let i = 0; i < 6; i++){
+      const d = duAddDays(start, w * 7 + i);
+      const iso = duISO(d);
+      const past = d < today0;
+      const has = !!byDate[iso];
+      const flag = has && flags[iso];
+      if(past){ expected++; if(has) saved++; else missing.push(iso); }
+      const state = has ? (flag ? 'is-flag' : 'is-has') : past ? 'is-missing' : 'is-future';
+      const label = `${duLongDay(iso)}: ${has ? (flag ? 'saved — check it' : 'saved') : past ? 'missing — tap to upload' : 'not yet'}`;
+      cells.push(`<button type="button" class="du-cal-day ${state} ${duSmOpen === iso ? 'is-open' : ''}" ${past || has ? `data-du-sm-day="${iso}"` : 'disabled'} aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}"><span>${d.getDate()}</span><i aria-hidden="true">${has ? (flag ? '!' : '✓') : past ? '+' : ''}</i></button>`);
+    }
+    // Month label on the first row and on the row where a new month starts.
+    const firstOfMonth = [0, 1, 2, 3, 4, 5].map(i => duAddDays(start, w * 7 + i)).find(d => d.getDate() === 1);
+    const monthDay = w === 0 ? duAddDays(start, 0) : firstOfMonth;
+    weeks.push(`<div class="du-cal-week"><span class="du-cal-month">${monthDay ? monthDay.toLocaleDateString('en-US', {month: 'short'}) : ''}</span>${cells.join('')}</div>`);
+  }
+  const flagged = Object.keys(flags).filter(iso => byDate[iso] && iso >= duISO(start));
+  const detail = duSmOpen && byDate[duSmOpen] ? duSalesMixDayHtml(byDate[duSmOpen], flags[duSmOpen] || []) : '';
+  return `
+    <div class="du-cal" aria-label="Sales Mix days saved">
+      <div class="du-cal-sum">${saved} of ${expected} days saved in the last ${DU_SM_WEEKS} weeks${missing.length ? ` · <b>${missing.length} missing</b>` : ''}${flagged.length ? ` · <b class="is-flag">${flagged.length} to check</b>` : ''}</div>
+      <div class="du-cal-head"><span></span>${['M', 'T', 'W', 'T', 'F', 'S'].map(x => `<span>${x}</span>`).join('')}</div>
+      ${weeks.join('')}
+      <div class="du-cal-legend"><span><i class="is-has">✓</i>saved</span><span><i class="is-flag">!</i>check</span><span><i class="is-missing">+</i>missing — tap to upload</span></div>
+      <input type="file" accept=".csv,.xlsx,.xls,.txt" data-du-sm-file hidden>
+      ${detail}
+    </div>`;
+}
+
+function duSalesMixDayHtml(e, flags){
+  const items = Object.entries(e.items || {}).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const src = e.file ? `from ${e.file}` : e.source === 'manual' ? 'typed in on the Prep Board' : 'uploaded (file name not recorded)';
+  return `
+    <div class="du-day">
+      <div class="du-day-head"><b>${escapeHtml(duLongDay(e.date))}</b><span>${escapeHtml(src)}</span></div>
+      <div class="du-day-sum">${items.length} prep items · ${duSmTotal(e)} sold</div>
+      ${flags.map(f => `<div class="du-day-flag">⚠ ${escapeHtml(f)}</div>`).join('')}
+      <ul class="du-day-items">${items.map(([n, c]) => `<li><span>${escapeHtml(n)}</span><b>${c}</b></li>`).join('')}</ul>
+      <div class="du-day-actions">
+        <button type="button" class="du-chip is-wide" data-du-sm-replace="${e.date}">Replace this day’s file</button>
+        <button type="button" class="du-pending-skip" data-du-sm-remove="${e.date}">Remove this day</button>
+      </div>
+    </div>`;
+}
+
+async function duSalesMixUploadFor(iso, file){
+  const named = pbDateFromFileName(file.name);
+  if(named && named !== iso){
+    duPending.push({id: ++duPendingSeq, kind: 'salesMix', need: 'date', file, choices: [iso, named]});
+    duResults = [{file: file.name, state: 'waiting', kind: 'Sales Mix (items sold)', text: `You tapped ${duLongDay(iso)}, but the file name says ${duLongDay(named)} — pick one in the Sales Mix row.`}];
+    renderDataUploads();
+    return;
+  }
+  try{
+    const text = await duImportSalesMix(file, iso);
+    duResults = [{file: file.name, state: 'ok', kind: 'Sales Mix (items sold)', text}];
+    duSmOpen = iso;
+    showToast(`✓ ${duLongDay(iso)} saved`);
+  }catch(err){
+    duResults = [{file: file.name, state: 'error', kind: 'Sales Mix (items sold)', text: err.message}];
+  }
+  renderDataUploads();
 }
 
 // ----- Rendering -----
@@ -532,6 +662,7 @@ function renderDataUploads(){
           </div>
           <div class="du-cover">${escapeHtml(st.cover)}</div>
           ${st.note ? `<div class="du-note">${escapeHtml(st.note)}</div>` : ''}
+          ${src.key === 'salesMix' ? duSalesMixCalendarHtml() : ''}
           ${duPending.filter(p => p.kind === src.key).map(duPendingHtml).join('')}
           <label class="du-row-upload"><input type="file" accept="${src.accept}" ${src.multiple ? 'multiple' : ''} data-du-row-input="${src.key}"><span>⬆ Upload ${escapeHtml(src.short || src.name.split(' (')[0])}</span></label>
           <details class="du-more">
@@ -554,6 +685,13 @@ document.getElementById('dataUploadsRoot').addEventListener('change', async e=>{
   }
   if(e.target.matches('[data-du-row-input]')){
     await duHandleFiles(e.target.files, e.target.dataset.duRowInput);
+    return;
+  }
+  if(e.target.matches('[data-du-sm-file]')){
+    const file = e.target.files[0];
+    e.target.value = '';
+    if(file && duSmUploadFor) await duSalesMixUploadFor(duSmUploadFor, file);
+    duSmUploadFor = null;
     return;
   }
   if(e.target.matches('[data-du-pending-date]') && e.target.value){
@@ -587,7 +725,28 @@ document.getElementById('dataUploadsRoot').addEventListener('drop', e=>{
   duHandleFiles(e.dataTransfer.files);
 });
 
-document.getElementById('dataUploadsRoot').addEventListener('click', e=>{
+document.getElementById('dataUploadsRoot').addEventListener('click', async e=>{
+  const day = e.target.closest('[data-du-sm-day]');
+  if(day){
+    const iso = day.dataset.duSmDay;
+    if(prepSoldEntries.some(x => x.date === iso)){ duSmOpen = duSmOpen === iso ? null : iso; renderDataUploads(); }
+    else { duSmUploadFor = iso; document.querySelector('[data-du-sm-file]').click(); }
+    return;
+  }
+  const replace = e.target.closest('[data-du-sm-replace]');
+  if(replace){ duSmUploadFor = replace.dataset.duSmReplace; document.querySelector('[data-du-sm-file]').click(); return; }
+  const remove = e.target.closest('[data-du-sm-remove]');
+  if(remove){
+    const iso = remove.dataset.duSmRemove;
+    if(!confirm(`Remove the Sales Mix saved for ${duLongDay(iso)}?`)) return;
+    prepSoldEntries = prepSoldEntries.filter(x => x.date !== iso);
+    duSmOpen = null;
+    renderDataUploads();
+    if(typeof renderPrepBoard === 'function') renderPrepBoard();
+    showToast(`${duLongDay(iso)} removed`);
+    await saveState();
+    return;
+  }
   const pick = e.target.closest('[data-du-pending]');
   if(pick){ duResolvePending(+pick.dataset.duPending, pick.dataset.duValue); return; }
   const skip = e.target.closest('[data-du-pending-skip]');

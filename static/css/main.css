@@ -1482,3 +1482,41 @@
   .du-date-other{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--text-secondary);}
   .du-date-other input{padding:7px 8px;border:1px solid #E6D3A0;border-radius:8px;font-family:inherit;font-size:13px;background:#fff;color:var(--text-primary);min-height:36px;}
   .du-pending-skip{border:0;background:transparent;font-family:inherit;font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;min-height:36px;padding:0 4px;}
+
+  /* Sales Mix calendar + day check */
+  .du-cal{margin-top:10px;padding:10px 10px 8px;border-radius:12px;background:var(--cfa-light);border:1px solid var(--border);}
+  .du-cal-sum{font-size:12px;color:var(--text-secondary);margin-bottom:8px;}
+  .du-cal-sum b{color:#9A5B00;}
+  .du-cal-sum b.is-flag{color:#B3261E;}
+  .du-cal-head,.du-cal-week{display:grid;grid-template-columns:34px repeat(6,minmax(0,1fr));gap:4px;align-items:center;}
+  .du-cal-head span{font-size:10px;font-weight:700;color:var(--text-secondary);text-align:center;}
+  .du-cal-week{margin-top:4px;}
+  .du-cal-month{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-secondary);}
+  .du-cal-day{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;min-height:44px;border-radius:9px;border:1px solid transparent;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;padding:2px 0;}
+  .du-cal-day i{font-style:normal;font-size:11px;line-height:1;}
+  .du-cal-day.is-has{background:#E3EFE3;color:#3F6B42;}
+  .du-cal-day.is-has i{color:#2E7D32;}
+  .du-cal-day.is-flag{background:#FDECEA;color:#9B1C1C;border-color:#E9A6A0;}
+  .du-cal-day.is-missing{background:#fff;color:#7A4B00;border:1.5px dashed #E0A100;}
+  .du-cal-day.is-missing i{color:#B07800;font-size:13px;}
+  .du-cal-day.is-future{background:transparent;color:#B9B3A8;cursor:default;font-weight:500;}
+  .du-cal-day.is-open{outline:2px solid var(--text-primary);outline-offset:1px;}
+  .du-cal-day:focus-visible{outline:2px solid var(--cfa-red);outline-offset:1px;}
+  .du-cal-legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-size:11px;color:var(--text-secondary);}
+  .du-cal-legend span{display:inline-flex;align-items:center;gap:5px;}
+  .du-cal-legend i{font-style:normal;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:5px;font-size:10px;font-weight:700;}
+  .du-cal-legend i.is-has{background:#E3EFE3;color:#2E7D32;}
+  .du-cal-legend i.is-flag{background:#FDECEA;color:#9B1C1C;}
+  .du-cal-legend i.is-missing{background:#fff;color:#B07800;border:1.5px dashed #E0A100;}
+  .du-day{margin-top:10px;padding:10px 12px;border-radius:10px;background:#fff;border:1px solid var(--border);}
+  .du-day-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 10px;font-size:14px;}
+  .du-day-head span{font-size:11px;color:var(--text-secondary);overflow-wrap:anywhere;}
+  .du-day-sum{font-size:12px;color:var(--text-secondary);margin-top:2px;}
+  .du-day-flag{font-size:12px;color:#9B1C1C;background:#FDECEA;border-radius:8px;padding:6px 8px;margin-top:6px;}
+  .du-day-items{list-style:none;margin:8px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px 14px;}
+  .du-day-items li{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:3px 0;border-bottom:1px solid var(--cfa-light);}
+  .du-day-items li span{color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .du-day-items li b{font-variant-numeric:tabular-nums;}
+  .du-day-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .du-chip.is-wide{flex-direction:row;gap:6px;padding:8px 12px;}
+  .du-chip.is-wide span{font-size:10px;}

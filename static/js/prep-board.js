@@ -1124,6 +1124,7 @@ function pbImportFile(kind, input){
       }
     }
     const result = pbAddDatedEntries(PB_KIND[kind].list(), parsed.byDate, 'import');
+    PB_KIND[kind].list().forEach(e => { if(result.ids.includes(e.id)) e.file = file.name; });
     if(kind === 'sold') duRecord('salesMix', {file: file.name, summary: `${result.items} prep items`});
     pbFinishAdd(kind, result, parsed.skipped);
   });
