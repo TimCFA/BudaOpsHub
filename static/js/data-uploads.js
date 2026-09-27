@@ -33,6 +33,11 @@ const DU_SOURCES = [
     feeds: 'Strength map · Coverage Check · Set Ups Fill, Evaluate, Plan B, Develop'
   },
   {
+    key: 'productivity', icon: '⏱️', name: 'Productivity by hour', freq: 'monthly',
+    how: 'Productivity dashboard → Total | Daypart | Productivity, export as CSV, one per weekday (it says “for Tuesday” etc.). Month to date or longer.',
+    feeds: 'Break planner — keeps breaks out of each day’s busiest hours'
+  },
+  {
     key: 'salesMix', icon: '🧾', name: 'Sales Mix (items sold)', freq: 'weekly',
     how: 'Sales Mix Items Totals report, one file per day (the date in the file name is used). Drop several days at once.',
     feeds: 'Prep Board build-to and sold history'
@@ -148,6 +153,16 @@ function duSourceState(src, now){
     return {status: duStatusFromTime(last, freq, now), freq, cover, note: areas, last};
   }
 
+  if(src.key === 'productivity'){
+    const days = Object.keys(productivityProfiles || {});
+    const order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'All'];
+    days.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    const last = days.map(d => new Date(productivityProfiles[d].at)).sort((a, b) => a - b).pop() || logAt;
+    const status = duStatusFromTime(last, freq, now);
+    const missing = order.slice(0, 6).filter(d => !productivityProfiles[d]);
+    return {status, freq, cover: days.length ? `Profiles: ${days.join(', ')}` : 'No productivity report yet — breaks use default rush hours', note: days.length && missing.length ? `Days without their own profile borrow the closest one (${missing.join(', ')}).` : '', last};
+  }
+
   if(src.key === 'salesMix'){
     const dates = (prepSoldEntries || []).map(e => e.date).filter(Boolean).sort();
     const latest = dates[dates.length - 1] || null;
@@ -236,6 +251,7 @@ function duDetect(file, text, workbook){
   const firstLine = head.split(/\r?\n/)[0] || '';
   if(/(^|,)"?Employee"?(,|$)/.test(firstLine) && /Mon Shift/.test(firstLine)) return 'roster';
   if(/Daypart Hours Swap/i.test(head)) return 'productivity';
+  if(/Daypart\s*Hours\s*Swap/i.test(head.replace(/\u0000/g, ''))) return 'productivity';
   if(/sales[\s_-]*mix/i.test(file.name) || /Sold Count/i.test(firstLine)) return 'salesMix';
   return null;
 }
@@ -301,6 +317,75 @@ function duImportSalesMix(file){
   });
 }
 
+// Tab-separated rows; quoted cells can hold line breaks (Tableau exports).
+function duParseTsv(text){
+  const rows = [];
+  let row = [], field = '', q = false;
+  for(let i = 0; i < text.length; i++){
+    const c = text[i];
+    if(q){
+      if(c === '"'){ if(text[i + 1] === '"'){ field += '"'; i++; } else q = false; }
+      else field += c;
+    } else if(c === '"') q = true;
+    else if(c === '\t'){ row.push(field); field = ''; }
+    else if(c === '\n'){ row.push(field); rows.push(row); row = []; field = ''; }
+    else if(c !== '\r') field += c;
+  }
+  if(field || row.length){ row.push(field); rows.push(row); }
+  return rows;
+}
+
+function duHourToMin(label){
+  const m = String(label).trim().match(/^(\d{1,2})\s*(AM|PM)$/i);
+  if(!m) return null;
+  let h = parseInt(m[1], 10) % 12;
+  if(/pm/i.test(m[2])) h += 12;
+  return h * 60;
+}
+
+const duNum = v => { const n = parseFloat(String(v).replace(/[$,\s]/g, '')); return isNaN(n) ? null : n; };
+
+// Total | Daypart | Productivity export → one profile per weekday: for each
+// hour, sales per labor hour, labor hours, and (from the Sales/Transactions
+// variant) average sales per day.
+async function duImportProductivity(file, text){
+  const rows = duParseTsv(text.replace(/^\uFEFF/, ''));
+  const header = rows[0].map(h => h.trim());
+  const hourCol = header.findIndex(h => /Daypart Hours Swap/i.test(h));
+  const valCol = header.length - 1, nameCol = header.length - 2;
+  if(hourCol === -1) throw new Error('This productivity export doesn’t have the hour column it should.');
+  const dayMatch = text.match(/time of day for (Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i);
+  const day = dayMatch ? dayMatch[1][0].toUpperCase() + dayMatch[1].slice(1).toLowerCase() : 'All';
+  const hours = {};
+  rows.slice(1).forEach(r=>{
+    const h = duHourToMin(r[hourCol]);
+    if(h === null) return;
+    const name = String(r[nameCol] || '').trim(), v = duNum(r[valCol]);
+    if(v === null) return;
+    const rec = hours[h] = hours[h] || {};
+    if(/^Value: Sales \| Transactions Productivity/i.test(name)) rec.prod = v;
+    else if(/Timekeeping Hours/i.test(name)) rec.labor = v;
+    else if(/COUNTD\(\[business_date\]\)/i.test(name)) rec.salesPerDay = v;
+  });
+  // Label: $ column carries the productivity value when a row has no
+  // "Value:" measure (Sales/Transactions export).
+  if(!Object.values(hours).some(r => r.prod != null)){
+    const prodCol = header.findIndex(h => /^Label: Sales \| Transactions Productivity$/i.test(h));
+    if(prodCol !== -1) rows.slice(1).forEach(r => { const h = duHourToMin(r[hourCol]); const v = duNum(r[prodCol]); if(h !== null && v !== null) (hours[h] = hours[h] || {}).prod = v; });
+  }
+  const n = Object.keys(hours).length;
+  if(!n) throw new Error('No hourly numbers found in this productivity export.');
+  const prev = productivityProfiles[day] || {};
+  const merged = {};
+  new Set([...Object.keys(prev.hours || {}), ...Object.keys(hours)]).forEach(h => { merged[h] = {...((prev.hours || {})[h] || {}), ...(hours[h] || {})}; });
+  productivityProfiles[day] = {hours: merged, file: file.name, at: new Date().toISOString()};
+  duRecord('productivity', {file: file.name, summary: `${day} · ${n} hours`});
+  await saveState();
+  breakPlanReset();
+  const peak = Object.entries(merged).filter(([, r]) => r.prod != null).sort((a, b) => b[1].prod - a[1].prod)[0];
+  return `${day === 'All' ? 'All days' : day} · ${n} hours${peak ? ` · busiest hour ${suClock(+peak[0])}` : ''} → break planner`;
+}
+
 async function duHandleFiles(fileList){
   const files = Array.from(fileList || []);
   if(!files.length) return;
@@ -332,7 +417,7 @@ async function duHandleFiles(fileList){
       else if(job.kind === 'pea') text = await duImportPea(job.file);
       else if(job.kind === 'salesMix') text = await duImportSalesMix(job.file);
       else if(job.kind === 'roster') text = duImportRoster(job.file, job.text);
-      else if(job.kind === 'productivity') throw new Error('Productivity reports aren’t stored yet — they come with the break planner (TIM-44).');
+      else if(job.kind === 'productivity') text = await duImportProductivity(job.file, job.text);
       else throw new Error('Didn’t recognize this file. Expected a CEM Comparison Report, HotSchedules roster CSV, Levelset PEA PDF, or Sales Mix report.');
       duResults[job.i] = {file: job.file.name, state: 'ok', kind: src ? src.name : job.kind, text};
     }catch(err){

@@ -470,6 +470,7 @@ document.getElementById('btnResolveNoSplit').addEventListener('click', async ()=
 
 function renderRoster(){
   const dayName = document.getElementById('daySelect').value;
+  breakPlanReset();
   if(!dayName){
     document.getElementById('rosterPanel').innerHTML = '<div style="text-align:center;color:var(--text-secondary);">Select a day to view roster</div>';
     return;
@@ -509,7 +510,7 @@ function renderRoster(){
       <div class="roster-item">
         <button class="roster-remove" onclick="removeFromRoster('${escapedName}')" title="Remove from today's roster">✕</button>
         <div class="roster-name">${escapeHtml(person.name)}${person.leader ? '<span class="roster-leader-badge">Team Leader</span>' : ''}${customBadge}${(isCompleted && !onBreak) ? `<button class="break-complete-badge" onclick="undoBreakComplete('${escapedName}')" title="Tap to undo">✓ Break Complete ↺</button>` : ''}</div>
-        <div class="roster-time">${escapeHtml(rosterTimeText(person))}</div>
+        <div class="roster-time">${escapeHtml(rosterTimeText(person))}${(()=>{ const b = !isCompleted && !onBreak ? breakFor(currentPosSection, dayName, person.name) : null; return b && b.start !== null ? ` <span class="roster-break-plan">· ☕ break ${suClock(b.start)}–${suClock(b.end)}</span>` : ''; })()}</div>
         ${onBreak ? `
           <div class="countdown" id="timer-${person.name}">${mins}:${secs<10?'0':''}${secs}</div>
           <button class="break-btn onbreak" disabled>On Break</button>

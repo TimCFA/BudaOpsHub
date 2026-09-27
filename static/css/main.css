@@ -1449,3 +1449,19 @@
     #suPrintRoot td{border-top:1px solid #ddd;padding:1px 3px;vertical-align:top;}
     #suPrintRoot td:first-child{color:#444;width:45%;}
   }
+
+  /* ===== Breaks & tasks (TIM-44) ===== */
+  .su-bt{background:var(--su-card);border-radius:16px;padding:10px 14px 12px;box-shadow:0 1px 0 var(--su-line);}
+  .su-bt h3{font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--su-muted);padding:2px 0 6px;}
+  .su-bt h4{font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--su-muted);margin:10px 0 4px;}
+  .su-bt-list{list-style:none;margin:0;padding:0;}
+  .su-bt-list li{display:grid;grid-template-columns:48px minmax(0,1fr);gap:10px;align-items:baseline;padding:7px 0;border-top:1px solid var(--su-line);font-size:14px;line-height:1.4;}
+  .su-bt-list li:first-child{border-top:0;}
+  .su-bt-time{font-weight:700;font-variant-numeric:tabular-nums;}
+  .su-bt-what em{font-style:normal;color:var(--su-muted);font-size:12px;}
+  .su-bt-list.is-tasks li{font-size:13px;}
+  .su-bt-none{font-size:13px;color:var(--su-muted);margin:0 0 4px;}
+  .su-bt-warn{font-size:13px;color:var(--su-red);margin:6px 0 0;}
+  .su-bt-foot{font-size:11px;color:var(--su-muted);margin:10px 0 0;line-height:1.45;}
+  .su-row-note.is-break{color:#6B4E16;}
+  .roster-break-plan{color:#6B4E16;font-weight:600;}

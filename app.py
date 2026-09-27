@@ -39,7 +39,7 @@ MANAGER_ONLY_KEYS = {
     'lxPillars', 'lxMetrics', 'lxLastUpdated',
     'gxData', 'txData', 'homeData',
     'peaRatings', 'peaNameAliases',
-    'dataUploadLog', 'dataUploadSettings',
+    'dataUploadLog', 'dataUploadSettings', 'productivityProfiles',
 }
 
 def _changed_manager_fields(old_state, new_state):

@@ -379,6 +379,7 @@ function suSheetHtml(section, date, dp, dpIndex, m){
 function renderSetupsBoard(date){
   const section = currentPosSection;
   suNameMap = null;   // rebuilt from the current rosters on first use
+  breakPlanReset();
   const {dp, dpIndex} = suCurrentDaypart(section, date);
   const m = suDaypartModel(section, date, dp, dpIndex);
   // Default: the sheet view (setups-sheet.js). Coach: the full board.
@@ -397,6 +398,7 @@ function renderSetupsBoard(date){
       ${suDaypartChipsHtml(section, date, dp.name)}
       ${suGamePlanHtml(section, date, dp, dpIndex, m)}
       ${suZonesHtml(m)}
+      ${suBreaksCardHtml(section, date, dpIndex)}
       <div class="su-legend" aria-hidden="true">
         <span><i class="su-av-crushing"></i>Crushing It</span><span><i class="su-av-rise"></i>On the Rise</span><span><i class="su-av-notyet"></i>Not Yet</span><span><i class="su-av-unrated"></i>Unrated</span><span>#&#8202;= set-up priority</span>
       </div>

@@ -25,13 +25,14 @@ function suModeBarHtml(){
 }
 
 // "Josh → Lauren @ 7:30", "Avah (from 11:30)", "Dan (leaves 6:00)".
-function suSheetNameHtml(t){
+function suSheetNameHtml(t, brk){
   if(!t.names.length) return t.needed ? '<span class="su-row-needed">Needed</span>' : '<span class="su-row-open">—</span>';
   const who = t.names.length > 1 && t.timeNote ? suDisplayName(t.names[0]) : t.names.map(suDisplayName).join(' → ');
   const lead = t.leaderRole ? `<span class="su-row-role" title="${escapeHtml(t.leaderRole)}">${t.leaderRole === 'Team Lead' ? 'TL' : 'T'}</span>` : '';
   const note = t.timeNote ? `<span class="su-row-note ${t.timeNote.warn ? 'is-warn' : ''}">${escapeHtml(t.timeNote.text)}</span>` : '';
   const flag = t.flagged ? '<span class="su-row-note is-warn">needs coverage</span>' : '';
-  return `<span class="su-row-who">${escapeHtml(who)}${lead}</span>${note}${flag}`;
+  const brkNote = brk ? `<span class="su-row-note is-break" title="Planned 30-minute break">☕ ${suClock(brk)}</span>` : '';
+  return `<span class="su-row-who">${escapeHtml(who)}${lead}</span>${note}${brkNote}${flag}`;
 }
 
 function suSheetViewHtml(section, date, dp, dpIndex, m){
@@ -60,6 +61,15 @@ function suSheetViewHtml(section, date, dp, dpIndex, m){
       ${needed.length || m.unplaced.length ? `<div class="su-sheet-line is-static"><span class="su-sheet-k">Open</span><span>${needed.length ? `${needed.length} spot${needed.length === 1 ? '' : 's'} needed` : 'Priority spots filled'}${m.unplaced.length ? ` · not placed: ${escapeHtml(m.unplaced.slice(0, 4).map(suDisplayName).join(', '))}${m.unplaced.length > 4 ? ` +${m.unplaced.length - 4}` : ''}` : ''}</span>${needed.length && m.unplaced.length ? '<button type="button" class="su-sheet-act is-dark" data-su-tool="fill">Fill</button>' : ''}</div>` : ''}
     </div>`;
 
+  // A planned break that starts during this daypart, for the row's person.
+  const {startMin, endMin} = daypartTimeWindow(suDaypartsFor(section), dpIndex);
+  const rowBreak = x=>{
+    for(const n of x.names){
+      const b = breakFor(section, date, n);
+      if(b && b.start !== null && b.start >= startMin && b.start < endMin) return b.start;
+    }
+    return null;
+  };
   const zones = m.zones.map(z=>{
     const expanded = suExpandedZones.has(z.key);
     const shown = z.tiles.filter(x => x.names.length || x.needed || expanded || !m.headcount);
@@ -71,14 +81,14 @@ function suSheetViewHtml(section, date, dp, dpIndex, m){
         ${shown.map(x => `
           <button type="button" class="su-row ${x.needed ? 'is-needed' : ''} ${!x.names.length ? 'is-open' : ''}" data-su-tile="${escapeHtml(x.slot)}" aria-label="${escapeHtml(`${x.slot}: ${x.names.length ? x.names.join(' then ') : x.needed ? 'needed' : 'open'}`)}">
             <span class="su-row-slot">${escapeHtml(x.slot)}</span>
-            <span class="su-row-name">${suSheetNameHtml(x)}</span>
+            <span class="su-row-name">${suSheetNameHtml(x, rowBreak(x))}</span>
           </button>`).join('')}
         ${hidden.length ? `<button type="button" class="su-zone-more" data-su-zone-more="${z.key}">+ ${hidden.length} more spot${hidden.length === 1 ? '' : 's'} if you have extra people</button>` : ''}
         ${expanded && m.headcount ? `<button type="button" class="su-zone-more" data-su-zone-less="${z.key}">Hide open extras</button>` : ''}
       </section>`;
   }).join('');
 
-  return `${summary}<div class="su-sheet-table">${zones}</div>`;
+  return `${summary}<div class="su-sheet-table">${zones}</div>${suBreaksCardHtml(section, date, dpIndex)}`;
 }
 
 // A filled row in the sheet view: who, when, and the quick actions — no
@@ -127,7 +137,11 @@ function suPrintHtml(section, date){
         <table>${rows}</table>
       </section>`;
   }).join('');
-  return `<h1>${escapeHtml(title)}</h1><div class="su-print-grid">${blocks || '<p>No positions placed yet.</p>'}</div>`;
+  breakPlanReset();
+  const plan = breakPlanFor(section, date);
+  const brRows = plan.breaks.map(b => `<tr><td>${b.start !== null ? `${suClock(b.start)}–${suClock(b.end)}` : '—'}</td><td>${escapeHtml(suDisplayName(b.name))}${b.start === null ? ' (no time fits)' : ''}</td></tr>`).join('');
+  const breaksBlock = plan.breaks.length ? `<section class="su-print-dp"><h2>Breaks (30 min)</h2><table>${brRows}</table></section>` : '';
+  return `<h1>${escapeHtml(title)}</h1><div class="su-print-grid">${blocks || '<p>No positions placed yet.</p>'}${breaksBlock}</div>`;
 }
 
 function suPrint(){
