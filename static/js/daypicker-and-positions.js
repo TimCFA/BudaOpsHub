@@ -274,6 +274,7 @@ function renderAllDayparts(){
           </div>
           ${renderSetupDevelop(currentPosSection, dayName, dp, dpIndex)}
           ${renderSetupEvaluation(currentPosSection, dayName, dp)}
+          ${renderSetupPlanB(currentPosSection, dayName, dp, dpIndex)}
         </div>
       </div>
     `;
