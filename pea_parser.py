@@ -1,9 +1,13 @@
 """Reads Levelset "Positional Excellence Ratings" PDF exports.
 
 The PDF is text-based but has two quirks this works around:
-  * The digit "1" is drawn with a glyph that has no text mapping, so text
-    extractors drop it ("2:19 PM" reads as "2: 9 PM"). The glyph is still
-    there with an empty string, so it's put back as "1".
+  * One digit is drawn with a glyph that has no text mapping, so text
+    extractors drop it ("2:19 PM" reads as "2: 9 PM"). Which digit varies
+    between exports ("1" in one, "5" in another). The glyph is still there
+    as an empty string, so it's put back as the one digit that never
+    appears anywhere else in the file (or, failing that, from the header's
+    "Criteria 1-5" labels). Every rating's Overall is then checked against
+    the average of its five criteria to catch a misread.
   * Long names wrap onto two lines, with half above and half below the row
     (the row is vertically centered). Words are assigned to the nearest row.
 
@@ -28,8 +32,40 @@ class PeaParseError(ValueError):
     pass
 
 
-def _words(page):
-    """Words on a page as {text, x0, x1, top}, with the blank "1" glyph restored."""
+def _blank_digit(pdf):
+    """The digit this export draws with an unmapped (empty) glyph, or None
+    if every character has text."""
+    present, blanks = set(), False
+    for page in pdf.pages:
+        for c in page.chars:
+            if c['text'] == '':
+                blanks = True
+            elif c['text'].isdigit():
+                present.add(c['text'])
+    if not blanks:
+        return None
+    missing = sorted(set('0123456789') - present)
+    if len(missing) == 1:
+        return missing[0]
+    # Several digits never appear: read it off the header, where the blank
+    # sits in "Criteria N" at position N.
+    for page in pdf.pages:
+        words = _words(page, '?')
+        overall = [w for w in words if w['text'] == 'Overall']
+        if not overall:
+            continue
+        header = _phrases([w for w in words if abs(w['top'] - overall[0]['top']) < 3])
+        crit = [h['text'] for h in header if h['text'].startswith('Criteria')]
+        for i, label in enumerate(crit):
+            if label.endswith('?'):
+                return str(i + 1)
+        break
+    return None
+
+
+def _words(page, blank='1'):
+    """Words on a page as {text, x0, x1, top}, with the blank glyph restored
+    as `blank`."""
     lines = {}
     for c in page.chars:
         lines.setdefault(round(c['top']), []).append(c)
@@ -38,7 +74,7 @@ def _words(page):
         chars.sort(key=lambda c: c['x0'])
         cur = None
         for c in chars:
-            text = c['text'] if c['text'] != '' else '1'
+            text = c['text'] if c['text'] != '' else blank
             if text.isspace():
                 cur = None
                 continue
@@ -71,8 +107,9 @@ def _column_bounds(words):
         return None
     top = overall[0]['top']
     header = _phrases([w for w in words if abs(w['top'] - top) < 3])
-    labels = [h['text'] for h in header]
-    if labels != HEADER_LABELS:
+    # Criteria numbering isn't checked: it's where a misread digit would show.
+    labels = [re.sub(r'^Criteria\s*\S*$', 'Criteria', h['text']) for h in header]
+    if labels != [re.sub(r'^Criteria \d$', 'Criteria', l) for l in HEADER_LABELS]:
         raise PeaParseError(
             "This doesn't look like a Levelset Positional Excellence Ratings report "
             f"(expected columns {', '.join(HEADER_LABELS)}).")
@@ -127,8 +164,9 @@ def parse_pea_pdf(file_obj):
     except Exception as e:
         raise PeaParseError(f"Couldn't open the PDF ({e}).")
     with pdf:
+        blank = _blank_digit(pdf) or '1'
         for page_no, page in enumerate(pdf.pages, start=1):
-            words = _words(page)
+            words = _words(page, blank)
             if page_no == 1:
                 summary = _summary(words)
             found = _column_bounds(words)
@@ -161,6 +199,17 @@ def parse_pea_pdf(file_obj):
         raise PeaParseError("Couldn't find the ratings table. Is this a Levelset Positional Excellence Ratings PDF?")
     if 'count' in summary and summary['count'] != len(ratings):
         warnings.append(f"The report says {summary['count']} ratings but {len(ratings)} were read.")
+    # Overall is the average of the five criteria, so a misread digit shows
+    # up as a mismatch. More than a stray one means the file wasn't read
+    # reliably — refuse it rather than save wrong scores.
+    off = [r for r in ratings if abs(sum(r['criteria']) / 5 - r['overall']) > 0.011]
+    if ratings and len(off) > max(2, len(ratings) * 0.02):
+        raise PeaParseError(
+            f"Scores in this PDF didn't read cleanly ({len(off)} of {len(ratings)} ratings don't add up), "
+            "so nothing was saved. Send the file to be checked.")
+    if off:
+        warnings.append(f"{len(off)} rating{'s' if len(off) != 1 else ''} had an Overall that doesn't match "
+                        "the average of its criteria.")
     return {'ratings': ratings, 'summary': summary, 'warnings': warnings}
 
 
