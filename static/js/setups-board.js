@@ -33,7 +33,7 @@ const SU_EXTRA_ZONE = {key: 'extra', name: 'Extra hands'};
 let suSelectedDaypart = {foh: '', boh: ''};   // daypart name per section
 let suSelectedDate = '';
 let suExpandedZones = new Set();              // zones showing their optional slots
-let suSheet = null;                           // {kind: 'develop'|'evaluate'|'planb'|'person'|'lead', slot}
+let suSheet = null;                           // {kind: 'develop'|'fill'|'evaluate'|'planb'|'person'|'lead', slot}
 
 function suShortDaypart(name){
   return name.replace(/\s*\(.*\)\s*$/, '');
@@ -169,7 +169,7 @@ function suGamePlanHtml(section, date, dp, dpIndex, m){
         ${section === 'foh' ? suLeadCaptainLineHtml(date, dp) : ''}
         <div class="su-plan-line"><span class="su-plan-tag is-dev">Develop</span><span>${escapeHtml(devText)}${devStale ? ' <em>· out of date</em>' : ''}</span></div>
         <div class="su-plan-line"><span class="su-plan-tag is-watch">Watch</span><span>${escapeHtml(watchText)}${evStale ? ' <em>· out of date</em>' : ''}</span></div>
-        <div class="su-plan-line"><span class="su-plan-tag is-open">Open</span><span>${escapeHtml(openText)}</span></div>
+        <div class="su-plan-line su-plan-open"><span class="su-plan-tag is-open">Open</span><span>${escapeHtml(openText)}</span>${needed.length && m.unplaced.length ? '<button type="button" class="su-plan-link" data-su-tool="fill">Fill</button>' : ''}</div>
       </div>
     </section>`;
 }
@@ -214,6 +214,7 @@ function suToolbarHtml(){
   return `
     <nav class="su-toolbar" aria-label="Coaching tools">
       ${tool('develop', 'Develop', '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F2C14E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>')}
+      ${tool('fill', 'Fill', '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><path d="M16.5 13.5v6M13.5 16.5h6"/></svg>')}
       ${tool('planb', 'Plan B', '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg>')}
       ${tool('evaluate', 'Evaluate', '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>')}
     </nav>`;
@@ -292,6 +293,7 @@ function suPersonSheetHtml(section, date, dp, dpIndex, m, slot){
 function suSheetHtml(section, date, dp, dpIndex, m){
   if(!suSheet) return '';
   if(suSheet.kind === 'person') return suPersonSheetHtml(section, date, dp, dpIndex, m, suSheet.slot);
+  if(suSheet.kind === 'fill') return suFillSheetHtml(section, date, dp, dpIndex);
   if(suSheet.kind === 'lead') return section === 'foh' ? suLeadCaptainSheetHtml(date, dp, dpIndex) : '';
   const titles = {develop: 'Develop this shift', evaluate: 'Evaluate', planb: 'Plan B'};
   const body = suSheet.kind === 'develop' ? renderSetupDevelop(section, date, dp, dpIndex)
@@ -326,6 +328,7 @@ function suRunTool(kind){
   const key = suEvalKey(section, date, dp.name);
   if(kind === 'develop') setupDevelopResults[key] = {at: Date.now(), signature: suDevelopSignature(section, date, dp, dpIndex), result: developShift(section, date, dp, dpIndex)};
   if(kind === 'evaluate') setupEvaluations[key] = {at: Date.now(), signature: suSetupSignature(section, date, dp.name), result: evaluateSetup(section, date, dp.name)};
+  if(kind === 'fill') setupFillResults[key] = {at: Date.now(), signature: suDevelopSignature(section, date, dp, dpIndex), result: fillEmptySlots(section, date, dp, dpIndex)};
   if(kind === 'planb') setupPlanBResults[key] = {at: Date.now(), signature: suDevelopSignature(section, date, dp, dpIndex), result: planBForDaypart(section, date, dp, dpIndex)};
   suSheet = {kind};
 }
