@@ -91,8 +91,8 @@ def _column_of(word, bounds):
 
 
 def _summary(words):
-    """The report's own totals (count, average, date range) from page 1, used
-    to confirm nothing was missed."""
+    """The report's own totals (count, average, date range, areas) from page 1,
+    used to confirm nothing was missed and to track which dates are covered."""
     lines = {}
     for w in words:
         lines.setdefault(w['top'], []).append(w)
@@ -103,6 +103,9 @@ def _summary(words):
         if m:
             out['rangeStart'] = datetime.strptime(m.group(1), '%m/%d/%Y').strftime('%Y-%m-%d')
             out['rangeEnd'] = datetime.strptime(m.group(2), '%m/%d/%Y').strftime('%Y-%m-%d')
+        m = re.match(r'^Areas:\s*(.+)$', t)
+        if m:
+            out['areas'] = [a.strip().upper() for a in m.group(1).split(',') if a.strip()]
         m = re.match(r'^(\d+)\s+(\d\.\d\d)\s+[\d.]+$', t)
         if m and 'count' not in out:
             out['count'] = int(m.group(1))
