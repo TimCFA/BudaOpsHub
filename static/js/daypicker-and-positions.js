@@ -311,8 +311,10 @@ function renderPosOptionList(eligible, filterText){
 }
 
 // One tap = done. No confirm step, no "selected" state to track — picking a
-// name (or Unassign) commits immediately and closes the modal.
-window.commitPosAssignment = async function(name){
+// name (or Unassign) commits immediately and closes the modal. The board
+// updates first; the save to the server runs behind it (it takes a second or
+// two, and the header's sync status reports how it went).
+window.commitPosAssignment = function(name){
   if(name){
     posAssignments[currentPosKey] = name;
     delete posVacancyFlags[currentPosKey];
@@ -322,11 +324,11 @@ window.commitPosAssignment = async function(name){
   }
   const keyDate = currentPosKey.split('||')[1];
   touchLastUpdated(keyDate);
-  await saveState();
+  document.getElementById('posModal').classList.remove('active');
   renderAllDayparts();
   updateSelectedDayInfo('daySelect', 'daySelectedInfo');
-  document.getElementById('posModal').classList.remove('active');
   showToast('✓ Assignment Saved!');
+  saveState();
 };
 
 document.getElementById('posModalSearch').addEventListener('input', (e)=>{
@@ -441,29 +443,29 @@ document.getElementById('btnConfirmVacancy').addEventListener('click', async ()=
   delete posVacancyFlags[currentVacancyKey];
   const keyDate = currentVacancyKey.split('||')[1];
   touchLastUpdated(keyDate);
-  await saveState();
+  document.getElementById('vacancyModal').classList.remove('active');
   renderAllDayparts();
   updateSelectedDayInfo('daySelect', 'daySelectedInfo');
-  document.getElementById('vacancyModal').classList.remove('active');
   showToast('✓ Coverage Added!');
+  saveState();
 });
 
 document.getElementById('btnFlagOnly').addEventListener('click', async ()=>{
   const initials = getInitials();
   if(!initials){ showToast('Set your initials first (top right)'); beginEditInitials(); return; }
   posVacancyFlags[currentVacancyKey] = {flaggedBy: initials, flaggedAt: Date.now()};
-  await saveState();
-  renderAllDayparts();
   document.getElementById('vacancyModal').classList.remove('active');
+  renderAllDayparts();
   showToast('🚨 Flagged — needs coverage');
+  saveState();
 });
 
 document.getElementById('btnResolveNoSplit').addEventListener('click', async ()=>{
   delete posVacancyFlags[currentVacancyKey];
-  await saveState();
-  renderAllDayparts();
   document.getElementById('vacancyModal').classList.remove('active');
+  renderAllDayparts();
   showToast('✓ Marked as resolved');
+  saveState();
 });
 
 function renderRoster(){

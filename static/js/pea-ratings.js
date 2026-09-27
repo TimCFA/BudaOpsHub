@@ -262,6 +262,7 @@ async function peaHandleUpload(file){
   if(covStart && covEnd) peaAddCoverage(peaRatings.coverage, areas, covStart, covEnd);
   peaRatings.uploads.push({at: new Date().toISOString(), file: file.name, rangeStart: covStart || null, rangeEnd: covEnd || null, areas, read: ratings.length, added});
   peaRatings.uploads = peaRatings.uploads.slice(-10);
+  duRecord('pea', {file: file.name, summary: `${ratings.length} ratings · ${added} new`});
   peaPruneOldRatings();
   await saveState();
 
@@ -272,6 +273,7 @@ async function peaHandleUpload(file){
   status.textContent = `✓ ${ratings.length} ratings read${range} · ${added} new · ${ratings.length - added} already saved.${warnings}`;
   showToast(added ? `✓ ${added} new PEA ratings saved` : 'No new ratings — all were already saved');
   renderPeaManage();
+  renderDataUploads();
 }
 
 async function peaClearAll(){
