@@ -1172,3 +1172,24 @@
   .pea-unlink{width:auto;margin:0;padding:4px 10px;font-size:11px;}
   .pea-match-details{margin-top:12px;font-size:12px;}
   .pea-match-details summary{cursor:pointer;font-weight:600;color:var(--text-secondary);padding:4px 0;}
+
+  /* ===== Game Day / Practice Day + Develop this shift ===== */
+  .su-daytype{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;padding:3px 8px;border-radius:10px;white-space:nowrap;}
+  .su-daytype.su-game{background:var(--cfa-red);color:#fff;}
+  .su-daytype.su-practice{background:#E3F2E5;color:#1E5E22;}
+  .su-muted{font-size:11px;color:var(--text-secondary);font-weight:400;}
+  .su-develop{margin-top:12px;padding-top:12px;border-top:1px dashed var(--border);}
+  .su-develop .su-eval.has-result{margin-top:8px;padding-top:0;border-top:none;}
+  .su-develop-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:8px;}
+  .su-daytype-toggle{display:inline-flex;gap:3px;background:var(--cfa-bg);border-radius:18px;padding:3px;}
+  .su-daytype-toggle button{border:none;background:none;padding:6px 12px;border-radius:14px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;}
+  .su-daytype-toggle button.active[data-su-daytype="game"]{background:var(--cfa-red);color:#fff;}
+  .su-daytype-toggle button.active[data-su-daytype="practice"]{background:#2E7D32;color:#fff;}
+  .su-picks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;}
+  .su-pick{padding:10px 12px;border:1px solid var(--border);border-left:3px solid #2E7D32;border-radius:var(--radius);background:var(--cfa-white);}
+  .su-pick-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;font-size:13px;}
+  .su-pick-n{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#2E7D32;color:#fff;font-size:11px;font-weight:700;}
+  .su-pick-why{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0;}
+  .su-pick-why span{font-size:11px;padding:2px 8px;border-radius:10px;background:var(--cfa-bg);color:var(--text-primary);}
+  .su-pick-plan{font-size:12px;line-height:1.5;}
+  .su-more{font-size:12px;margin-top:8px;}

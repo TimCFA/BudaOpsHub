@@ -145,3 +145,49 @@ function setupHistoryStatusText(){
   const count = days.reduce((sum, d) => sum + setupHistory.days[d].length, 0);
   return `Set-up history: ${days.length} day${days.length === 1 ? '' : 's'} logged since ${since} · ${count} assignments · kept for a year`;
 }
+
+// ===== NUMBERS HISTORY =====
+// Know the Numbers (numbersData) is also pruned after two weeks. Game Day
+// detection needs to know what a daypart's projected sales and productivity
+// goal usually are, so each finished day's numbers are kept for a year:
+//   {'2026-09-20': {'Lunch (11:00-2:00)': [projectedSales, productivityGoal, specialEvents]}}
+// with sales/goal as numbers (null when blank).
+let numbersHistory = {};
+
+function parseMoney(v){
+  const n = parseFloat(String(v || '').replace(/[^0-9.]/g, ''));
+  return isNaN(n) ? null : n;
+}
+
+function numbersDayRecord(dayNums){
+  const out = {};
+  Object.keys(dayNums || {}).forEach(dp=>{
+    const e = dayNums[dp] || {};
+    const rec = [parseMoney(e.projectedSales), parseMoney(e.productivityGoal), String(e.specialEvents || '').trim()];
+    if(rec[0] !== null || rec[1] !== null || rec[2]) out[dp] = rec;
+  });
+  return out;
+}
+
+// Same approach as archiveSetupHistory: finished days Know the Numbers still
+// holds replace their copy; must run before pruneOldDateData.
+function archiveNumbersHistory(){
+  if(!numbersHistory || typeof numbersHistory !== 'object' || Array.isArray(numbersHistory)) numbersHistory = {};
+  const liveCutoff = setupHistoryDateCutoff(14);
+  const dates = new Set([...Object.keys(numbersData).filter(isSetupDateKey), ...Object.keys(numbersHistory)]);
+  let changed = false;
+  dates.forEach(date=>{
+    if(date >= today) return;
+    const live = numbersData[date];
+    if(!live && date < liveCutoff) return;
+    const rec = numbersDayRecord(live);
+    const before = JSON.stringify(numbersHistory[date] || {});
+    if(before === JSON.stringify(rec)) return;
+    if(Object.keys(rec).length) numbersHistory[date] = rec;
+    else delete numbersHistory[date];
+    changed = true;
+  });
+  const keepCutoff = setupHistoryDateCutoff(SETUP_HISTORY_KEEP_DAYS);
+  Object.keys(numbersHistory).forEach(d => { if(d < keepCutoff){ delete numbersHistory[d]; changed = true; } });
+  return changed;
+}

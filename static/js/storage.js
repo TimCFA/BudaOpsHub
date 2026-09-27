@@ -41,7 +41,7 @@ async function saveState(){
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
-    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases
+    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes
   };
   const serialized = JSON.stringify(snapshot);
   localStorage.setItem('cfaBudaOps', serialized);
@@ -67,7 +67,7 @@ function exportBackup(){
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
-    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases
+    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes
   };
   const blob = new Blob([JSON.stringify(snapshot, null, 2)], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
@@ -198,12 +198,16 @@ async function loadState(){
     peaRatings = normalizePeaRatings(data.peaRatings);
     peaNameAliases = (data.peaNameAliases && typeof data.peaNameAliases === 'object') ? data.peaNameAliases : {};
     const migrated = migrateLegacyWeekdayKeys();
-    // Log finished set ups before the two-week prune removes them.
+    numbersHistory = (data.numbersHistory && typeof data.numbersHistory === 'object') ? data.numbersHistory : {};
+    setupDayTypes = (data.setupDayTypes && typeof data.setupDayTypes === 'object') ? data.setupDayTypes : {};
+    // Log finished set ups and numbers before the two-week prune removes them.
     const archivedSetups = archiveSetupHistory();
+    const archivedNumbers = archiveNumbersHistory();
+    const prunedDayTypes = pruneSetupDayTypes();
     const prunedDates = pruneOldDateData();
     const prunedChecklists = pruneZoneChecklistData();
     const prunedFoodSafety = fsPruneOldWalkthroughs();
-    if(migrated || archivedSetups || prunedDates || prunedChecklists || prunedFoodSafety) await saveState();
+    if(migrated || archivedSetups || archivedNumbers || prunedDayTypes || prunedDates || prunedChecklists || prunedFoodSafety) await saveState();
     calcStreak();
   }
 }

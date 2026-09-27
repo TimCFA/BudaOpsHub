@@ -236,6 +236,7 @@ function renderAllDayparts(){
           <div class="daypart-title">
             <span class="daypart-name">${dp.name}</span>
             <span class="daypart-fill ${allAssigned ? 'full' : ''}" title="People assigned a position / people working this daypart">${assignedCount}/${available.length} assigned</span>
+            ${suDayTypeBadge(currentPosSection, dayName, dp)}
           </div>
           <span class="chevron">▾</span>
         </div>
@@ -271,6 +272,7 @@ function renderAllDayparts(){
               `;
             }).join('')}
           </div>
+          ${renderSetupDevelop(currentPosSection, dayName, dp, dpIndex)}
           ${renderSetupEvaluation(currentPosSection, dayName, dp)}
         </div>
       </div>
