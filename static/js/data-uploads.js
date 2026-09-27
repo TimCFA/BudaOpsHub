@@ -297,14 +297,35 @@ async function duImportPea(file){
   return `${up.read} ratings read · ${up.added} new${up.rangeStart ? ` · ${duShort(up.rangeStart)}–${duShort(up.rangeEnd)}` : ''} (${(up.areas || []).join(', ')})`;
 }
 
+// Safeguard against the same file going to two days: before saving, compare
+// the counts with the days saved within two weeks of it (a handful of small
+// entries, so it costs nothing). Files uploaded together are saved one at a
+// time, so they're checked against each other too.
+const DU_SM_TWIN_DAYS = 14;
+function duSalesMixTwin(items, iso){
+  const key = JSON.stringify(Object.keys(items || {}).sort().map(n => [n, items[n]]));
+  const day = new Date(iso + 'T00:00:00');
+  return (prepSoldEntries || []).find(e => e.date && e.date !== iso
+    && Math.abs(new Date(e.date + 'T00:00:00') - day) <= DU_SM_TWIN_DAYS * 86400000
+    && JSON.stringify(Object.keys(e.items || {}).sort().map(n => [n, e.items[n]])) === key) || null;
+}
+
 // A Sales Mix report is one business day. The day comes from the file name
 // (…_2026-09-19.csv); without one the file waits for the leader to pick it.
-function duImportSalesMix(file, iso){
+// Rejects with err.twin when the counts match another recent day, unless
+// `force` (the leader chose "Save anyway").
+function duImportSalesMix(file, iso, force){
   return new Promise((resolve, reject)=>{
     pbReadWorkbookRows(file, async (err, rows)=>{
       if(err || !rows || !rows.length) return reject(new Error('Couldn’t read that file.'));
       const parsed = pbRowsToDateEntries(rows, iso);
       if(!Object.keys(parsed.byDate).length) return reject(new Error('No prep items found in it.'));
+      const twin = force ? null : duSalesMixTwin(parsed.byDate[iso], iso);
+      if(twin){
+        const dup = new Error(`Identical to ${duLongDay(twin.date)}`);
+        dup.twin = twin;
+        return reject(dup);
+      }
       const result = pbAddDatedEntries(prepSoldEntries, parsed.byDate, 'import');
       // Keep the file name on the day so Verify can catch a file saved to
       // the wrong day.
@@ -425,7 +446,8 @@ async function duHandleFiles(fileList, hint){
       else if(job.kind === 'salesMix'){
         const iso = pbDateFromFileName(job.file.name);
         if(!iso){ duWait(job, 'date'); continue; }
-        text = await duImportSalesMix(job.file, iso);
+        try{ text = await duImportSalesMix(job.file, iso); }
+        catch(err){ if(!err.twin) throw err; duWaitTwin(job.i, job.file, iso, err.twin); continue; }
       }
       else if(job.kind === 'roster') text = duImportRoster(job.file, job.text);
       else if(job.kind === 'productivity'){
@@ -441,8 +463,22 @@ async function duHandleFiles(fileList, hint){
   }
   renderDataUploads();
   const ok = duResults.filter(r => r.state === 'ok').length;
-  const waiting = duResults.filter(r => r.state === 'waiting').length;
-  showToast(waiting ? `${waiting} file${waiting === 1 ? '' : 's'} need${waiting === 1 ? 's' : ''} a day — pick it in Data Uploads` : ok === files.length ? `✓ ${ok} file${ok === 1 ? '' : 's'} filed` : `${ok} of ${files.length} files filed — see Data Uploads`);
+  const twins = duResults.filter(r => r.state === 'waiting' && /^Not saved yet — identical/.test(r.text)).length;
+  const waiting = duResults.filter(r => r.state === 'waiting').length - twins;
+  if(twins) showToast(`⚠ ${twins} file${twins === 1 ? ' matches' : 's match'} another day’s counts — not saved. Check Data Uploads.`);
+  else showToast(waiting ? `${waiting} file${waiting === 1 ? '' : 's'} need${waiting === 1 ? 's' : ''} a day — pick it in Data Uploads` : ok === files.length ? `✓ ${ok} file${ok === 1 ? '' : 's'} filed` : `${ok} of ${files.length} files filed — see Data Uploads`);
+}
+
+// Hold a Sales Mix file whose counts match another recent day, until the
+// leader says save it anyway or skip it.
+function duWaitTwin(resultIndex, file, iso, twin){
+  duPending.push({id: ++duPendingSeq, kind: 'salesMix', need: 'twin', file, iso, twin: {date: twin.date, file: twin.file || ''}});
+  const r = {file: file.name, state: 'waiting', kind: 'Sales Mix (items sold)', text: `Not saved yet — identical to ${duLongDay(twin.date)}. Check it in the Sales Mix row.`};
+  if(resultIndex !== null && resultIndex !== undefined) duResults[resultIndex] = r;
+  else {
+    const i = duResults.findIndex(x => x.file === file.name);
+    if(i === -1) duResults.push(r); else duResults[i] = r;
+  }
 }
 
 // Park a file that needs a day (Sales Mix) or weekday (productivity).
@@ -459,7 +495,15 @@ async function duResolvePending(id, value){
   const r = duResults.find(x => x.file === item.file.name && x.state === 'waiting');
   const src = DU_SOURCES.find(s => s.key === item.kind);
   try{
-    const text = item.kind === 'salesMix' ? await duImportSalesMix(item.file, value) : await duImportProductivity(item.file, item.text, value);
+    let text;
+    if(item.kind === 'salesMix'){
+      const force = item.need === 'twin';
+      const iso = force ? item.iso : value;
+      try{ text = await duImportSalesMix(item.file, iso, force); }
+      catch(err){ if(!err.twin) throw err; duWaitTwin(null, item.file, iso, err.twin); renderDataUploads(); return; }
+    } else {
+      text = await duImportProductivity(item.file, item.text, value);
+    }
     if(r) Object.assign(r, {state: 'ok', text});
     else duResults.push({file: item.file.name, state: 'ok', kind: src ? src.name : item.kind, text});
     showToast(`✓ ${item.file.name} filed`);
@@ -473,6 +517,23 @@ async function duResolvePending(id, value){
 // one-tap chips (yesterday first), plus a calendar for anything older.
 function duPendingHtml(item){
   const name = `<div class="du-pending-file">📄 ${escapeHtml(item.file.name)}</div>`;
+  if(item.need === 'twin'){
+    return `<div class="du-pending is-twin">${name}
+      <div class="du-pending-q">⚠ Identical to ${escapeHtml(duLongDay(item.twin.date))}${item.twin.file ? ` (${escapeHtml(item.twin.file)})` : ''}</div>
+      <p class="du-pending-note">Every count matches that day, so this is probably the same report uploaded twice. Nothing has been saved for ${escapeHtml(duLongDay(item.iso))} yet.</p>
+      <div class="du-pending-row">
+        <button type="button" class="du-chip is-wide" data-du-pending="${item.id}" data-du-value="force">Save to ${escapeHtml(duLongDay(item.iso))} anyway</button>
+        <button type="button" class="du-pending-skip" data-du-pending-skip="${item.id}">Skip this file</button>
+      </div>
+    </div>`;
+  }
+  if(item.need === 'weekday' && item.choices){
+    return `<div class="du-pending">${name}
+      <div class="du-pending-q">The report says ${escapeHtml(item.choices[1])}. Which day is it?</div>
+      <div class="du-chips">${item.choices.map((d, i) => `<button type="button" class="du-chip is-wide" data-du-pending="${item.id}" data-du-value="${d}"><span>${i ? 'The report' : 'Day you tapped'}</span><b>${d}</b></button>`).join('')}</div>
+      <button type="button" class="du-pending-skip" data-du-pending-skip="${item.id}">Skip</button>
+    </div>`;
+  }
   if(item.need === 'weekday'){
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     return `<div class="du-pending">${name}
@@ -616,12 +677,141 @@ async function duSalesMixUploadFor(iso, file){
     return;
   }
   try{
-    const text = await duImportSalesMix(file, iso);
+    let text;
+    try{ text = await duImportSalesMix(file, iso); }
+    catch(err){
+      if(!err.twin) throw err;
+      duResults = [];
+      duWaitTwin(null, file, iso, err.twin);
+      renderDataUploads();
+      return;
+    }
     duResults = [{file: file.name, state: 'ok', kind: 'Sales Mix (items sold)', text}];
     duSmOpen = iso;
     showToast(`✓ ${duLongDay(iso)} saved`);
   }catch(err){
     duResults = [{file: file.name, state: 'error', kind: 'Sales Mix (items sold)', text: err.message}];
+  }
+  renderDataUploads();
+}
+
+// ----- CEM: which months and breakdowns are saved -----
+// One row per month (last six), one square per export: the store total
+// ("Overall", in every export), by Time of Day, and by Day of Visit. Tap a
+// saved square to see the scores that were saved; tap a missing one to upload.
+
+const DU_CEM_MONTHS = 6;
+const DU_CEM_DIMS = [{key: 'total', label: 'Overall'}, {key: 'daypart', label: 'Time of Day'}, {key: 'dow', label: 'Day of Visit'}];
+let duCemOpen = null;   // 'YYYY-MM::dimension'
+
+function duCemGridHtml(){
+  const now = new Date();
+  const months = [];
+  for(let i = DU_CEM_MONTHS - 1; i >= 0; i--){
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, label: d.toLocaleDateString('en-US', {month: 'short', year: '2-digit'}).replace(' ', " '"), current: i === 0});
+  }
+  const rows = months.map(m=>{
+    const entries = ctEntriesForPeriod(m.key);
+    const total = entries.find(e => e.dimension === 'total');
+    const period = ctPeriods().find(p => p.periodKey === m.key);
+    const through = period && period.periodEnd && m.current ? `thru ${new Date(period.periodEnd + 'T00:00:00').getDate()}` : '';
+    const cells = DU_CEM_DIMS.map(dim=>{
+      const has = entries.some(e => e.dimension === dim.key);
+      const id = `${m.key}::${dim.key}`;
+      const sub = has ? (dim.key === 'total' && total && total.n ? `${total.n} surveys` : '✓') : '+';
+      return `<button type="button" class="du-cal-day du-grid-cell ${has ? 'is-has' : 'is-missing'} ${duCemOpen === id ? 'is-open' : ''}" data-du-cem-cell="${id}" aria-label="${escapeHtml(`${m.label} ${dim.label}: ${has ? 'saved' : 'missing — tap to upload'}`)}"><i>${escapeHtml(sub)}</i></button>`;
+    }).join('');
+    return `<div class="du-grid-row"><span class="du-grid-label">${escapeHtml(m.label)}${through ? `<small>${through}</small>` : ''}</span>${cells}</div>`;
+  }).join('');
+  const others = ctPeriods().filter(p => p.periodType !== 'month');
+  let detail = '';
+  if(duCemOpen){
+    const [key, dim] = duCemOpen.split('::');
+    const entries = ctEntriesForPeriod(key).filter(e => e.dimension === dim);
+    if(entries.length) detail = duCemDetailHtml(key, dim, entries);
+  }
+  return `
+    <div class="du-cal">
+      <div class="du-grid-head"><span></span>${DU_CEM_DIMS.map(d => `<span>${d.label}</span>`).join('')}</div>
+      ${rows}
+      ${others.length ? `<div class="du-cal-sum" style="margin:8px 0 0">Other periods: ${others.map(p => escapeHtml(p.periodLabel)).join(' · ')}</div>` : ''}
+      <div class="du-cal-legend"><span><i class="is-has">✓</i>saved (tap to check)</span><span><i class="is-missing">+</i>missing — tap to upload</span></div>
+      <input type="file" accept=".csv,.xlsx,.xls" multiple data-du-cem-file hidden>
+      ${detail}
+    </div>`;
+}
+
+function duCemDetailHtml(key, dim, entries){
+  const order = dim === 'daypart' ? CT_DAYPART_ORDER : dim === 'dow' ? CT_DOW_ORDER : ['Overall'];
+  entries = entries.slice().sort((a, b) => order.indexOf(a.segment) - order.indexOf(b.segment));
+  const period = ctPeriods().find(p => p.periodKey === key);
+  const head = `<tr><th></th>${CT_METRICS.map(m => `<th>${escapeHtml(m.short)}</th>`).join('')}<th>n</th></tr>`;
+  const body = entries.map(e => `<tr><td>${escapeHtml(e.segment)}</td>${CT_METRICS.map(m => `<td>${e.scores[m.key] != null ? Math.round(e.scores[m.key]) : '—'}</td>`).join('')}<td>${e.n ?? '—'}</td></tr>`).join('');
+  return `
+    <div class="du-day">
+      <div class="du-day-head"><b>${escapeHtml(period ? period.periodLabel : key)}</b><span>${escapeHtml(DU_CEM_DIMS.find(d => d.key === dim).label)}</span></div>
+      <div class="du-table-wrap"><table class="du-table">${head}${body}</table></div>
+      <div class="du-day-sum">Scores are % of guests who gave the top score. Compare with the CEM report you exported.</div>
+    </div>`;
+}
+
+// ----- Productivity: which weekdays have a report -----
+// Mon–Sat squares. A missing weekday borrows the closest one's hours. Tap a
+// saved day to see its hours (busiest shaded darker); tap a missing day to
+// upload that weekday's export.
+
+const DU_WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+let duProdOpen = null;       // weekday showing its hours
+let duProdUploadFor = null;  // weekday a tap is uploading to
+
+function duProdGridHtml(){
+  const profiles = productivityProfiles || {};
+  const cells = DU_WEEKDAYS.map(day=>{
+    const has = !!profiles[day];
+    const at = has ? new Date(profiles[day].at).toLocaleDateString('en-US', {month: 'numeric', day: 'numeric'}) : '';
+    return `<button type="button" class="du-cal-day ${has ? 'is-has' : 'is-missing'} ${duProdOpen === day ? 'is-open' : ''}" data-du-prod-day="${day}" aria-label="${escapeHtml(`${day}: ${has ? `report saved ${at}` : 'missing — tap to upload'}`)}"><span>${day.slice(0, 3)}</span><i>${has ? escapeHtml(at) : '+'}</i></button>`;
+  }).join('');
+  const all = profiles.All ? `<div class="du-cal-sum" style="margin:8px 0 0">Also saved: an all-days report (used for any day without its own).</div>` : '';
+  const detail = duProdOpen && profiles[duProdOpen] ? duProdDetailHtml(duProdOpen, profiles[duProdOpen]) : '';
+  return `
+    <div class="du-cal">
+      <div class="du-prod-row">${cells}</div>
+      ${all}
+      <div class="du-cal-legend"><span><i class="is-has">✓</i>saved (date uploaded)</span><span><i class="is-missing">+</i>missing — borrows the closest day; tap to upload</span></div>
+      <input type="file" accept=".csv,.txt" data-du-prod-file hidden>
+      ${detail}
+    </div>`;
+}
+
+function duProdDetailHtml(day, prof){
+  const hours = Object.entries(prof.hours || {}).map(([h, v]) => [+h, v]).filter(([h, v]) => h >= 300 && h <= 1380 && v.prod != null).sort((a, b) => a[0] - b[0]);
+  const max = Math.max(1, ...hours.map(([, v]) => v.prod));
+  const bars = hours.map(([h, v]) => `<li><span>${suClock(h)}</span><div class="du-bar"><i style="width:${Math.round(v.prod / max * 100)}%;opacity:${(0.35 + 0.65 * v.prod / max).toFixed(2)}"></i></div><b>$${Math.round(v.prod)}</b></li>`).join('');
+  return `
+    <div class="du-day">
+      <div class="du-day-head"><b>${escapeHtml(day)}</b><span>${escapeHtml(prof.file || '')}</span></div>
+      <div class="du-day-sum">Sales per labor hour, by hour. The darker the bar, the busier — breaks stay out of those hours.</div>
+      <ul class="du-bars">${bars}</ul>
+    </div>`;
+}
+
+// Tapped a missing weekday: save the file as that day, unless the export
+// names a different weekday — then ask which is right.
+async function duProdUploadForDay(file, day){
+  let text;
+  try{ text = pbDecodeText(await duReadFile(file, true)); }
+  catch(err){ duResults = [{file: file.name, state: 'error', text: err.message}]; renderDataUploads(); return; }
+  const named = duProductivityDay(text);
+  if(named && named !== day){
+    duPending.push({id: ++duPendingSeq, kind: 'productivity', need: 'weekday', file, text, choices: [day, named]});
+    duResults = [{file: file.name, state: 'waiting', kind: 'Productivity by hour', text: `You tapped ${day}, but the report says ${named} — pick one in the Productivity row.`}];
+  } else {
+    try{
+      const out = await duImportProductivity(file, text, day);
+      duResults = [{file: file.name, state: 'ok', kind: 'Productivity by hour', text: out}];
+      duProdOpen = day;
+    }catch(err){ duResults = [{file: file.name, state: 'error', text: err.message}]; }
   }
   renderDataUploads();
 }
@@ -662,7 +852,7 @@ function renderDataUploads(){
           </div>
           <div class="du-cover">${escapeHtml(st.cover)}</div>
           ${st.note ? `<div class="du-note">${escapeHtml(st.note)}</div>` : ''}
-          ${src.key === 'salesMix' ? duSalesMixCalendarHtml() : ''}
+          ${src.key === 'salesMix' ? duSalesMixCalendarHtml() : src.key === 'cem' ? duCemGridHtml() : src.key === 'productivity' ? duProdGridHtml() : ''}
           ${duPending.filter(p => p.kind === src.key).map(duPendingHtml).join('')}
           <label class="du-row-upload"><input type="file" accept="${src.accept}" ${src.multiple ? 'multiple' : ''} data-du-row-input="${src.key}"><span>⬆ Upload ${escapeHtml(src.short || src.name.split(' (')[0])}</span></label>
           <details class="du-more">
@@ -685,6 +875,18 @@ document.getElementById('dataUploadsRoot').addEventListener('change', async e=>{
   }
   if(e.target.matches('[data-du-row-input]')){
     await duHandleFiles(e.target.files, e.target.dataset.duRowInput);
+    return;
+  }
+  if(e.target.matches('[data-du-cem-file]')){
+    await duHandleFiles(e.target.files, 'cem');
+    return;
+  }
+  if(e.target.matches('[data-du-prod-file]')){
+    const file = e.target.files[0];
+    e.target.value = '';
+    const day = duProdUploadFor;
+    duProdUploadFor = null;
+    if(file && day) await duProdUploadForDay(file, day);
     return;
   }
   if(e.target.matches('[data-du-sm-file]')){
@@ -726,6 +928,20 @@ document.getElementById('dataUploadsRoot').addEventListener('drop', e=>{
 });
 
 document.getElementById('dataUploadsRoot').addEventListener('click', async e=>{
+  const cem = e.target.closest('[data-du-cem-cell]');
+  if(cem){
+    const [key, dim] = cem.dataset.duCemCell.split('::');
+    if(ctEntriesForPeriod(key).some(x => x.dimension === dim)){ duCemOpen = duCemOpen === cem.dataset.duCemCell ? null : cem.dataset.duCemCell; renderDataUploads(); }
+    else document.querySelector('[data-du-cem-file]').click();
+    return;
+  }
+  const prod = e.target.closest('[data-du-prod-day]');
+  if(prod){
+    const d = prod.dataset.duProdDay;
+    if(productivityProfiles[d]){ duProdOpen = duProdOpen === d ? null : d; renderDataUploads(); }
+    else { duProdUploadFor = d; document.querySelector('[data-du-prod-file]').click(); }
+    return;
+  }
   const day = e.target.closest('[data-du-sm-day]');
   if(day){
     const iso = day.dataset.duSmDay;
