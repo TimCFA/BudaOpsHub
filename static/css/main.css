@@ -1520,3 +1520,31 @@
   .du-day-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;flex-wrap:wrap;}
   .du-chip.is-wide{flex-direction:row;gap:6px;padding:8px 12px;}
   .du-chip.is-wide span{font-size:10px;}
+  .du-pending.is-twin{background:#FDECEA;border-color:#E9A6A0;}
+  .du-pending.is-twin .du-pending-q{color:#9B1C1C;}
+  .du-pending-note{font-size:12px;color:var(--text-primary);margin:0 0 4px;}
+
+  /* CEM months × breakdowns, productivity weekdays */
+  .du-grid-head,.du-grid-row{display:grid;grid-template-columns:58px repeat(3,minmax(0,1fr));gap:4px;align-items:center;}
+  .du-grid-head span{font-size:10px;font-weight:700;color:var(--text-secondary);text-align:center;text-transform:uppercase;letter-spacing:0.03em;}
+  .du-grid-row{margin-top:4px;}
+  .du-grid-label{font-size:12px;font-weight:700;color:var(--text-primary);display:flex;flex-direction:column;line-height:1.15;}
+  .du-grid-label small{font-size:10px;font-weight:600;color:var(--text-secondary);}
+  .du-grid-cell{min-height:40px;}
+  .du-grid-cell i{font-size:11px;font-weight:700;}
+  .du-prod-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;}
+  .du-prod-row .du-cal-day i{font-size:10px;}
+  .du-table-wrap{overflow-x:auto;margin-top:8px;}
+  .du-table{border-collapse:collapse;font-size:12px;width:100%;min-width:320px;}
+  .du-table th{font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;padding:3px 4px;text-align:right;}
+  .du-table td{padding:4px;text-align:right;border-top:1px solid var(--cfa-light);font-variant-numeric:tabular-nums;}
+  .du-table th:first-child,.du-table td:first-child{text-align:left;white-space:nowrap;}
+  .du-bars{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:3px;}
+  .du-bars li{display:grid;grid-template-columns:44px minmax(0,1fr) 40px;gap:8px;align-items:center;font-size:11px;font-variant-numeric:tabular-nums;}
+  .du-bar{height:10px;background:var(--cfa-light);border-radius:5px;overflow:hidden;}
+  .du-bar i{display:block;height:100%;background:#5B4A2E;border-radius:5px;}
+  .du-bars b{text-align:right;}
+  /* Keep wide content (the CEM score table) scrolling inside its box on phones. */
+  .du-list{grid-template-columns:minmax(0,1fr);}
+  .du-row,.du-cal,.du-day{min-width:0;}
+  .du-day-head b{min-width:0;}
