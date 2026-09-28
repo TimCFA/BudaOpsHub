@@ -575,14 +575,15 @@
         <div class="wt-gauge" id="wasteThermoGauge" aria-hidden="true">
           <div class="wt-scale" id="wasteThermoScale"></div>
           <div class="wt-tube"><div class="wt-mercury"></div></div>
-          <div class="wt-goal"></div>
+          <div class="wt-limit"></div>
           <div class="wt-bulb"></div>
           <span class="wt-bump" id="wasteThermoBump"></span>
         </div>
         <div class="wt-read">
           <div class="waste-hero-total" id="wasteTodayTotal">$0.00</div>
-          <div class="waste-hero-target">of <span id="wasteTodayTarget">$100.00</span> daily goal</div>
+          <div class="waste-hero-target">wasted of the <span id="wasteTodayTarget">$100.00</span> daily limit</div>
           <div class="wt-left" id="wasteThermoLeft"></div>
+          <div class="wt-hint">Lower is better — keep it below the red line.</div>
         </div>
       </div>
 
@@ -621,7 +622,7 @@
           <div class="streak-label" id="foodSafetyStreakLabel">consecutive days</div>
         </div>
         <div class="streak-display">
-          <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;margin-bottom:8px;">Under Target</div>
+          <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;margin-bottom:8px;">Under Limit</div>
           <div class="streak-number" id="wasteStreakNum">0</div>
           <div class="streak-label" id="wasteStreakLabel">consecutive days</div>
         </div>
@@ -894,7 +895,7 @@
         </div>
         <div class="manage-group-body">
           <div class="standup-card">
-            <h3>Daily Waste Target</h3>
+            <h3>Daily Waste Limit</h3>
             <div style="display:flex;gap:8px;">
               <input type="number" id="targetInput" value="100" min="1" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius);">
               <button id="btnUpdateTarget" class="btn btn-primary" style="flex:0;width:auto;padding:10px 16px;">Update</button>

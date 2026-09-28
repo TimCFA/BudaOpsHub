@@ -279,38 +279,41 @@ function renderScoreboardView(){
 }
 
 // ===== WASTE THERMOMETER =====
-// Today's waste against the daily goal, FOH and BOH together. The scale runs
-// to 125% of the goal so going over is visible; past that the mercury stays
-// pinned at the top and the thermometer "boils". Green until 75% of the goal,
-// amber from there, red once today is over it.
+// Today's waste against the daily limit (the Manage "Daily Waste Limit"),
+// FOH and BOH together. Waste is bad, so this is a ceiling to stay under, not
+// a goal to reach: the tube is tinted green / amber / red with a solid limit
+// line, and the red zone above it is "over". The scale runs to 125% of the
+// limit; past that the mercury stays pinned at the top and "boils". Green
+// until 75% of the limit, amber from there, red once today reaches it.
 const WT_SCALE_MAX = 1.25;
 const WT_TICKS = [0, 0.25, 0.5, 0.75, 1, 1.25];
 let wtShownTotal = null;    // what the thermometer last showed on screen
 
-function wasteThermoState(total, goal){
-  const ratio = goal > 0 ? total / goal : 0;
-  if(total >= goal) return {key: 'over', pill: '⚠ Over goal', ratio};
-  if(ratio >= 0.75) return {key: 'close', pill: 'Getting close', ratio};
-  return {key: 'under', pill: '✓ On track', ratio};
+function wasteThermoState(total, limit){
+  const ratio = limit > 0 ? total / limit : 0;
+  if(total >= limit) return {key: 'over', pill: total > limit ? '⚠ Over limit' : '⚠ At the limit', ratio};
+  if(ratio >= 0.75) return {key: 'close', pill: 'Near the limit', ratio};
+  return {key: 'under', pill: '✓ Under limit', ratio};
 }
 
 function renderWasteThermo(total){
-  const goal = wasteTarget;
-  const state = wasteThermoState(total, goal);
+  const limit = wasteTarget;
+  const state = wasteThermoState(total, limit);
   const money = n => '$' + n.toFixed(2);
 
   document.getElementById('wasteTodayTotal').textContent = money(total);
-  document.getElementById('wasteTodayTarget').textContent = money(goal);
+  document.getElementById('wasteTodayTarget').textContent = money(limit);
   const pill = document.getElementById('wasteStatusPill');
   pill.textContent = state.pill;
   pill.className = 'waste-status-pill is-' + state.key;
-  document.getElementById('wasteThermoLeft').innerHTML = total >= goal
-    ? `<b>${money(total - goal)}</b> over the goal`
-    : `<b>${money(goal - total)}</b> left before the goal`;
+  document.getElementById('wasteThermoLeft').innerHTML = total > limit
+    ? `<b>${money(total - limit)}</b> over the limit`
+    : total === limit ? '<b>Right at</b> the limit'
+    : `<b>${money(limit - total)}</b> of room left`;
 
   const thermo = document.getElementById('wasteThermo');
   document.getElementById('wasteThermoScale').innerHTML = WT_TICKS.map(f =>
-    `<span class="wt-tick${f === 1 ? ' is-goal' : ''}" style="--f:${f / WT_SCALE_MAX}">${f === 1 ? 'Goal ' : ''}$${Math.round(goal * f)}</span>`
+    `<span class="wt-tick${f === 1 ? ' is-limit' : ''}" style="--f:${f / WT_SCALE_MAX}">${f === 1 ? 'Limit ' : ''}$${Math.round(limit * f)}</span>`
   ).join('');
 
   // Only move the mercury while it's on screen, so the rise plays when
