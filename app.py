@@ -1,7 +1,10 @@
 from datetime import timedelta
 from collections import defaultdict
+import gzip
 import json
 import os
+import secrets
+import threading
 import time
 
 from flask import Flask, request, jsonify, send_file, session
@@ -11,6 +14,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 from pea_parser import parse_pea_pdf, PeaParseError
+from state_patch import PatchError, apply_ops, canon, check_ops
 
 app = Flask(__name__)
 CORS(app)
@@ -29,10 +33,11 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=timedelta(hours=12),
 )
 
-# Fields that require an authenticated manager session to change.
-# saveState() always resends the full snapshot, so we diff old vs. new
-# per key. The product bookkeeping keys travel with `products` so a
-# non-manager save can't leave them out of step with the stored list.
+# Fields that require an authenticated manager session to change. A
+# change-based save (/api/state/patch) drops changes to these without one;
+# the whole-section saves from older pages compare old vs. new per key. The
+# product bookkeeping keys travel with `products` so a non-manager save
+# can't leave them out of step with the stored list.
 MANAGER_ONLY_KEYS = {
     'wasteTarget', 'safeTarget', 'products',
     'deletedProductIds', 'productFixesVersion', 'productCategoryOrder',
@@ -91,28 +96,60 @@ def _split_state(state):
         sections[SECTION_OF_KEY.get(key, 'misc')][key] = value
     return sections
 
-def _read_sections():
-    """{name: dict} for every stored section, or None before the split."""
+# The latest saved data is kept in memory with a version tag per section, so
+# a page asking "anything new?" costs Firebase nothing, and a save applies its
+# changes to the latest data. Page loads re-read Firebase (as before), which
+# also picks up any change made outside the app. This assumes one server
+# process (Render runs `gunicorn app:app`: one worker); the lock covers
+# threads within it.
+_state_lock = threading.RLock()
+_cache = {}            # section name -> {'data': dict, 'ver': str}
+_cache_ready = False
+BUILD = (os.environ.get('RENDER_GIT_COMMIT') or '')[:12] or format(int(time.time()), 'x')
+
+def _new_version():
+    return format(int(time.time() * 1000), 'x') + secrets.token_hex(3)
+
+def _parse_section(value):
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = json.loads(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+def _refresh_cache():
+    """Re-read every section from Firebase. False when nothing is stored yet
+    (before the split)."""
+    global _cache_ready
     raw = db.reference(STATE_ROOT).get()
     if not isinstance(raw, dict):
-        return None
-    out = {}
-    for name, value in raw.items():
-        if name not in STATE_SECTIONS or not isinstance(value, str):
-            continue
-        try:
-            parsed = json.loads(value)
-        except (TypeError, ValueError):
-            continue
-        if isinstance(parsed, dict):
-            out[name] = parsed
-    return out
+        return False
+    for name in STATE_SECTIONS:
+        data = _parse_section(raw.get(name)) or {}
+        old = _cache.get(name)
+        if old is None or canon(old['data']) != canon(data):
+            _cache[name] = {'data': data, 'ver': _new_version()}
+    _cache_ready = True
+    return True
+
+def _read_sections():
+    """{name: dict} for every section, or None before the split."""
+    with _state_lock:
+        if not _cache_ready and not _refresh_cache():
+            return None
+        return {name: entry['data'] for name, entry in _cache.items()}
 
 def _dumps(value):
     return json.dumps(value, separators=(',', ':'), ensure_ascii=False)
 
 def _write_section(name, section_dict):
-    db.reference(f'{STATE_ROOT}/{name}').set(_dumps(section_dict))
+    with _state_lock:
+        db.reference(f'{STATE_ROOT}/{name}').set(_dumps(section_dict))
+        old = _cache.get(name)
+        if old is None or canon(old['data']) != canon(section_dict):
+            _cache[name] = {'data': section_dict, 'ver': _new_version()}
 
 def _gate_section(name, new_section, old_section):
     """A save without a manager session keeps the stored manager-only
@@ -272,16 +309,96 @@ def pea_parse():
 
 # ===== STATE ROUTES (sections) =====
 
+def _state_reply(names):
+    """Sections (as JSON strings), every section's version, and the build."""
+    return {
+        'sections': {name: _dumps(_cache[name]['data']) for name in names},
+        'versions': {name: entry['ver'] for name, entry in _cache.items()},
+        'build': BUILD,
+    }
+
 @app.route('/api/state/load', methods=['POST'])
 def state_load():
     try:
-        sections = _read_sections()
-        if sections is None:
-            sections = _migrate_legacy_state()
-        return jsonify({'sections': {name: _dumps(value) for name, value in sections.items()}})
+        with _state_lock:
+            # Always from Firebase, so a change made outside the app shows up.
+            if not _refresh_cache():
+                _migrate_legacy_state()
+                _refresh_cache()
+            return jsonify(_state_reply(list(_cache)))
     except Exception as e:
         print(f"[STATE LOAD ERROR] {e}")
         return jsonify({'error': 'Load failed'}), 500
+
+@app.route('/api/state/sync', methods=['POST'])
+def state_sync():
+    """What changed since the page last heard: only the sections whose
+    version differs from the ones the page has."""
+    have = (request.get_json(silent=True) or {}).get('versions')
+    if not isinstance(have, dict):
+        return jsonify({'error': 'versions required'}), 400
+    try:
+        with _state_lock:
+            if _read_sections() is None:
+                return jsonify({'sections': {}, 'versions': {}, 'build': BUILD})
+            return jsonify(_state_reply([n for n in _cache if have.get(n) != _cache[n]['ver']]))
+    except Exception as e:
+        print(f"[STATE SYNC ERROR] {e}")
+        return jsonify({'error': 'Sync failed'}), 500
+
+@app.route('/api/state/patch', methods=['POST'])
+def state_patch():
+    """Apply each section's changes to the latest saved data. A section comes
+    back whole only when someone else changed it since the page's version."""
+    if (request.content_length or 0) > MAX_STATE_BYTES:
+        return jsonify({'error': 'Save is too large'}), 413
+    patches = (request.get_json(silent=True) or {}).get('patches')
+    if not isinstance(patches, dict) or not patches:
+        return jsonify({'error': 'No changes to save'}), 400
+    for name, patch in patches.items():
+        if name not in STATE_SECTIONS or not isinstance(patch, dict):
+            return jsonify({'error': f'Unknown section: {name}'}), 400
+        try:
+            check_ops(patch.get('ops'))
+        except PatchError as e:
+            return jsonify({'error': str(e)}), 400
+        # A key belongs to one section only.
+        stray = sorted({op['p'][0] for op in patch['ops'] if SECTION_OF_KEY.get(op['p'][0], 'misc') != name})
+        if stray:
+            return jsonify({'error': f'Keys in the wrong section: {", ".join(stray)}'}), 400
+
+    try:
+        with _state_lock:
+            if _read_sections() is None:
+                _migrate_legacy_state()
+                _refresh_cache()
+            ignored, returned = set(), []
+            for name, patch in patches.items():
+                ops = patch['ops']
+                entry = _cache.get(name) or {'data': {}, 'ver': None}
+                dropped = [] if session.get('manager') else [op for op in ops if op['p'][0] in MANAGER_ONLY_KEYS]
+                if dropped:
+                    # Manager-only fields need a manager session. The rest of
+                    # the save goes ahead, and the page gets the section back
+                    # so it drops the change it couldn't make.
+                    ignored.update(op['p'][0] for op in dropped)
+                    ops = [op for op in ops if op['p'][0] not in MANAGER_ONLY_KEYS]
+                if dropped or patch.get('ver') != entry['ver']:
+                    returned.append(name)
+                new = apply_ops(entry['data'], ops)
+                if canon(new) != canon(entry['data']):
+                    if len(_dumps(new).encode('utf-8')) > MAX_STATE_BYTES:
+                        return jsonify({'error': f'Section {name} would be too large'}), 413
+                    _write_section(name, new)
+            print('[STATE PATCH] ' + ', '.join(f"{n}:{len(p['ops'])}" for n, p in patches.items()))
+            reply = _state_reply(returned)
+            reply['success'] = True
+            if ignored:
+                reply['managerFieldsIgnored'] = sorted(ignored)
+            return jsonify(reply)
+    except Exception as e:
+        print(f"[STATE PATCH ERROR] {e}")
+        return jsonify({'error': 'Save failed'}), 500
 
 @app.route('/api/state/save', methods=['POST'])
 def state_save():
@@ -423,6 +540,24 @@ def firebase_write():
     except Exception as e:
         print(f"[FIREBASE WRITE ERROR] Path: {path}, {e}")
         return jsonify({'error': 'Write failed'}), 500
+
+# ===== COMPRESSION =====
+# Saved-data replies are JSON that shrinks ~5-10x zipped: less phone data and
+# faster loads on a slow connection.
+
+@app.after_request
+def compress_state_replies(response):
+    if (request.path.startswith('/api/state/') and response.status_code == 200
+            and not response.direct_passthrough
+            and 'gzip' in request.headers.get('Accept-Encoding', '').lower()
+            and 'Content-Encoding' not in response.headers):
+        body = response.get_data()
+        if len(body) > 1400:
+            response.set_data(gzip.compress(body, compresslevel=6))
+            response.headers['Content-Encoding'] = 'gzip'
+            response.headers['Content-Length'] = str(len(response.get_data()))
+        response.headers['Vary'] = 'Accept-Encoding'
+    return response
 
 # ===== ERROR HANDLING =====
 

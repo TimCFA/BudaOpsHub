@@ -50,6 +50,8 @@ class StateTest(unittest.TestCase):
     def setUp(self):
         # Each test file has its own stand-in database.
         appmod.db.reference = lambda path: FakeRef(path)
+        appmod._cache.clear()
+        appmod._cache_ready = False
         store.clear()
         store['appState'] = json.dumps(LEGACY)
         self.c = appmod.app.test_client()
@@ -136,6 +138,114 @@ class StateTest(unittest.TestCase):
         self.assertEqual(self.load(), {})
         self.assertEqual(self.save({'waste': {'entries': [1]}, 'manager': {'products': [{'id': 'p'}]}}).status_code, 200)
         self.assertEqual(section('manager')['products'], [{'id': 'p'}])
+
+
+
+class PatchTest(unittest.TestCase):
+    """Change-based saves (/api/state/patch) and "anything new?" (/api/state/sync)."""
+
+    def setUp(self):
+        appmod.db.reference = lambda path: FakeRef(path)
+        appmod._cache.clear()
+        appmod._cache_ready = False
+        store.clear()
+        store['appState'] = json.dumps(LEGACY)
+        self.a = appmod.app.test_client()      # two phones
+        self.b = appmod.app.test_client()
+        self.loaded = self.a.post('/api/state/load', json={}).get_json()
+
+    def ver(self, name, reply=None):
+        return (reply or self.loaded)['versions'][name]
+
+    def patch(self, client, name, ver, ops, **kw):
+        return client.post('/api/state/patch', json={'patches': {name: {'ver': ver, 'ops': ops}}}, **kw)
+
+    def test_load_gives_versions_and_build(self):
+        self.assertEqual(set(self.loaded['versions']), set(appmod.STATE_SECTIONS))
+        self.assertTrue(self.loaded['build'])
+
+    def test_two_phones_log_waste_at_once(self):
+        v = self.ver('waste')
+        add = lambda ts, i: [{'o': 'arr', 'p': ['entries'], 'add': [{'v': {'ts': ts}, 'n': 1, 'i': i, 'end': True}]}]
+        r1 = self.patch(self.a, 'waste', v, add(10, 1)).get_json()
+        self.assertNotIn('waste', r1['sections'])             # phone A was up to date: nothing to send back
+        r2 = self.patch(self.b, 'waste', v, add(11, 1)).get_json()
+        self.assertEqual([e['ts'] for e in section('waste')['entries']], [1, 10, 11])
+        # Phone B's copy was behind, so it gets the merged section back.
+        self.assertEqual([e['ts'] for e in json.loads(r2['sections']['waste'])['entries']], [1, 10, 11])
+        self.assertNotEqual(r2['versions']['waste'], v)
+
+    def test_retried_save_does_not_double(self):
+        ops = [{'o': 'arr', 'p': ['entries'], 'add': [{'v': {'ts': 10}, 'n': 1, 'i': 1, 'end': True}]}]
+        self.patch(self.a, 'waste', self.ver('waste'), ops)
+        self.patch(self.a, 'waste', self.ver('waste'), ops)
+        self.assertEqual([e['ts'] for e in section('waste')['entries']], [1, 10])
+
+    def test_positions_merge_and_same_spot_last_wins(self):
+        v = self.ver('setups')
+        self.patch(self.a, 'setups', v, [{'o': 'set', 'p': ['posAssignments', 'foh||d||Lunch||Drinks 1'], 'v': 'Avah'}])
+        self.patch(self.b, 'setups', v, [{'o': 'set', 'p': ['posAssignments', 'foh||2026-09-22||Lunch||iPOS 1'], 'v': 'Leo'}])
+        self.assertEqual(section('setups')['posAssignments'],
+                         {'foh||2026-09-22||Lunch||iPOS 1': 'Leo', 'foh||d||Lunch||Drinks 1': 'Avah'})
+
+    def test_sync_sends_only_what_changed(self):
+        have = dict(self.loaded['versions'])
+        quiet = self.b.post('/api/state/sync', json={'versions': have}).get_json()
+        self.assertEqual(quiet['sections'], {})
+        self.patch(self.a, 'setups', have['setups'], [{'o': 'del', 'p': ['posAssignments', 'foh||2026-09-22||Lunch||iPOS 1']}])
+        news = self.b.post('/api/state/sync', json={'versions': have}).get_json()
+        self.assertEqual(list(news['sections']), ['setups'])
+        self.assertEqual(json.loads(news['sections']['setups'])['posAssignments'], {})
+        self.assertEqual(self.b.post('/api/state/sync', json={'versions': 'x'}).status_code, 400)
+
+    def test_old_page_saves_show_up_in_sync(self):
+        have = dict(self.loaded['versions'])
+        self.b.post('/api/state/save', json={'sections': {'waste': json.dumps({'entries': []})}})
+        news = self.a.post('/api/state/sync', json={'versions': have}).get_json()
+        self.assertEqual(list(news['sections']), ['waste'])
+
+    def test_changes_outside_the_app_show_up_on_load(self):
+        store['state/cem'] = json.dumps({'cemEntries': [{'month': '2026-08'}]})
+        again = self.b.post('/api/state/load', json={}).get_json()
+        self.assertEqual(json.loads(again['sections']['cem'])['cemEntries'], [{'month': '2026-08'}])
+        self.assertNotEqual(again['versions']['cem'], self.ver('cem'))
+        self.assertEqual(again['versions']['waste'], self.ver('waste'))    # unchanged: same version
+
+    def test_manager_fields_need_a_session(self):
+        r = self.patch(self.a, 'manager', self.ver('manager'), [
+            {'o': 'set', 'p': ['products'], 'v': [{'id': 'hacked'}]},
+            {'o': 'set', 'p': ['wasteTarget'], 'v': 5},
+        ]).get_json()
+        self.assertEqual(r['managerFieldsIgnored'], ['products', 'wasteTarget'])
+        self.assertIn('manager', r['sections'])                 # so the page drops the change
+        self.assertEqual(section('manager')['products'], [{'id': 'p1'}])
+        with self.a.session_transaction() as sess:
+            sess['manager'] = True
+        self.patch(self.a, 'manager', r['versions']['manager'], [{'o': 'set', 'p': ['wasteTarget'], 'v': 80}])
+        self.assertEqual(section('manager')['wasteTarget'], 80)
+
+    def test_bad_patches_refused(self):
+        v = self.ver('waste')
+        self.assertEqual(self.patch(self.a, 'secure', v, []).status_code, 400)
+        self.assertEqual(self.patch(self.a, 'waste', v, [{'o': 'set', 'p': ['products'], 'v': []}]).status_code, 400)
+        self.assertEqual(self.patch(self.a, 'waste', v, [{'o': 'boom', 'p': ['entries']}]).status_code, 400)
+        self.assertEqual(self.patch(self.a, 'waste', v, [{'o': 'set', 'p': [], 'v': 1}]).status_code, 400)
+        self.assertEqual(self.patch(self.a, 'waste', v, [{'o': 'arr', 'p': ['entries'], 'add': [{'v': 1, 'n': -1, 'i': 0}]}]).status_code, 400)
+        self.assertEqual(self.a.post('/api/state/patch', json={'patches': {}}).status_code, 400)
+        self.assertEqual(section('waste')['entries'], LEGACY['entries'])
+
+    def test_size_cap(self):
+        big = [{'o': 'set', 'p': ['entries'], 'v': ['x' * (appmod.MAX_STATE_BYTES + 10)]}]
+        self.assertEqual(self.patch(self.a, 'waste', self.ver('waste'), big).status_code, 413)
+
+    def test_replies_are_zipped_when_asked(self):
+        store['state/history'] = json.dumps({'setupHistory': {'rows': ['Josh on iPOS 1'] * 400}})
+        r = self.a.post('/api/state/load', json={}, headers={'Accept-Encoding': 'gzip'})
+        self.assertEqual(r.headers.get('Content-Encoding'), 'gzip')
+        import gzip
+        body = json.loads(gzip.decompress(r.get_data()))
+        self.assertEqual(len(json.loads(body['sections']['history'])['setupHistory']['rows']), 400)
+        self.assertLess(len(r.get_data()), 2000)
 
 
 if __name__ == '__main__':
