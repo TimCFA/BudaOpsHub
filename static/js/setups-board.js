@@ -322,10 +322,11 @@ function suPersonSheetHtml(section, date, dp, dpIndex, m, slot){
 
   const stats = `<div class="su-stats">
     ${t.positions.length ? stat(escapeHtml(posLabel), t.cell ? t.cell.avg.toFixed(2) : '—', t.cell ? `${escapeHtml(t.cell.tier.label)} · ${t.cell.total} rating${t.cell.total === 1 ? '' : 's'}` : 'Not rated here', t.cell ? 'is-' + t.cell.tier.key : '') : stat('Spot', '—', 'Not a Levelset position')}
-    ${stat('Green', cert ? `${cert.green} / ${cert.total}` : '—', 'positions')}
+    ${stat('Green', cert ? `${cert.green} / ${cert.total}` : '—', cert && cert.allGreen ? 'all green' : 'positions', cert && cert.allGreen ? 'is-crushing' : '')}
     ${stat('Last PEA', last ? `${suDaysBetween(last, today)}d` : '—', last ? peaFormatDate(last) : person ? 'no position ratings' : 'no Levelset match')}
   </div>`;
 
+  const greenNote = cert && cert.allGreen && !SU_LEADER_ROLES.includes(person.role) ? '<div class="su-note is-green"><b>All green.</b> Ready for certification, or already certified.</div>' : '';
   const devNote = pick ? `<div class="su-note is-dev"><b>★ Develop today.</b> ${escapeHtml(pick.reasons.join('; '))}${pick.pair ? ` — pair with ${escapeHtml(pick.pair.name)}` : ''}${pick.peaDue && pick.target ? `, then complete a ${escapeHtml(pick.target.pos)} PEA` : ''}.</div>` : '';
 
   let fallBehind = '';
@@ -352,6 +353,7 @@ function suPersonSheetHtml(section, date, dp, dpIndex, m, slot){
       <div><div class="su-person-name">${escapeHtml(name)}</div><div class="su-person-sub">${escapeHtml(suShortDaypart(dp.name))}${t.names.length > 1 ? ` · then ${escapeHtml(t.names.slice(1).join(', '))}` : ''}${person && person.role ? ` · ${escapeHtml(person.role)}` : ''}</div></div>
     </div>
     ${stats}
+    ${greenNote}
     ${devNote}
     ${fallBehind}
     <div class="su-person-actions">
