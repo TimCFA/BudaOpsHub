@@ -35,6 +35,8 @@ class ProxySecurityTest(unittest.TestCase):
     def setUp(self):
         # Each test file has its own stand-in database.
         appmod.db.reference = lambda path: FakeRef(path)
+        appmod._cache.clear()
+        appmod._cache_ready = False
         store.clear()
         store['secure/managerPinHash'] = PIN_HASH
         store['appState'] = json.dumps({'entries': [1], 'products': [{'id': 'p1'}]})
