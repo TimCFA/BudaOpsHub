@@ -1,39 +1,55 @@
 // ===== FIREBASE (via Flask proxy) =====
 const API_BASE = window.location.origin === 'file://' ? 'http://localhost:5000' : window.location.origin;
 
-async function dbRead(path){
+// The saved data is split into sections (state/<name> on the server), and a
+// save sends only the sections that changed since the last save — a Set Ups
+// tap sends the set ups, not PEA ratings, history and Sales Mix too. Must
+// match STATE_SECTIONS in app.py (tests/test_state.py checks); a key in no
+// section goes to 'misc'.
+const STATE_SECTIONS = {
+  manager: ['wasteTarget', 'safeTarget', 'products', 'deletedProductIds', 'productFixesVersion',
+            'productCategoryOrder', 'lxPillars', 'lxMetrics', 'lxLastUpdated', 'gxData', 'txData',
+            'homeData', 'dataUploadLog', 'dataUploadSettings', 'productivityProfiles'],
+  pea: ['peaRatings', 'peaNameAliases'],
+  rosters: ['fohRoster', 'bohRoster'],
+  setups: ['posAssignments', 'posVacancyFlags', 'setupDayTypes', 'lastUpdated',
+           'breakCountdowns', 'completedBreaks'],
+  history: ['setupHistory', 'numbersHistory', 'wasteMonthlyHistory', 'zoneChecklistHistory'],
+  waste: ['entries', 'wasteDays', 'formDone', 'formDoneDate', 'wasteLogLastClosedOut'],
+  ops: ['foodSafetyDays', 'foodSafetyWalkthroughs', 'fohOEDays', 'fohOEChecked', 'fohOECheckedDate',
+        'fohLeaderTransitionChecked', 'fohLeaderTransitionDate', 'zoneChecklistState',
+        'numbersData', 'safeCounts'],
+  people: ['eoiSubmissions', 'trainerTrainees', 'trainerProgress', 'teamLeadTrainees',
+           'teamLeadProgress', 'scoreboardItems'],
+  prep: ['prepBuffers', 'prepSoldEntries', 'prepWasteEntries', 'prepStockoutEvents', 'prepHistorySeeded'],
+  prepTimes: ['prepTimes', 'prepTimers'],
+  cem: ['cemEntries'],
+  misc: []
+};
+const STATE_SECTION_OF = {};
+Object.entries(STATE_SECTIONS).forEach(([name, keys]) => keys.forEach(k => { STATE_SECTION_OF[k] = name; }));
+
+// What the server has for each section, as this page last saw it.
+let savedSections = {};
+
+async function statePost(path, body){
   try{
-    const response = await fetch(`${API_BASE}/api/firebase/read`, {
+    const response = await fetch(`${API_BASE}${path}`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({path})
+      body: JSON.stringify(body)
     });
-    if(response.status === 404) return null;
     if(!response.ok) throw new Error(`HTTP ${response.status}`);
     return await response.json();
   }catch(err){
-    console.warn(`Firebase read at ${path} failed:`, err);
+    console.error(`${path} failed:`, err);
     return null;
   }
 }
 
-async function dbWrite(path, data){
-  try{
-    const response = await fetch(`${API_BASE}/api/firebase/write`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({path, value: data})
-    });
-    if(!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.json();
-  }catch(err){
-    console.error(`Firebase write at ${path} failed:`, err);
-    return null;
-  }
-}
-
-async function saveState(){
-  const snapshot = {
+// Everything the app saves, in one place (saves and the backup file).
+function stateSnapshot(){
+  return {
     entries, products, wasteTarget, formDone,
     formDoneDate: formDone ? today : null, foodSafetyDays, wasteDays, breakCountdowns, completedBreaks, posAssignments,
     fohRoster, bohRoster, lxPillars, lxMetrics, lxLastUpdated, gxData, txData, homeData,
@@ -43,9 +59,40 @@ async function saveState(){
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
     prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, prepTimes, prepTimers
   };
-  const serialized = JSON.stringify(snapshot);
-  localStorage.setItem('cfaBudaOps', serialized);
-  const result = await dbWrite('appState', serialized);
+}
+
+// {section: JSON string}, keys in a fixed order so an unchanged section
+// always serializes the same way.
+function stateSections(snapshot){
+  const out = {};
+  Object.entries(STATE_SECTIONS).forEach(([name, keys])=>{
+    const part = {};
+    keys.forEach(k => { if(k in snapshot) part[k] = snapshot[k] === undefined ? null : snapshot[k]; });
+    if(name === 'misc') Object.keys(snapshot).forEach(k => { if(!STATE_SECTION_OF[k]) part[k] = snapshot[k] === undefined ? null : snapshot[k]; });
+    out[name] = JSON.stringify(part);
+  });
+  return out;
+}
+
+// One section's saved form, keys in the fixed order (for comparing).
+function stateSectionString(name, part){
+  if(name === 'misc' || !STATE_SECTIONS[name]) return JSON.stringify(part);
+  const ordered = {};
+  STATE_SECTIONS[name].forEach(k => { if(k in part) ordered[k] = part[k]; });
+  return JSON.stringify(ordered);
+}
+
+async function saveOnce(){
+  const snapshot = stateSnapshot();
+  // The phone's own copy (for when the server can't be reached). Browsers
+  // cap this at ~5 MB; if it's full, saving to the server still goes ahead.
+  try{ localStorage.setItem('cfaBudaOps', JSON.stringify(snapshot)); }catch(e){ console.warn('Local copy not saved:', e); }
+  const sections = stateSections(snapshot);
+  const changed = {};
+  Object.keys(sections).forEach(name => { if(sections[name] !== savedSections[name]) changed[name] = sections[name]; });
+  if(!Object.keys(changed).length){ setSyncStatus('Synced', 'ok'); return; }
+  const result = await statePost('/api/state/save', {sections: changed});
+  if(result) Object.assign(savedSections, changed);
   setSyncStatus(result ? 'Synced' : 'Saved locally — sync failed', result ? 'ok' : 'error');
   // The server saved everything except manager-only fields (products, team,
   // targets, hub content) because there's no manager session. Harmless for
@@ -58,17 +105,25 @@ async function saveState(){
   }
 }
 
+// One save at a time, so an older save can never land after a newer one.
+// Saves asked for meanwhile are folded into one more pass, and every caller's
+// promise resolves once its change has gone out.
+let saveInFlight = null;
+let saveAgain = false;
+function saveState(){
+  if(saveInFlight){ saveAgain = true; return saveInFlight; }
+  saveInFlight = (async ()=>{
+    try{
+      do { saveAgain = false; await saveOnce(); } while(saveAgain);
+    } finally {
+      saveInFlight = null;
+    }
+  })();
+  return saveInFlight;
+}
+
 function exportBackup(){
-  const snapshot = {
-    entries, products, wasteTarget, formDone,
-    formDoneDate: formDone ? today : null, foodSafetyDays, wasteDays, breakCountdowns, completedBreaks, posAssignments,
-    fohRoster, bohRoster, lxPillars, lxMetrics, lxLastUpdated, gxData, txData, homeData,
-    fohOEDays, fohOEChecked, fohOECheckedDate,
-    fohLeaderTransitionChecked, fohLeaderTransitionDate,
-    eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
-    safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
-    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, prepTimes, prepTimers
-  };
+  const snapshot = stateSnapshot();
   const blob = new Blob([JSON.stringify(snapshot, null, 2)], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -84,12 +139,19 @@ function exportBackup(){
 document.getElementById('btnExportBackup').addEventListener('click', exportBackup);
 
 async function loadState(){
-  let raw = await dbRead('appState');
   let data = null;
-  if(typeof raw === 'string'){
-    try{ data = JSON.parse(raw); }catch(e){ console.warn('Could not parse Firebase appState:', e); }
-  } else if(raw && typeof raw === 'object'){
-    data = raw;
+  const loaded = await statePost('/api/state/load', {});
+  if(loaded && loaded.sections && Object.keys(loaded.sections).length){
+    data = {};
+    Object.entries(loaded.sections).forEach(([name, str])=>{
+      try{
+        const part = JSON.parse(str);
+        Object.assign(data, part);
+        // Remember it as this page serializes it, so an unchanged section
+        // isn't re-sent on the first save.
+        savedSections[name] = stateSectionString(name, part);
+      }catch(e){ console.warn(`Could not read saved section ${name}:`, e); }
+    });
   }
   if(!data){
     const saved = localStorage.getItem('cfaBudaOps');
