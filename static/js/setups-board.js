@@ -12,6 +12,9 @@
 
 // Zones, in display order. A slot goes in the first zone whose pattern
 // matches its name; everything else is "Extra hands". Tim may regroup these.
+// BOH (Tim): three zones — Primary (with Fries), Secondary (with
+// Biscuit/Eggs) and Raw (Breaders, Machines, Filters). "Primary/Machines"
+// counts as Primary. Prep, Dishes, Floors and Breaks are extra hands.
 const SU_ZONES = {
   foh: [
     {key: 'ipos', name: 'iPOS', re: /ipos/i},
@@ -21,11 +24,9 @@ const SU_ZONES = {
     {key: 'host', name: 'Host', re: /host|din+ing|restroom|outside/i}
   ],
   boh: [
-    {key: 'breading', name: 'Breading', re: /breader/i},
-    {key: 'primary', name: 'Primary & Machines', re: /primar|machines/i},
-    {key: 'secondary', name: 'Secondary', re: /secondar/i},
-    {key: 'fries', name: 'Fries', re: /fries/i},
-    {key: 'prep', name: 'Prep', re: /prep|biscuit|eggs|dishes|filters/i}
+    {key: 'primary', name: 'Primary', re: /primar|fries/i},
+    {key: 'secondary', name: 'Secondary', re: /secondar|biscuit|eggs/i},
+    {key: 'raw', name: 'Raw', re: /breader|machines|filters/i}
   ]
 };
 const SU_EXTRA_ZONE = {key: 'extra', name: 'Extra hands'};
