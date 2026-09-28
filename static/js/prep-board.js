@@ -1013,6 +1013,7 @@ function renderPrepBoard(){
     { id: 'recorded', label: 'Sold Counts' },
     { id: 'waste', label: 'Waste Log' },
     { id: 'insights', label: 'Insights' },
+    { id: 'times', label: 'Prep Times' },
     { id: 'buffers', label: 'Buffers' }
   ];
 
@@ -1034,8 +1035,10 @@ function renderPrepBoard(){
   else if(pbCurrentPage === 'waste') html += pbRenderWaste();
   else if(pbCurrentPage === 'buffers') html += pbRenderBuffers();
   else if(pbCurrentPage === 'insights') html += pbRenderInsights();
+  else if(pbCurrentPage === 'times') html += ptRenderPage();
 
   root.innerHTML = html;
+  if(pbCurrentPage === 'times' && prepTimers.length) ptStartTicking();
 }
 
 async function pbSaveBuffers(){ await saveState(); }

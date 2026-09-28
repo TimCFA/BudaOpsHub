@@ -41,7 +41,7 @@ async function saveState(){
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
-    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles
+    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, prepTimes, prepTimers
   };
   const serialized = JSON.stringify(snapshot);
   localStorage.setItem('cfaBudaOps', serialized);
@@ -67,7 +67,7 @@ function exportBackup(){
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
-    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles
+    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, prepTimes, prepTimers
   };
   const blob = new Blob([JSON.stringify(snapshot, null, 2)], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
@@ -190,6 +190,8 @@ async function loadState(){
     prepWasteEntries = data.prepWasteEntries || [];
     prepStockoutEvents = data.prepStockoutEvents || [];
     prepHistorySeeded = data.prepHistorySeeded || false;
+    prepTimes = Array.isArray(data.prepTimes) ? data.prepTimes : [];
+    prepTimers = Array.isArray(data.prepTimers) ? data.prepTimers : [];
     cemEntries = data.cemEntries || [];
     dataUploadLog = (data.dataUploadLog && typeof data.dataUploadLog === 'object' && !Array.isArray(data.dataUploadLog)) ? data.dataUploadLog : {};
     dataUploadSettings = (data.dataUploadSettings && typeof data.dataUploadSettings === 'object') ? data.dataUploadSettings : {};
