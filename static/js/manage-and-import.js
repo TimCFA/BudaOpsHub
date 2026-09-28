@@ -63,7 +63,7 @@ document.getElementById('btnUpdateTarget').addEventListener('click', async ()=>{
     wasteTarget = v;
     await saveState();
     renderScoreboardView();
-    showToast('✓ Target Updated');
+    showToast('✓ Limit Updated');
   }
 });
 
