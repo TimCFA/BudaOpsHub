@@ -571,12 +571,19 @@
         <span class="waste-status-pill" id="wasteStatusPill">On Track</span>
       </div>
 
-      <div class="waste-hero">
-        <div class="waste-hero-total" id="wasteTodayTotal">$0.00</div>
-        <div class="waste-hero-target">of <span id="wasteTodayTarget">$100.00</span> target</div>
-      </div>
-      <div class="waste-progress-track">
-        <div class="waste-progress-fill" id="wasteProgressFill"></div>
+      <div class="wt" id="wasteThermo">
+        <div class="wt-gauge" id="wasteThermoGauge" aria-hidden="true">
+          <div class="wt-scale" id="wasteThermoScale"></div>
+          <div class="wt-tube"><div class="wt-mercury"></div></div>
+          <div class="wt-goal"></div>
+          <div class="wt-bulb"></div>
+          <span class="wt-bump" id="wasteThermoBump"></span>
+        </div>
+        <div class="wt-read">
+          <div class="waste-hero-total" id="wasteTodayTotal">$0.00</div>
+          <div class="waste-hero-target">of <span id="wasteTodayTarget">$100.00</span> daily goal</div>
+          <div class="wt-left" id="wasteThermoLeft"></div>
+        </div>
       </div>
 
       <div class="stat-row" style="margin-top:18px;">

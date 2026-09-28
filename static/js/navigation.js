@@ -23,6 +23,7 @@ document.querySelector('.sb-subtabs').addEventListener('click', function(e){
   document.querySelectorAll('.sb-subtab-btn').forEach(b => b.classList.toggle('active', b === btn));
   document.querySelectorAll('.sb-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('sbPanel' + key.charAt(0).toUpperCase() + key.slice(1)).classList.add('active');
+  if(key === 'waste') renderScoreboardView();
 });
 
 function clearActiveTabs(){

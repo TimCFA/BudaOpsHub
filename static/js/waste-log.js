@@ -266,23 +266,8 @@ function renderScoreboardView(){
     </div>
   `).join('') : '<div style="text-align:center;color:var(--text-secondary);font-size:12px;padding:12px 0;">No waste logged yet today</div>';
 
-  // Today's Waste hero
   document.getElementById('wasteTodayDate').textContent = formatVerboseDate(today);
-  document.getElementById('wasteTodayTotal').textContent = '$' + total.toFixed(2);
-  document.getElementById('wasteTodayTarget').textContent = '$' + wasteTarget.toFixed(2);
-  const pct = Math.min(100, (total / wasteTarget) * 100);
-  const fillEl = document.getElementById('wasteProgressFill');
-  const pill = document.getElementById('wasteStatusPill');
-  fillEl.style.width = pct + '%';
-  if(total < wasteTarget){
-    pill.textContent = '✓ On Track';
-    pill.className = 'waste-status-pill on-track';
-    fillEl.className = 'waste-progress-fill on-track';
-  } else {
-    pill.textContent = '⚠ Over Target';
-    pill.className = 'waste-status-pill over-target';
-    fillEl.className = 'waste-progress-fill over-target';
-  }
+  renderWasteThermo(total);
 
   // Active Streaks
   document.getElementById('foodSafetyStreakNum').textContent = foodSafetyStreak;
@@ -291,4 +276,60 @@ function renderScoreboardView(){
   document.getElementById('wasteStreakLabel').textContent = 'consecutive ' + (wasteStreak === 1 ? 'day' : 'days');
   document.getElementById('fohOEStreakNum').textContent = fohOEStreak;
   document.getElementById('fohOEStreakLabel').textContent = 'consecutive ' + (fohOEStreak === 1 ? 'day' : 'days');
+}
+
+// ===== WASTE THERMOMETER =====
+// Today's waste against the daily goal, FOH and BOH together. The scale runs
+// to 125% of the goal so going over is visible; past that the mercury stays
+// pinned at the top and the thermometer "boils". Green until 75% of the goal,
+// amber from there, red once today is over it.
+const WT_SCALE_MAX = 1.25;
+const WT_TICKS = [0, 0.25, 0.5, 0.75, 1, 1.25];
+let wtShownTotal = null;    // what the thermometer last showed on screen
+
+function wasteThermoState(total, goal){
+  const ratio = goal > 0 ? total / goal : 0;
+  if(total >= goal) return {key: 'over', pill: '⚠ Over goal', ratio};
+  if(ratio >= 0.75) return {key: 'close', pill: 'Getting close', ratio};
+  return {key: 'under', pill: '✓ On track', ratio};
+}
+
+function renderWasteThermo(total){
+  const goal = wasteTarget;
+  const state = wasteThermoState(total, goal);
+  const money = n => '$' + n.toFixed(2);
+
+  document.getElementById('wasteTodayTotal').textContent = money(total);
+  document.getElementById('wasteTodayTarget').textContent = money(goal);
+  const pill = document.getElementById('wasteStatusPill');
+  pill.textContent = state.pill;
+  pill.className = 'waste-status-pill is-' + state.key;
+  document.getElementById('wasteThermoLeft').innerHTML = total >= goal
+    ? `<b>${money(total - goal)}</b> over the goal`
+    : `<b>${money(goal - total)}</b> left before the goal`;
+
+  const thermo = document.getElementById('wasteThermo');
+  document.getElementById('wasteThermoScale').innerHTML = WT_TICKS.map(f =>
+    `<span class="wt-tick${f === 1 ? ' is-goal' : ''}" style="--f:${f / WT_SCALE_MAX}">${f === 1 ? 'Goal ' : ''}$${Math.round(goal * f)}</span>`
+  ).join('');
+
+  // Only move the mercury while it's on screen, so the rise plays when
+  // someone is looking (waste logged elsewhere rises on the next visit).
+  if(!thermo.offsetParent) return;
+  const gauge = document.getElementById('wasteThermoGauge');
+  gauge.offsetHeight;   // settle the old level first so the change animates
+  const level = Math.min(1, state.ratio / WT_SCALE_MAX);
+  gauge.style.setProperty('--wt-level', level);
+  gauge.style.setProperty('--wt-bump', Math.min(level, 0.85));   // keeps the +$ tag inside the card
+  gauge.className = 'wt-gauge is-' + state.key + (state.ratio > WT_SCALE_MAX ? ' is-boiling' : '');
+
+  const bump = document.getElementById('wasteThermoBump');
+  const added = wtShownTotal === null ? 0 : total - wtShownTotal;
+  wtShownTotal = total;
+  if(added > 0.004){
+    bump.textContent = '+' + money(added);
+    bump.classList.remove('is-on');
+    bump.offsetWidth;   // restart the float-up
+    bump.classList.add('is-on');
+  }
 }
