@@ -27,13 +27,14 @@ class FakeRef:
         store[self.path] = value
 
 
-appmod.db.reference = lambda path: FakeRef(path)
 appmod.app.config['SESSION_COOKIE_SECURE'] = False
 PIN_HASH = generate_password_hash('4821')
 
 
 class ProxySecurityTest(unittest.TestCase):
     def setUp(self):
+        # Each test file has its own stand-in database.
+        appmod.db.reference = lambda path: FakeRef(path)
         store.clear()
         store['secure/managerPinHash'] = PIN_HASH
         store['appState'] = json.dumps({'entries': [1], 'products': [{'id': 'p1'}]})

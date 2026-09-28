@@ -56,6 +56,94 @@ def _keep_stored_manager_fields(old_state, new_state):
             new_state.pop(key, None)
     return new_state
 
+# ===== SAVED STATE, IN SECTIONS =====
+# The app's data is stored as one JSON string per section under state/<name>,
+# so a save sends only the sections that changed (a Set Ups tap no longer
+# re-sends PEA ratings, history, Sales Mix, ...). This map must match
+# STATE_SECTIONS in static/js/storage.js (tests/test_state.py checks it).
+# A key in no section goes to 'misc'.
+STATE_ROOT = 'state'
+STATE_SECTIONS = {
+    'manager': ['wasteTarget', 'safeTarget', 'products', 'deletedProductIds', 'productFixesVersion',
+                'productCategoryOrder', 'lxPillars', 'lxMetrics', 'lxLastUpdated', 'gxData', 'txData',
+                'homeData', 'dataUploadLog', 'dataUploadSettings', 'productivityProfiles'],
+    'pea': ['peaRatings', 'peaNameAliases'],
+    'rosters': ['fohRoster', 'bohRoster'],
+    'setups': ['posAssignments', 'posVacancyFlags', 'setupDayTypes', 'lastUpdated',
+               'breakCountdowns', 'completedBreaks'],
+    'history': ['setupHistory', 'numbersHistory', 'wasteMonthlyHistory', 'zoneChecklistHistory'],
+    'waste': ['entries', 'wasteDays', 'formDone', 'formDoneDate', 'wasteLogLastClosedOut'],
+    'ops': ['foodSafetyDays', 'foodSafetyWalkthroughs', 'fohOEDays', 'fohOEChecked', 'fohOECheckedDate',
+            'fohLeaderTransitionChecked', 'fohLeaderTransitionDate', 'zoneChecklistState',
+            'numbersData', 'safeCounts'],
+    'people': ['eoiSubmissions', 'trainerTrainees', 'trainerProgress', 'teamLeadTrainees',
+               'teamLeadProgress', 'scoreboardItems'],
+    'prep': ['prepBuffers', 'prepSoldEntries', 'prepWasteEntries', 'prepStockoutEvents', 'prepHistorySeeded'],
+    'prepTimes': ['prepTimes', 'prepTimers'],
+    'cem': ['cemEntries'],
+    'misc': [],
+}
+SECTION_OF_KEY = {key: name for name, keys in STATE_SECTIONS.items() for key in keys}
+
+def _split_state(state):
+    sections = {name: {} for name in STATE_SECTIONS}
+    for key, value in state.items():
+        sections[SECTION_OF_KEY.get(key, 'misc')][key] = value
+    return sections
+
+def _read_sections():
+    """{name: dict} for every stored section, or None before the split."""
+    raw = db.reference(STATE_ROOT).get()
+    if not isinstance(raw, dict):
+        return None
+    out = {}
+    for name, value in raw.items():
+        if name not in STATE_SECTIONS or not isinstance(value, str):
+            continue
+        try:
+            parsed = json.loads(value)
+        except (TypeError, ValueError):
+            continue
+        if isinstance(parsed, dict):
+            out[name] = parsed
+    return out
+
+def _dumps(value):
+    return json.dumps(value, separators=(',', ':'), ensure_ascii=False)
+
+def _write_section(name, section_dict):
+    db.reference(f'{STATE_ROOT}/{name}').set(_dumps(section_dict))
+
+def _gate_section(name, new_section, old_section):
+    """A save without a manager session keeps the stored manager-only
+    fields. Returns (section to store, [ignored field names])."""
+    if session.get('manager') or old_section is None:
+        return new_section, []
+    if not any(key in MANAGER_ONLY_KEYS for key in STATE_SECTIONS.get(name, [])) and not any(key in MANAGER_ONLY_KEYS for key in new_section):
+        return new_section, []
+    ignored = _changed_manager_fields(old_section, new_section)
+    if ignored:
+        new_section = _keep_stored_manager_fields(old_section, dict(new_section))
+    return new_section, ignored
+
+def _migrate_legacy_state():
+    """First load after the split: copy the single appState blob into
+    sections. The old blob is left in place as a backup."""
+    raw = db.reference(APP_STATE_PATH).get()
+    legacy = None
+    if isinstance(raw, str):
+        try:
+            legacy = json.loads(raw)
+        except (TypeError, ValueError):
+            legacy = None
+    if not isinstance(legacy, dict):
+        return {}
+    sections = _split_state(legacy)
+    for name, section in sections.items():
+        _write_section(name, section)
+    print(f"[STATE] Migrated appState into {len(sections)} sections")
+    return sections
+
 # ===== FIREBASE PROXY LIMITS =====
 # The page only ever reads and writes one path: the app-state blob. The proxy
 # refuses everything else. In particular secure/managerPinHash must never be
@@ -182,6 +270,67 @@ def pea_parse():
         print(f"[PEA PARSE ERROR] {e}")
         return jsonify({'error': 'Could not read that PDF'}), 500
 
+# ===== STATE ROUTES (sections) =====
+
+@app.route('/api/state/load', methods=['POST'])
+def state_load():
+    try:
+        sections = _read_sections()
+        if sections is None:
+            sections = _migrate_legacy_state()
+        return jsonify({'sections': {name: _dumps(value) for name, value in sections.items()}})
+    except Exception as e:
+        print(f"[STATE LOAD ERROR] {e}")
+        return jsonify({'error': 'Load failed'}), 500
+
+@app.route('/api/state/save', methods=['POST'])
+def state_save():
+    data = request.get_json(silent=True) or {}
+    incoming = data.get('sections')
+    if not isinstance(incoming, dict) or not incoming:
+        return jsonify({'error': 'No sections to save'}), 400
+    total = 0
+    parsed = {}
+    for name, value in incoming.items():
+        if name not in STATE_SECTIONS:
+            return jsonify({'error': f'Unknown section: {name}'}), 400
+        if not isinstance(value, str):
+            return jsonify({'error': 'Each section must be a JSON string'}), 400
+        total += len(value.encode('utf-8'))
+        try:
+            section = json.loads(value)
+        except (TypeError, ValueError):
+            return jsonify({'error': f'Section {name} is not valid JSON'}), 400
+        if not isinstance(section, dict):
+            return jsonify({'error': f'Section {name} must be an object'}), 400
+        # A key belongs to one section only — no smuggling manager fields
+        # into a section the gate doesn't check.
+        stray = [k for k in section if SECTION_OF_KEY.get(k, 'misc') != name]
+        if stray:
+            return jsonify({'error': f'Keys in the wrong section: {", ".join(sorted(stray))}'}), 400
+        parsed[name] = section
+    if total > MAX_STATE_BYTES:
+        return jsonify({'error': 'Save is too large'}), 413
+
+    try:
+        ignored_all = []
+        needs_old = [n for n in parsed if not session.get('manager') and any(k in MANAGER_ONLY_KEYS for k in STATE_SECTIONS[n])]
+        stored = _read_sections() if needs_old else None
+        for name, section in parsed.items():
+            old = (stored or {}).get(name) if name in needs_old else None
+            if name in needs_old and stored is None:
+                old = None   # nothing stored yet: first save (bootstrap)
+            section, ignored = _gate_section(name, section, old)
+            ignored_all += ignored
+            _write_section(name, section)
+        print(f"[STATE SAVE] {', '.join(parsed)}")
+        if ignored_all:
+            return jsonify({'success': True, 'managerFieldsIgnored': sorted(ignored_all)})
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"[STATE SAVE ERROR] {e}")
+        return jsonify({'error': 'Save failed'}), 500
+
 # ===== FIREBASE PROXY ROUTES =====
 # Only the app-state blob, and only read and write (see APP_STATE_PATH). There
 # are no update/delete routes: the page never used them, and open ones let
@@ -226,22 +375,43 @@ def firebase_write():
         # product list — silently dropped every team member's waste entries,
         # CEM uploads, etc.)
         ignored_fields = []
-        raw_old = db.reference(path).get()
+        # After the split, the current data lives in the sections: compare
+        # against those (the old blob is a stale backup by then).
+        stored_sections = _read_sections()
         old_state = None
-        if isinstance(raw_old, str):
-            try:
-                old_state = json.loads(raw_old)
-            except (TypeError, ValueError):
-                pass
-        if not isinstance(old_state, dict):
-            old_state = None
+        if stored_sections is not None:
+            old_state = {}
+            for section in stored_sections.values():
+                old_state.update(section)
+        else:
+            raw_old = db.reference(path).get()
+            if isinstance(raw_old, str):
+                try:
+                    old_state = json.loads(raw_old)
+                except (TypeError, ValueError):
+                    pass
+            if not isinstance(old_state, dict):
+                old_state = None
 
         # If there's no prior state at all, this is first-ever bootstrap —
         # let it through rather than locking out an empty Firebase project.
         if old_state is not None and not session.get('manager'):
             ignored_fields = _changed_manager_fields(old_state, new_state)
             if ignored_fields:
-                value = json.dumps(_keep_stored_manager_fields(old_state, new_state))
+                new_state = _keep_stored_manager_fields(old_state, new_state)
+                value = json.dumps(new_state)
+
+        # A page still running the old code (opened before the split) keeps
+        # saving the whole blob here. File it into the sections — only the
+        # ones that differ — so its changes aren't lost.
+        if stored_sections is not None:
+            for name, section in _split_state(new_state).items():
+                if json.dumps(section, sort_keys=True) != json.dumps(stored_sections.get(name), sort_keys=True):
+                    _write_section(name, section)
+            print(f"[FIREBASE WRITE] Path: {path}, filed into sections (old page)")
+            if ignored_fields:
+                return jsonify({'success': True, 'managerFieldsIgnored': ignored_fields})
+            return jsonify({'success': True})
 
         db.reference(path).set(value)
         print(f"[FIREBASE WRITE] Path: {path}, OK")
