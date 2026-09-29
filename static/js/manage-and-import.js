@@ -279,15 +279,15 @@ document.addEventListener('click', (e) => {
     saveHomeScoreboard();
   }
   if(e.target && e.target.id === 'btnAddTXEvent'){
-    txData.events.push({id: 'evt' + Date.now(), name: 'New Event', date: new Date().toISOString().split('T')[0]});
+    txData.events.push({id: 'evt' + Date.now(), name: 'New Event', date: toLocalISODate(new Date())});
     renderTXManage();
   }
   if(e.target && e.target.id === 'btnAddTXTrial'){
-    txData.trialTrainers.push({id: 'trial' + Date.now(), name: 'New Trainer', startDate: new Date().toISOString().split('T')[0]});
+    txData.trialTrainers.push({id: 'trial' + Date.now(), name: 'New Trainer', startDate: toLocalISODate(new Date())});
     renderTXManage();
   }
   if(e.target && e.target.id === 'btnAddTXCert'){
-    txData.certCompetitive.push({id: 'cert' + Date.now(), name: 'New Person', level: 'Trainer', targetDate: new Date().toISOString().split('T')[0]});
+    txData.certCompetitive.push({id: 'cert' + Date.now(), name: 'New Person', level: 'Trainer', targetDate: toLocalISODate(new Date())});
     renderTXManage();
   }
   if(e.target && e.target.id === 'btnAddTXCeleb'){
@@ -398,7 +398,7 @@ document.getElementById('btnCloseOutMonth').addEventListener('click', async ()=>
 document.getElementById('btnExportCsv').addEventListener('click',()=>{
   const rows = [['Date/Time','Product','Qty','Unit','Unit Cost','Total Cost','Logged By','Section']];
   [...entries].sort((a,b)=>b.ts-a.ts).forEach(e=>{
-    rows.push([new Date(e.ts).toISOString(), e.name, e.qty, e.unit, e.unitCost.toFixed(2), e.cost.toFixed(2), e.who, e.section.toUpperCase()]);
+    rows.push([toLocalDateTime(e.ts), e.name, e.qty, e.unit, e.unitCost.toFixed(2), e.cost.toFixed(2), e.who, e.section.toUpperCase()]);
   });
   const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob = new Blob([csv],{type:'text/csv'});
