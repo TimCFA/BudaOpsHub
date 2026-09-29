@@ -211,6 +211,7 @@ function suGamePlanHtml(section, date, dp, dpIndex, m){
         <button type="button" class="su-daytype-btn su-${t.type}" data-su-toggle-daytype="${t.type === 'game' ? 'practice' : 'game'}" title="${escapeHtml(t.overridden ? 'Set by a leader — tap to switch' : (t.reasons.length ? 'Auto: ' + t.reasons.join(' + ') : 'Auto: weekday, no event or high numbers') + ' — tap to switch')}">${t.type === 'game' ? 'Game Day' : 'Practice Day'}</button>
       </div>
       <div class="su-plan-facts">${facts.map(escapeHtml).join(' · ')}</div>
+      ${suStrengthHtml(m)}
       <div class="su-plan-lines">
         ${section === 'foh' ? suLeadCaptainLineHtml(date, dp) : ''}
         <div class="su-plan-line"><span class="su-plan-tag is-dev">Develop</span><span>${escapeHtml(devText)}${devStale ? ' <em>· out of date</em>' : ''}</span></div>
@@ -318,11 +319,12 @@ function suPersonSheetHtml(section, date, dp, dpIndex, m, slot){
 
   const plan = planBForDaypart(section, date, dp, dpIndex);
   const row = [...plan.watch, ...plan.rest].find(r => r.slot === slot && r.name.toLowerCase() === name.toLowerCase());
+  const trend = peaName && t.cell ? peaTrendFor(peaName, t.positions) : null;
   const stat = (k, v, sub, cls) => `<div class="su-stat ${cls || ''}"><span class="su-stat-k">${k}</span><span class="su-stat-v">${v}</span><span class="su-stat-s">${sub}</span></div>`;
   const posLabel = t.positions.length ? t.positions.join('/') : 'This spot';
 
   const stats = `<div class="su-stats">
-    ${t.positions.length ? stat(escapeHtml(posLabel), t.cell ? t.cell.avg.toFixed(2) : '—', t.cell ? `${escapeHtml(t.cell.tier.label)} · ${t.cell.total} rating${t.cell.total === 1 ? '' : 's'}` : 'Not rated here', t.cell ? 'is-' + t.cell.tier.key : '') : stat('Spot', '—', 'Not a Levelset position')}
+    ${t.positions.length ? stat(escapeHtml(posLabel), t.cell ? `${t.cell.avg.toFixed(2)}${peaTrendMark(trend)}` : '—', t.cell ? `${escapeHtml(t.cell.tier.label)} · ${t.cell.total} rating${t.cell.total === 1 ? '' : 's'}${trend && trend.dir !== 'flat' ? ` · ${trend.dir === 'up' ? 'rising' : 'slipping'}` : ''}` : 'Not rated here', t.cell ? 'is-' + t.cell.tier.key : '') : stat('Spot', '—', 'Not a Levelset position')}
     ${stat('Green', cert ? `${cert.green} / ${cert.total}` : '—', cert && cert.allGreen ? 'all green' : 'positions', cert && cert.allGreen ? 'is-crushing' : '')}
     ${stat('Last PEA', last ? `${suDaysBetween(last, today)}d` : '—', last ? peaFormatDate(last) : person ? 'no position ratings' : 'no Levelset match')}
   </div>`;

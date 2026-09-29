@@ -80,7 +80,7 @@ function fillEmptySlots(section, date, dp, dpIndex){
     const partner = partnerOf[lo(p.name)] || null;
     // Share of the daypart this person (or their handoff) leaves uncovered.
     const miss = partner ? partner.gap / winLen : ((p.arrives !== null ? p.arrives - timing.window.startMin : 0) + (p.leaves !== null ? timing.window.endMin - p.leaves : 0)) / winLen;
-    return {name: p.name, pea, role: suLeaderRole(section, date, p.name, strength), lastSlots, lastZones, greens, t: p, partner, miss};
+    return {name: p.name, peaName, pea, role: suLeaderRole(section, date, p.name, strength), lastSlots, lastZones, greens, t: p, partner, miss};
   };
   let pool = timing.people.filter(p => !placedNames.has(lo(p.name)) && !riding.has(lo(p.name)) && lo(p.name) !== lo(currentLead)).map(person);
   const isTL = who => who.role === 'Team Lead';
@@ -108,6 +108,13 @@ function fillEmptySlots(section, date, dp, dpIndex){
   const score = (who, slot)=>{
     const {tier, cell} = cellFor(who, slot);
     let s = weights[tier] + (cell ? (cell.avg - 2) * 0.3 : 0);
+    // Trend: someone slipping in this position is a shakier pick than their
+    // average says; someone rising, a slightly better one.
+    if(cell && who.peaName){
+      const tr = peaTrend(who.peaName, peaPositionsForSlot(section, slot).find(p => who.pea.positions[p] === cell));
+      if(tr && tr.dir === 'down') s -= 0.4;
+      else if(tr && tr.dir === 'up') s += 0.15;
+    }
     // Rotation: leaders should be somewhere different every day, so a repeat
     // zone costs them far more than it costs a team member.
     if(who.lastSlots.has(slot)) s -= who.role ? 1.2 : 0.6;

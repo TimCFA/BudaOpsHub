@@ -1410,6 +1410,14 @@
   .su-note{margin-top:12px;background:var(--su-bg);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.45;}
   .su-note.is-dev{background:#FFF3CF;color:#4A3700;}
   .su-note.is-green{background:#E3F3E7;color:#1E5631;}
+  .pea-trend{display:inline-block;margin-left:4px;font-size:.8em;font-weight:800;}
+  .pea-trend.is-up{color:#2E7D32;} .pea-trend.is-down{color:#C62828;}
+  .su-strength{display:flex;align-items:center;gap:10px;margin:8px 0 2px;font-size:13px;line-height:1.35;}
+  .su-strength em{font-style:normal;color:var(--su-muted);font-size:12px;}
+  .su-strength-bar{flex:none;width:64px;height:8px;border-radius:4px;background:var(--su-line);overflow:hidden;}
+  .su-strength-bar span{display:block;height:100%;border-radius:4px;background:#2E7D32;}
+  .su-strength.is-fair .su-strength-bar span{background:#E0A100;}
+  .su-strength.is-thin .su-strength-bar span{background:#C62828;}
   .su-coach-on{margin:6px 2px 10px;font-size:13px;line-height:1.4;}
   .su-coach-on span{color:var(--su-muted);font-size:12px;}
   .su-pea-todo{margin-top:12px;}

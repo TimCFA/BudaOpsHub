@@ -6,6 +6,13 @@
 //    Levelset sync brings the names in). A position that isn't green yet
 //    usually has one category holding it back; that's what to coach.
 //
+// 3. Trends. Whether someone is climbing or slipping in a position: their
+//    latest ratings against the ones before. Fill leans away from someone
+//    slipping; Evaluate calls it out (a risk in a captain slot).
+//
+// 4. Strength. One number per daypart: the share of filled spots held by
+//    someone Crushing It there.
+//
 // 2. PEAs to do. For each daypart, the few ratings a leader should complete
 //    while those people are on the floor: a position someone is working
 //    that's never been rated (the biggest gap to all green), a stale rating,
@@ -126,4 +133,60 @@ function suPeaTodoHtml(section, date, dp){
       <ul class="su-bt-list">${items.map(row).join('')}${done.map(doneRow).join('')}</ul>
       <p class="su-bt-foot">Rate these in Levelset while they're on the floor — never-rated positions first, since an unrated position keeps someone from all green. Rated today shows a ✓ after the next sync.</p>
     </section>`;
+}
+
+// ----- Trends -----
+
+const PEA_TREND_STEP = 0.25;   // this much up or down between halves counts
+
+// {dir: 'up'|'down'|'flat', from, to, n} comparing the latest ratings in a
+// position (up to 3) with the same number before them; null under 4 ratings.
+function peaTrend(peaName, position){
+  const list = peaByPersonPos()[peaName + '||' + position] || [];
+  const half = Math.min(3, Math.floor(list.length / 2));
+  if(half < 2) return null;
+  const avg = rs => rs.reduce((s, r) => s + r.overall, 0) / rs.length;
+  const to = avg(list.slice(0, half)), from = avg(list.slice(half, half * 2));
+  const diff = to - from;
+  return {dir: diff >= PEA_TREND_STEP ? 'up' : diff <= -PEA_TREND_STEP ? 'down' : 'flat', from, to, n: half * 2};
+}
+
+// The trend in whichever of these positions has one (a slot can cover two).
+function peaTrendFor(peaName, positions){
+  for(const pos of positions){
+    const tr = peaTrend(peaName, pos);
+    if(tr) return {...tr, pos};
+  }
+  return null;
+}
+
+function peaTrendText(tr){
+  return tr ? `${tr.dir === 'up' ? 'rising' : tr.dir === 'down' ? 'slipping' : 'steady'} (${tr.from.toFixed(2)} → ${tr.to.toFixed(2)})` : '';
+}
+
+function peaTrendMark(tr){
+  if(!tr || tr.dir === 'flat') return '';
+  return `<span class="pea-trend is-${tr.dir}" title="${escapeHtml(`${tr.dir === 'up' ? 'Rising' : 'Slipping'}: ${tr.from.toFixed(2)} → ${tr.to.toFixed(2)} over the last ${tr.n} ratings`)}">${tr.dir === 'up' ? '↑' : '↓'}</span>`;
+}
+
+// ----- Strength per daypart -----
+
+// Filled spots that Levelset rates, and how many are held by someone
+// Crushing It there. {pct, crushing, rise, notyet, unrated, total}.
+function suStrength(m){
+  const spots = m.tiles.filter(t => t.names.length && t.tier !== 'na');
+  const c = {crushing: 0, rise: 0, notyet: 0, unrated: 0};
+  spots.forEach(t => { c[t.tier] = (c[t.tier] || 0) + 1; });
+  return {...c, total: spots.length, pct: spots.length ? Math.round(c.crushing / spots.length * 100) : 0};
+}
+
+function suStrengthHtml(m){
+  const s = suStrength(m);
+  if(!s.total) return '';
+  const band = s.pct >= 80 ? 'strong' : s.pct >= 60 ? 'fair' : 'thin';
+  const rest = [s.rise ? `${s.rise} On the Rise` : '', s.notyet ? `${s.notyet} Not Yet` : '', s.unrated ? `${s.unrated} unrated` : ''].filter(Boolean).join(' · ');
+  return `<div class="su-strength is-${band}" title="Share of filled spots held by someone Crushing It (2.75+) in that position.">
+    <span class="su-strength-bar" aria-hidden="true"><span style="width:${s.pct}%"></span></span>
+    <span><b>Strength ${s.pct}%</b> · ${s.crushing} of ${s.total} spots Crushing It${rest ? ` <em>· ${escapeHtml(rest)}</em>` : ''}</span>
+  </div>`;
 }

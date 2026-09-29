@@ -56,6 +56,7 @@ function suSheetViewHtml(section, date, dp, dpIndex, m){
         <span class="su-sheet-daytype su-${t.type}">${t.type === 'game' ? 'Game Day' : 'Practice Day'}</span>
       </div>
       <div class="su-sheet-facts">${m.onShift} on shift${tm.pairs.length ? ` · ${m.headcount} spots` : ''} · ${m.filled} placed</div>
+      ${suStrengthHtml(m)}
       ${section === 'foh' ? `<button type="button" class="su-sheet-line" data-su-lead-open="1"><span class="su-sheet-k">Lead</span><span>${lead ? `<b>${escapeHtml(suDisplayName(lead))}</b>${working ? ` · ${escapeHtml(working)}` : ' · <em>no spot yet</em>'}` : '<em>Choose a Lead Captain</em>'}</span></button>` : ''}
       ${changes.length ? `<div class="su-sheet-line is-static"><span class="su-sheet-k">Changes</span><span>${escapeHtml(changes.join(' · '))}</span>${ready.length ? `<button type="button" class="su-sheet-act" data-su-apply-splits="1">Split ${ready.length}</button>` : ''}</div>` : ''}
       ${needed.length || m.unplaced.length ? `<div class="su-sheet-line is-static"><span class="su-sheet-k">Open</span><span>${needed.length ? `${needed.length} spot${needed.length === 1 ? '' : 's'} needed` : 'Priority spots filled'}${m.unplaced.length ? ` · not placed: ${escapeHtml(m.unplaced.slice(0, 4).map(suDisplayName).join(', '))}${m.unplaced.length > 4 ? ` +${m.unplaced.length - 4}` : ''}` : ''}</span>${needed.length && m.unplaced.length ? '<button type="button" class="su-sheet-act is-dark" data-su-tool="fill">Fill</button>' : ''}</div>` : ''}
