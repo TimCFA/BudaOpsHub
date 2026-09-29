@@ -1,0 +1,4 @@
+# Fresh-look prototype (branch fresh-look-prototype only). Static, no build.
+[build]
+  publish = "prototype"
+  command = ""
