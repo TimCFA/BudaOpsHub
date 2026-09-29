@@ -428,6 +428,44 @@ function stateUserBusy(){
   return !!document.querySelector('.overlay.active, [aria-modal="true"]');
 }
 
+// ===== NEW DAY =====
+// `today` is worked out once when the page loads, and screens all over the
+// app file things under it (waste days, checklists, safe counts, breaks,
+// history). A tablet left open past midnight would keep using yesterday. So
+// once the date changes, the page reloads itself (fresh date, fresh data)
+// as soon as that's safe: every change is on the server, nothing is saving,
+// nobody is mid-typing and no pop-up is open. Until then it checks again
+// every minute and whenever the page comes back into view.
+function stateEverythingSaved(){
+  if(saveInFlight || stateSyncing) return false;
+  const current = stateSections(stateSnapshot());
+  return Object.keys(current).every(name => current[name] === savedSections[name]);
+}
+
+function stateMidEdit(){
+  if(document.querySelector('.overlay.active, [aria-modal="true"]')) return true;
+  // A box that's focused but untouched (a tablet left sitting on an empty
+  // field overnight) doesn't count; one with something typed in it does.
+  const el = document.activeElement;
+  if(el && el.matches && el.matches('textarea, [contenteditable="true"], input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="file"])')){
+    if(el.isContentEditable) return true;
+    return el.value !== el.defaultValue;
+  }
+  return false;
+}
+
+function stateReloadIfNewDay(){
+  if(toLocalISODate(new Date()) === today) return;
+  if(navigator.onLine === false) return;   // a reload offline would show an error page
+  if(stateMidEdit() || !stateEverythingSaved()) return;
+  location.reload();
+}
+
+setInterval(stateReloadIfNewDay, 60000);
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') stateReloadIfNewDay(); });
+window.addEventListener('focus', stateReloadIfNewDay);
+window.addEventListener('online', stateReloadIfNewDay);
+
 function stateRerender(){
   if(stateUserBusy()){ stateRerenderPending = true; return; }
   stateRerenderPending = false;

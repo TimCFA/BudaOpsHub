@@ -93,6 +93,23 @@ function toLocalISODate(d){
   return `${y}-${m}-${day}`;
 }
 
+// Reads a stored date as a date on the local calendar. `new Date('2026-09-28')`
+// means midnight UTC, which is the evening of the 27th in Texas, so dates
+// showed a day early. Other formats go to new Date() as before.
+function parseLocalISODate(s){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s == null ? '' : s).trim());
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(s);
+}
+
+// A timestamp as local "YYYY-MM-DD HH:MM" (for exports: sorts correctly and
+// shows the store's time, not UTC).
+function toLocalDateTime(ts){
+  const d = new Date(ts);
+  return `${toLocalISODate(d)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+// Worked out once per page load. storage.js reloads the page after midnight
+// (see "NEW DAY") so this never goes stale.
 const today = toLocalISODate(new Date());
 
 const WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];

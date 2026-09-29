@@ -124,7 +124,7 @@ function renderTXScoreboard(){
     eventsContainer.innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:20px;">No upcoming events</div>';
   } else {
     eventsContainer.innerHTML = txData.events.map(evt => {
-      const eventDate = new Date(evt.date);
+      const eventDate = parseLocalISODate(evt.date);
       const dateStr = eventDate.toLocaleDateString('en-US', {month:'short', day:'numeric'});
       return `
         <div class="tx-event-card">
@@ -140,7 +140,7 @@ function renderTXScoreboard(){
     trialContainer.innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:20px;font-size:12px;">No trainers in trial</div>';
   } else {
     trialContainer.innerHTML = txData.trialTrainers.map(trainer => {
-      const startDate = new Date(trainer.startDate);
+      const startDate = parseLocalISODate(trainer.startDate);
       const dateStr = startDate.toLocaleDateString('en-US', {month:'short', day:'numeric'});
       return `
         <div class="tx-trial-card">
@@ -156,7 +156,7 @@ function renderTXScoreboard(){
     certContainer.innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:20px;font-size:12px;">No one in progress</div>';
   } else {
     certContainer.innerHTML = txData.certCompetitive.map(cert => {
-      const targetDate = new Date(cert.targetDate);
+      const targetDate = parseLocalISODate(cert.targetDate);
       const dateStr = targetDate.toLocaleDateString('en-US', {month:'short', day:'numeric'});
       return `
         <div class="tx-cert-card">

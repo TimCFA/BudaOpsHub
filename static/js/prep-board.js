@@ -373,7 +373,7 @@ function pbResolveDateFromValue(val, anchorISO){
   }
   const hasYear = /\b\d{4}\b|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/.test(s);
   if(hasYear){
-    const d = new Date(s);
+    const d = parseLocalISODate(s);
     return isNaN(d.getTime()) ? null : toLocalISODate(d);
   }
   const year = pbDateFromISO(anchorISO).getFullYear();
