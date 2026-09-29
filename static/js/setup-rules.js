@@ -11,6 +11,12 @@
 //  - Leader spread: zones in the order a leader matters most.
 
 const SU_LEADER_ZONE_PRIORITY = ['ipos', 'bagging', 'host', 'drinks', 'omd'];
+// BOH (Tim): Primary first, then Raw, then Secondary. Prep comes last — it's
+// detached from the rest of the kitchen — so it isn't part of the spread.
+const SU_BOH_LEADER_ZONE_PRIORITY = ['primary', 'raw', 'secondary'];
+function suLeaderZonePriority(section){
+  return section === 'boh' ? SU_BOH_LEADER_ZONE_PRIORITY : SU_LEADER_ZONE_PRIORITY;
+}
 const SU_OUTSIDE_ZONES = ['ipos', 'omd'];
 const SU_OUTSIDE_LIMIT_MIN = 210;   // 3.5 hours in a row
 const SU_EDGE_MIN = 10;             // arriving/leaving within 10 min of the edge = whole daypart

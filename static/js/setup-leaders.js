@@ -120,8 +120,8 @@ function suLeadCaptainSheetHtml(date, dp, dpIndex){
 
 // ----- Evaluate: leadership review -----
 
-// Adds to an Evaluate result: Lead Captain checks and leader coverage (FOH),
-// and leader rotation (both sides).
+// Adds to an Evaluate result: Lead Captain checks (FOH), leader coverage
+// (both sides) and leader rotation (both sides).
 function leaderReview(section, date, dpName, entries){
   const strength = peaStrengthByPerson();
   const risks = [], leadership = [];
@@ -174,6 +174,22 @@ function leaderReview(section, date, dpName, entries){
       const reached = baggingCaptain && SU_BAGGING_CAPTAIN_REACH.includes(z);
       leadership.push({name: suZoneName('foh', z), text: reached
         ? `has no leader of its own — reached by the Bagging captain (${baggingCaptain}); add one if you can`
+        : 'has no leader — add a Trainer or Team Lead if you can'});
+    });
+  }
+
+  // BOH coverage: a leader in Primary, then Raw, then Secondary; Prep is the
+  // last place for one (it's detached from the rest of the kitchen).
+  if(section === 'boh'){
+    const order = suLeaderZonePriority('boh');
+    const leaders = entries.filter(e => roleOf(e.name)).map(e => ({name: e.name, slot: e.slot, z: suZoneKeyOf('boh', e.slot)}));
+    const inZone = z => leaders.filter(l => l.z === z);
+    if(leaders.length) order.forEach((z, i)=>{
+      if(inZone(z).length) return;
+      // Leaders who could move here: in a later zone, doubled up, or on Prep.
+      const movable = leaders.filter(l => { const j = order.indexOf(l.z); return j === -1 || j > i || inZone(l.z).length > 1; });
+      leadership.push({name: suZoneName('boh', z), text: movable.length
+        ? `has no leader while ${movable.map(l => `${l.name} is on ${l.slot}`).join(', ')} — leaders go Primary first, then Raw, then Secondary, Prep last`
         : 'has no leader — add a Trainer or Team Lead if you can'});
     });
   }
