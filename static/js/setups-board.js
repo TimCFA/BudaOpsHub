@@ -330,11 +330,15 @@ function suPersonSheetHtml(section, date, dp, dpIndex, m, slot){
   const greenNote = !cert || SU_LEADER_ROLES.includes(person.role) ? ''
     : cert.allGreen ? '<div class="su-note is-green"><b>All green.</b> Ready for certification, or already certified.</div>'
     : `<p class="su-green-left">Not green yet: ${escapeHtml(agNotGreenText(person, section))}</p>`;
+  // What to coach in the position they're working now.
+  const coachOn = peaName ? t.positions.map(pos => ({pos, w: peaWeakest(peaName, pos)})).filter(x => x.w) : [];
+  const coachNote = coachOn.map(x => `<p class="su-coach-on">Coach on <b>${escapeHtml(x.w.label)}</b> at ${escapeHtml(x.pos)} <span>· ${x.w.avg.toFixed(1)} over the last ${x.w.n} rating${x.w.n === 1 ? '' : 's'}</span></p>`).join('');
   const devNote = pick ? `<div class="su-note is-dev"><b>★ Develop today.</b> ${escapeHtml(pick.reasons.join('; '))}${pick.pair ? ` — pair with ${escapeHtml(pick.pair.name)}` : ''}${pick.peaDue && pick.target ? `, then complete a ${escapeHtml(pick.target.pos)} PEA` : ''}.</div>` : '';
 
   let fallBehind = '';
   if(row){
-    const coach = row.coach ? `<div class="su-pb-row"><span class="su-pb-k">Coach</span><span class="su-pb-v"><b>${escapeHtml(row.coach.name)}</b><span>${escapeHtml([row.coach.kind, ...row.coach.notes].join(' · '))}</span></span></div>` : '';
+    const focus = coachOn.length ? `focus on ${coachOn[0].w.label}` : '';
+    const coach = row.coach ? `<div class="su-pb-row"><span class="su-pb-k">Coach</span><span class="su-pb-v"><b>${escapeHtml(row.coach.name)}</b><span>${escapeHtml([row.coach.kind, ...row.coach.notes, focus].filter(Boolean).join(' · '))}</span></span></div>` : '';
     const first = name.split(/\s+/)[0];
     const swaps = row.swaps.map(s=>{
       const stepIn = s.kind === 'in';
@@ -357,6 +361,7 @@ function suPersonSheetHtml(section, date, dp, dpIndex, m, slot){
     </div>
     ${stats}
     ${greenNote}
+    ${coachNote}
     ${devNote}
     ${fallBehind}
     <div class="su-person-actions">
@@ -404,6 +409,7 @@ function renderSetupsBoard(date){
       ${suGamePlanHtml(section, date, dp, dpIndex, m)}
       ${suZonesHtml(m)}
       ${suBreaksCardHtml(section, date, dpIndex)}
+      ${suPeaTodoHtml(section, date, dp)}
       <div class="su-legend" aria-hidden="true">
         <span><i class="su-av-crushing"></i>Crushing It</span><span><i class="su-av-rise"></i>On the Rise</span><span><i class="su-av-notyet"></i>Not Yet</span><span><i class="su-av-unrated"></i>Unrated</span><span>#&#8202;= set-up priority</span>
       </div>

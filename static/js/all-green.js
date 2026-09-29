@@ -112,6 +112,13 @@ function agMissingChips(person, area){
     : `<span class="ag-miss is-unrated"><span class="pea-dot pea-empty" aria-hidden="true"></span>${escapeHtml(g.pos)} <b>not rated</b></span>`).join('');
 }
 
+// For positions rated but not green yet: the category to coach.
+function agCoachLine(r){
+  if(typeof peaWeakest !== 'function') return '';
+  const focus = agNotGreen(r.person, r.area).filter(g => g.cell).map(g => ({pos: g.pos, w: peaWeakest(r.peaName, g.pos)})).filter(x => x.w);
+  return focus.length ? `<div class="ag-coach">Coach on: ${focus.map(x => `${escapeHtml(x.pos)} → <b>${escapeHtml(x.w.label)}</b> ${x.w.avg.toFixed(1)}`).join(' · ')}</div>` : '';
+}
+
 function renderAllGreenTracker(){
   const root = document.getElementById('allGreenRoot');
   if(!root) return;
@@ -163,6 +170,7 @@ function renderAllGreenTracker(){
       <div class="ag-row">
         <div class="ag-row-head"><b>${escapeHtml(r.name)}</b><span class="ag-count">${r.cert.green}/${r.cert.total}</span></div>
         <div class="ag-misses">${agMissingChips(r.person, agArea)}</div>
+        ${agCoachLine(r)}
       </div>`).join('')}</div>` : `<p class="pea-muted">${areaRows.length ? 'Everyone here is all green.' : 'No one on this roster yet.'}</p>`}
     ${todo.length ? `
     <h4 class="ag-h">What's holding people back</h4>

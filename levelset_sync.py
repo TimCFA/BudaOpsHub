@@ -15,11 +15,14 @@ backup.
 from datetime import datetime, timezone
 import os
 import re
+import time
 from zoneinfo import ZoneInfo
 
 import requests
 
 LEVELSET_URL = 'https://app.levelset.io/api/ratings'
+LABELS_URL = 'https://app.levelset.io/api/position-labels'
+LABELS_TTL = 24 * 60 * 60           # category names rarely change
 TOKEN_ENV = 'LEVELSET_PEA_TOKEN'
 AREAS = ('FOH', 'BOH')
 WINDOW = '90d'            # Levelset offers '90d' or 'mtd'
@@ -114,11 +117,38 @@ def normalize(people):
     return ratings, expected
 
 
+# {share code: (fetched at, {position: [five names]})}
+_labels_cache = {}
+
+
+def fetch_labels(token, positions, get=requests.get):
+    """The five category names for each position ({position: [5 names]}), as
+    Levelset shows them on a rating. Optional: a failure just leaves them out."""
+    cached = _labels_cache.get(token)
+    if cached and time.time() - cached[0] < LABELS_TTL and set(map(_position, positions)) <= set(cached[1]):
+        return cached[1]
+    labels = dict(cached[1]) if cached else {}
+    for raw in sorted(positions):
+        try:
+            res = get(LABELS_URL, params={'token': token, 'position': raw}, timeout=8, headers={'Accept': 'application/json'})
+            body = res.json() if res.status_code == 200 else {}
+        except (requests.RequestException, ValueError):
+            continue
+        row = body.get('labels') if isinstance(body, dict) else None
+        if not isinstance(row, dict):
+            continue
+        names = [str(row.get(f'label_{i}') or '').strip() for i in range(1, 6)]
+        if all(names):
+            labels[_position(raw)] = names
+    _labels_cache[token] = (time.time(), labels)
+    return labels
+
+
 def fetch_ratings(token, get=requests.get):
     """Both sides' ratings for the last 90 days, as the page expects them."""
     if not token:
         raise LevelsetError('No Levelset share code is set up yet.')
-    ratings, per_area, warnings = [], {}, []
+    ratings, per_area, warnings, raw_positions = [], {}, [], set()
     for area in AREAS:
         try:
             res = get(LEVELSET_URL, params={'token': token, 'area': area, 'window': WINDOW, 'tab': 'overview'},
@@ -136,6 +166,8 @@ def fetch_ratings(token, get=requests.get):
         if not isinstance(body, dict) or not body.get('success') or not isinstance(body.get('data'), list):
             raise LevelsetError('Levelset’s ratings data looks different than expected — use the PDF upload for now.')
         found, expected = normalize(body['data'])
+        raw_positions |= {str(r['position']).strip() for p in body['data'] if isinstance(p, dict)
+                          for r in p.get('recent_ratings') or [] if isinstance(r, dict) and r.get('position')}
         ratings += found
         per_area[area] = {'people': len(body['data']), 'ratings': len(found), 'expected': expected}
         if expected and len(found) < expected:
@@ -147,6 +179,7 @@ def fetch_ratings(token, get=requests.get):
     complete = [a for a in AREAS if per_area[a]['ratings'] >= per_area[a]['expected']]
     return {
         'ratings': ratings,
+        'labels': fetch_labels(token, raw_positions, get=get),
         'summary': {'rangeStart': start.isoformat(), 'rangeEnd': today.isoformat(), 'areas': complete, 'perArea': per_area},
         'warnings': warnings,
     }

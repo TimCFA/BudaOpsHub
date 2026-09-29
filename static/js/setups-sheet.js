@@ -88,7 +88,7 @@ function suSheetViewHtml(section, date, dp, dpIndex, m){
       </section>`;
   }).join('');
 
-  return `${summary}<div class="su-sheet-table">${zones}</div>${suBreaksCardHtml(section, date, dpIndex)}`;
+  return `${summary}<div class="su-sheet-table">${zones}</div>${suBreaksCardHtml(section, date, dpIndex)}${suPeaTodoHtml(section, date, dp)}`;
 }
 
 // A filled row in the sheet view: who, when, and the quick actions — no
