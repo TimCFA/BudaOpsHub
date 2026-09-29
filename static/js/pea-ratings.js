@@ -53,13 +53,14 @@ let peaOpenPosition = '';
 let peaPersonFilter = '';
 
 function emptyPeaRatings(){
-  return {names: [], positions: [], roles: [], rows: [], uploads: [], coverage: {FOH: [], BOH: []}};
+  return {names: [], positions: [], roles: [], rows: [], uploads: [], coverage: {FOH: [], BOH: []}, labels: {}};
 }
 
 function normalizePeaRatings(p){
   if(!p || typeof p !== 'object') return emptyPeaRatings();
   const arr = v => Array.isArray(v) ? v : [];
-  const out = {names: arr(p.names), positions: arr(p.positions), roles: arr(p.roles), rows: arr(p.rows), uploads: arr(p.uploads), coverage: {FOH: [], BOH: []}};
+  const out = {names: arr(p.names), positions: arr(p.positions), roles: arr(p.roles), rows: arr(p.rows), uploads: arr(p.uploads), coverage: {FOH: [], BOH: []},
+    labels: p.labels && typeof p.labels === 'object' && !Array.isArray(p.labels) ? p.labels : {}};
   if(p.coverage && typeof p.coverage === 'object'){
     PEA_AREAS.forEach(a => out.coverage[a] = arr(p.coverage[a]));
   } else {
@@ -184,9 +185,10 @@ function peaPruneOldRatings(){
   const cutoffISO = toLocalISODate(cutoff);
   const keep = peaAllRatings().filter(r => r.date >= cutoffISO);
   if(keep.length === peaRatings.rows.length) return false;
-  const {uploads, coverage} = peaRatings;
+  const {uploads, coverage, labels} = peaRatings;
   peaRatings = emptyPeaRatings();
   peaRatings.uploads = uploads;
+  peaRatings.labels = labels || {};
   PEA_AREAS.forEach(a => peaRatings.coverage[a] = (coverage[a] || []).filter(([, e0]) => e0 >= cutoffISO).map(([s0, e0]) => [s0 < cutoffISO ? cutoffISO : s0, e0]));
   peaMergeRatings(keep);
   return true;
@@ -282,6 +284,12 @@ function peaApplyRatings(data, source){
   const fresh = incoming.filter(r => !saved.has(peaLooseKey(r.at.slice(0, 10), r.employee, r.position, r.criteria)))
     .map(r => ({...r, role: r.role || knownRole[r.employee.toLowerCase()] || 'Team Member'}));
   const added = peaMergeRatings(fresh);
+  // Each position's five category names (Levelset sync only), for coaching.
+  if(data.labels && typeof data.labels === 'object'){
+    Object.entries(data.labels).forEach(([pos, names])=>{
+      if(Array.isArray(names) && names.length === 5) peaRatings.labels[pos] = names.map(String);
+    });
+  }
   const s = data.summary || {};
   // Coverage is the report's own date range; without one, the span of its ratings.
   const dates = incoming.map(r => r.at.slice(0, 10)).sort();

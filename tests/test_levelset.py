@@ -43,13 +43,22 @@ class FakeResponse:
         return self._body
 
 
-def fake_get(bodies):
+LABELS = {'label_1': 'Smile', 'label_2': 'Detail', 'label_3': 'Offer', 'label_4': 'Close Gaps', 'label_5': 'Farewell'}
+
+
+def fake_get(bodies, labels=None):
     calls = []
 
     def get(url, params=None, **kw):
+        if url == ls.LABELS_URL:
+            get.label_calls.append(params['position'])
+            if labels is None:
+                return FakeResponse(401, {'error': 'Unauthorized'})
+            return FakeResponse(200, {'success': True, 'labels': labels})
         calls.append(params)
         status, body = bodies[params['area']]
         return FakeResponse(status, body)
+    get.label_calls = []
     get.calls = calls
     return get
 
@@ -86,6 +95,9 @@ class NormalizeTest(unittest.TestCase):
 
 
 class FetchTest(unittest.TestCase):
+    def setUp(self):
+        ls._labels_cache.clear()
+
     def test_both_sides_fetched(self):
         get = fake_get({'FOH': (200, {'success': True, 'data': [person([rating()])]}),
                         'BOH': (200, {'success': True, 'data': [person([rating(position='Breader')], employee_name='Cook Test')]})})
@@ -115,6 +127,29 @@ class FetchTest(unittest.TestCase):
                 ls.fetch_ratings('ABC123XYZ', get=fake_get(bodies))
         with self.assertRaises(ls.LevelsetError):
             ls.fetch_ratings('', get=fake_get({}))
+
+
+class LabelsTest(unittest.TestCase):
+    def setUp(self):
+        ls._labels_cache.clear()
+
+    def test_category_names_come_with_the_ratings(self):
+        get = fake_get({'FOH': (200, {'success': True, 'data': [person([rating(), rating(position='3H Week FOH', rating_1=2)])]}),
+                        'BOH': (200, {'success': True, 'data': []})}, labels=LABELS)
+        reply = ls.fetch_ratings('ABC123XYZ', get=get)
+        self.assertEqual(sorted(get.label_calls), ['3H Week FOH', 'iPOS'])   # Levelset's own names asked for
+        self.assertEqual(reply['labels']['iPOS'], ['Smile', 'Detail', 'Offer', 'Close Gaps', 'Farewell'])
+        self.assertIn('3H Week', reply['labels'])
+        # Cached for a day: the next sync doesn't ask again.
+        ls.fetch_ratings('ABC123XYZ', get=get)
+        self.assertEqual(len(get.label_calls), 2)
+
+    def test_labels_are_optional(self):
+        get = fake_get({'FOH': (200, {'success': True, 'data': [person([rating()])]}),
+                        'BOH': (200, {'success': True, 'data': []})}, labels=None)
+        reply = ls.fetch_ratings('ABC123XYZ', get=get)
+        self.assertEqual(reply['labels'], {})
+        self.assertEqual(len(reply['ratings']), 1)
 
 
 class RouteTest(unittest.TestCase):
