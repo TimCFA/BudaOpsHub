@@ -1691,3 +1691,9 @@
   /* "New version ready" bar (storage.js) */
   .update-banner{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:9999;display:flex;align-items:center;gap:12px;max-width:calc(100% - 32px);padding:10px 12px 10px 16px;border-radius:12px;background:#1F1F1F;color:#fff;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.25);}
   .update-banner button{flex:none;border:0;border-radius:8px;padding:7px 12px;background:var(--cfa-red);color:#fff;font:inherit;font-weight:700;cursor:pointer;}
+
+  /* Levelset sync (Data Uploads → PEA) */
+  .du-sync{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0 6px;}
+  .du-sync-btn{border:0;border-radius:8px;padding:8px 14px;background:var(--cfa-red);color:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+  .du-sync-btn[disabled]{opacity:.6;cursor:default;}
+  .du-sync-note{font-size:12px;color:var(--text-secondary);min-width:0;}
