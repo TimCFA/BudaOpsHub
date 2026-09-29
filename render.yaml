@@ -10,6 +10,9 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11
+      # Levelset share code for the PEA sync (the end of the share link).
+      - key: LEVELSET_PEA_TOKEN
+        sync: false
     routes:
       - path: /
         matchType: prefix

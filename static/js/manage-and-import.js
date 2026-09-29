@@ -75,6 +75,7 @@ async function renderManage(){
   document.getElementById('setupHistoryStatus').textContent = setupHistoryStatusText();
   renderDataUploads();
   renderPeaManage();
+  if(document.getElementById('manageContent').style.display === 'block') peaAutoSync();
 
   renderLXManage();
   renderGXManage();

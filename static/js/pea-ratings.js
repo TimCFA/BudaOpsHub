@@ -254,28 +254,107 @@ async function peaHandleUpload(file){
     return;
   }
 
-  const ratings = data.ratings || [];
-  const added = peaMergeRatings(ratings);
-  const s = data.summary || {};
-  // Coverage is the report's own date range; without one, the span of its ratings.
-  const dates = ratings.map(r => r.at.slice(0, 10)).sort();
-  const covStart = s.rangeStart || dates[0], covEnd = s.rangeEnd || dates[dates.length - 1];
-  const areas = (s.areas && s.areas.length) ? s.areas.filter(a => PEA_AREAS.includes(a)) : PEA_AREAS;
-  if(covStart && covEnd) peaAddCoverage(peaRatings.coverage, areas, covStart, covEnd);
-  peaRatings.uploads.push({at: new Date().toISOString(), file: file.name, rangeStart: covStart || null, rangeEnd: covEnd || null, areas, read: ratings.length, added});
-  peaRatings.uploads = peaRatings.uploads.slice(-10);
-  duRecord('pea', {file: file.name, summary: `${ratings.length} ratings · ${added} new`});
-  peaPruneOldRatings();
+  const result = peaApplyRatings(data, file.name);
+  status.textContent = result.text;
+  showToast(result.added ? `✓ ${result.added} new PEA ratings saved` : 'No new ratings — all were already saved');
   await saveState();
-
-  const range = s.rangeStart && s.rangeEnd ? ` (${peaFormatDate(s.rangeStart)} – ${peaFormatDate(s.rangeEnd, true)})` : '';
-  const areaNote = areas.length < PEA_AREAS.length ? ` This report only covers ${areas.join(', ') || 'no known area'} — upload the ${PEA_AREAS.filter(a => !areas.includes(a)).join(', ')} report for the same dates too.` : '';
-  const warnList = [...(data.warnings || []), areaNote.trim()].filter(Boolean);
-  const warnings = warnList.length ? ` ⚠ ${warnList.join(' ')}` : '';
-  status.textContent = `✓ ${ratings.length} ratings read${range} · ${added} new · ${ratings.length - added} already saved.${warnings}`;
-  showToast(added ? `✓ ${added} new PEA ratings saved` : 'No new ratings — all were already saved');
   renderPeaManage();
   renderDataUploads();
+}
+
+// The same rating from two sources (a PDF and a Levelset sync) can differ in
+// small ways — the leader's name, the minute — so a rating already saved on
+// the same day, for the same person and position, with the same five scores
+// counts as saved.
+function peaLooseKey(date, employee, position, criteria){
+  return [date, String(employee).toLowerCase(), position, criteria.map(Number).join(',')].join('|');
+}
+
+// Merges parsed ratings (from a PDF or a Levelset sync — same shape) into the
+// saved ones, records coverage and the upload, and says what happened.
+// Returns {read, added, text}. The caller saves.
+function peaApplyRatings(data, source){
+  const incoming = data.ratings || [];
+  const saved = new Set(peaAllRatings().map(r => peaLooseKey(r.date, r.employee, r.position, r.criteria)));
+  // Someone's role: what Levelset says, else what we already know, else Team Member.
+  const knownRole = {};
+  peaAllRatings().forEach(r => { if(r.role) knownRole[r.employee.toLowerCase()] = r.role; });
+  const fresh = incoming.filter(r => !saved.has(peaLooseKey(r.at.slice(0, 10), r.employee, r.position, r.criteria)))
+    .map(r => ({...r, role: r.role || knownRole[r.employee.toLowerCase()] || 'Team Member'}));
+  const added = peaMergeRatings(fresh);
+  const s = data.summary || {};
+  // Coverage is the report's own date range; without one, the span of its ratings.
+  const dates = incoming.map(r => r.at.slice(0, 10)).sort();
+  const covStart = s.rangeStart || dates[0], covEnd = s.rangeEnd || dates[dates.length - 1];
+  // A PDF that doesn't say which side covers both; a sync lists only the
+  // sides Levelset sent in full.
+  const areas = Array.isArray(s.areas) && (s.areas.length || s.perArea) ? s.areas.filter(a => PEA_AREAS.includes(a)) : PEA_AREAS;
+  if(covStart && covEnd && areas.length) peaAddCoverage(peaRatings.coverage, areas, covStart, covEnd);
+  peaRatings.uploads.push({at: new Date().toISOString(), file: source, rangeStart: covStart || null, rangeEnd: covEnd || null, areas, read: incoming.length, added});
+  peaRatings.uploads = peaRatings.uploads.slice(-10);
+  duRecord('pea', {file: source, summary: `${incoming.length} ratings · ${added} new`});
+  peaPruneOldRatings();
+
+  const range = covStart && covEnd ? ` (${peaFormatDate(covStart)} – ${peaFormatDate(covEnd, true)})` : '';
+  const missing = PEA_AREAS.filter(a => !areas.includes(a));
+  const areaNote = missing.length && !(data.warnings || []).length ? ` This only covers ${areas.join(', ') || 'no known area'} — upload the ${missing.join(', ')} report for the same dates too.` : '';
+  const warnList = [...(data.warnings || []), areaNote.trim()].filter(Boolean);
+  const warnings = warnList.length ? ` ⚠ ${warnList.join(' ')}` : '';
+  return {read: incoming.length, added, text: `✓ ${incoming.length} ratings read${range} · ${added} new · ${incoming.length - added} already saved.${warnings}`};
+}
+
+// ----- Levelset sync -----
+// Pulls the last 90 days of ratings from Levelset's share link through the
+// server (the share code stays there — see levelset_sync.py) and merges them
+// like a PDF. Runs from the button in Data Uploads, and on its own when a
+// manager opens Manage and the last sync is over 12 hours old. The PDF upload
+// stays as the backup.
+const PEA_SYNC_EVERY_MS = 12 * 60 * 60 * 1000;
+let peaSyncing = false;
+let peaSyncUnavailable = '';   // why sync can't run this session (not set up)
+
+function peaLastSync(){
+  return [...(peaRatings.uploads || [])].reverse().find(u => u.file === 'Levelset sync') || null;
+}
+
+async function peaLevelsetSync(auto){
+  if(peaSyncing || (auto && peaSyncUnavailable)) return;
+  peaSyncing = true;
+  const status = document.getElementById('peaUploadStatus');
+  if(!auto && status) status.textContent = 'Syncing from Levelset…';
+  renderDataUploads();
+  try{
+    const res = await fetch(`${API_BASE}/api/pea/levelset-sync`, {method: 'POST'});
+    const data = await res.json().catch(() => ({}));
+    if(res.status === 403){
+      if(!auto) showToast('Manager sign-in expired — sign in again to sync');
+      return;
+    }
+    if(data.error === 'not_configured'){
+      peaSyncUnavailable = 'Levelset sync isn’t set up on the server yet — upload the PDF for now.';
+      if(!auto && status) status.textContent = peaSyncUnavailable;
+      return;
+    }
+    if(!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    const result = peaApplyRatings(data, 'Levelset sync');
+    await saveState();
+    if(status) status.textContent = result.text.replace('ratings read', 'ratings from Levelset');
+    if(!auto || result.added) showToast(result.added ? `✓ ${result.added} new PEA ratings from Levelset` : 'Levelset: no new ratings');
+  }catch(err){
+    if(status) status.textContent = `Levelset sync didn’t work: ${err.message}. The PDF upload still works.`;
+    if(!auto) showToast('Levelset sync didn’t work — see Data Uploads');
+  }finally{
+    peaSyncing = false;
+    renderPeaManage();
+    renderDataUploads();
+  }
+}
+
+// Manage just opened (a manager is signed in): sync if it's been a while.
+function peaAutoSync(){
+  const last = peaLastSync();
+  if(last && Date.now() - new Date(last.at).getTime() < PEA_SYNC_EVERY_MS) return;
+  peaLevelsetSync(true);
 }
 
 async function peaClearAll(){

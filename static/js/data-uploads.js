@@ -29,7 +29,7 @@ const DU_SOURCES = [
   },
   {
     key: 'pea', short: 'PEA PDFs', icon: '📊', name: 'PEA ratings (Levelset)', freq: 'weekly', accept: '.pdf', multiple: true,
-    how: 'Levelset → Positional Excellence Ratings PDF, FOH and BOH. Overlapping dates are fine — ratings already saved are skipped.',
+    how: 'Sync from Levelset pulls the last 90 days on its own. Backup: Levelset → Positional Excellence Ratings PDF, FOH and BOH. Overlapping dates are fine — ratings already saved are skipped.',
     feeds: 'Strength map · Coverage Check · Set Ups Fill, Evaluate, Plan B, Develop'
   },
   {
@@ -824,6 +824,17 @@ const DU_STATUS = {
   overdue: {label: 'Overdue', cls: 'is-overdue', icon: '!'}
 };
 
+// PEA: sync straight from Levelset (pea-ratings.js); the PDF upload is the backup.
+function duLevelsetHtml(){
+  const last = typeof peaLastSync === 'function' ? peaLastSync() : null;
+  const when = last ? new Date(last.at).toLocaleString('en-US', {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'}) : '';
+  const note = peaSyncUnavailable || (last ? `Last synced ${when} · ${last.read} ratings · ${last.added} new` : 'Pulls the last 90 days of FOH and BOH ratings. Runs on its own every 12 hours when a manager opens Manage.');
+  return `<div class="du-sync">
+    <button type="button" class="du-sync-btn" data-du-levelset ${peaSyncing ? 'disabled' : ''}>${peaSyncing ? 'Syncing…' : '⟳ Sync from Levelset'}</button>
+    <span class="du-sync-note">${escapeHtml(note)}</span>
+  </div>`;
+}
+
 function renderDataUploads(){
   const root = document.getElementById('dataUploadsRoot');
   if(!root) return;
@@ -854,7 +865,8 @@ function renderDataUploads(){
           ${st.note ? `<div class="du-note">${escapeHtml(st.note)}</div>` : ''}
           ${src.key === 'salesMix' ? duSalesMixCalendarHtml() : src.key === 'cem' ? duCemGridHtml() : src.key === 'productivity' ? duProdGridHtml() : ''}
           ${duPending.filter(p => p.kind === src.key).map(duPendingHtml).join('')}
-          <label class="du-row-upload"><input type="file" accept="${src.accept}" ${src.multiple ? 'multiple' : ''} data-du-row-input="${src.key}"><span>⬆ Upload ${escapeHtml(src.short || src.name.split(' (')[0])}</span></label>
+          ${src.key === 'pea' ? duLevelsetHtml() : ''}
+          <label class="du-row-upload"><input type="file" accept="${src.accept}" ${src.multiple ? 'multiple' : ''} data-du-row-input="${src.key}"><span>⬆ Upload ${escapeHtml(src.short || src.name.split(' (')[0])}${src.key === 'pea' ? ' (backup)' : ''}</span></label>
           <details class="du-more">
             <summary>How to get it · ${src.fixedFreq ? DU_FREQUENCIES[st.freq] : `<span>${DU_FREQUENCIES[st.freq]}</span>`}</summary>
             <p>${escapeHtml(src.how)}</p>
@@ -866,6 +878,10 @@ function renderDataUploads(){
       }).join('')}
     </ul>`;
 }
+
+document.getElementById('dataUploadsRoot').addEventListener('click', e=>{
+  if(e.target.closest('[data-du-levelset]')) peaLevelsetSync(false);
+});
 
 document.getElementById('dataUploadsRoot').addEventListener('change', async e=>{
   if(e.target.matches('[data-du-input]')){

@@ -14,6 +14,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 from pea_parser import parse_pea_pdf, PeaParseError
+import levelset_sync
 from state_patch import PatchError, apply_ops, canon, check_ops
 
 app = Flask(__name__)
@@ -306,6 +307,34 @@ def pea_parse():
     except Exception as e:
         print(f"[PEA PARSE ERROR] {e}")
         return jsonify({'error': 'Could not read that PDF'}), 500
+
+# One Levelset fetch a minute at most, however many times the button's pressed.
+_levelset_last = {'at': 0.0, 'reply': None}
+LEVELSET_MIN_GAP = 60
+
+@app.route('/api/pea/levelset-sync', methods=['POST'])
+def pea_levelset_sync():
+    """PEA ratings pulled from Levelset's share link (see levelset_sync.py).
+    Nothing is stored here — the page merges them like a PDF upload."""
+    if not session.get('manager'):
+        return jsonify({'error': 'Manager sign-in required'}), 403
+    token = levelset_sync.configured_token()
+    if not token:
+        return jsonify({'error': 'not_configured',
+                        'message': f'Set {levelset_sync.TOKEN_ENV} on the server to the Levelset share code.'}), 400
+    now = time.time()
+    if _levelset_last['reply'] and now - _levelset_last['at'] < LEVELSET_MIN_GAP:
+        return jsonify(_levelset_last['reply'])
+    try:
+        reply = levelset_sync.fetch_ratings(token)
+    except levelset_sync.LevelsetError as e:
+        return jsonify({'error': str(e)}), 502
+    except Exception as e:
+        print(f"[LEVELSET SYNC ERROR] {type(e).__name__}")
+        return jsonify({'error': 'Levelset sync failed'}), 500
+    _levelset_last.update(at=now, reply=reply)
+    print(f"[LEVELSET SYNC] {len(reply['ratings'])} ratings")
+    return jsonify(reply)
 
 # ===== STATE ROUTES (sections) =====
 
