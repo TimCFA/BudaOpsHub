@@ -327,7 +327,9 @@ function suPersonSheetHtml(section, date, dp, dpIndex, m, slot){
     ${stat('Last PEA', last ? `${suDaysBetween(last, today)}d` : '—', last ? peaFormatDate(last) : person ? 'no position ratings' : 'no Levelset match')}
   </div>`;
 
-  const greenNote = cert && cert.allGreen && !SU_LEADER_ROLES.includes(person.role) ? '<div class="su-note is-green"><b>All green.</b> Ready for certification, or already certified.</div>' : '';
+  const greenNote = !cert || SU_LEADER_ROLES.includes(person.role) ? ''
+    : cert.allGreen ? '<div class="su-note is-green"><b>All green.</b> Ready for certification, or already certified.</div>'
+    : `<p class="su-green-left">Not green yet: ${escapeHtml(agNotGreenText(person, section))}</p>`;
   const devNote = pick ? `<div class="su-note is-dev"><b>★ Develop today.</b> ${escapeHtml(pick.reasons.join('; '))}${pick.pair ? ` — pair with ${escapeHtml(pick.pair.name)}` : ''}${pick.peaDue && pick.target ? `, then complete a ${escapeHtml(pick.target.pos)} PEA` : ''}.</div>` : '';
 
   let fallBehind = '';

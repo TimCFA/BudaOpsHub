@@ -195,9 +195,11 @@ function peaPruneOldRatings(){
 // {employee: {role, lastAt, positions: {position: {avg, n, total, last, tier}}}}.
 // A position's score is the average of its latest PEA_RECENT_RATINGS ratings,
 // so someone who has improved isn't held back by where they started.
-function peaStrengthByPerson(){
+// With `upToISO`, only ratings on or before that date count (for trends).
+function peaStrengthByPerson(upToISO){
   const people = {};
   peaAllRatings().forEach(r=>{
+    if(upToISO && r.date > upToISO) return;
     const p = people[r.employee] = people[r.employee] || {role: r.role, lastAt: '', positions: {}};
     if(r.at >= p.lastAt){ p.lastAt = r.at; p.role = r.role || p.role; }
     (p.positions[r.position] = p.positions[r.position] || []).push(r);
@@ -355,8 +357,16 @@ function peaRenderPersonList(people){
   const rank = pos => { const i = order.indexOf(pos); return i === -1 ? order.length : i; };
   const names = Object.keys(people).filter(n => !q || n.toLowerCase().includes(q)).sort((a, b) => a.localeCompare(b));
   if(!names.length) return `<p class="pea-muted">No one matches "${escapeHtml(peaPersonFilter)}".</p>`;
+  // Each team member's side (from the rosters), so the card can say how
+  // many of that side's positions are green — including ones never rated,
+  // which have no chip below.
+  const team = typeof agTeamMembers === 'function' ? agTeamMembers(people).members : [];
   return names.map(name=>{
     const p = people[name];
+    const sides = team.filter(m => m.peaName === name).map(m=>{
+      const cert = suCertification(p, m.area);
+      return `<div class="pea-person-green ${cert.allGreen ? 'is-all' : ''}"><b>${m.area.toUpperCase()} ${cert.green}/${cert.total} green</b>${cert.allGreen ? ' · all green' : ` · not green yet: ${escapeHtml(agNotGreenText(p, m.area))}`}</div>`;
+    }).join('');
     const positions = Object.keys(p.positions).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
     const onlyNew = positions.length === 1 && positions[0] === PEA_3H_WEEK;
     return `
@@ -365,6 +375,7 @@ function peaRenderPersonList(people){
           <span class="pea-person-name">${escapeHtml(name)}</span>
           <span class="pea-muted">${escapeHtml(p.role)}${onlyNew ? ' · new hire' : ''} · last rated ${peaFormatDate(p.lastAt.slice(0, 10))}</span>
         </div>
+        ${sides}
         <div class="pea-person-chips">
           ${positions.map(pos => `<span class="pea-person-pos ${pos === PEA_3H_WEEK ? 'is-3h' : ''}"><span>${escapeHtml(pos)}</span>${peaTierChip(p.positions[pos])}</span>`).join('')}
         </div>
@@ -378,6 +389,7 @@ function renderPeaManage(){
   statusLine.textContent = peaStatusText();
   document.getElementById('btnPeaClear').style.display = peaRatings.rows.length ? '' : 'none';
 
+  if(typeof renderAllGreenTracker === 'function') renderAllGreenTracker();
   renderPeaNameMatching();
   renderPeaCoverage();
   const root = document.getElementById('peaStrengthRoot');
