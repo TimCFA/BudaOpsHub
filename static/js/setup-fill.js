@@ -148,7 +148,7 @@ function fillEmptySlots(section, date, dp, dpIndex){
   const extra = empty.filter(s => !inRange.includes(s));
   const open = [...inRange, ...extra];
   const isOpen = s => open.includes(s) && !proposals.some(p => p.slot === s);
-  const zonePriority = s => { const i = SU_LEADER_ZONE_PRIORITY.indexOf(suZoneKeyOf(section, s)); return i === -1 ? 99 : i; };
+  const zonePriority = s => { const i = suLeaderZonePriority(section).indexOf(suZoneKeyOf(section, s)); return i === -1 ? 99 : i; };
 
   // Who is leading each zone: placed leaders plus leaders proposed so far.
   const leadersIn = z => slots.filter(s => suZoneKeyOf(section, s) === z).reduce((n, s)=>{
@@ -208,12 +208,13 @@ function fillEmptySlots(section, date, dp, dpIndex){
     }
   }
 
-  // 4. Leader spread (FOH): a leader in each zone, iPOS → Bagging → Host →
-  //    Drinks → OMD, before any zone gets a second. Team Leads before Trainers.
-  if(section === 'foh'){
+  // 4. Leader spread: a leader in each zone before any zone gets a second —
+  //    FOH iPOS → Bagging → Host → Drinks → OMD, BOH Primary → Raw →
+  //    Secondary (Prep last: it's not in the spread). Team Leads before Trainers.
+  {
     for(let round = 1; round <= 3; round++){
       let placed = 0;
-      SU_LEADER_ZONE_PRIORITY.forEach(z=>{
+      suLeaderZonePriority(section).forEach(z=>{
         if(leadersIn(z) >= round) return;
         // Leaders here for the whole daypart (or handing off to someone);
         // one leaving early would leave the zone's spot empty.
