@@ -29,6 +29,7 @@ changed format fails loudly instead of saving wrong scores. The token is
 never put in an error message or log line.
 """
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor, wait
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -42,7 +43,8 @@ WINDOW_DAYS = 90             # the feed's "90d" window
 KNOWN_RECENT_CAP = 4         # latest ratings returned per person per view
 REQUEST_TIMEOUT = 15         # seconds, per request
 TOTAL_TIMEOUT = 22           # seconds for the whole sync (gunicorn kills a worker at 30)
-MAX_WORKERS = 8
+MAX_WORKERS = 6              # 8 at once hit a slow-response timeout on a live run
+RETRIES = 1                  # one more try after a network failure
 TOKEN_RE = re.compile(r'^[A-Za-z0-9_-]{6,64}$')
 # Positions Levelset suffixes with the area, mapped to the app's names.
 AREA_SUFFIXED = ('Team Lead', 'Trainer', '3H Week')
@@ -61,12 +63,17 @@ def _clean_position(name, area):
 
 
 def _get_json(session, token, params):
-    """One feed request. Errors say what happened, never include the URL."""
-    try:
-        resp = session.get(f'{BASE_URL}/api/ratings', params={'token': token, **params},
-                           headers={'Accept': 'application/json'}, timeout=REQUEST_TIMEOUT)
-    except requests.RequestException:
-        raise FeedError("Couldn't reach Levelset. Try again in a minute.") from None
+    """One feed request, retried once on a network failure. Errors say what
+    happened and never include the URL (it carries the token)."""
+    resp = None
+    for attempt in range(RETRIES + 1):
+        try:
+            resp = session.get(f'{BASE_URL}/api/ratings', params={'token': token, **params},
+                               headers={'Accept': 'application/json'}, timeout=REQUEST_TIMEOUT)
+            break
+        except requests.RequestException:
+            if attempt == RETRIES:
+                raise FeedError("Couldn't reach Levelset. Try again in a minute.") from None
     if resp.status_code in (401, 403, 404):
         raise FeedError('Levelset no longer accepts the sync link. Make a new public '
                         'Positional Excellence link in Levelset and update LEVELSET_PEA_TOKEN.')
@@ -108,6 +115,7 @@ def _to_rating(raw, area, tz):
     return {
         'at': at,
         'employee': employee,
+        'area': area,
         'role': '',
         'leader': (raw.get('rater_name') or (raw.get('rater') or {}).get('full_name') or '').strip(),
         'position': position,
@@ -116,10 +124,12 @@ def _to_rating(raw, area, tz):
     }, date
 
 
-def fetch_pea_feed(token, tz_name=DEFAULT_TIMEZONE, session=None, now=None):
+def fetch_pea_feed(token, tz_name=DEFAULT_TIMEZONE, session=None, now=None, total_timeout=TOTAL_TIMEOUT):
     """Fetches every rating the feed will show, both areas.
 
     `session` (anything with .get) and `now` exist so tests can run offline.
+    `total_timeout` bounds the whole fetch; the web route keeps the default so it
+    finishes before the server's own limit, a command-line export can allow more.
     Raises FeedError with a message that's safe to show a manager.
     """
     token = (token or '').strip()
@@ -132,12 +142,13 @@ def fetch_pea_feed(token, tz_name=DEFAULT_TIMEZONE, session=None, now=None):
     session = session or requests.Session()
     today = (now or datetime.now(timezone.utc)).astimezone(tz).date()
 
+    deadline = time.monotonic() + total_timeout
     pool = ThreadPoolExecutor(max_workers=MAX_WORKERS)
     try:
         # 1. Positions per area, from the overview's per-person position table.
         overview = {a: pool.submit(_get_json, session, token, {'area': a, 'window': '90d', 'tab': 'overview'})
                     for a in AREAS}
-        wait(overview.values(), timeout=TOTAL_TIMEOUT)
+        wait(overview.values(), timeout=max(0, deadline - time.monotonic()))
         positions = {}
         for area, fut in overview.items():
             if not fut.done():
@@ -155,7 +166,7 @@ def fetch_pea_feed(token, tz_name=DEFAULT_TIMEZONE, session=None, now=None):
         jobs = {(a, p): pool.submit(_get_json, session, token,
                                     {'area': a, 'window': '90d', 'tab': 'position', 'position': p})
                 for a in AREAS for p in positions[a]}
-        done, pending = wait(jobs.values(), timeout=TOTAL_TIMEOUT)
+        done, pending = wait(jobs.values(), timeout=max(0, deadline - time.monotonic()))
         if pending:
             raise FeedError('Levelset was too slow to answer. Try again.')
         results = {key: fut.result() for key, fut in jobs.items()}

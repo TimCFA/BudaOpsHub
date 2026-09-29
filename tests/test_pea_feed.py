@@ -66,7 +66,7 @@ class FetchTest(unittest.TestCase):
         table = feed({('FOH', 'position', 'iPOS'): [person([rating('r1', '2026-09-15T17:57:27.91909+00:00')])]})
         out = self.run_feed(table)
         self.assertEqual(out['ratings'], [{
-            'at': '2026-09-15T12:57', 'employee': 'Ana Diaz', 'role': '', 'leader': 'Sam Lee',
+            'at': '2026-09-15T12:57', 'employee': 'Ana Diaz', 'area': 'FOH', 'role': '', 'leader': 'Sam Lee',
             'position': 'iPOS', 'criteria': [3.0, 3.0, 2.0, 3.0, 3.0], 'overall': 2.8}])
 
     def test_winter_time_uses_standard_offset(self):
@@ -140,6 +140,34 @@ class FetchTest(unittest.TestCase):
         with self.assertRaisesRegex(lf.FeedError, 'time zone'):
             lf.fetch_pea_feed(TOKEN, tz_name='Mars/Base', session=FakeSession({}), now=NOW)
 
+    def test_a_network_failure_is_retried_once(self):
+        table = feed({('FOH', 'position', 'iPOS'): [person([rating('r1', '2026-09-15T17:00:00+00:00')])]})
+        sess = FakeSession(table)
+        real_get, failed = sess.get, []
+
+        def flaky(url, params=None, **kw):
+            if params.get('position') == 'iPOS' and not failed:
+                failed.append(1)
+                raise requests.ReadTimeout('slow')
+            return real_get(url, params=params, **kw)
+        sess.get = flaky
+        out = lf.fetch_pea_feed(TOKEN, session=sess, now=NOW)
+        self.assertEqual(len(out['ratings']), 1)
+        self.assertEqual(failed, [1])
+
+    def test_http_errors_are_not_retried(self):
+        sess = FakeSession({}, status=500)
+        with self.assertRaises(lf.FeedError):
+            lf.fetch_pea_feed(TOKEN, session=sess, now=NOW)
+        self.assertLessEqual(len(sess.calls), 2)   # the two overview calls, once each
+
+    def test_areas_are_tagged_from_where_the_rating_was_fetched(self):
+        table = feed({('FOH', 'position', 'iPOS'): [person([rating('a', '2026-09-15T17:00:00+00:00')])],
+                      ('BOH', 'position', 'Fries'): [person([rating('b', '2026-09-16T17:00:00+00:00', 'Fries')])]})
+        got = {r['position']: r['area'] for r in self.run_feed(table)['ratings']}
+        self.assertEqual(got, {'iPOS': 'FOH', 'Fries': 'BOH'})
+
+
     def test_errors_never_contain_the_token(self):
         cases = [FakeSession({}, status=401), FakeSession({}, status=500),
                  FakeSession({}, error=requests.ConnectionError(f'failed for /api/ratings?token={TOKEN}'))]
@@ -203,6 +231,78 @@ class SyncRouteTest(unittest.TestCase):
         self.assertEqual(r.status_code, 500)
         self.assertNotIn(TOKEN, r.get_data(as_text=True))
         self.assertNotIn(TOKEN, ' '.join(str(a) for call in printed.call_args_list for a in call.args))
+
+
+class ExportScriptTest(unittest.TestCase):
+    """scripts/export_pea_csv.py, with the feed replaced by canned ratings."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            'export_pea_csv', os.path.join(os.path.dirname(__file__), '..', 'scripts', 'export_pea_csv.py'))
+        cls.mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.mod)
+
+    def r(self, day, area='FOH', name='Ana Díaz', position='iPOS'):
+        return {'at': f'2026-09-{day:02d}T12:57', 'employee': name, 'area': area, 'role': '',
+                'leader': 'Sam Lee', 'position': position, 'criteria': [3.0, 3.0, 2.0, 3.0, 3.0], 'overall': 2.8}
+
+    def test_range_is_inclusive_and_sorted(self):
+        rows = self.mod.in_range([self.r(20), self.r(5), self.r(10), self.r(30)], '2026-09-10', '2026-09-20')
+        self.assertEqual([x['at'][:10] for x in rows], ['2026-09-10', '2026-09-20'])
+
+    def test_csv_has_the_expected_columns_and_values(self):
+        import csv
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'sub', 'out.csv')
+            self.mod.write_csv([self.r(10)], path)
+            with open(path, encoding='utf-8-sig', newline='') as f:
+                rows = list(csv.reader(f))
+        self.assertEqual(rows[0], self.mod.COLUMNS)
+        self.assertEqual(rows[1], ['2026-09-10', '12:57', 'FOH', 'Ana Díaz', 'iPOS', 'Sam Lee',
+                                   '3', '3', '2', '3', '3', '2.80'])
+
+    def run_main(self, env, result=None, error=None, args=()):
+        import contextlib
+        import io
+        import tempfile
+        out, err = io.StringIO(), io.StringIO()
+        with tempfile.TemporaryDirectory() as d, \
+                mock.patch.dict(os.environ, env, clear=False), \
+                mock.patch.object(self.mod, 'fetch_pea_feed', side_effect=error, return_value=result) as fetch, \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            os.environ.pop('LEVELSET_PEA_TOKEN', None) if 'LEVELSET_PEA_TOKEN' not in env else None
+            code = self.mod.main(['--out', d, *args])
+            files = os.listdir(d)
+        return code, out.getvalue(), err.getvalue(), files, fetch
+
+    def test_needs_the_token(self):
+        code, out, err, files, fetch = self.run_main({})
+        self.assertEqual((code, files), (2, []))
+        self.assertIn('LEVELSET_PEA_TOKEN', err)
+        fetch.assert_not_called()
+
+    def test_writes_a_file_and_prints_only_counts(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        today = datetime.now(ZoneInfo('America/Chicago')).date()
+        recent = {**self.r(1), 'at': today.isoformat() + 'T09:00', 'employee': 'Zed Secret'}
+        old = {**self.r(1), 'at': '2020-01-01T09:00'}
+        result = {'ratings': [recent, old], 'summary': {}, 'warnings': ['FOH is complete from Sep 23 on.']}
+        code, out, err, files, fetch = self.run_main({'LEVELSET_PEA_TOKEN': TOKEN}, result=result)
+        self.assertEqual(code, 0)
+        self.assertEqual(len(files), 1)
+        self.assertIn('Wrote 1 ratings', out)
+        self.assertIn('Note: FOH is complete', out)
+        self.assertNotIn('Zed', out + err)
+        self.assertNotIn(TOKEN, out + err)
+
+    def test_feed_error_is_reported_without_a_file(self):
+        code, out, err, files, _ = self.run_main({'LEVELSET_PEA_TOKEN': TOKEN}, error=lf.FeedError('Levelset is down.'))
+        self.assertEqual((code, files), (1, []))
+        self.assertIn('Levelset is down.', err)
 
 
 if __name__ == '__main__':

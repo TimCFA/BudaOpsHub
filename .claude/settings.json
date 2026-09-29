@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 scripts/export_pea_csv.py *)",
+      "Bash(LEVELSET_PEA_TOKEN=* python3 scripts/export_pea_csv.py *)"
+    ]
+  }
+}
