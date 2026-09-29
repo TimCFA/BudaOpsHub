@@ -91,11 +91,22 @@ function evaluateSetup(section, date, dpName){
     if(!support && !e.captain) risks.push({name: e.name, text: `is Not Yet on ${e.position} (${e.cell.avg.toFixed(2)}) with no Crushing It ${e.position} alongside`});
   });
 
+  // Slipping: latest ratings clearly below the ones before (pea-coach.js).
+  // In a captain slot that's a risk; anywhere else, something to coach.
+  const slipping = entries.filter(e => e.cell && e.peaName).map(e => ({e, tr: peaTrend(e.peaName, e.position)})).filter(x => x.tr && x.tr.dir === 'down');
+  slipping.filter(x => x.e.captain).forEach(({e, tr})=>{
+    risks.push({name: e.name, text: `in Captain slot ${e.slot} is slipping on ${e.position} (${tr.from.toFixed(2)} → ${tr.to.toFixed(2)})`});
+  });
+
   // Development
   const development = entries.filter(e => e.tier === 'rise' || e.tier === 'notyet').map(e => ({
     name: e.name, tier: e.tier,
     text: `${e.tier === 'rise' ? 'On the Rise' : 'Not Yet'} on ${e.position} (${e.cell.avg.toFixed(2)} ×${e.cell.total})`
   }));
+  slipping.filter(x => !x.e.captain).forEach(({e, tr})=>{
+    const coach = peaCoachText(e.peaName, e.position);
+    development.push({name: e.name, tier: e.tier, text: `slipping on ${e.position} (${tr.from.toFixed(2)} → ${tr.to.toFixed(2)})${coach ? ` — coach on ${coach}` : ''}`});
+  });
 
   // Rating due
   const ratingDue = [];
