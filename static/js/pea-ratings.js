@@ -158,14 +158,20 @@ function peaMergeRatings(ratings){
     if(!map.has(v)){ map.set(v, list.length); list.push(v); }
     return map.get(v);
   };
-  const seen = new Set(peaAllRatings().map(r => peaRowKey(r.at, r.employee, r.leader, r.position, r.criteria)));
+  const existing = peaAllRatings();
+  const seen = new Set(existing.map(r => peaRowKey(r.at, r.employee, r.leader, r.position, r.criteria)));
+  // The Levelset feed has no role, so a rating without one takes the role
+  // that person's latest earlier rating carried (from a PDF upload).
+  const knownRole = {};
+  existing.slice().sort((a, b) => a.at.localeCompare(b.at)).forEach(r => { if(r.role) knownRole[r.employee] = r.role; });
   let added = 0;
   ratings.forEach(r=>{
     const key = peaRowKey(r.at, r.employee, r.leader, r.position, r.criteria);
     if(seen.has(key)) return;
     seen.add(key);
+    const role = r.role || knownRole[r.employee] || '';
     peaRatings.rows.push([
-      r.at, idOf(nameIdx, peaRatings.names, r.employee), idOf(roleIdx, peaRatings.roles, r.role),
+      r.at, idOf(nameIdx, peaRatings.names, r.employee), idOf(roleIdx, peaRatings.roles, role),
       idOf(nameIdx, peaRatings.names, r.leader), idOf(posIdx, peaRatings.positions, r.position),
       ...r.criteria, r.overall
     ]);
@@ -254,17 +260,27 @@ async function peaHandleUpload(file){
     return;
   }
 
+  await peaApplyResult(data, file.name, status);
+}
+
+// Merges a parsed PDF or a Levelset feed sync (same shape) and saves it.
+async function peaApplyResult(data, sourceName, status){
   const ratings = data.ratings || [];
   const added = peaMergeRatings(ratings);
   const s = data.summary || {};
   // Coverage is the report's own date range; without one, the span of its ratings.
+  // A feed sync gives a range per area, since what it can vouch for differs.
   const dates = ratings.map(r => r.at.slice(0, 10)).sort();
   const covStart = s.rangeStart || dates[0], covEnd = s.rangeEnd || dates[dates.length - 1];
   const areas = (s.areas && s.areas.length) ? s.areas.filter(a => PEA_AREAS.includes(a)) : PEA_AREAS;
-  if(covStart && covEnd) peaAddCoverage(peaRatings.coverage, areas, covStart, covEnd);
-  peaRatings.uploads.push({at: new Date().toISOString(), file: file.name, rangeStart: covStart || null, rangeEnd: covEnd || null, areas, read: ratings.length, added});
+  if(s.coverage){
+    areas.forEach(a => { if(s.coverage[a]) peaAddCoverage(peaRatings.coverage, [a], s.coverage[a][0], s.coverage[a][1]); });
+  }else if(covStart && covEnd){
+    peaAddCoverage(peaRatings.coverage, areas, covStart, covEnd);
+  }
+  peaRatings.uploads.push({at: new Date().toISOString(), file: sourceName, rangeStart: covStart || null, rangeEnd: covEnd || null, areas, read: ratings.length, added});
   peaRatings.uploads = peaRatings.uploads.slice(-10);
-  duRecord('pea', {file: file.name, summary: `${ratings.length} ratings · ${added} new`});
+  duRecord('pea', {file: sourceName, summary: `${ratings.length} ratings · ${added} new`});
   peaPruneOldRatings();
   await saveState();
 
@@ -276,6 +292,33 @@ async function peaHandleUpload(file){
   showToast(added ? `✓ ${added} new PEA ratings saved` : 'No new ratings — all were already saved');
   renderPeaManage();
   renderDataUploads();
+}
+
+// Pulls ratings straight from Levelset's public scorecard link (read by the
+// server; the link's token lives in the server's environment).
+async function peaHandleSync(){
+  const status = document.getElementById('peaUploadStatus');
+  const btn = document.getElementById('btnPeaSync');
+  btn.disabled = true;
+  status.textContent = 'Syncing from Levelset…';
+  try{
+    let data;
+    try{
+      const res = await fetch(`${API_BASE}/api/pea/sync`, {method: 'POST'});
+      data = await res.json().catch(() => ({}));
+      if(res.status === 403){
+        status.textContent = 'Manager sign-in expired — lock Manage, sign in again, and sync again.';
+        return;
+      }
+      if(!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    }catch(err){
+      status.textContent = `Couldn't sync from Levelset: ${err.message}`;
+      return;
+    }
+    await peaApplyResult(data, 'Levelset sync', status);
+  }finally{
+    btn.disabled = false;
+  }
 }
 
 async function peaClearAll(){
@@ -414,6 +457,7 @@ function renderPeaManage(){
 }
 
 document.getElementById('btnPeaClear').addEventListener('click', peaClearAll);
+document.getElementById('btnPeaSync').addEventListener('click', peaHandleSync);
 document.getElementById('peaStrengthRoot').addEventListener('click', e=>{
   const view = e.target.closest('[data-pea-view]');
   if(view){ peaMapView = view.dataset.peaView; renderPeaManage(); return; }

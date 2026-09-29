@@ -10,6 +10,14 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11
+      # Last part of the Levelset public Positional Excellence link
+      # (app.levelset.io/public/positional-excellence/<token>). Set it in the
+      # Render dashboard; it lets anyone holding it read the ratings.
+      - key: LEVELSET_PEA_TOKEN
+        sync: false
+      # Only if the restaurant isn't on Central time (default America/Chicago).
+      - key: LEVELSET_TIMEZONE
+        sync: false
     routes:
       - path: /
         matchType: prefix

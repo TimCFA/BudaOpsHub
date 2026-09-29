@@ -175,7 +175,7 @@ overdue) and an upload button per report.
 | Source | From | Feeds |
 |---|---|---|
 | Weekly roster (CSV) | HotSchedules | Who works when, FOH/BOH, Team Leader shifts |
-| PEA ratings (PDF) | Levelset | Position strength, all green, Set Ups tools |
+| PEA ratings (PDF, or the "Sync from Levelset" button) | Levelset | Position strength, all green, Set Ups tools |
 | CEM (xlsx) | Guest survey reports | Guest Obsession scoreboard, CEM trends |
 | Productivity (CSV) | Daypart productivity report | Busy hours for breaks |
 | Sales Mix (CSV) | Daily items sold | Prep Board build-to |

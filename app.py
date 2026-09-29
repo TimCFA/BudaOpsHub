@@ -14,6 +14,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 from pea_parser import parse_pea_pdf, PeaParseError
+from levelset_feed import fetch_pea_feed, FeedError, DEFAULT_TIMEZONE
 from state_patch import PatchError, apply_ops, canon, check_ops
 
 app = Flask(__name__)
@@ -306,6 +307,37 @@ def pea_parse():
     except Exception as e:
         print(f"[PEA PARSE ERROR] {e}")
         return jsonify({'error': 'Could not read that PDF'}), 500
+
+# Levelset's public scorecard link, read directly instead of a PDF upload.
+# LEVELSET_PEA_TOKEN is the last part of the share link
+# (app.levelset.io/public/positional-excellence/<token>). Anyone holding it can
+# read the ratings, so it lives only in the server's environment.
+PEA_SYNC_MIN_GAP = 60   # seconds; a repeat press inside this gets the last result
+_pea_sync_last = {'at': 0.0, 'result': None}
+_pea_sync_lock = threading.Lock()
+
+@app.route('/api/pea/sync', methods=['POST'])
+def pea_sync():
+    """Fetches ratings from the Levelset feed and returns them in the same
+    shape as /api/pea/parse. Nothing is stored here."""
+    if not session.get('manager'):
+        return jsonify({'error': 'Manager sign-in required'}), 403
+    token = (os.environ.get('LEVELSET_PEA_TOKEN') or '').strip()
+    if not token:
+        return jsonify({'error': 'Levelset sync is not set up. Add LEVELSET_PEA_TOKEN to the server.'}), 503
+    with _pea_sync_lock:
+        if _pea_sync_last['result'] is not None and time.time() - _pea_sync_last['at'] < PEA_SYNC_MIN_GAP:
+            return jsonify(_pea_sync_last['result'])
+        try:
+            result = fetch_pea_feed(token, os.environ.get('LEVELSET_TIMEZONE') or DEFAULT_TIMEZONE)
+        except FeedError as e:
+            return jsonify({'error': str(e)}), 502
+        except Exception as e:
+            # Class name only: exception text can carry the request URL, which holds the token.
+            print(f"[PEA SYNC ERROR] {type(e).__name__}")
+            return jsonify({'error': 'Could not read the Levelset feed'}), 500
+        _pea_sync_last.update(at=time.time(), result=result)
+    return jsonify(result)
 
 # ===== STATE ROUTES (sections) =====
 
