@@ -801,6 +801,12 @@
           <div class="standup-card">
             <h3>Projected Sales, Productivity & Events</h3>
             <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Projected sales, productivity goals, and events by daypart</p>
+            <div class="kn-upload">
+              <label class="du-row-upload"><input type="file" id="knFile" accept=".csv,.xlsx,.xls,.txt"><span>⬆ Upload projected sales &amp; productivity goals</span></label>
+              <button type="button" id="knTemplate" class="btn btn-ghost">Download template</button>
+              <p class="kn-help">Excel or CSV — a row per day and daypart (Date, Daypart, Projected Sales, Productivity Goal). Special events are still typed in below.</p>
+              <div id="knStatus" class="kn-status"></div>
+            </div>
             <div class="week-toggle">
               <button type="button" class="week-toggle-btn active" aria-pressed="true" data-offset="0">This Week</button>
               <button type="button" class="week-toggle-btn" aria-pressed="false" data-offset="1">Next Week</button>
@@ -1046,5 +1052,6 @@
 <script src="/static/js/data-uploads.js"></script>
 <script src="/static/js/all-green.js"></script>
 <script src="/static/js/pea-coach.js"></script>
+<script src="/static/js/numbers-upload.js"></script>
 </body>
 </html>

@@ -110,6 +110,33 @@ function renderLXManage(){
   `).join('');
 }
 
+// Guest Obsession fields the CEM upload fills (data-uploads.js
+// cemSyncScoreboard) — shown read-only once a CEM report is in, so the
+// scoreboard follows the upload instead of hand entry.
+const GX_CEM_INPUTS = ['gx-satisfaction', 'gx-team-attentive',
+  ...['overallTaste', 'tasteFries', 'tasteCFA', 'tasteSpicy', 'tasteNuggets', 'tempFries', 'tempCFA', 'tempSpicy', 'tempNuggets', 'portionSize'].flatMap(k => [`gx-craveable-${k}`, `gx-craveable-${k}-top5`]),
+  ...['fastService', 'orderAccuracy'].flatMap(k => [`gx-service-${k}`, `gx-service-${k}-top5`]),
+  'gx-welcoming-cleanliness', 'gx-welcoming-cleanliness-top5'];
+
+function gxMarkCemFields(){
+  const src = gxData.cemSource;
+  const list = document.getElementById('gxManageList');
+  if(!list) return;
+  let n = 0;
+  if(src) GX_CEM_INPUTS.forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.readOnly = true;
+    el.classList.add('gx-auto');
+    el.title = `From the CEM upload (${src.label})`;
+    n++;
+  });
+  list.insertAdjacentHTML('afterbegin', `<div class="gx-source-note">
+    ${src ? `<b>Automatic from CEM — ${escapeHtml(src.label)}:</b> ${n} fields (shaded) update with each CEM upload in Data Uploads.` : '<b>Upload a CEM report in Data Uploads</b> and satisfaction, taste, temperature, service and cleanliness fill in on their own.'}
+    <br>Still typed in: sales (MTD/YTD), drive-thru rankings, Smart Shop, QIV, speed of service, food safety score, and the coaching lists — each can become an upload once there's a sample of its report.
+  </div>`);
+}
+
 function renderGXManage(){
   const gxManageList = document.getElementById('gxManageList');
   gxManageList.innerHTML = `
@@ -223,6 +250,7 @@ function renderGXManage(){
       </div>
     </div>
   `;
+  gxMarkCemFields();
 }
 
 function renderTXManage(){

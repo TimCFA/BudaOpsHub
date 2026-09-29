@@ -108,12 +108,13 @@ class FetchTest(unittest.TestCase):
         self.assertEqual(reply['summary']['areas'], ['FOH', 'BOH'])
         self.assertEqual(reply['warnings'], [])
 
-    def test_partial_data_warns_and_skips_coverage(self):
+    def test_partial_data_warns_but_counts_as_checked(self):
         get = fake_get({'FOH': (200, {'success': True, 'data': [person([rating()], total_count_90d=7)]}),
                         'BOH': (200, {'success': True, 'data': []})})
         reply = ls.fetch_ratings('ABC123XYZ', get=get)
-        self.assertEqual(reply['summary']['areas'], ['BOH'])
-        self.assertIn('1 of 7 FOH', reply['warnings'][0])
+        self.assertEqual(reply['summary']['areas'], ['FOH', 'BOH'])
+        self.assertIn('listed 7 FOH ratings', reply['warnings'][0])
+        self.assertIn('sent 1', reply['warnings'][0])
 
     def test_errors_are_plain(self):
         cases = [

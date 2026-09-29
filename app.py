@@ -15,7 +15,7 @@ from firebase_admin import credentials, db
 
 from pea_parser import parse_pea_pdf, PeaParseError
 import levelset_sync
-from state_patch import PatchError, apply_ops, canon, check_ops
+from state_patch import PatchError, apply_ops, canon, check_ops, union_merge
 
 app = Flask(__name__)
 CORS(app)
@@ -429,6 +429,25 @@ def state_patch():
         print(f"[STATE PATCH ERROR] {e}")
         return jsonify({'error': 'Save failed'}), 500
 
+# What the one-time backup (appState, kept when saving moved to sections)
+# can put back: data that came in through uploads.
+BACKUP_RESTORABLE = ('cemEntries', 'prepSoldEntries', 'productivityProfiles', 'peaRatings', 'dataUploadLog')
+
+@app.route('/api/state/backup', methods=['POST'])
+def state_backup():
+    """The upload data held in the pre-split backup, so Manage can offer to
+    restore anything that has since gone missing. Managers only."""
+    if not session.get('manager'):
+        return jsonify({'error': 'Manager sign-in required'}), 403
+    try:
+        legacy = _parse_section(db.reference(APP_STATE_PATH).get())
+    except Exception as e:
+        print(f"[STATE BACKUP ERROR] {e}")
+        return jsonify({'error': 'Could not read the backup'}), 500
+    if not legacy:
+        return jsonify({'exists': False, 'data': {}})
+    return jsonify({'exists': True, 'data': {k: legacy[k] for k in BACKUP_RESTORABLE if k in legacy}})
+
 @app.route('/api/state/save', methods=['POST'])
 def state_save():
     data = request.get_json(silent=True) or {}
@@ -460,14 +479,16 @@ def state_save():
 
     try:
         ignored_all = []
-        needs_old = [n for n in parsed if not session.get('manager') and any(k in MANAGER_ONLY_KEYS for k in STATE_SECTIONS[n])]
-        stored = _read_sections() if needs_old else None
+        # Only pages running code from before change-based saves use this
+        # route. Their copy can be days old, so they may add to the saved
+        # data but never remove or overwrite it (union_merge).
+        stored = _read_sections()
         for name, section in parsed.items():
-            old = (stored or {}).get(name) if name in needs_old else None
-            if name in needs_old and stored is None:
-                old = None   # nothing stored yet: first save (bootstrap)
+            old = (stored or {}).get(name)
             section, ignored = _gate_section(name, section, old)
             ignored_all += ignored
+            if old is not None:
+                section = union_merge(old, section)
             _write_section(name, section)
         print(f"[STATE SAVE] {', '.join(parsed)}")
         if ignored_all:
@@ -552,8 +573,11 @@ def firebase_write():
         # ones that differ — so its changes aren't lost.
         if stored_sections is not None:
             for name, section in _split_state(new_state).items():
-                if json.dumps(section, sort_keys=True) != json.dumps(stored_sections.get(name), sort_keys=True):
-                    _write_section(name, section)
+                # A days-old copy may add, never remove or overwrite.
+                old = stored_sections.get(name)
+                merged = union_merge(old, section) if old is not None else section
+                if canon(merged) != canon(old):
+                    _write_section(name, merged)
             print(f"[FIREBASE WRITE] Path: {path}, filed into sections (old page)")
             if ignored_fields:
                 return jsonify({'success': True, 'managerFieldsIgnored': ignored_fields})

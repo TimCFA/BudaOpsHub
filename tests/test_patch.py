@@ -14,7 +14,7 @@ import unittest
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
 sys.path.insert(0, ROOT)
-from state_patch import apply_ops, canon  # noqa: E402
+from state_patch import apply_ops, canon, union_merge  # noqa: E402
 
 NODE = shutil.which('node')
 
@@ -166,6 +166,27 @@ class PatchAgreementTest(unittest.TestCase):
         ops = run_page([(big, mine, big)])[0]['ops']
         self.assertLess(len(json.dumps(ops)), 400)
         self.assertGreater(len(json.dumps(big)), 60000)
+
+
+class UnionMergeTest(unittest.TestCase):
+    """What a page running old code may do: add, never remove or overwrite."""
+
+    def test_adds_only(self):
+        stored = {'entries': [{'ts': 1}, {'ts': 2}], 'pos': {'a': 'Josh'}, 'days': ['d1'], 'target': 100}
+        stale = {'entries': [{'ts': 1}, {'ts': 3}], 'pos': {'a': 'Old', 'b': 'Mia'}, 'days': [], 'target': 80, 'new': 1}
+        self.assertEqual(union_merge(stored, stale), {
+            'entries': [{'ts': 1}, {'ts': 2}, {'ts': 3}], 'pos': {'a': 'Josh', 'b': 'Mia'},
+            'days': ['d1'], 'target': 100, 'new': 1})
+
+    def test_records_matched_by_id_keep_the_saved_version(self):
+        stored = {'products': [{'id': 'p1', 'cost': 2.5}]}
+        stale = {'products': [{'id': 'p1', 'cost': 1.0}, {'id': 'p2', 'cost': 3}]}
+        self.assertEqual(union_merge(stored, stale)['products'], [{'id': 'p1', 'cost': 2.5}, {'id': 'p2', 'cost': 3}])
+
+    def test_input_untouched(self):
+        stored = {'l': [1]}
+        union_merge(stored, {'l': [1, 2]})
+        self.assertEqual(stored, {'l': [1]})
 
 
 class ServerApplyTest(unittest.TestCase):

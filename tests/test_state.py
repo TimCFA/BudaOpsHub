@@ -56,6 +56,9 @@ class StateTest(unittest.TestCase):
         store['appState'] = json.dumps(LEGACY)
         self.c = appmod.app.test_client()
 
+    def load_reply(self):
+        return self.c.post('/api/state/load', json={}).get_json()
+
     def load(self):
         r = self.c.post('/api/state/load', json={})
         self.assertEqual(r.status_code, 200)
@@ -73,6 +76,21 @@ class StateTest(unittest.TestCase):
             parsed[name] = re.findall(r"'(\w+)'", keys)
         self.assertEqual(parsed, appmod.STATE_SECTIONS)
 
+    def test_every_saved_field_is_read_back_on_load(self):
+        # A field that's saved but not loaded comes back empty after a reload,
+        # and the next save then wipes it on the server too.
+        with open(os.path.join(ROOT, 'static/js/storage.js')) as f:
+            js = f.read()
+        start = js.index('function stateSnapshot(){')
+        snap = js[start:js.index('\n}\n', start)]
+        body = snap[snap.index('return {') + 8:snap.rindex('}')]
+        keys = [k.split(':')[0].strip() for k in re.split(r',\s*', body.replace('\n', ' '))]
+        keys = [k for k in keys if re.match(r'^\w+$', k)]
+        start = js.index('function applyStateData(data){')
+        apply = js[start:js.index('\n}\n', start)]
+        self.assertGreater(len(keys), 40)
+        self.assertEqual([k for k in keys if not re.search(r'data\.' + k + r'\b', apply)], [])
+
     def test_first_load_migrates_and_keeps_backup(self):
         data = self.load()
         self.assertEqual(data['waste']['entries'], LEGACY['entries'])
@@ -89,8 +107,20 @@ class StateTest(unittest.TestCase):
         before_pea = store['state/pea']
         r = self.save({'setups': {'posAssignments': {'k': 'Avah'}}})
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(section('setups')['posAssignments'], {'k': 'Avah'})
+        # An old page's save adds; what's already saved stays.
+        self.assertEqual(section('setups')['posAssignments'], {'foh||2026-09-22||Lunch||iPOS 1': 'Josh', 'k': 'Avah'})
         self.assertEqual(store['state/pea'], before_pea)
+
+    def test_old_page_cannot_delete_or_overwrite(self):
+        self.load()
+        # A days-old tab: no waste entries, and an older assignment for iPOS 1.
+        self.save({'waste': {'entries': []},
+                   'setups': {'posAssignments': {'foh||2026-09-22||Lunch||iPOS 1': 'Stale', 'new': 'Mia'}}})
+        self.assertEqual(section('waste')['entries'], LEGACY['entries'])
+        self.assertEqual(section('setups')['posAssignments'], {'foh||2026-09-22||Lunch||iPOS 1': 'Josh', 'new': 'Mia'})
+        stale = dict(LEGACY, entries=[], cemEntries=[])
+        self.c.post('/api/firebase/write', json={'path': 'appState', 'value': json.dumps(stale)})
+        self.assertEqual(section('waste')['entries'], LEGACY['entries'])
 
     def test_unknown_section_and_wrong_keys_rejected(self):
         self.load()
@@ -107,18 +137,20 @@ class StateTest(unittest.TestCase):
         self.assertEqual(r.get_json().get('managerFieldsIgnored'), ['products', 'wasteTarget'])
         self.assertEqual(section('manager')['products'], [{'id': 'p1'}])
 
-    def test_manager_can_change_manager_fields(self):
+    def test_manager_can_add_manager_fields_from_an_old_page(self):
         self.load()
         with self.c.session_transaction() as sess:
             sess['manager'] = True
         self.save({'manager': {'products': [{'id': 'p2'}]}})
-        self.assertEqual(section('manager')['products'], [{'id': 'p2'}])
+        self.assertEqual(section('manager')['products'], [{'id': 'p1'}, {'id': 'p2'}])
 
     def test_old_page_save_is_filed_into_sections(self):
-        self.load()
+        loaded = self.load_reply()
         with self.c.session_transaction() as sess:
             sess['manager'] = True
-        self.save({'manager': {'products': [{'id': 'new-by-manager'}]}})
+        # The manager's change, from an up-to-date page.
+        self.c.post('/api/state/patch', json={'patches': {'manager': {'ver': loaded['versions']['manager'],
+                    'ops': [{'o': 'set', 'p': ['products'], 'v': [{'id': 'new-by-manager'}]}]}}})
         with self.c.session_transaction() as sess:
             sess.pop('manager')
         # A tab opened before the deploy saves its whole (stale) blob.
@@ -200,7 +232,7 @@ class PatchTest(unittest.TestCase):
 
     def test_old_page_saves_show_up_in_sync(self):
         have = dict(self.loaded['versions'])
-        self.b.post('/api/state/save', json={'sections': {'waste': json.dumps({'entries': []})}})
+        self.b.post('/api/state/save', json={'sections': {'waste': json.dumps({'entries': [{'ts': 99}]})}})
         news = self.a.post('/api/state/sync', json={'versions': have}).get_json()
         self.assertEqual(list(news['sections']), ['waste'])
 
@@ -237,6 +269,16 @@ class PatchTest(unittest.TestCase):
     def test_size_cap(self):
         big = [{'o': 'set', 'p': ['entries'], 'v': ['x' * (appmod.MAX_STATE_BYTES + 10)]}]
         self.assertEqual(self.patch(self.a, 'waste', self.ver('waste'), big).status_code, 413)
+
+    def test_backup_for_managers_only(self):
+        r = self.a.post('/api/state/backup')
+        self.assertEqual(r.status_code, 403)
+        with self.a.session_transaction() as sess:
+            sess['manager'] = True
+        body = self.a.post('/api/state/backup').get_json()
+        self.assertTrue(body['exists'])
+        self.assertEqual(set(body['data']), {'peaRatings'})          # only upload data, only what the backup has
+        self.assertNotIn('products', body['data'])
 
     def test_replies_are_zipped_when_asked(self):
         store['state/history'] = json.dumps({'setupHistory': {'rows': ['Josh on iPOS 1'] * 400}})

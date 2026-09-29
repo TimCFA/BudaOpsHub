@@ -142,8 +142,9 @@ function peaRowKey(at, employee, leader, position, criteria){
 }
 
 // Every saved rating, decoded: {at, date, employee, role, leader, position, criteria, overall}.
-function peaAllRatings(){
-  const {names, positions, roles, rows} = peaRatings;
+// `source` defaults to the saved ratings (another copy, e.g. a backup, works too).
+function peaAllRatings(source){
+  const {names, positions, roles, rows} = source || peaRatings;
   return rows.map(r => ({
     at: r[0], date: r[0].slice(0, 10),
     employee: names[r[1]], role: roles[r[2]] || '', leader: names[r[3]] || '',
@@ -298,7 +299,8 @@ function peaApplyRatings(data, source){
   // sides Levelset sent in full.
   const areas = Array.isArray(s.areas) && (s.areas.length || s.perArea) ? s.areas.filter(a => PEA_AREAS.includes(a)) : PEA_AREAS;
   if(covStart && covEnd && areas.length) peaAddCoverage(peaRatings.coverage, areas, covStart, covEnd);
-  peaRatings.uploads.push({at: new Date().toISOString(), file: source, rangeStart: covStart || null, rangeEnd: covEnd || null, areas, read: incoming.length, added});
+  peaRatings.uploads.push({at: new Date().toISOString(), file: source, rangeStart: covStart || null, rangeEnd: covEnd || null, areas, read: incoming.length, added,
+    warnings: (data.warnings || []).slice(0, 4)});
   peaRatings.uploads = peaRatings.uploads.slice(-10);
   duRecord('pea', {file: source, summary: `${incoming.length} ratings · ${added} new`});
   peaPruneOldRatings();
@@ -581,12 +583,18 @@ function peaRosterKey(name){
 
 const peaNameMatchCache = new Map();
 // {match, how: 'linked' | 'exact' | 'auto' | null, candidates}
+// A roster name a manager marked as having no Levelset profile yet (a new
+// hire, say), so it stops showing as unmatched.
+const PEA_NOT_IN_LEVELSET = '__none__';
+
 function peaMatchInfo(rosterName, peaNames){
   const key = rosterName + '\u0000' + peaNames.length;
   if(peaNameMatchCache.has(key)) return peaNameMatchCache.get(key);
   let info;
   const linked = peaNameAliases[peaRosterKey(rosterName)];
-  if(linked && peaNames.includes(linked)){
+  if(linked === PEA_NOT_IN_LEVELSET){
+    info = {match: null, how: 'none', candidates: []};
+  } else if(linked && peaNames.includes(linked)){
     info = {match: linked, how: 'linked', candidates: [linked]};
   } else {
     const exact = peaNames.find(n => peaRosterKey(n) === peaRosterKey(rosterName));
@@ -641,8 +649,9 @@ function renderPeaNameMatching(){
   if(!roster.length){ root.innerHTML = '<p class="pea-muted">No HotSchedules names yet — import a roster in Team & Scheduling.</p>'; return; }
 
   const rows = roster.map(r => ({...r, info: peaMatchInfo(r.name, peaNames)}));
-  const unmatched = rows.filter(r => !r.info.match);
+  const unmatched = rows.filter(r => !r.info.match && r.info.how !== 'none');
   const linked = rows.filter(r => r.info.how === 'linked');
+  const noProfile = rows.filter(r => r.info.how === 'none');
   const auto = rows.filter(r => r.info.how === 'auto');
   const matchedPea = new Set(rows.map(r => r.info.match).filter(Boolean));
   const notOnRoster = peaNames.filter(n => !matchedPea.has(n));
@@ -651,13 +660,13 @@ function renderPeaNameMatching(){
   const options = name=>{
     const suggested = peaSuggestedNames(name, peaNames).filter(n => !matchedPea.has(n));
     const rest = peaNames.filter(n => !suggested.includes(n));
-    return `<option value="">Link to a Levelset name…</option>` +
+    return `<option value="">Link to a Levelset name…</option><option value="${PEA_NOT_IN_LEVELSET}">Not in Levelset yet (new hire)</option>` +
       (suggested.length ? `<optgroup label="Suggested">${suggested.map(n => `<option>${escapeHtml(n)}</option>`).join('')}</optgroup>` : '') +
       `<optgroup label="Everyone in Levelset">${rest.map(n => `<option>${escapeHtml(n)}</option>`).join('')}</optgroup>`;
   };
 
   root.innerHTML = `
-    <p class="pea-muted pea-note">${rows.length} HotSchedules names checked · ${rows.length - unmatched.length} matched to Levelset · <b class="${unmatched.length ? 'pea-notyet-text' : 'pea-crushing-text'}">${unmatched.length} with no match</b>. Unmatched people show as Unrated when a set up is evaluated.</p>
+    <p class="pea-muted pea-note">${rows.length} HotSchedules names checked · ${rows.length - unmatched.length - noProfile.length} matched to Levelset${noProfile.length ? ` · ${noProfile.length} not in Levelset yet` : ''}${unmatched.length ? ` · <b class="pea-notyet-text">${unmatched.length} to match</b>. Unmatched people show as Unrated in Set Ups.` : '.'}</p>
     ${unmatched.length ? `
       <div class="pea-match-list">
         ${unmatched.map(r => `
@@ -665,10 +674,12 @@ function renderPeaNameMatching(){
             <div><b>${escapeHtml(r.name)}</b><span class="pea-muted">${r.info.candidates.length > 1 ? ` · could be ${r.info.candidates.length} people` : ''}${seenLabel(r.date)}</span></div>
             <select data-pea-alias="${escapeHtml(r.name)}">${options(r.name)}</select>
           </div>`).join('')}
-      </div>` : '<p class="pea-crushing-text" style="font-size:12px;font-weight:600;">✓ Every roster name has a Levelset match.</p>'}
-    ${linked.length ? `
-      <div class="pea-group-label" style="margin-top:14px;">Linked by hand</div>
-      ${linked.map(r => `<div class="pea-match-row"><div>${escapeHtml(r.name)} → <b>${escapeHtml(r.info.match)}</b></div><button type="button" class="btn btn-ghost pea-unlink" data-pea-unlink="${escapeHtml(r.name)}">Unlink</button></div>`).join('')}` : ''}
+      </div>` : '<p class="pea-all-matched">✓ All names are matched.</p>'}
+    ${linked.length || noProfile.length ? `
+      <details class="pea-match-details"><summary>Linked by hand (${linked.length + noProfile.length})</summary>
+        ${linked.map(r => `<div class="pea-match-row"><div>${escapeHtml(r.name)} → <b>${escapeHtml(r.info.match)}</b></div><button type="button" class="btn btn-ghost pea-unlink" data-pea-unlink="${escapeHtml(r.name)}">Unlink</button></div>`).join('')}
+        ${noProfile.map(r => `<div class="pea-match-row"><div>${escapeHtml(r.name)} → <span class="pea-muted">not in Levelset yet</span></div><button type="button" class="btn btn-ghost pea-unlink" data-pea-unlink="${escapeHtml(r.name)}">Undo</button></div>`).join('')}
+      </details>` : ''}
     ${auto.length ? `
       <details class="pea-match-details"><summary>Matched automatically with a different spelling (${auto.length}) — check these</summary>
         ${auto.map(r => `<div class="pea-match-row"><div>${escapeHtml(r.name)} → <b>${escapeHtml(r.info.match)}</b></div></div>`).join('')}
@@ -687,7 +698,7 @@ document.getElementById('peaNameMatchRoot').addEventListener('change', async e=>
   peaNameAliases[peaRosterKey(sel.dataset.peaAlias)] = sel.value;
   peaNameMatchCache.clear();
   await saveState();
-  showToast(`✓ Linked ${sel.dataset.peaAlias} → ${sel.value}`);
+  showToast(sel.value === PEA_NOT_IN_LEVELSET ? `✓ ${sel.dataset.peaAlias} marked as not in Levelset yet` : `✓ Linked ${sel.dataset.peaAlias} → ${sel.value}`);
   renderPeaNameMatching();
 });
 document.getElementById('peaNameMatchRoot').addEventListener('click', async e=>{
@@ -779,12 +790,17 @@ function renderPeaCoverage(){
   const months = weeks.map(w => `<span>${monthLabel(w)}</span>`).join('');
 
   const firstCovered = PEA_AREAS.map(a => (peaRatings.coverage[a][0] || [])[0]).filter(Boolean).sort()[0] || weeks[0].start;
+  // The Levelset sync covers its last 90 days on its own; older gaps can
+  // only be filled with a PDF for those dates.
+  const sync = typeof peaLastSync === 'function' ? peaLastSync() : null;
+  const syncNote = sync && sync.rangeStart ? `<div class="pea-cov-note">Synced from Levelset ${new Date(sync.at).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})} — covers ${peaFormatDate(sync.rangeStart)} – ${peaFormatDate(sync.rangeEnd, true)} without uploads.${(sync.warnings || []).length ? ` <span class="pea-muted">⚠ ${escapeHtml(sync.warnings.join(' '))}</span>` : ''}</div>` : '';
   const headline = inner.length
     ? `<div class="pea-cov-head is-bad">⚠ ${inner.length} gap${inner.length === 1 ? '' : 's'} in your uploads — some dates have never been uploaded.</div>`
     : `<div class="pea-cov-head is-good">✓ No gaps — uploads cover every day from ${peaFormatDate(firstCovered, true)} to ${lastCovered ? peaFormatDate(lastCovered, true) : 'today'}.</div>`;
 
   root.innerHTML = `
     ${headline}
+    ${syncNote}
     <div class="pea-cov-chart" role="img" aria-label="Ratings per week, ${weeks.length} weeks">${bars}</div>
     <div class="pea-cov-months" aria-hidden="true">${months}</div>
     <div class="pea-cov-key">
@@ -797,7 +813,7 @@ function renderPeaCoverage(){
       <div class="pea-cov-list is-bad">
         <b>Missing uploads</b>
         <ul>${inner.map(g => `<li>${peaRangeText(g.start, g.end)}${g.areas.length < PEA_AREAS.length ? ` — ${g.areas.join(', ')} missing (${PEA_AREAS.filter(a => !g.areas.includes(a)).join(', ')} uploaded)` : ''}</li>`).join('')}</ul>
-        <span class="pea-muted">In Levelset, run the Positional Excellence Ratings report for these dates (FOH and BOH) and upload it. Ratings already saved are skipped.</span>
+        <span class="pea-muted">${sync ? 'These are older than the Levelset sync reaches (90 days). ' : ''}In Levelset, run the Positional Excellence Ratings report for these dates (FOH and BOH) and upload it. Ratings already saved are skipped.</span>
       </div>` : ''}
     ${quiet.length ? `
       <div class="pea-cov-list is-warn">
@@ -805,6 +821,6 @@ function renderPeaCoverage(){
         <ul>${quiet.map(w => `<li>Week of ${peaFormatDate(w.start, true)} — ${w.count} rating${w.count === 1 ? '' : 's'}</li>`).join('')}</ul>
         <span class="pea-muted">These weeks were uploaded — leaders just completed few PEAs then. Nothing to re-upload.</span>
       </div>` : ''}
-    ${trailing && sinceDays !== null ? `<div class="pea-cov-note ${sinceDays > 45 ? 'is-warn' : ''}">Latest upload covers through ${peaFormatDate(lastCovered, true)}${sinceDays > 0 ? ` (${sinceDays} day${sinceDays === 1 ? '' : 's'} ago)` : ''}.${sinceDays > 45 ? ' Upload a new report soon so this stretch doesn’t become a gap.' : ''}</div>` : ''}
+    ${trailing && sinceDays !== null ? `<div class="pea-cov-note ${sinceDays > 45 ? 'is-warn' : ''}">Latest upload or sync covers through ${peaFormatDate(lastCovered, true)}${sinceDays > 0 ? ` (${sinceDays} day${sinceDays === 1 ? '' : 's'} ago)` : ''}.${sinceDays > 45 ? ' Upload a new report soon so this stretch doesn’t become a gap.' : ''}</div>` : ''}
   `;
 }
