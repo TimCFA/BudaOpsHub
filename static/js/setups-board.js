@@ -12,6 +12,9 @@
 
 // Zones, in display order. A slot goes in the first zone whose pattern
 // matches its name; everything else is "Extra hands". Tim may regroup these.
+// BOH (Tim): three zones — Primary (with Fries), Secondary (with
+// Biscuit/Eggs) and Raw (Breaders, Machines, Filters). "Primary/Machines"
+// counts as Primary. Prep, Dishes, Floors and Breaks are extra hands.
 const SU_ZONES = {
   foh: [
     {key: 'ipos', name: 'iPOS', re: /ipos/i},
@@ -21,11 +24,9 @@ const SU_ZONES = {
     {key: 'host', name: 'Host', re: /host|din+ing|restroom|outside/i}
   ],
   boh: [
-    {key: 'breading', name: 'Breading', re: /breader/i},
-    {key: 'primary', name: 'Primary & Machines', re: /primar|machines/i},
-    {key: 'secondary', name: 'Secondary', re: /secondar/i},
-    {key: 'fries', name: 'Fries', re: /fries/i},
-    {key: 'prep', name: 'Prep', re: /prep|biscuit|eggs|dishes|filters/i}
+    {key: 'primary', name: 'Primary', re: /primar|fries/i},
+    {key: 'secondary', name: 'Secondary', re: /secondar|biscuit|eggs/i},
+    {key: 'raw', name: 'Raw', re: /breader|machines|filters/i}
   ]
 };
 const SU_EXTRA_ZONE = {key: 'extra', name: 'Extra hands'};
@@ -322,10 +323,11 @@ function suPersonSheetHtml(section, date, dp, dpIndex, m, slot){
 
   const stats = `<div class="su-stats">
     ${t.positions.length ? stat(escapeHtml(posLabel), t.cell ? t.cell.avg.toFixed(2) : '—', t.cell ? `${escapeHtml(t.cell.tier.label)} · ${t.cell.total} rating${t.cell.total === 1 ? '' : 's'}` : 'Not rated here', t.cell ? 'is-' + t.cell.tier.key : '') : stat('Spot', '—', 'Not a Levelset position')}
-    ${stat('Green', cert ? `${cert.green} / ${cert.total}` : '—', 'positions')}
+    ${stat('Green', cert ? `${cert.green} / ${cert.total}` : '—', cert && cert.allGreen ? 'all green' : 'positions', cert && cert.allGreen ? 'is-crushing' : '')}
     ${stat('Last PEA', last ? `${suDaysBetween(last, today)}d` : '—', last ? peaFormatDate(last) : person ? 'no position ratings' : 'no Levelset match')}
   </div>`;
 
+  const greenNote = cert && cert.allGreen && !SU_LEADER_ROLES.includes(person.role) ? '<div class="su-note is-green"><b>All green.</b> Ready for certification, or already certified.</div>' : '';
   const devNote = pick ? `<div class="su-note is-dev"><b>★ Develop today.</b> ${escapeHtml(pick.reasons.join('; '))}${pick.pair ? ` — pair with ${escapeHtml(pick.pair.name)}` : ''}${pick.peaDue && pick.target ? `, then complete a ${escapeHtml(pick.target.pos)} PEA` : ''}.</div>` : '';
 
   let fallBehind = '';
@@ -352,6 +354,7 @@ function suPersonSheetHtml(section, date, dp, dpIndex, m, slot){
       <div><div class="su-person-name">${escapeHtml(name)}</div><div class="su-person-sub">${escapeHtml(suShortDaypart(dp.name))}${t.names.length > 1 ? ` · then ${escapeHtml(t.names.slice(1).join(', '))}` : ''}${person && person.role ? ` · ${escapeHtml(person.role)}` : ''}</div></div>
     </div>
     ${stats}
+    ${greenNote}
     ${devNote}
     ${fallBehind}
     <div class="su-person-actions">

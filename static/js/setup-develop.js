@@ -96,11 +96,14 @@ function suDayTypeBadge(section, date, dp){
 
 // ----- Develop this shift -----
 
-// Certified ("all-green") = Crushing It in every position of their area.
+// All green = Crushing It in every position of their area. Tim: all green on
+// their PEAs means ready for certification or already certified — the goal
+// for every team member who isn't certified yet. (PEAs can't tell those two
+// apart, so the app treats both as the goal reached.)
 function suCertification(person, section){
   const positions = (PEA_POSITION_GROUPS.find(g => g.key === section) || {positions: []}).positions;
   const green = positions.filter(p => person && person.positions[p] && person.positions[p].tier.key === 'crushing');
-  return {green: green.length, total: positions.length, missing: positions.filter(p => !green.includes(p)), certified: green.length === positions.length};
+  return {green: green.length, total: positions.length, missing: positions.filter(p => !green.includes(p)), allGreen: green.length === positions.length};
 }
 
 // A position where repeated ratings aren't moving: 3+ ratings, not green,
@@ -154,12 +157,12 @@ function developShift(section, date, dp, dpIndex){
 
   const candidates = people.filter(p => p.person && !SU_LEADER_ROLES.includes(p.person.role)).map(p=>{
     const cert = suCertification(p.person, section);
-    if(cert.certified) return null;
+    if(cert.allGreen) return null;
     const reasons = [];
     let score = 0;
     const stalled = suStalledPositions(p.peaName, section);
     if(stalled.length){ score += 3; reasons.push(`stalled on ${stalled.map(s => `${s.pos} (${s.n} ratings)`).join(', ')}`); }
-    if(cert.total - cert.green <= 2){ score += 2; reasons.push(`${cert.green} of ${cert.total} green — close to certified`); }
+    if(cert.total - cert.green <= 2){ score += 2; reasons.push(`${cert.green} of ${cert.total} green — close to all green`); }
     const last = suLastPositionalRating(p.person, section);
     if(!last){ score += 2; reasons.push('no position ratings yet'); }
     else {
