@@ -362,12 +362,17 @@ function rpLxLinks(){
   return links;
 }
 
-// Copies the linked values into lxMetrics. The drive-thru status follows its
-// "Top N" standard: in the top N meets it (or stays Exceeding if a leader set
-// that), outside is Below. Food safety's status stays a leader's call.
+// The Food Safety Score standard: 1 (Elite). Lower is better on that scale.
+const RP_LX_FOOD_SAFETY_STANDARD = '1';
+
+// Copies the linked values into lxMetrics. Each status follows its standard:
+// drive-thru in the top N, food safety at or below the standard score, meets
+// it (or stays Exceeding if a leader set that); otherwise Below.
 // Returns whether anything changed.
 function rpSyncLx(){
   let changed = false;
+  const fsMetric = Array.isArray(lxMetrics) ? lxMetrics.find(m => /food safety/i.test(m.name)) : null;
+  if(fsMetric && fsMetric.standard !== RP_LX_FOOD_SAFETY_STANDARD){ fsMetric.standard = RP_LX_FOOD_SAFETY_STANDARD; changed = true; }
   rpLxLinks().forEach(({index, kind})=>{
     const m = lxMetrics[index];
     let value = m.value, rating = m.rating;
@@ -380,6 +385,8 @@ function rpSyncLx(){
       const raw = String(gxData.satisfaction.foodSafety.value).trim();
       const tier = rpFoodSafetyTier(raw);
       value = tier ? `${raw} · ${tier.label}` : raw;
+      const score = parseFloat(raw), goal = parseFloat(m.standard);
+      if(!isNaN(score) && !isNaN(goal)) rating = score <= goal ? (m.rating === 3 ? 3 : 2) : 1;
     }
     if(value !== m.value || rating !== m.rating){ m.value = value; m.rating = rating; changed = true; }
   });
