@@ -318,6 +318,18 @@ document.getElementById('eoiForm').addEventListener('submit', async (e)=>{
   showToast('✓ Expression of Interest Submitted!');
 });
 
+function renderHomeQuote(){
+  const quote = homeQuoteForToday();
+  document.getElementById('homeQuote').textContent = '\u201c' + quote.text + '\u201d';
+  document.getElementById('homeQuoteAuthor').textContent = '— ' + quote.author;
+  document.getElementById('homeQuoteSource').textContent = quote.source;
+}
+
+document.getElementById('homeQuoteBox').addEventListener('click', ()=>{
+  homeQuoteOffset++;
+  renderHomeQuote();
+});
+
 function renderHomeScoreboard(){
   const hour = new Date().getHours();
   let greeting = '';
@@ -325,13 +337,8 @@ function renderHomeScoreboard(){
   else if(hour < 17) greeting = 'Good Afternoon';
   else greeting = 'Good Evening';
   
-  const allQuotes = [...truettQuotes, ...motivationalMessages];
-  const quoteIndex = Math.floor(Math.random() * allQuotes.length);
-  const quote = allQuotes[quoteIndex];
-  
   document.getElementById('homeGreeting').textContent = greeting;
-  document.getElementById('homeQuote').textContent = quote.text;
-  document.getElementById('homeQuoteAuthor').textContent = '— ' + quote.author;
+  renderHomeQuote();
   
   const vmvContainer = document.getElementById('homeVMVContainer');
   
