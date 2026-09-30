@@ -29,6 +29,8 @@ function renderLXScoreboard(){
   }).join('');
 
   const metricsTable = document.getElementById('metricsTable');
+  // Values linked to uploads / the Guest Obsession score (report-uploads.js).
+  if(typeof rpSyncLx === 'function') rpSyncLx();
   const headerHtml = `
     <thead>
       <tr>
@@ -108,6 +110,16 @@ function renderLXManage(){
       </div>
     </div>
   `).join('');
+  // Linked metrics: the value comes from elsewhere, shaded and read-only.
+  (typeof rpLxLinks === 'function' ? rpLxLinks() : []).forEach(({index, kind, title})=>{
+    const el = document.getElementById('metric-val-' + index);
+    if(!el) return;
+    el.value = lxMetrics[index].value;
+    el.readOnly = true;
+    el.classList.add('gx-auto');
+    el.title = title;
+    el.parentElement.insertAdjacentHTML('afterend', `<div class="lx-link-note">${escapeHtml(kind === 'dt' ? 'Automatic from the chain ranking upload — the status follows the Top 100 standard.' : 'Follows the Food Safety score in Guest Obsession — type it there.')}</div>`);
+  });
 }
 
 // Guest Obsession fields the CEM upload fills (data-uploads.js
@@ -439,6 +451,7 @@ async function saveGXScoreboard(){
   gxData.teamMembers.attentiveCourteous.value = document.getElementById('gx-team-attentive').value;
 
   gxData.lastUpdated = new Date().toISOString();
+  if(typeof rpSyncLx === 'function' && rpSyncLx()) renderLXScoreboard();   // LX Food Safety Score follows this one
   await saveState();
   renderGXScoreboard();
   showToast('✓ Guest Obsession Scoreboard Updated');

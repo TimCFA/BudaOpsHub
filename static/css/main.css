@@ -1741,6 +1741,7 @@
   .gx-auto{background:#EEF6EF !important;color:#1E5631;cursor:default;}
   .gx-source-note{font-size:12px;line-height:1.5;color:var(--text-secondary);background:#F4F8F4;border:1px solid #D7E8D9;border-radius:8px;padding:10px 12px;margin-bottom:12px;}
   .gx-source-note b{color:var(--text-primary);}
+  .lx-link-note{font-size:11px;color:#1E5631;margin-top:6px;}
   .rp-summary{margin:6px 0 2px;display:grid;gap:4px;}
   .rp-sub{color:var(--text-secondary);font-weight:400;}
   .rp-fs-card summary{cursor:pointer;font-size:14px;line-height:1.5;}
