@@ -18,6 +18,7 @@ async function checkPin(){
     const result = await res.json();
     if(res.ok && result.success){
       await stateLoaded;
+      await launchSetManager(true);
       document.getElementById('pinGate').style.display = 'none';
       document.getElementById('manageContent').style.display = 'block';
       renderManage();
@@ -32,10 +33,11 @@ async function checkPin(){
 }
 
 document.getElementById('btnLock').addEventListener('click', async ()=>{
+  await saveState();
   await fetch(`${API_BASE}/api/manager/logout`, {method: 'POST'});
-  document.getElementById('pinGate').style.display = 'block';
-  document.getElementById('manageContent').style.display = 'none';
-  document.getElementById('pinInput').value = '';
+  // Start over as a team member's device: private data (PEA, people) is
+  // cleared from the page, and launch mode applies again.
+  location.reload();
 });
 
 (async function checkManagerStatus(){
@@ -44,6 +46,7 @@ document.getElementById('btnLock').addEventListener('click', async ()=>{
     const {isManager} = await res.json();
     if(isManager){
       await stateLoaded;
+      await launchSetManager(true);
       document.getElementById('pinGate').style.display = 'none';
       document.getElementById('manageContent').style.display = 'block';
       renderManage();

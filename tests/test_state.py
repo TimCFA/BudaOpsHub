@@ -193,8 +193,33 @@ class PatchTest(unittest.TestCase):
         return client.post('/api/state/patch', json={'patches': {name: {'ver': ver, 'ops': ops}}}, **kw)
 
     def test_load_gives_versions_and_build(self):
-        self.assertEqual(set(self.loaded['versions']), set(appmod.STATE_SECTIONS))
+        # Without a manager session, the private sections aren't sent.
+        self.assertEqual(set(self.loaded['versions']), set(appmod.STATE_SECTIONS) - set(appmod.PRIVATE_SECTIONS))
         self.assertTrue(self.loaded['build'])
+
+    def test_private_sections_only_for_managers(self):
+        store['state/pea'] = json.dumps({'peaRatings': {'names': ['Test Person'], 'rows': []}})
+        store['state/people'] = json.dumps({'eoiSubmissions': [{'id': 'x', 'why': 'private'}]})
+        appmod._cache.clear()
+        for route, body in (('/api/state/load', {}), ('/api/state/sync', {'versions': {}})):
+            reply = self.a.post(route, json=body).get_json()
+            self.assertFalse(set(appmod.PRIVATE_SECTIONS) & set(reply['sections']), route)
+            self.assertFalse(set(appmod.PRIVATE_SECTIONS) & set(reply['versions']), route)
+            self.assertNotIn('Test Person', json.dumps(reply))
+        with self.a.session_transaction() as sess:
+            sess['manager'] = True
+        reply = self.a.post('/api/state/load', json={}).get_json()
+        self.assertIn('pea', reply['sections'])
+        self.assertIn('people', reply['sections'])
+
+    def test_team_device_cannot_change_people_data(self):
+        store['state/people'] = json.dumps({'eoiSubmissions': [{'id': 'x'}]})
+        appmod._cache.clear()
+        self.a.post('/api/state/load', json={})
+        r = self.patch(self.a, 'people', '?', [{'o': 'set', 'p': ['eoiSubmissions'], 'v': []}]).get_json()
+        self.assertEqual(section('people')['eoiSubmissions'], [{'id': 'x'}])
+        self.assertIn('eoiSubmissions', r['managerFieldsIgnored'])
+        self.assertNotIn('people', r['sections'])    # and it isn't sent back to them
 
     def test_two_phones_log_waste_at_once(self):
         v = self.ver('waste')

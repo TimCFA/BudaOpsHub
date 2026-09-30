@@ -70,7 +70,12 @@ class ProxySecurityTest(unittest.TestCase):
         self.assertIn('appState', store)
         self.assertEqual(store['secure/managerPinHash'], PIN_HASH)
 
-    def test_app_state_read_still_works(self):
+    def test_app_state_read_is_for_managers(self):
+        # The old single-blob copy holds private data (PEA, EOIs).
+        r = self.post('/api/firebase/read', {'path': 'appState'})
+        self.assertEqual(r.status_code, 403)
+        with self.c.session_transaction() as sess:
+            sess['manager'] = True
         r = self.post('/api/firebase/read', {'path': 'appState'})
         self.assertEqual(r.status_code, 200)
         self.assertEqual(json.loads(r.get_json())['entries'], [1])

@@ -47,7 +47,17 @@ MANAGER_ONLY_KEYS = {
     'gxData', 'txData', 'homeData',
     'peaRatings', 'peaNameAliases',
     'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData',
+    'launchMode',
+    # People data (below): private, so only a manager session changes it.
+    'eoiSubmissions', 'trainerTrainees', 'trainerProgress', 'teamLeadTrainees',
+    'teamLeadProgress', 'scoreboardItems',
 }
+
+# Sections sent only to a manager session: PEA ratings, and people data
+# (Expression of Interest submissions, trial progress). Anyone else gets
+# every other section; the page treats one it never received as unknown and
+# never saves it (storage.js), and the keys in them are manager-only above.
+PRIVATE_SECTIONS = ('pea', 'people')
 
 def _changed_manager_fields(old_state, new_state):
     return sorted(
@@ -73,7 +83,8 @@ STATE_ROOT = 'state'
 STATE_SECTIONS = {
     'manager': ['wasteTarget', 'safeTarget', 'products', 'deletedProductIds', 'productFixesVersion',
                 'productCategoryOrder', 'lxPillars', 'lxMetrics', 'lxLastUpdated', 'gxData', 'txData',
-                'homeData', 'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData'],
+                'homeData', 'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData',
+                'launchMode'],
     'pea': ['peaRatings', 'peaNameAliases'],
     'rosters': ['fohRoster', 'bohRoster'],
     'setups': ['posAssignments', 'posVacancyFlags', 'setupDayTypes', 'lastUpdated',
@@ -364,10 +375,12 @@ def pea_levelset_sync():
 # ===== STATE ROUTES (sections) =====
 
 def _state_reply(names):
-    """Sections (as JSON strings), every section's version, and the build."""
+    """Sections (as JSON strings), every section's version, and the build.
+    Private sections go to manager sessions only."""
+    shown = lambda name: session.get('manager') or name not in PRIVATE_SECTIONS
     return {
-        'sections': {name: _dumps(_cache[name]['data']) for name in names},
-        'versions': {name: entry['ver'] for name, entry in _cache.items()},
+        'sections': {name: _dumps(_cache[name]['data']) for name in names if shown(name)},
+        'versions': {name: entry['ver'] for name, entry in _cache.items() if shown(name)},
         'build': BUILD,
     }
 
@@ -530,6 +543,9 @@ def state_save():
 
 @app.route('/api/firebase/read', methods=['POST'])
 def firebase_read():
+    # The old single-blob copy holds everything, private data included.
+    if not session.get('manager'):
+        return jsonify({'error': 'Manager sign-in required'}), 403
     path, error = _state_path_or_error(request.get_json(silent=True))
     if error:
         return error
