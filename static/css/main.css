@@ -1579,6 +1579,14 @@
   .su-sheet-list .su-row.is-open:not(.is-needed){--zt:#FAFAF8;}
   .su-sheet-list .su-row.is-open:not(.is-needed) .su-row-slot{opacity:0.75;}
   .su-row-rank{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;margin-right:8px;border-radius:6px;background:var(--su-card);color:var(--zc);font-size:11px;font-weight:800;font-variant-numeric:tabular-nums;box-shadow:0 0 0 1px rgba(0,0,0,0.06);vertical-align:1px;}
+  /* PEA tier of the person in their placed position. */
+  .su-tier-dot{display:inline-block;flex:0 0 auto;width:11px;height:11px;border-radius:50%;margin-right:7px;box-shadow:0 0 0 1px rgba(0,0,0,0.12);vertical-align:1px;}
+  .su-tier-dot.is-crushing{background:var(--su-crushing);}
+  .su-tier-dot.is-rise{background:var(--su-rise);}
+  .su-tier-dot.is-notyet{background:var(--su-notyet);}
+  .su-tier-dot.is-unrated{background:transparent;box-shadow:inset 0 0 0 2px #A9A298;}
+  .su-tier-key{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--su-muted);padding:2px 6px;}
+  .su-tier-key span{display:inline-flex;align-items:center;}
   .su-sheet-zone{background:var(--su-card);border-radius:16px;padding:6px 12px 8px;box-shadow:0 1px 0 var(--su-line);}
   .su-sheet-zone h3{font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--su-muted);padding:6px 0 4px;}
   .su-row{display:grid;grid-template-columns:minmax(0,44%) minmax(0,1fr);align-items:center;gap:10px;width:100%;min-height:44px;border:0;border-top:1px solid var(--su-line);background:transparent;padding:6px 2px;text-align:left;font-family:inherit;color:var(--su-ink);cursor:pointer;}

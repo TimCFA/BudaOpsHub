@@ -33,7 +33,25 @@ function suSheetNameHtml(t, brk){
   const note = t.timeNote ? `<span class="su-row-note ${t.timeNote.warn ? 'is-warn' : ''}">${escapeHtml(t.timeNote.text)}</span>` : '';
   const flag = t.flagged ? '<span class="su-row-note is-warn">needs coverage</span>' : '';
   const brkNote = brk ? `<span class="su-row-note is-break" title="Planned 30-minute break">☕ ${suClock(brk)}</span>` : '';
-  return `<span class="su-row-who">${escapeHtml(who)}${lead}</span>${note}${brkNote}${flag}`;
+  return `<span class="su-row-who">${suTierDotHtml(t)}${escapeHtml(who)}${lead}</span>${note}${brkNote}${flag}`;
+}
+
+// PEA in the position they're placed in, as a dot before the name: green
+// Crushing It, yellow On the Rise, red Not Yet, a hollow ring when they've
+// never been rated there. Only where PEA ratings are loaded (a manager
+// device); nothing for spots Levelset doesn't rate.
+const SU_TIER_LABELS = {crushing: 'Crushing It', rise: 'On the Rise', notyet: 'Not Yet'};
+function suTierDotHtml(t){
+  if(!peaRatings.rows.length || !['crushing', 'rise', 'notyet', 'unrated'].includes(t.tier)) return '';
+  const where = (t.positions || []).join(' / ');
+  const title = t.tier === 'unrated' ? `Not rated${where ? ` on ${where}` : ''} yet`
+    : `${SU_TIER_LABELS[t.tier]}${t.cell ? ` · ${t.cell.avg.toFixed(2)}` : ''}${where ? ` on ${where}` : ''}`;
+  return `<span class="su-tier-dot is-${t.tier}" role="img" aria-label="${escapeHtml(title)}" title="${escapeHtml(title)}"></span>`;
+}
+
+function suTierKeyHtml(){
+  if(!peaRatings.rows.length) return '';
+  return `<div class="su-tier-key" aria-hidden="true"><span><i class="su-tier-dot is-crushing"></i>Crushing It</span><span><i class="su-tier-dot is-rise"></i>On the Rise</span><span><i class="su-tier-dot is-notyet"></i>Not Yet</span><span><i class="su-tier-dot is-unrated"></i>Not rated</span></div>`;
 }
 
 // The open daypart card's body in the Set up view: the positions, zone by
@@ -68,7 +86,7 @@ function suSheetViewHtml(section, date, dp, dpIndex, m){
         ${showAll && m.headcount && upTo > Math.max(m.headcount, lastFilled) ? `<button type="button" class="su-zone-more" data-su-zone-less="all">Hide open extras</button>` : ''}
       </section>`;
 
-  return `<div class="su-sheet-table">${zones}</div>`;
+  return `<div class="su-sheet-table">${zones}</div>${suTierKeyHtml()}`;
 }
 
 // A filled row in the sheet view: who, when, and the quick actions — no
