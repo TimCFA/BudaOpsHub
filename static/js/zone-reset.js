@@ -292,12 +292,15 @@ const zoneResetDayparts = [
   {name: 'Close', time: '21:00'},
 ];
 
+// FOH positions per daypart, in the Google Sheet set up's priority order (top
+// = most important). Set Ups lists them in this order and never lets a spot
+// be skipped for one lower down.
 const fohPositions = {
   'Early Breakfast (6:00-8:00)': ['iPOS 1 LANE 1', 'iPOS 2 LANE 2', 'DT Bagger 1', 'Drinks 1', 'OMD 1', 'Drinks 3 / Runner', 'Host 1'],
   'Breakfast (8:00-11:00)': ['iPOS 1 (Captain)', 'iPOS 2 LANE 2', 'DT Bagger 1', 'Drinks 1', 'OMD 1', 'Host 1', 'FC Bagger', 'Drinks 3', 'DT Bagger 2', 'iPOS 3 LANE 3', 'Runner', 'Host 2', 'Drinks 2', 'iPOS 4 LANE 1'],
   'Lunch (11:00-2:00)': ['iPOS 1 (Captain)', 'iPOS 2 LANE 1', 'iPOS 3 LANE 2', 'iPOS 4 LANE 1', 'iPOS 5 LANE 2', 'DT Bagger 1 (Cockpit Cap)', 'DT Bagger 2', 'Drinks 1', 'Drinks 2/Sample Prep', 'OMD 1', 'OMD 2', 'FC Bagger', 'Drinks 3', 'Host 1 (Captain)', 'Host 2', 'Runner', 'Surfer', 'iPOS 6 LANE 1', 'OMD 3', 'Host 3', 'Host 4', 'iPOS 7 LANE 2', 'Traffic Lane 1', 'iPOS 8 LANE 2', 'DT Bagger 4'],
-  'Transition (1:00-2:00)': ['iPOS 1 (Captain)', 'iPOS 2 LANE 2', 'iPOS 3 LANE 1', 'DT Bagger 1 (Cockpit Cap)', 'FC Bagger', 'OMD 1', 'Host 1 (Captain)', 'Drinks 1', 'Drink 3', 'Drinks Zone', 'Bagging Zone', 'Front Counter Zone', 'Dinning Room', 'Restroom Zone', 'Lemonades', 'Pouches'],
-  'Afternoon (2:00-5:00)': ['iPOS 1 (Captain)', 'iPOS 2 LANE 2', 'iPOS 3 LANE 1', 'Drinks 1', 'OMD 1', 'Host 1', 'FC Bagger', 'Drink 3', 'Host 2', 'Runner', 'iPOS 4 LANE 2', 'DT Bagger 2', 'Drinks 2', 'Shift Lead: Jacob/Nestor', 'Breaks', 'iPOS 5 LANE 1', 'DT Bagger 3', 'Host 3', 'iPOS 6 LANE 3', 'iPOS 7 LANE 1', 'Traffic Lane 1', 'Desserts'],
+  'Transition (1:00-2:00)': ['iPOS 1 (Captain)', 'iPOS 2 LANE 2', 'iPOS 3 LANE 1', 'DT Bagger 1 (Cockpit Cap)', 'FC Bagger', 'OMD 1', 'Host 1 (Captain)', 'Drinks 1', 'Drink 3', 'Runner', 'Drinks Zone', 'Bagging Zone', 'Front Counter Zone', 'Dinning Room', 'Restroom Zone', 'Lemonades', 'Pouches'],
+  'Afternoon (2:00-5:00)': ['iPOS 1 (Captain)', 'iPOS 2 LANE 2', 'iPOS 3 LANE 1', 'DT Bagger 1', 'Drinks 1', 'OMD 1', 'Host 1', 'FC Bagger', 'Drink 3', 'Host 2', 'Runner', 'iPOS 4 LANE 2', 'DT Bagger 2', 'Drinks 2', 'Shift Lead', 'Breaks', 'iPOS 5 LANE 1', 'DT Bagger 3', 'Host 3', 'iPOS 6 LANE 3', 'iPOS 7 LANE 1', 'Traffic Lane 1', 'Desserts'],
   'Dinner (5:00-8:00)': ['iPOS 1 (Captain)', 'iPOS 2 LANE 2', 'iPOS 3 LANE 2', 'iPOS 4 LANE 1', 'iPOS 5 LANE 2', 'DT Bagger 1 (Captain)', 'DT Bagger 2', 'Drinks 1', 'Drinks 2', 'OMD 1', 'OMD 2', 'FC Bagger', 'Drinks 3', 'Host 1', 'Host 2', 'Runner', 'DT Bagger 3', 'Host 3', 'iPOS 6 LANE 3', 'OMD 3', 'iPOS 7 LANE 1', 'Traffic Lane 1', 'iPOS 8 LANE 2', 'DT Bagger 4'],
   'Close (8:00-10:00)': ['iPOS 1 LANE 1', 'iPOS 2 LANE 2', 'DT Bagger 1', 'Drinks 1', 'OMD', 'Host 1', 'FC Bagger', 'Drinks 3', 'Runner', 'Lemonades', 'Drinks Zone', 'Bagging Zone', 'Front Counter Zone', 'Outside Zone', 'Dinning Room', 'Restroom Zone', 'Floors'],
 };

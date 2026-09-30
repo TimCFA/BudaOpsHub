@@ -1521,10 +1521,17 @@
   .su-sheet-table{display:flex;flex-direction:column;gap:10px;}
   /* Set up view: dayparts as cards down the page; the open one shows its set up. */
   .su-dp-list{display:flex;flex-direction:column;gap:10px;}
-  .su-dp{background:var(--su-card);border-radius:16px;box-shadow:0 1px 0 var(--su-line);}
-  .su-dp.is-open{background:transparent;box-shadow:none;}
-  .su-dp-head{display:flex;align-items:center;gap:10px;width:100%;min-height:56px;border:0;background:var(--su-card);border-radius:16px;padding:10px 14px;font-family:inherit;color:var(--su-ink);text-align:left;cursor:pointer;box-shadow:0 1px 0 var(--su-line);}
-  .su-dp.is-open .su-dp-head{background:var(--su-ink);color:#fff;}
+  .su-dp-banner{background:var(--su-card);color:var(--su-ink);border-radius:16px;box-shadow:0 1px 0 var(--su-line);}
+  .su-dp.is-open .su-dp-banner{background:var(--su-ink);color:#fff;}
+  .su-dp-head{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;border:0;background:transparent;border-radius:16px;padding:10px 14px;font-family:inherit;color:inherit;text-align:left;cursor:pointer;}
+  .su-dp-sub{display:flex;align-items:center;gap:10px;padding:0 14px 10px;margin-top:-4px;}
+  .su-dp-lead{flex:1 1 auto;min-width:0;display:flex;align-items:baseline;flex-wrap:wrap;gap:0 8px;border:0;background:transparent;padding:0;min-height:36px;font-family:inherit;font-size:14px;color:inherit;text-align:left;cursor:pointer;}
+  .su-dp-lead em{font-style:normal;color:var(--su-muted);}
+  .su-dp-k{font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--su-muted);}
+  .su-dp-where{color:var(--su-muted);}
+  .su-dp.is-open .su-dp-lead em,.su-dp.is-open .su-dp-k,.su-dp.is-open .su-dp-where{color:rgba(255,255,255,0.7);}
+  .su-dp-fillbtn{flex:0 0 auto;border:0;border-radius:999px;background:var(--su-ink);color:#fff;padding:6px 14px;min-height:34px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+  .su-dp.is-open .su-dp-fillbtn{background:#fff;color:var(--su-ink);}
   .su-dp-name{flex:1 1 auto;min-width:0;font-size:17px;font-weight:700;}
   .su-dp-time{font-size:13px;font-weight:600;color:var(--su-muted);margin-left:4px;white-space:nowrap;}
   .su-dp.is-open .su-dp-time{color:rgba(255,255,255,0.7);}
@@ -1536,6 +1543,26 @@
   .su-dp-body{display:flex;flex-direction:column;gap:10px;padding-top:10px;}
   /* The card header already names the daypart and day type. */
   .su-dp-body .su-sheet-title{display:none;}
+  /* Positions in priority order, tinted by zone: a colored edge and a faint
+     wash per zone, the priority number in a small badge. Needed spots stay
+     red; open extras are quieter. */
+  .su-sheet-list{padding:6px 8px 8px;}
+  .su-sheet-list .su-row-slot{white-space:normal;overflow:visible;line-height:1.3;}
+  .su-sheet-list .su-row{--zc:#8A8580;--zt:#F7F6F4;background:var(--zt);box-shadow:inset 4px 0 0 var(--zc);padding:6px 8px 6px 12px;border-top:2px solid var(--su-card);border-radius:8px;}
+  .su-sheet-list .su-row:first-child{border-top:0;}
+  .su-sheet-list .su-row:hover{filter:brightness(0.97);}
+  .su-row.su-z-ipos{--zc:#3C6FD1;--zt:#F1F5FD;}
+  .su-row.su-z-bagging{--zc:#C58A12;--zt:#FDF7EA;}
+  .su-row.su-z-drinks{--zc:#12908C;--zt:#EDF8F7;}
+  .su-row.su-z-omd{--zc:#3F9142;--zt:#F0F8F0;}
+  .su-row.su-z-host{--zc:#8150C4;--zt:#F6F1FC;}
+  .su-row.su-z-primary{--zc:#C8102E;--zt:#FCEFF1;}
+  .su-row.su-z-secondary{--zc:#DB7A1C;--zt:#FDF3EA;}
+  .su-row.su-z-raw{--zc:#5B6B7C;--zt:#F1F3F6;}
+  .su-sheet-list .su-row.is-needed{--zt:#FCE9E7;}
+  .su-sheet-list .su-row.is-open:not(.is-needed){--zt:#FAFAF8;}
+  .su-sheet-list .su-row.is-open:not(.is-needed) .su-row-slot{opacity:0.75;}
+  .su-row-rank{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;margin-right:8px;border-radius:6px;background:var(--su-card);color:var(--zc);font-size:11px;font-weight:800;font-variant-numeric:tabular-nums;box-shadow:0 0 0 1px rgba(0,0,0,0.06);vertical-align:1px;}
   .su-sheet-zone{background:var(--su-card);border-radius:16px;padding:6px 12px 8px;box-shadow:0 1px 0 var(--su-line);}
   .su-sheet-zone h3{font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--su-muted);padding:6px 0 4px;}
   .su-row{display:grid;grid-template-columns:minmax(0,44%) minmax(0,1fr);align-items:center;gap:10px;width:100%;min-height:44px;border:0;border-top:1px solid var(--su-line);background:transparent;padding:6px 2px;text-align:left;font-family:inherit;color:var(--su-ink);cursor:pointer;}

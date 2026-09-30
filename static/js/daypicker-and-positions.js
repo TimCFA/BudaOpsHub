@@ -314,7 +314,25 @@ function renderPosOptionList(eligible, filterText){
 // name (or Unassign) commits immediately and closes the modal. The board
 // updates first; the save to the server runs behind it (it takes a second or
 // two, and the header's sync status reports how it went).
+// The set up fills in priority order: placing someone lower on the list
+// while a spot above is open puts them in that open spot instead (FOH and
+// BOH lists are in the Google Sheet's priority order).
+function suFirstOpenAbove(posKey){
+  const [section, date, dpName, slot] = posKey.split('||');
+  const slots = ((section === 'foh' ? fohPositions : bohPositions)[dpName]) || [];
+  const at = slots.indexOf(slot);
+  if(at <= 0) return null;
+  return slots.slice(0, at).find(s => !posAssignments[[section, date, dpName, s].join('||')]) || null;
+}
+
 window.commitPosAssignment = function(name){
+  const above = name && !posAssignments[currentPosKey] ? suFirstOpenAbove(currentPosKey) : null;
+  if(above){
+    const parts = currentPosKey.split('||');
+    if(!confirm(`${above} is still open above ${parts[3]}. Spots fill in priority order, so ${name.split(/\s+/)[0]} goes in ${above}. OK?`)) return;
+    parts[3] = above;
+    currentPosKey = parts.join('||');
+  }
   if(name){
     posAssignments[currentPosKey] = name;
     delete posVacancyFlags[currentPosKey];
