@@ -32,6 +32,7 @@ const SU_ZONES = {
 const SU_EXTRA_ZONE = {key: 'extra', name: 'Extra hands'};
 
 let suSelectedDaypart = {foh: '', boh: ''};   // daypart name per section
+let suDaypartClosed = {foh: false, boh: false};   // Set up view: the open daypart card was tapped shut
 let suSelectedDate = '';
 let suExpandedZones = new Set();              // zones showing their optional slots
 let suSheet = null;                           // {kind: 'develop'|'fill'|'evaluate'|'planb'|'person'|'lead', slot}
@@ -64,6 +65,7 @@ function suCurrentDaypart(section, date){
   if(suSelectedDate !== date){
     suSelectedDate = date;
     suSelectedDaypart = {foh: '', boh: ''};
+    suDaypartClosed = {foh: false, boh: false};
     suExpandedZones.clear();
     suSheet = null;
   }
@@ -167,6 +169,35 @@ function suDaypartModel(section, date, dp, dpIndex){
 }
 
 // ----- Pieces -----
+
+// "6/12" — spots filled / people on shift ("3 placed" or "—" with no roster).
+function suDaypartFillText(section, date, dp, i){
+  const posMap = section === 'foh' ? fohPositions : bohPositions;
+  const key = suEvalKey(section, date, dp.name);
+  const filled = (posMap[dp.name] || []).filter(s => posAssignments[key + '||' + s]).length;
+  const onShift = suDaypartTiming(section, date, i).effective;
+  return onShift ? `${filled}/${onShift}` : filled ? `${filled} placed` : '—';
+}
+
+// Set up view: every daypart as a card down the page, one open at a time
+// (the selected daypart, which every tool and pop-up works on). Tap a card
+// to open it; tap the open one to close it.
+function suDaypartCardsHtml(section, date, current, openHtml){
+  return `<div class="su-dp-list">${suDaypartsFor(section).map((dp, i)=>{
+    const open = dp.name === current && !suDaypartClosed[section];
+    const time = (dp.name.match(/\(([^)]*)\)/) || [])[1] || '';
+    const t = suDayType(section, date, dp);
+    return `<section class="su-dp ${open ? 'is-open' : ''}" aria-label="${escapeHtml(suShortDaypart(dp.name))}">
+      <button type="button" class="su-dp-head" data-su-dp-toggle="${escapeHtml(dp.name)}" aria-expanded="${open}">
+        <span class="su-dp-name">${escapeHtml(suShortDaypart(dp.name))}${time ? ` <span class="su-dp-time">${escapeHtml(time)}</span>` : ''}</span>
+        <span class="su-dp-fill">${suDaypartFillText(section, date, dp, i)}</span>
+        <span class="su-sheet-daytype su-${t.type}">${t.type === 'game' ? 'Game' : 'Practice'}</span>
+        <span class="su-dp-chev" aria-hidden="true">▾</span>
+      </button>
+      ${open ? `<div class="su-dp-body">${openHtml}</div>` : ''}
+    </section>`;
+  }).join('')}</div>`;
+}
 
 function suDaypartChipsHtml(section, date, current){
   return `<div class="su-chips" role="tablist" aria-label="Daypart">${suDaypartsFor(section).map((dp, i)=>{
@@ -399,8 +430,7 @@ function renderSetupsBoard(date){
     return `
     <div class="su-board is-sheet">
       ${suModeBarHtml()}
-      ${suDaypartChipsHtml(section, date, dp.name)}
-      ${suSheetViewHtml(section, date, dp, dpIndex, m)}
+      ${suDaypartCardsHtml(section, date, dp.name, suSheetViewHtml(section, date, dp, dpIndex, m))}
       ${suSheetHtml(section, date, dp, dpIndex, m)}
     </div>`;
   }
@@ -461,7 +491,19 @@ function setupsSlotsFor(dpName){
 document.getElementById('allDayparts').addEventListener('click', e=>{
   const t = e.target;
   const daypart = t.closest('[data-su-daypart]');
-  if(daypart){ suSelectedDaypart[currentPosSection] = daypart.dataset.suDaypart; suExpandedZones.clear(); suSheet = null; renderAllDayparts(); return; }
+  if(daypart){ suSelectedDaypart[currentPosSection] = daypart.dataset.suDaypart; suDaypartClosed[currentPosSection] = false; suExpandedZones.clear(); suSheet = null; renderAllDayparts(); return; }
+  const dpToggle = t.closest('[data-su-dp-toggle]');
+  if(dpToggle){
+    const sec = currentPosSection, name = dpToggle.dataset.suDpToggle;
+    if(name === suSelectedDaypart[sec] && !suDaypartClosed[sec]) suDaypartClosed[sec] = true;
+    else { suSelectedDaypart[sec] = name; suDaypartClosed[sec] = false; suExpandedZones.clear(); }
+    suSheet = null;
+    renderAllDayparts();
+    // Keep the tapped card where the finger is.
+    const head = [...document.querySelectorAll('#allDayparts [data-su-dp-toggle]')].find(b => b.dataset.suDpToggle === name);
+    if(head && !suDaypartClosed[sec]) head.scrollIntoView({block: 'nearest'});
+    return;
+  }
   const more = t.closest('[data-su-zone-more]');
   if(more){ suExpandedZones.add(more.dataset.suZoneMore); renderAllDayparts(); return; }
   const less = t.closest('[data-su-zone-less]');
