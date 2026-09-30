@@ -189,9 +189,16 @@ sub "Captain"). "(Captain)" in a slot name marks a captain slot.
 1. **Set Ups** (`#/setups`): header (date chip with Game Day, Saved dot,
    identity chip; title Lunch + window + FOH/BOH; "8 of 13 placed · 2 flags ·
    carried from Breakfast"; daypart chips Breakfast ✓ / Lunch / Afternoon /
-   All ▾; Fill button when open spots exist). Content: Lead Captain + Breaks
-   card; Keep an eye on strip; At 1:00 strip (only when people leave
-   mid-daypart); priority rows. Row: rank, position, sub, flag pill;
+   All ▾). Content: three strips folded to one 48 px line each — "LEAD Sam ·
+   Runner · BREAKS off Maria, back 11:15 ›", "KEEP AN EYE ON Sienna · Emilio ·
+   Tobias ›", "AT 1:00 3 leave · 1 spot to cover ›" (the last only when people
+   leave mid-daypart) — each a button that expands in place (rotation reason,
+   breaks with covers and Move, Lead Captain link; reasons and Develop ›; the
+   per-person lines); then the priority rows, the first starting no lower than
+   470 px so four rows show above the nav. Fill is a bar docked above the
+   bottom nav like the snackbar: a full-width red 48 px "Fill N open spots"
+   while Needed spots exist, hidden while the Fill preview or the snackbar is
+   open, never shown to team members. Row: rank, position, sub, flag pill;
    right: role tag or score chip + first name, note. Tap a Needed row → pick
    sheet; tap a filled row → person sheet (Change / Hand off / Clear / profile);
    tap a flag → pick sheet pre-filtered. Team members (non-leaders) see the
@@ -249,6 +256,10 @@ column with the page background around it.
 - A Playwright script (`prototype/tests/smoke.mjs`, run with the repo's
   Chromium) opens each route at 390×844, asserts no horizontal overflow,
   asserts every `nav a`, `.btn`, `.prow`, `.person`, `.sizes button` is ≥ 44 px
-  tall, walks the flow Set Ups → Drinks 1 → pick Rafael → row pending → saved,
-  Fill → Confirm, Waste tap → snackbar → Undo, Tasks toggle, language switch,
-  and saves screenshots to `prototype/tests/shots/` (git-ignored).
+  tall, asserts the Set Ups board fits above the fold (first `.prow` top ≤ 470
+  px and at least four rows above the nav; strips folded to one line; Fill bar
+  docked above the nav), walks the flow Set Ups → Drinks 1 → pick Rafael → row
+  pending → saved, Fill → Confirm, Waste tap → snackbar → Undo, Tasks toggle,
+  language switch, and saves viewport screenshots (390×844 at 2×, what a phone
+  shows) to `prototype/tests/shots/` (git-ignored), plus `setups-scrolled.png`
+  after scrolling 500 px to show the header sticks and the Fill bar stays.

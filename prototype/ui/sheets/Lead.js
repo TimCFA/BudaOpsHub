@@ -1,6 +1,7 @@
 // Lead Captain + Breaks sheet. Who leads: TLs ordered by rotation (leadCaptainOptions); one tap sets
 // the lead and their working spot (store.setLead). Breaks: off now / next / everyone's planned time,
-// cover, and a Move control per break (store.moveBreak; a hand-moved break sticks).
+// cover, and a Move control per break (store.moveBreak; a hand-moved break sticks). `BreakRow` is
+// exported: the board's Lead/Breaks strip (SetUps.js) shows the breaks off now and next with it.
 import { html, useState } from '../../lib/h.js';
 import { Sheet, SheetSection } from '../components/Sheet.js';
 import { PersonRow } from '../components/Row.js';
@@ -13,7 +14,6 @@ export default function Lead({ ctx, store, state, t, route, go, close }) {
   const { side, dp, board, names, rosterById, leadOptions, leadId, breaks } = ctx;
   const [moving, setMoving] = useState(null);
   const lead = board.lead;
-  const overrides = (state.breakOverrides && state.breakOverrides[side]) || {};
 
   // A Lead Captain is never also a zone captain: a TL captaining a zone is moved off that captain
   // slot first (the zone then shows its honest 'no leader' flag) and works the lead's home spot.
@@ -44,34 +44,6 @@ export default function Lead({ ctx, store, state, t, route, go, close }) {
     return parts.join(' · ');
   };
 
-  const breakRow = (b) => {
-    const name = firstName(b.personId, names);
-    const isMoving = moving === b.personId;
-    const entry = rosterById[b.personId];
-    const starts = isMoving && entry ? legalStarts(entry).filter(x => x % 15 === 0 || x === b.start) : [];
-    const offNow = b.start != null && b.start <= state.now && state.now < b.end;
-    const line = b.start == null ? L(t, 'noBreak')
-      : (b.cover ? L(t, 'breakLine', { t: b.label, cover: firstName(b.cover, names) }) : L(t, 'breakNoCover', { t: b.label }));
-    const past = b.end != null && b.end <= state.now;
-    return html`<div key=${b.personId} style=${'border-top: 1px solid var(--line)' + (past && !isMoving ? '; opacity: .6' : '')}>
-      <div class="row" style="padding: 6px 16px; min-height: 52px; gap: 10px">
-        <span class="col" style="flex: 1">
-          <span class="row" style="gap: 6px"><span class="n" style="font-size: 16px; font-weight: 500">${name}</span>${b.tl ? html`<span class="tag">TL</span>` : null}${offNow ? html`<span class="sc a">${t('onBreak')}</span>` : null}${b.moved ? html`<span class="sub">· ${L(t, 'moved')}</span>` : null}</span>
-          <span class="sub">${line}${b.warn ? html`<span class="amber"> · ${b.warn}</span>` : null}</span>
-        </span>
-        ${b.start != null || entry ? html`<${Chip} line=${!isMoving} dark=${isMoving} onClick=${() => setMoving(isMoving ? null : b.personId)} ariaLabel=${`${L(t, 'moveBreak')} · ${name}`}>${L(t, 'moveBreak')}</${Chip}>` : null}
-      </div>
-      ${isMoving ? html`<div style="padding: 0 16px 10px">
-        <div class="row" style="margin-bottom: 6px"><span class="sub">${L(t, 'pickStart')} · ${shiftLabel(entry)}</span><span class="grow"></span>
-          ${overrides[b.personId] != null ? html`<button type="button" class="textbtn red" style="min-height: 36px" onClick=${() => { store.moveBreak(b.personId, null, { side }); setMoving(null); }}>${L(t, 'resetBreak')}</button>` : null}</div>
-        <div class="row" style="flex-wrap: wrap; gap: 6px">
-          ${starts.map(x => html`<${Chip} key=${x} tall dark=${x === b.start} onClick=${() => { store.moveBreak(b.personId, x, { side }); setMoving(null); store.showToast(`${name} · ${fmt(x)}–${fmt(x + 30)}`); }}>${fmt(x)}</${Chip}>`)}
-          ${!starts.length ? html`<span class="sub">${L(t, 'noBreak')}</span>` : null}
-        </div>
-      </div>` : null}
-    </div>`;
-  };
-
   const off = breaks.offNow.map(b => L(t, 'offNowLine', { name: firstName(b.personId, names), t: fmt(b.end) }) + (b.cover ? ` (${t('covers', { name: firstName(b.cover, names) })})` : ''));
   const next = breaks.next.map(b => `${firstName(b.personId, names)} ${fmt(b.start)}${b.cover ? ` (${t('covers', { name: firstName(b.cover, names) })})` : ''}`);
 
@@ -83,7 +55,42 @@ export default function Lead({ ctx, store, state, t, route, go, close }) {
 
     <${SheetSection} label=${t('breaks')} right=${`${breaks.plan.filter(b => b.start != null).length}`} />
     <div class="pad" style="padding-bottom: 8px"><span style="font-size: 13px; line-height: 17px">${[off.length ? off.join(', ') : L(t, 'noneOff'), next.length ? L(t, 'nextLine', { list: next.join(', ') }) : null].filter(Boolean).join(' · ')}</span></div>
-    ${breaks.plan.map(breakRow)}
+    ${breaks.plan.map(b => html`<${BreakRow} key=${b.personId} b=${b} ctx=${ctx} store=${store} state=${state} t=${t} moving=${moving} setMoving=${setMoving} />`)}
     ${!breaks.plan.length ? html`<div class="pad" style="padding-bottom: 12px"><span class="sub">${t('noBreaks')}</span></div>` : null}
   </${Sheet}>`;
+}
+
+// One break with its Move control — "Maria [TL] [on break] / 10:45–11:15 · Harper covers   [Move]". Move shows
+// the legal starts on the quarter hour (store.moveBreak; Reset drops a hand move). The Lead sheet lists the
+// whole plan; the board's Lead/Breaks strip (SetUps.js) shows the breaks off now and next. `moving` /
+// `setMoving` are the caller's state (one open picker at a time); `readOnly` drops the control.
+//   html`<${BreakRow} b=${b} ctx=${ctx} store=${store} state=${state} t=${t} moving=${moving} setMoving=${setMoving} />`
+export function BreakRow({ b, ctx, store, state, t, moving, setMoving, readOnly }) {
+  const { side, names, rosterById } = ctx;
+  const overrides = (state.breakOverrides && state.breakOverrides[side]) || {};
+  const name = firstName(b.personId, names);
+  const isMoving = !readOnly && moving === b.personId;
+  const entry = rosterById[b.personId];
+  const starts = isMoving && entry ? legalStarts(entry).filter(x => x % 15 === 0 || x === b.start) : [];
+  const offNow = b.start != null && b.start <= state.now && state.now < b.end;
+  const line = b.start == null ? L(t, 'noBreak')
+    : (b.cover ? L(t, 'breakLine', { t: b.label, cover: firstName(b.cover, names) }) : L(t, 'breakNoCover', { t: b.label }));
+  const past = b.end != null && b.end <= state.now;
+  return html`<div style=${'border-top: 1px solid var(--line)' + (past && !isMoving ? '; opacity: .6' : '')}>
+    <div class="row" style="padding: 6px 16px; min-height: 52px; gap: 10px">
+      <span class="col" style="flex: 1">
+        <span class="row" style="gap: 6px"><span class="n" style="font-size: 16px; font-weight: 500">${name}</span>${b.tl ? html`<span class="tag">TL</span>` : null}${offNow ? html`<span class="sc a">${t('onBreak')}</span>` : null}${b.moved ? html`<span class="sub">· ${L(t, 'moved')}</span>` : null}</span>
+        <span class="sub">${line}${b.warn ? html`<span class="amber"> · ${b.warn}</span>` : null}</span>
+      </span>
+      ${!readOnly && (b.start != null || entry) ? html`<${Chip} line=${!isMoving} dark=${isMoving} onClick=${() => setMoving(isMoving ? null : b.personId)} ariaLabel=${`${L(t, 'moveBreak')} · ${name}`}>${L(t, 'moveBreak')}</${Chip}>` : null}
+    </div>
+    ${isMoving ? html`<div style="padding: 0 16px 10px">
+      <div class="row" style="margin-bottom: 6px"><span class="sub">${L(t, 'pickStart')} · ${shiftLabel(entry)}</span><span class="grow"></span>
+        ${overrides[b.personId] != null ? html`<button type="button" class="textbtn red" style="min-height: 36px" onClick=${() => { store.moveBreak(b.personId, null, { side }); setMoving(null); }}>${L(t, 'resetBreak')}</button>` : null}</div>
+      <div class="row" style="flex-wrap: wrap; gap: 6px">
+        ${starts.map(x => html`<${Chip} key=${x} tall dark=${x === b.start} onClick=${() => { store.moveBreak(b.personId, x, { side }); setMoving(null); store.showToast(`${name} · ${fmt(x)}–${fmt(x + 30)}`); }}>${fmt(x)}</${Chip}>`)}
+        ${!starts.length ? html`<span class="sub">${L(t, 'noBreak')}</span>` : null}
+      </div>
+    </div>` : null}
+  </div>`;
 }

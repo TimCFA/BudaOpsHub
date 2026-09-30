@@ -1,0 +1,77 @@
+/* Reset, body, phone frame on desktop (centred 390 px column). */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+body.sheet-open { overflow: hidden; }
+
+h1, h2, h3, p { margin: 0; font-weight: inherit; font-size: inherit; }
+ul, ol { margin: 0; padding: 0; }
+a { color: var(--red); text-decoration: none; }
+a:hover { color: var(--red-dark); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { border: 0; background: none; padding: 0; margin: 0; cursor: pointer; text-align: inherit; }
+button:disabled { cursor: default; opacity: .55; }
+svg { display: block; }
+b, strong { font-weight: 600; }
+small { font-size: var(--fs-sub); }
+
+:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+button:focus:not(:focus-visible), a:focus:not(:focus-visible) { outline: none; }
+
+/* The app column: full width on a phone, a centred 390 px column with the page around it on wider screens. */
+#app { min-height: 100dvh; }
+.phone {
+  position: relative;
+  width: 100%;
+  max-width: var(--col);
+  min-height: 100dvh;
+  margin: 0 auto;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  overflow-x: clip; /* clip, not hidden: hidden makes the column a scroll container and breaks the sticky header/nav */
+}
+@media (min-width: 640px) {
+  .phone { box-shadow: 0 0 0 1px var(--line), 0 12px 40px rgba(28, 27, 25, .12); }
+}
+main.screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-bottom: var(--sp-3);
+}
+.bottom {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-bottom);
+  display: flex;
+  flex-direction: column;
+}
+
+.visually-hidden {
+  position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.muted { color: var(--ink3); }
+.ink2 { color: var(--ink2); }
+.red { color: var(--red); }
+.amber { color: var(--amber-text); }
+.green { color: var(--green); }
+.pad { padding: 0 var(--gutter); }
+.stack { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-3) var(--gutter) 0; }
+
+@media print {
+  body { background: #fff; }
+  .phone { max-width: none; box-shadow: none; }
+  .nav, .bottom, .snack, .sheet-backdrop { display: none !important; }
+}
