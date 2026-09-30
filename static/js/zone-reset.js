@@ -602,7 +602,19 @@ const homeQuotes = [
   {text: "It is teamwork that remains the ultimate competitive advantage, both because it is so powerful and so rare.", author: "Patrick Lencioni", source: "The Five Dysfunctions of a Team"},
   {text: "Do what the customer loves, and the money will follow.", author: "Horst Schulze", source: "Excellence Wins"},
   {text: "If you want to change the world, start off by making your bed.", author: "Admiral William H. McRaven", source: "Make Your Bed"},
-  {text: "If you want to change the world, get over being a sugar cookie and keep moving forward.", author: "Admiral William H. McRaven", source: "Make Your Bed"}
+  {text: "If you want to change the world, get over being a sugar cookie and keep moving forward.", author: "Admiral William H. McRaven", source: "Make Your Bed"},
+  {text: "Good is the enemy of great.", author: "Jim Collins", source: "Good to Great"},
+  {text: "If you're not keeping score, you're just practicing.", author: "McChesney, Covey & Huling", source: "The 4 Disciplines of Execution"},
+  {text: "To achieve a goal you've never achieved before, you must do things you've never done before.", author: "McChesney, Covey & Huling", source: "The 4 Disciplines of Execution"},
+  {text: "Fix what bugs you.", author: "Paul Akers", source: "2 Second Lean"},
+  {text: "Leadership is not a rank, it is a responsibility. Leadership is not about being in charge, it is about taking care of those in your charge.", author: "Simon Sinek", source: "Leaders Eat Last"},
+  {text: "Leaders are not responsible for the results, leaders are responsible for the people who are responsible for the results.", author: "Simon Sinek", source: "The Infinite Game"},
+  {text: "There is a difference between a group of people who work together and a group of people who trust each other.", author: "Simon Sinek", source: "The Infinite Game"},
+  {text: "To ask, 'What's best for me' is finite thinking. To ask, 'What's best for us' is infinite thinking.", author: "Simon Sinek", source: "The Infinite Game"},
+  {text: "You do not rise to the level of your goals. You fall to the level of your systems.", author: "James Clear", source: "Atomic Habits"},
+  {text: "Every action you take is a vote for the type of person you wish to become.", author: "James Clear", source: "Atomic Habits"},
+  {text: "Leaders who refuse to listen will eventually be surrounded by people who have nothing helpful to say.", author: "Andy Stanley", source: "Andy Stanley Leadership Podcast"},
+  {text: "What we want to hear least is generally what we need to hear most.", author: "Andy Stanley", source: "Andy Stanley Leadership Podcast"}
 ];
 
 // One quote per day, the same on every device, so a huddle can share it.
