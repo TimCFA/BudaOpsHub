@@ -5,7 +5,7 @@ function activateView(view){
   if(view === 'wastelog'){ renderGrid(); renderTape(); }
   if(view === 'zonereset'){ renderZoneResetView(); renderWalkthroughsPage(); }
   if(view === 'safecount') renderSafeCount();
-  if(view === 'foodsafety') renderFoodSafety();
+  if(view === 'foodsafety'){ renderFoodSafety(); rpRenderFoodSafetyFindings(); }
   if(view === 'prepboard') renderPrepBoard();
   if(view === 'scoreboard'){
     renderScoreboardView(); renderOperationalIntelligence(); renderCustomScoreboards();

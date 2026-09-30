@@ -122,18 +122,32 @@ function gxMarkCemFields(){
   const src = gxData.cemSource;
   const list = document.getElementById('gxManageList');
   if(!list) return;
-  let n = 0;
-  if(src) GX_CEM_INPUTS.forEach(id=>{
+  const lock = (id, title)=>{
     const el = document.getElementById(id);
-    if(!el) return;
+    if(!el) return false;
     el.readOnly = true;
     el.classList.add('gx-auto');
-    el.title = `From the CEM upload (${src.label})`;
-    n++;
-  });
+    el.title = title;
+    return true;
+  };
+  let n = 0;
+  if(src) GX_CEM_INPUTS.forEach(id => { if(lock(id, `From the CEM upload (${src.label})`)) n++; });
+  // Fields the Analytics Hub reports fill (report-uploads.js).
+  const reportIds = typeof rpGxAutoFields === 'function' ? rpGxAutoFields() : {};
+  Object.entries(reportIds).forEach(([id, title]) => { if(lock(id, title)) n++; });
+  const has = prefix => Object.keys(reportIds).some(id => id.startsWith(prefix));
+  const typed = [
+    !has('gx-mtd') && !has('gx-ytd') ? 'sales (MTD/YTD)' : '',
+    has('gx-dt-') ? (['market', 'state', 'chain'].filter(g => !reportIds[`gx-dt-${g}`]).length ? `drive-thru rank (${['market', 'state', 'chain'].filter(g => !reportIds[`gx-dt-${g}`]).join(', ')})` : '') : 'drive-thru rankings',
+    'Smart Shop scores', 'QIV',
+    !reportIds['gx-service-speedOfService'] ? 'speed of service' : '',
+    'Top 5% for speed of service', 'food safety score', 'the coaching lists'
+  ].filter(Boolean);
+  const summary = typeof rpGxSummaryHtml === 'function' ? rpGxSummaryHtml() : '';
   list.insertAdjacentHTML('afterbegin', `<div class="gx-source-note">
-    ${src ? `<b>Automatic from CEM — ${escapeHtml(src.label)}:</b> ${n} fields (shaded) update with each CEM upload in Data Uploads.` : '<b>Upload a CEM report in Data Uploads</b> and satisfaction, taste, temperature, service and cleanliness fill in on their own.'}
-    <br>Still typed in: sales (MTD/YTD), drive-thru rankings, Smart Shop, QIV, speed of service, food safety score, and the coaching lists — each can become an upload once there's a sample of its report.
+    ${src ? `<b>Automatic from CEM — ${escapeHtml(src.label)}</b> and the Analytics Hub uploads: ${n} fields (shaded) update with each upload in Data Uploads.` : n ? `<b>Automatic from uploads:</b> ${n} fields (shaded) update with each upload in Data Uploads. Upload a CEM report too and satisfaction, taste, temperature, service and cleanliness fill in on their own.` : '<b>Upload a CEM report in Data Uploads</b> and satisfaction, taste, temperature, service and cleanliness fill in on their own.'}
+    ${summary}
+    <br>Still typed in: ${typed.join(', ')}.
   </div>`);
 }
 

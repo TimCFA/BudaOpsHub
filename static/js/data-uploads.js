@@ -46,6 +46,31 @@ const DU_SOURCES = [
     key: 'salesMix', short: 'Sales Mix', icon: '🧾', name: 'Sales Mix (items sold)', freq: 'weekly', accept: '.csv,.xlsx,.xls,.txt', multiple: true,
     how: 'Sales Mix Items Totals report, one file per day (the date in the file name is used). Drop several days at once.',
     feeds: 'Prep Board build-to and sold history'
+  },
+  {
+    key: 'sales', short: 'sales export', icon: '💵', name: 'Sales MTD / YTD (Analytics Hub)', freq: 'weekly', accept: '.csv,.txt',
+    how: 'Analytics Hub → sales by day by destination, export as CSV (CSV_DOWNLOAD). Month to date for MTD; the same report from Jan 1 for YTD.',
+    feeds: 'Guest Obsession WIG — sales and % change vs last year'
+  },
+  {
+    key: 'dtRank', short: 'Detailed Rankings', icon: '🚗', name: 'Drive-thru rankings (Analytics Hub)', freq: 'monthly', accept: '.csv,.txt', multiple: true,
+    how: 'Analytics Hub → DT rankings → Detailed Rankings, export as CSV — once per comparison group (Market, State, Chain). The upload asks which group each file is.',
+    feeds: 'Guest Obsession DT ranking'
+  },
+  {
+    key: 'sos', short: 'speed of service export', icon: '⏱', name: 'Speed of service (Analytics Hub)', freq: 'monthly', accept: '.csv,.txt',
+    how: 'Analytics Hub → speed of service, Custom by Day, export as CSV (month to date).',
+    feeds: 'Guest Obsession Speed of Service (drive-thru, every car)'
+  },
+  {
+    key: 'smartShop', short: 'Smart Shop PDFs', icon: '🕵️', name: 'Smart Shop visits (Ops Hub)', freq: 'monthly', accept: '.pdf,.zip', multiple: true,
+    how: 'Ops Hub → Assessments → Smart Shop → download the report (a PDF, or the zip Ops Hub gives you). Upload every visit for the month.',
+    feeds: 'Guest Obsession Manage — Smart Shop results and the standards missed most'
+  },
+  {
+    key: 'foodSafety', short: 'food safety PDF', icon: '🧪', name: 'Food safety assessment (Ops Hub)', freq: 'monthly', fixedFreq: true, accept: '.pdf',
+    how: 'Ops Hub → Food Safety → All Findings, print or save as PDF after each assessment.',
+    feeds: 'Food Safety Walkthrough — the findings to check first'
   }
 ];
 
@@ -118,6 +143,7 @@ function duSourceState(src, now){
   const freq = duFreq(src);
   const log = duLastLog(src.key);
   const logAt = log ? new Date(log.at) : null;
+  if(RP_KEYS.includes(src.key)) return rpSourceState(src, now, freq, logAt);
 
   if(src.key === 'roster'){
     const thisWeek = duMonday(now), nextWeek = duAddDays(thisWeek, 7);
@@ -263,7 +289,11 @@ function duReadFile(file, asBuffer){
 
 // 'cem' | 'roster' | 'pea' | 'salesMix' | 'productivity' | null
 function duDetect(file, text, workbook){
-  if(/\.pdf$/i.test(file.name)) return 'pea';
+  // Levelset exports are named positional-ratings-…; any other PDF (or zip)
+  // is asked of the server first, and tried as PEA if it isn't Ops Hub's.
+  if(/\.(pdf|zip)$/i.test(file.name)) return /positional|rating|levelset/i.test(file.name) ? 'pea' : 'opsPdf';
+  const report = rpDetect(text);
+  if(report) return report;
   const firstSheetText = workbook ? workbook.SheetNames.map(n => XLSX.utils.sheet_to_csv(workbook.Sheets[n])).join('\n').slice(0, 4000) : '';
   const head = (text || firstSheetText).slice(0, 4000);
   if(/Comparison:\s*[\d/]+\s*-\s*[\d/]+/.test(head)) return 'cem';
@@ -439,12 +469,12 @@ async function duHandleFiles(fileList, hint){
   renderDataUploads();
   // CEM files first so the scoreboard ends on the newest month; the roster
   // last because it opens a review window.
-  const order = {cem: 0, pea: 1, salesMix: 2, numbers: 2, productivity: 3, roster: 4};
+  const order = {cem: 0, pea: 1, salesMix: 2, numbers: 2, sales: 2, dtRank: 2, sos: 2, opsPdf: 2, productivity: 3, roster: 4};
   const jobs = [];
   for(let i = 0; i < files.length; i++){
     const file = files[i];
     try{
-      const isPdf = /\.pdf$/i.test(file.name);
+      const isPdf = /\.(pdf|zip)$/i.test(file.name);
       const isExcel = /\.(xlsx|xls)$/i.test(file.name);
       const buffer = isPdf ? null : await duReadFile(file, true);
       const text = buffer && !isExcel ? pbDecodeText(buffer) : '';
@@ -469,12 +499,27 @@ async function duHandleFiles(fileList, hint){
       }
       else if(job.kind === 'roster') text = duImportRoster(job.file, job.text);
       else if(job.kind === 'numbers') text = await knImportFile(job.file);
+      else if(job.kind === 'sales') text = await rpImportSales(job.file, job.text);
+      else if(job.kind === 'sos') text = await rpImportSos(job.file, job.text);
+      else if(job.kind === 'dtRank'){ rpParseDtRank(job.text); duWait(job, 'dtGroup'); continue; }
+      else if(job.kind === 'opsPdf'){
+        const report = await rpImportOpsPdf(job.file);
+        if(report === null){
+          if(/\.zip$/i.test(job.file.name)) throw new Error('No Smart Shop or food safety report in this zip.');
+          job.kind = 'pea';
+          text = await duImportPea(job.file);
+        } else {
+          text = report.text;
+          job.kind = report.kind;
+        }
+      }
       else if(job.kind === 'productivity'){
         if(!duProductivityDay(job.text)){ duWait(job, 'weekday'); continue; }
         text = await duImportProductivity(job.file, job.text);
       }
-      else throw new Error('Didn’t recognize this file. Expected a CEM Comparison Report, HotSchedules roster CSV, Levelset PEA PDF, Sales Mix report, productivity report, or projected sales & productivity goals.');
-      duResults[job.i] = {file: job.file.name, state: 'ok', kind: src ? src.name : job.kind, text};
+      else throw new Error('Didn’t recognize this file. Expected a CEM Comparison Report, HotSchedules roster CSV, Levelset PEA PDF, Sales Mix report, productivity report, projected sales & productivity goals, an Analytics Hub sales, rankings or speed of service export, or an Ops Hub Smart Shop / food safety report.');
+      const filed = DU_SOURCES.find(s => s.key === job.kind) || (job.kind === 'opsPdf' ? {name: 'Ops Hub report'} : null);
+      duResults[job.i] = {file: job.file.name, state: 'ok', kind: filed ? filed.name : job.kind, text};
     }catch(err){
       duResults[job.i] = {file: job.file.name, state: 'error', kind: src ? src.name : '', text: err.message};
     }
@@ -504,7 +549,7 @@ function duWaitTwin(resultIndex, file, iso, twin){
 function duWait(job, need){
   duPending.push({id: ++duPendingSeq, kind: job.kind, need, file: job.file, text: job.text});
   const src = DU_SOURCES.find(s => s.key === job.kind);
-  duResults[job.i] = {file: job.file.name, state: 'waiting', kind: src ? src.name : job.kind, text: need === 'date' ? 'No date in this file — pick the day in the Sales Mix row below.' : 'No weekday in this export — pick it in the Productivity row below.'};
+  duResults[job.i] = {file: job.file.name, state: 'waiting', kind: src ? src.name : job.kind, text: need === 'date' ? 'No date in this file — pick the day in the Sales Mix row below.' : need === 'dtGroup' ? 'Which ranking is this? Pick Market, State or Chain in the Drive-thru rankings row below.' : 'No weekday in this export — pick it in the Productivity row below.'};
 }
 
 async function duResolvePending(id, value){
@@ -520,6 +565,8 @@ async function duResolvePending(id, value){
       const iso = force ? item.iso : value;
       try{ text = await duImportSalesMix(item.file, iso, force); }
       catch(err){ if(!err.twin) throw err; duWaitTwin(null, item.file, iso, err.twin); renderDataUploads(); return; }
+    } else if(item.kind === 'dtRank'){
+      text = await rpImportDtRank(item.file, item.text, value);
     } else {
       text = await duImportProductivity(item.file, item.text, value);
     }
@@ -544,6 +591,15 @@ function duPendingHtml(item){
         <button type="button" class="du-chip is-wide" data-du-pending="${item.id}" data-du-value="force">Save to ${escapeHtml(duLongDay(item.iso))} anyway</button>
         <button type="button" class="du-pending-skip" data-du-pending-skip="${item.id}">Skip this file</button>
       </div>
+    </div>`;
+  }
+  if(item.need === 'dtGroup'){
+    let rank = '';
+    try{ const d = rpParseDtRank(item.text); rank = ` (rank #${d.rank}, composite ${d.composite})`; }catch(e){}
+    return `<div class="du-pending">${name}
+      <div class="du-pending-q">Which comparison group was this ranking${escapeHtml(rank)} filtered to?</div>
+      <div class="du-chips">${Object.entries(RP_DT_GROUPS).map(([k, v]) => `<button type="button" class="du-chip" data-du-pending="${item.id}" data-du-value="${k}">${v}</button>`).join('')}</div>
+      <button type="button" class="du-pending-skip" data-du-pending-skip="${item.id}">Skip this file</button>
     </div>`;
   }
   if(item.need === 'weekday' && item.choices){
@@ -950,7 +1006,7 @@ function renderDataUploads(){
     ${duRestoreHtml()}
     <div class="du-summary ${dueCount ? 'has-due' : ''}">${dueCount ? `${dueCount} of ${rows.length} need an upload` : `All ${rows.length} data sources are up to date`}</div>
     <label class="du-drop" data-du-drop>
-      <input type="file" multiple accept=".csv,.xlsx,.xls,.pdf,.txt,.tsv" data-du-input>
+      <input type="file" multiple accept=".csv,.xlsx,.xls,.pdf,.zip,.txt,.tsv" data-du-input>
       <span class="du-drop-main">Drop files here or tap to choose</span>
       <span class="du-drop-sub">Any of the reports below, several at once — each is recognized and filed where it belongs.</span>
     </label>
