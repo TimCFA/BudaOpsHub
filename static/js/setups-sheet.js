@@ -35,33 +35,10 @@ function suSheetNameHtml(t, brk){
   return `<span class="su-row-who">${escapeHtml(who)}${lead}</span>${note}${brkNote}${flag}`;
 }
 
+// The open daypart card's body in the Set up view: the positions, zone by
+// zone, and nothing else. Lead Captain and Fill sit on the card's banner
+// (setups-board.js suDaypartCardsHtml).
 function suSheetViewHtml(section, date, dp, dpIndex, m){
-  const t = suDayType(section, date, dp);
-  const needed = m.tiles.filter(x => x.needed);
-  const lead = section === 'foh' ? posAssignments[m.key + '||' + SU_LEAD_CAPTAIN] : '';
-  const working = lead ? suLeadWorkingSlot(date, dp) : null;
-  const ready = suSplitsReady(m);
-  const tm = m.timing;
-  const first = suDisplayName;
-  const changes = [
-    ...tm.pairs.map(p => `${first(p.out)} → ${first(p.in)} @ ${suClock(p.at)}`),
-    ...tm.leavers.map(p => `${first(p.name)} leaves ${suClock(p.leaves)}`),
-    ...tm.arrivals.map(p => `${first(p.name)} in ${suClock(p.arrives)}`)
-  ];
-
-  const summary = `
-    <div class="su-sheet-summary">
-      <div class="su-sheet-title">
-        <h2>${escapeHtml(suShortDaypart(dp.name))}</h2>
-        <span class="su-sheet-daytype su-${t.type}">${t.type === 'game' ? 'Game Day' : 'Practice Day'}</span>
-      </div>
-      <div class="su-sheet-facts">${m.onShift} on shift${tm.pairs.length ? ` · ${m.headcount} spots` : ''} · ${m.filled} placed</div>
-      ${suStrengthHtml(m)}
-      ${section === 'foh' ? `<button type="button" class="su-sheet-line" data-su-lead-open="1"><span class="su-sheet-k">Lead</span><span>${lead ? `<b>${escapeHtml(suDisplayName(lead))}</b>${working ? ` · ${escapeHtml(working)}` : ' · <em>no spot yet</em>'}` : '<em>Choose a Lead Captain</em>'}</span></button>` : ''}
-      ${changes.length ? `<div class="su-sheet-line is-static"><span class="su-sheet-k">Changes</span><span>${escapeHtml(changes.join(' · '))}</span>${ready.length ? `<button type="button" class="su-sheet-act" data-su-apply-splits="1">Split ${ready.length}</button>` : ''}</div>` : ''}
-      ${needed.length || m.unplaced.length ? `<div class="su-sheet-line is-static"><span class="su-sheet-k">Open</span><span>${needed.length ? `${needed.length} spot${needed.length === 1 ? '' : 's'} needed` : 'Priority spots filled'}${m.unplaced.length ? ` · not placed: ${escapeHtml(m.unplaced.slice(0, 4).map(suDisplayName).join(', '))}${m.unplaced.length > 4 ? ` +${m.unplaced.length - 4}` : ''}` : ''}</span>${needed.length && m.unplaced.length ? '<button type="button" class="su-sheet-act is-dark" data-su-tool="fill">Fill</button>' : ''}</div>` : ''}
-    </div>`;
-
   // A planned break that starts during this daypart, for the row's person.
   const {startMin, endMin} = daypartTimeWindow(suDaypartsFor(section), dpIndex);
   const rowBreak = x=>{
@@ -71,25 +48,26 @@ function suSheetViewHtml(section, date, dp, dpIndex, m){
     }
     return null;
   };
-  const zones = m.zones.map(z=>{
-    const expanded = suExpandedZones.has(z.key);
-    const shown = z.tiles.filter(x => x.names.length || x.needed || expanded || !m.headcount);
-    const hidden = z.tiles.filter(x => !shown.includes(x));
-    if(!shown.length && !hidden.length) return '';
-    return `
-      <section class="su-sheet-zone" aria-label="${escapeHtml(z.name)}">
-        <h3>${escapeHtml(z.name)}</h3>
-        ${shown.map(x => `
-          <button type="button" class="su-row ${x.needed ? 'is-needed' : ''} ${!x.names.length ? 'is-open' : ''}" data-su-tile="${escapeHtml(x.slot)}" aria-label="${escapeHtml(`${x.slot}: ${x.names.length ? x.names.join(' then ') : x.needed ? 'needed' : 'open'}`)}">
-            <span class="su-row-slot">${escapeHtml(x.slot)}</span>
+  // One list in the set up's priority order (the Google Sheet's). Empty spots
+  // past the headcount at the bottom fold away; nothing above a filled spot
+  // is ever hidden, so a skipped spot always shows.
+  const lastFilled = m.tiles.reduce((n, x) => x.names.length ? x.rank : n, 0);
+  const showAll = suExpandedZones.has('all');
+  const upTo = showAll || !m.headcount ? m.tiles.length : Math.max(m.headcount, lastFilled);
+  const shown = m.tiles.slice(0, upTo), hidden = m.tiles.slice(upTo);
+  const rows = shown.map(x => `
+          <button type="button" class="su-row su-z-${suZoneKeyOf(section, x.slot)} ${x.needed ? 'is-needed' : ''} ${!x.names.length ? 'is-open' : ''}" data-su-tile="${escapeHtml(x.slot)}" aria-label="${escapeHtml(`#${x.rank} ${x.slot}: ${x.names.length ? x.names.join(' then ') : x.needed ? 'needed' : 'open'}`)}">
+            <span class="su-row-slot"><span class="su-row-rank">${x.rank}</span>${escapeHtml(x.slot)}</span>
             <span class="su-row-name">${suSheetNameHtml(x, rowBreak(x))}</span>
-          </button>`).join('')}
-        ${hidden.length ? `<button type="button" class="su-zone-more" data-su-zone-more="${z.key}">+ ${hidden.length} more spot${hidden.length === 1 ? '' : 's'} if you have extra people</button>` : ''}
-        ${expanded && m.headcount ? `<button type="button" class="su-zone-more" data-su-zone-less="${z.key}">Hide open extras</button>` : ''}
+          </button>`).join('');
+  const zones = `
+      <section class="su-sheet-zone su-sheet-list" aria-label="Positions in priority order">
+        ${rows}
+        ${hidden.length ? `<button type="button" class="su-zone-more" data-su-zone-more="all">+ ${hidden.length} more spot${hidden.length === 1 ? '' : 's'} if you have extra people</button>` : ''}
+        ${showAll && m.headcount && upTo > Math.max(m.headcount, lastFilled) ? `<button type="button" class="su-zone-more" data-su-zone-less="all">Hide open extras</button>` : ''}
       </section>`;
-  }).join('');
 
-  return `${summary}<div class="su-sheet-table">${zones}</div>${suBreaksCardHtml(section, date, dpIndex)}${suPeaTodoHtml(section, date, dp)}`;
+  return `<div class="su-sheet-table">${zones}</div>`;
 }
 
 // A filled row in the sheet view: who, when, and the quick actions — no

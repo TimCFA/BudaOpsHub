@@ -265,6 +265,22 @@ function fillEmptySlots(section, date, dp, dpIndex){
     if(pick) take(pick.who, slot, `${fitText(pick.who, slot)}${extraNotes(pick.who, slot)}`);
   });
 
+  // No skipping (the set up's rule): a spot can't sit open while one lower
+  // on the list is filled. Move the lowest proposed placement up into the
+  // highest open spot until none is skipped. A leader's own placements are
+  // never moved; if one of those sits below an open spot, say so.
+  for(let guard = 0; guard < slots.length; guard++){
+    const hole = open.filter(s => isOpen(s)).sort((a, b) => rankOf(a) - rankOf(b))[0];
+    if(!hole) break;
+    const mover = proposals.filter(p => !p.split && p.slot !== SU_LEAD_CAPTAIN && p.rank > rankOf(hole)).sort((a, b) => b.rank - a.rank)[0];
+    if(!mover) break;
+    mover.why = `${mover.why.split(' · ')[0]} · moved up from ${mover.slot} so #${rankOf(hole)} isn’t skipped`;
+    mover.slot = hole;
+    mover.rank = rankOf(hole);
+  }
+  const holes = open.filter(s => isOpen(s) && slots.some(t => rankOf(t) > rankOf(s) && (posAssignments[key + '||' + t] || proposals.some(p => p.slot === t))));
+  if(holes.length) notes.push(`${holes.map(s => `${s} (#${rankOf(s)})`).join(', ')} ${holes.length === 1 ? 'is' : 'are'} open while a spot lower on the list is filled — move someone up.`);
+
   const stillNeeded = inRange.filter(s => isOpen(s));
   if(stillNeeded.length) notes.push(`Not enough people for ${stillNeeded.map(s => `${s} (#${rankOf(s)})`).join(', ')}.`);
   if(!timing.people.length) notes.push('No roster for this daypart — import the weekly HotSchedules CSV first.');

@@ -181,19 +181,29 @@ function suDaypartFillText(section, date, dp, i){
 
 // Set up view: every daypart as a card down the page, one open at a time
 // (the selected daypart, which every tool and pop-up works on). Tap a card
-// to open it; tap the open one to close it.
-function suDaypartCardsHtml(section, date, current, openHtml){
+// to open it; tap the open one to close it. The banner carries the daypart,
+// how full it is, the day type and (FOH) the Lead Captain; the open one adds
+// Fill when spots are open. The body is just the positions.
+function suDaypartCardsHtml(section, date, current, openHtml, m){
   return `<div class="su-dp-list">${suDaypartsFor(section).map((dp, i)=>{
     const open = dp.name === current && !suDaypartClosed[section];
     const time = (dp.name.match(/\(([^)]*)\)/) || [])[1] || '';
     const t = suDayType(section, date, dp);
+    const lead = section === 'foh' ? posAssignments[suEvalKey(section, date, dp.name) + '||' + SU_LEAD_CAPTAIN] : '';
+    const working = lead ? suLeadWorkingSlot(date, dp) : null;
+    const leadBtn = section === 'foh' ? `<button type="button" class="su-dp-lead" data-su-lead-open="1" data-su-lead-dp="${escapeHtml(dp.name)}"><span class="su-dp-k">Lead</span>${lead ? `<b>${escapeHtml(suDisplayName(lead))}</b>${working ? `<span class="su-dp-where"> · ${escapeHtml(working)}</span>` : ''}` : '<em>Choose a Lead Captain</em>'}</button>` : '';
+    const needed = open && m ? m.tiles.filter(x => x.needed).length : 0;
+    const fillBtn = needed && m.unplaced.length ? `<button type="button" class="su-dp-fillbtn" data-su-tool="fill">Fill ${needed} open</button>` : '';
     return `<section class="su-dp ${open ? 'is-open' : ''}" aria-label="${escapeHtml(suShortDaypart(dp.name))}">
-      <button type="button" class="su-dp-head" data-su-dp-toggle="${escapeHtml(dp.name)}" aria-expanded="${open}">
-        <span class="su-dp-name">${escapeHtml(suShortDaypart(dp.name))}${time ? ` <span class="su-dp-time">${escapeHtml(time)}</span>` : ''}</span>
-        <span class="su-dp-fill">${suDaypartFillText(section, date, dp, i)}</span>
-        <span class="su-sheet-daytype su-${t.type}">${t.type === 'game' ? 'Game' : 'Practice'}</span>
-        <span class="su-dp-chev" aria-hidden="true">▾</span>
-      </button>
+      <div class="su-dp-banner">
+        <button type="button" class="su-dp-head" data-su-dp-toggle="${escapeHtml(dp.name)}" aria-expanded="${open}">
+          <span class="su-dp-name">${escapeHtml(suShortDaypart(dp.name))}${time ? ` <span class="su-dp-time">${escapeHtml(time)}</span>` : ''}</span>
+          <span class="su-dp-fill">${suDaypartFillText(section, date, dp, i)}</span>
+          <span class="su-sheet-daytype su-${t.type}">${t.type === 'game' ? 'Game' : 'Practice'}</span>
+          <span class="su-dp-chev" aria-hidden="true">▾</span>
+        </button>
+        ${leadBtn || fillBtn ? `<div class="su-dp-sub">${leadBtn}${fillBtn}</div>` : ''}
+      </div>
       ${open ? `<div class="su-dp-body">${openHtml}</div>` : ''}
     </section>`;
   }).join('')}</div>`;
@@ -430,7 +440,7 @@ function renderSetupsBoard(date){
     return `
     <div class="su-board is-sheet">
       ${suModeBarHtml()}
-      ${suDaypartCardsHtml(section, date, dp.name, suSheetViewHtml(section, date, dp, dpIndex, m))}
+      ${suDaypartCardsHtml(section, date, dp.name, suSheetViewHtml(section, date, dp, dpIndex, m), m)}
       ${suSheetHtml(section, date, dp, dpIndex, m)}
     </div>`;
   }
