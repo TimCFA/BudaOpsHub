@@ -1538,12 +1538,16 @@
   /* Daypart skies: a soft gradient per time of day; the open card gets an
      outline instead of going dark, so its sky still shows. Close is night. */
   .su-dp-art{flex:0 0 auto;display:inline-flex;margin-right:-2px;}
-  .su-sky-dawn .su-dp-banner{background:linear-gradient(100deg,#FCE4D4 0%,#F7E7F1 55%,#ECE8F8 100%);}
-  .su-sky-morning .su-dp-banner{background:linear-gradient(100deg,#FFF0D3 0%,#FDF6E6 45%,#E4F0FB 100%);}
-  .su-sky-midday .su-dp-banner{background:linear-gradient(100deg,#FFF7D8 0%,#EEF6FD 50%,#DCEDFB 100%);}
-  .su-sky-afternoon .su-dp-banner{background:linear-gradient(100deg,#FFEBD3 0%,#FEF2E6 50%,#F7E4EC 100%);}
-  .su-sky-dusk .su-dp-banner{background:linear-gradient(100deg,#F8DCCC 0%,#EEDDF1 50%,#DAD6F2 100%);}
-  .su-sky-night .su-dp-banner{background:linear-gradient(100deg,#2E3867 0%,#232B52 55%,#1B2141 100%);color:#fff;}
+  /* Each banner is a strip of sky, east on the left and west on the right,
+     so the day reads left to right: the sun's glow rises on the east edge at
+     Early Breakfast, climbs to the middle by Lunch, and sets on the west edge
+     at Dinner, with night coming in from the east. */
+  .su-sky-dawn .su-dp-banner{background:radial-gradient(120% 140% at 0% 100%,rgba(255,176,120,0.55) 0%,rgba(255,176,120,0) 55%),linear-gradient(90deg,#FCE2CF 0%,#EFE4F3 45%,#DCDDF3 100%);}
+  .su-sky-morning .su-dp-banner{background:radial-gradient(90% 150% at 22% 90%,rgba(255,214,140,0.6) 0%,rgba(255,214,140,0) 60%),linear-gradient(90deg,#FFF0D6 0%,#F6F4EC 45%,#E2EEFB 100%);}
+  .su-sky-midday .su-dp-banner{background:radial-gradient(70% 160% at 50% 0%,rgba(255,236,160,0.7) 0%,rgba(255,236,160,0) 60%),linear-gradient(90deg,#E4F0FB 0%,#F4F8FD 50%,#E4F0FB 100%);}
+  .su-sky-afternoon .su-dp-banner{background:radial-gradient(90% 150% at 76% 85%,rgba(255,196,130,0.55) 0%,rgba(255,196,130,0) 60%),linear-gradient(90deg,#E3EEFA 0%,#F7F1EC 55%,#FFE9D2 100%);}
+  .su-sky-dusk .su-dp-banner{background:radial-gradient(110% 150% at 100% 100%,rgba(255,150,110,0.55) 0%,rgba(255,150,110,0) 58%),linear-gradient(90deg,#D6D2F0 0%,#E8D9F0 50%,#F8D8C8 100%);}
+  .su-sky-night .su-dp-banner{background:radial-gradient(90% 140% at 100% 100%,rgba(120,110,190,0.35) 0%,rgba(120,110,190,0) 60%),linear-gradient(90deg,#181E3C 0%,#232B52 50%,#333C6E 100%);color:#fff;}
   .su-sky-night .su-dp-time,.su-sky-night .su-dp-fill,.su-sky-night .su-dp-k,.su-sky-night .su-dp-where,.su-sky-night .su-dp-lead em{color:rgba(255,255,255,0.72);}
   .su-sky-night .su-dp-fillbtn{background:#fff;color:var(--su-ink);}
   .su-dp.is-open .su-dp-banner{box-shadow:0 0 0 2px var(--su-ink),0 6px 16px rgba(28,27,25,0.10);}

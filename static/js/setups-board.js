@@ -179,9 +179,10 @@ function suDaypartFillText(section, date, dp, i){
   return onShift ? `${filled}/${onShift}` : filled ? `${filled} placed` : '—';
 }
 
-// Each daypart's sky: a soft gradient and a small scene, the sun climbing
-// from Early Breakfast to Lunch and sinking through the Afternoon, then a
-// moon and stars for Dinner and Close.
+// Each daypart's sky: a soft gradient and a small scene. East is on the
+// left: the sun rises there at Early Breakfast, is overhead by Lunch, and
+// sinks to the right (west) through the Afternoon; then a moon and stars for
+// Dinner and Close.
 function suDaypartSky(name){
   const n = name.toLowerCase();
   return /early/.test(n) ? 'dawn' : /breakfast/.test(n) ? 'morning' : /lunch|mid|transition/.test(n) ? 'midday'
@@ -198,10 +199,10 @@ function suSkyArt(sky){
   // Crescent: the left half of a circle, closed by a flatter arc back up.
   const moon = (cx, cy, r, c) => `<path d="M${cx} ${cy - r}A${r} ${r} 0 1 0 ${cx} ${cy + r}A${r * 1.35} ${r * 1.35} 0 0 1 ${cx} ${cy - r}Z" fill="${c}"/>`;
   const art = {
-    dawn: `<path d="M12 22A6 6 0 0 1 24 22Z" fill="#F4A73A"/>` + horizon,
-    morning: sun(18, 14, 4.5, true) + horizon,
+    dawn: `<path d="M4 22A6 6 0 0 1 16 22Z" fill="#F4A73A"/>` + horizon,
+    morning: sun(12, 14, 4.5, true) + horizon,
     midday: sun(18, 10, 5, true),
-    afternoon: sun(22, 13, 4.5, true) + horizon,
+    afternoon: sun(25, 14, 4.5, true) + horizon,
     dusk: moon(19, 13, 8, '#8C6FC9') + star(29, 6, 2.6, '#8C6FC9'),
     night: moon(17, 13, 8, '#F6E7A6') + star(28, 6, 2.4, '#F6E7A6') + star(32, 16, 1.6, '#F6E7A6') + star(25, 21, 1.3, '#F6E7A6')
   }[sky];
