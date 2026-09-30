@@ -1,4 +1,8 @@
 function renderGXScoreboard(){
+  // Once Smart Shop visits are uploaded, the per-pillar Smart Shop scores
+  // give way to the Smart Shop panel (report-uploads.js).
+  const uploadedShop = typeof rpHasSmartShop === 'function' && rpHasSmartShop();
+  const shown = group => Object.entries(gxData[group]).filter(([key]) => !(uploadedShop && key === 'smartShopScore'));
   const wigContainer = document.getElementById('gxWigMetrics');
   wigContainer.innerHTML = Object.entries(gxData.wig).map(([key, metric]) => `
     <div class="gx-metric-card">
@@ -16,6 +20,7 @@ function renderGXScoreboard(){
   `).join('');
 
   const satisfactionContainer = document.getElementById('gxSatisfactionMetrics');
+  const fsTier = typeof rpFoodSafetyTier === 'function' ? rpFoodSafetyTier(gxData.satisfaction.foodSafety.value) : null;
   const satPct = parseFloat(gxData.satisfaction.highlySatisfied.value) || 0;
   satisfactionContainer.innerHTML = `
     <div style="margin-bottom:8px;">
@@ -35,7 +40,7 @@ function renderGXScoreboard(){
           <div class="gx-metric-label">% Not Satisfied</div>
         </div>
         <div class="gx-metric-card">
-          <div class="gx-metric-value">${gxData.satisfaction.foodSafety.value}</div>
+          <div class="gx-metric-value">${gxData.satisfaction.foodSafety.value}${fsTier ? `<span class="gx-fs-tier is-${fsTier.key}">${fsTier.label}</span>` : ''}</div>
           <div class="gx-metric-label">Food Safety</div>
         </div>
       </div>
@@ -43,7 +48,7 @@ function renderGXScoreboard(){
   `;
 
   const craveableContainer = document.getElementById('gxCraveableMetrics');
-  craveableContainer.innerHTML = Object.entries(gxData.craveable).map(([key, metric]) => `
+  craveableContainer.innerHTML = shown('craveable').map(([key, metric]) => `
     <div class="gx-comparison-card">
       <div class="gx-comparison-value">
         <div class="gx-comparison-label">${metric.label}</div>
@@ -57,7 +62,7 @@ function renderGXScoreboard(){
   `).join('');
 
   const serviceContainer = document.getElementById('gxServiceMetrics');
-  serviceContainer.innerHTML = Object.entries(gxData.service).map(([key, metric]) => `
+  serviceContainer.innerHTML = shown('service').map(([key, metric]) => `
     <div class="gx-comparison-card">
       <div class="gx-comparison-value">
         <div class="gx-comparison-label">${metric.label}</div>
@@ -71,7 +76,7 @@ function renderGXScoreboard(){
   `).join('');
 
   const welcomingContainer = document.getElementById('gxWelcomingMetrics');
-  welcomingContainer.innerHTML = Object.entries(gxData.welcoming).map(([key, metric]) => `
+  welcomingContainer.innerHTML = shown('welcoming').map(([key, metric]) => `
     <div class="gx-comparison-card">
       <div class="gx-comparison-value">
         <div class="gx-comparison-label">${metric.label}</div>
@@ -88,7 +93,7 @@ function renderGXScoreboard(){
   secondMileOppContainer.innerHTML = gxData.secondMile.opportunities.map(opp => `<li>${opp}</li>`).join('');
 
   const secondMileContainer = document.getElementById('gxSecondMileMetrics');
-  secondMileContainer.innerHTML = `
+  secondMileContainer.innerHTML = uploadedShop ? '' : `
     <div class="gx-metric-card">
       <div class="gx-metric-value">${gxData.secondMile.smartShopScore.value}</div>
       <div class="gx-metric-label">${gxData.secondMile.smartShopScore.label}</div>
@@ -104,11 +109,13 @@ function renderGXScoreboard(){
       <div class="gx-metric-value">${gxData.teamMembers.attentiveCourteous.value}</div>
       <div class="gx-metric-label">${gxData.teamMembers.attentiveCourteous.label}</div>
     </div>
-    <div class="gx-metric-card">
+    ${uploadedShop ? '' : `<div class="gx-metric-card">
       <div class="gx-metric-value">${gxData.teamMembers.smartShopScore.value}</div>
       <div class="gx-metric-label">${gxData.teamMembers.smartShopScore.label}</div>
-    </div>
+    </div>`}
   `;
+
+  if(typeof rpRenderOpsPanels === 'function') rpRenderOpsPanels();
 
   if(gxData.lastUpdated){
     const src = gxData.cemSource;

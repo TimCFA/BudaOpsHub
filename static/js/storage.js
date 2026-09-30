@@ -11,7 +11,7 @@ const API_BASE = window.location.origin === 'file://' ? 'http://localhost:5000' 
 const STATE_SECTIONS = {
   manager: ['wasteTarget', 'safeTarget', 'products', 'deletedProductIds', 'productFixesVersion',
             'productCategoryOrder', 'lxPillars', 'lxMetrics', 'lxLastUpdated', 'gxData', 'txData',
-            'homeData', 'dataUploadLog', 'dataUploadSettings', 'productivityProfiles'],
+            'homeData', 'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData'],
   pea: ['peaRatings', 'peaNameAliases'],
   rosters: ['fohRoster', 'bohRoster'],
   setups: ['posAssignments', 'posVacancyFlags', 'setupDayTypes', 'lastUpdated',
@@ -64,7 +64,7 @@ function stateSnapshot(){
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
-    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, prepTimes, prepTimers
+    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, prepTimes, prepTimers
   };
 }
 
@@ -372,6 +372,7 @@ function applyStateData(data){
   dataUploadLog = (data.dataUploadLog && typeof data.dataUploadLog === 'object' && !Array.isArray(data.dataUploadLog)) ? data.dataUploadLog : {};
   dataUploadSettings = (data.dataUploadSettings && typeof data.dataUploadSettings === 'object') ? data.dataUploadSettings : {};
   productivityProfiles = (data.productivityProfiles && typeof data.productivityProfiles === 'object' && !Array.isArray(data.productivityProfiles)) ? data.productivityProfiles : {};
+  reportData = (data.reportData && typeof data.reportData === 'object' && !Array.isArray(data.reportData)) ? data.reportData : {};
   scoreboardItems = data.scoreboardItems || [];
   posVacancyFlags = data.posVacancyFlags || {};
   setupHistory = normalizeSetupHistory(data.setupHistory);

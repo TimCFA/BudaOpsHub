@@ -14,6 +14,7 @@ import firebase_admin
 from firebase_admin import credentials, db
 
 from pea_parser import parse_pea_pdf, PeaParseError
+from reports_parser import parse_report_file, ReportParseError
 import levelset_sync
 from state_patch import PatchError, apply_ops, canon, check_ops, union_merge
 
@@ -45,7 +46,7 @@ MANAGER_ONLY_KEYS = {
     'lxPillars', 'lxMetrics', 'lxLastUpdated',
     'gxData', 'txData', 'homeData',
     'peaRatings', 'peaNameAliases',
-    'dataUploadLog', 'dataUploadSettings', 'productivityProfiles',
+    'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData',
 }
 
 def _changed_manager_fields(old_state, new_state):
@@ -72,7 +73,7 @@ STATE_ROOT = 'state'
 STATE_SECTIONS = {
     'manager': ['wasteTarget', 'safeTarget', 'products', 'deletedProductIds', 'productFixesVersion',
                 'productCategoryOrder', 'lxPillars', 'lxMetrics', 'lxLastUpdated', 'gxData', 'txData',
-                'homeData', 'dataUploadLog', 'dataUploadSettings', 'productivityProfiles'],
+                'homeData', 'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData'],
     'pea': ['peaRatings', 'peaNameAliases'],
     'rosters': ['fohRoster', 'bohRoster'],
     'setups': ['posAssignments', 'posVacancyFlags', 'setupDayTypes', 'lastUpdated',
@@ -307,6 +308,30 @@ def pea_parse():
     except Exception as e:
         print(f"[PEA PARSE ERROR] {e}")
         return jsonify({'error': 'Could not read that PDF'}), 500
+
+REPORT_MAX_BYTES = 40 * 1024 * 1024   # Smart Shop PDFs carry photos (10–20 MB each)
+
+@app.route('/api/reports/parse', methods=['POST'])
+def reports_parse():
+    """Reads an Ops Hub Smart Shop or food safety PDF (or the zip Ops Hub
+    downloads) and returns what's in it. Nothing is stored here. A PDF it
+    doesn't recognize comes back as kind None (the page then tries PEA)."""
+    if not session.get('manager'):
+        return jsonify({'error': 'Manager sign-in required'}), 403
+    if request.content_length and request.content_length > REPORT_MAX_BYTES:
+        return jsonify({'error': 'That file is over 40 MB — upload the reports one at a time.'}), 413
+    upload = request.files.get('file')
+    if not upload or not upload.filename:
+        return jsonify({'error': 'No file uploaded'}), 400
+    if not upload.filename.lower().endswith(('.pdf', '.zip')):
+        return jsonify({'error': 'Upload the PDF (or the zip) from Ops Hub'}), 400
+    try:
+        return jsonify({'reports': parse_report_file(upload.read(), upload.filename)})
+    except ReportParseError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        print(f"[REPORT PARSE ERROR] {e}")
+        return jsonify({'error': 'Could not read that file'}), 500
 
 # One Levelset fetch a minute at most, however many times the button's pressed.
 _levelset_last = {'at': 0.0, 'reply': None}

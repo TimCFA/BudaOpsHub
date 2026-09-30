@@ -1741,3 +1741,26 @@
   .gx-auto{background:#EEF6EF !important;color:#1E5631;cursor:default;}
   .gx-source-note{font-size:12px;line-height:1.5;color:var(--text-secondary);background:#F4F8F4;border:1px solid #D7E8D9;border-radius:8px;padding:10px 12px;margin-bottom:12px;}
   .gx-source-note b{color:var(--text-primary);}
+  .rp-summary{margin:6px 0 2px;display:grid;gap:4px;}
+  .rp-sub{color:var(--text-secondary);font-weight:400;}
+  .rp-fs-card summary{cursor:pointer;font-size:14px;line-height:1.5;}
+  .rp-fs-card summary .rp-sub{display:block;font-size:12px;}
+  .rp-fs-list{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:8px;}
+  .rp-fs-list li{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.45;padding:8px 10px;border-radius:8px;background:var(--cfa-light);}
+  .rp-fs-list li.is-high{background:#FDECEC;}
+  .rp-fs-list li.is-medium{background:#FFF4E0;}
+  .rp-risk{flex:0 0 auto;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 6px;border-radius:4px;background:#fff;color:var(--text-secondary);}
+  .rp-fs-list li.is-high .rp-risk{color:#B3261E;}
+  .rp-fs-list li.is-medium .rp-risk{color:#8A5A00;}
+  .rp-panel{background:rgba(255,255,255,.7);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:grid;gap:8px;}
+  .rp-panel-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--text-secondary);}
+  .rp-big{font-family:'Outfit',sans-serif;font-size:28px;font-weight:700;color:var(--text-primary);line-height:1;}
+  .rp-chips{display:flex;flex-wrap:wrap;gap:6px;}
+  .rp-chip{font-size:12px;padding:4px 8px;border-radius:999px;background:var(--cfa-light);border:1px solid var(--border);}
+  .rp-list-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-secondary);}
+  .rp-list{margin:0;padding-left:18px;font-size:13px;line-height:1.45;display:grid;gap:3px;}
+  .rp-list em{font-style:normal;color:var(--text-secondary);font-size:12px;}
+  .gx-fs-tier{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
+  .gx-fs-tier.is-elite,.gx-fs-tier.is-great{color:#1E7B34;}
+  .gx-fs-tier.is-fair{color:#8A5A00;}
+  .gx-fs-tier.is-bad{color:#B3261E;}
