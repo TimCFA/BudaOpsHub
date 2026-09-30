@@ -26,7 +26,8 @@ function suModeBarHtml(){
 
 // "Josh → Lauren @ 7:30", "Avah (from 11:30)", "Dan (leaves 6:00)".
 function suSheetNameHtml(t, brk){
-  if(!t.names.length) return t.needed ? '<span class="su-row-needed">Needed</span>' : '<span class="su-row-open">—</span>';
+  // A needed spot is shown by its light red row alone (no wording).
+  if(!t.names.length) return t.needed ? '' : '<span class="su-row-open">—</span>';
   const who = t.names.length > 1 && t.timeNote ? suDisplayName(t.names[0]) : t.names.map(suDisplayName).join(' → ');
   const lead = t.leaderRole ? `<span class="su-row-role" title="${escapeHtml(t.leaderRole)}">${t.leaderRole === 'Team Lead' ? 'TL' : 'T'}</span>` : '';
   const note = t.timeNote ? `<span class="su-row-note ${t.timeNote.warn ? 'is-warn' : ''}">${escapeHtml(t.timeNote.text)}</span>` : '';
