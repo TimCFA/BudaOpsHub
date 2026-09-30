@@ -139,9 +139,12 @@ function gxMarkCemFields(){
   const typed = [
     !has('gx-mtd') && !has('gx-ytd') ? 'sales (MTD/YTD)' : '',
     has('gx-dt-') ? (['market', 'state', 'chain'].filter(g => !reportIds[`gx-dt-${g}`]).length ? `drive-thru rank (${['market', 'state', 'chain'].filter(g => !reportIds[`gx-dt-${g}`]).join(', ')})` : '') : 'drive-thru rankings',
-    'Smart Shop scores', 'QIV',
+    !reportIds['gx-craveable-smartShopScore'] ? 'Smart Shop scores' : '',
+    !reportIds['gx-craveable-mostRecentQIV'] ? 'QIV' : '',
     !reportIds['gx-service-speedOfService'] ? 'speed of service' : '',
-    'Top 5% for speed of service', 'food safety score', 'the coaching lists'
+    'the Top 5% benchmarks for QIV and speed of service',
+    'the food safety score each quarter (1 elite · 2 great · 3–5 fair · above 5 needs work)',
+    'the coaching lists'
   ].filter(Boolean);
   const summary = typeof rpGxSummaryHtml === 'function' ? rpGxSummaryHtml() : '';
   list.insertAdjacentHTML('afterbegin', `<div class="gx-source-note">

@@ -137,6 +137,48 @@ class FoodSafetyTest(unittest.TestCase):
             rp.parse_food_safety(FakePdf([FakePage('0 Total Findings')]))
 
 
+QIV_FIRST = """Icon Report
+Current Quarter : 2026.Q3 Visit Start Time: 01:30 PM
+Included Quarters: 2025.Q4, 2026.Q1 Visit Date: 8/12/2026
+Visit Type: Scored Visit"""
+
+QIV_SCORES = """If this is a scored report, Icon color is Score <= 85%
+Icon Touchpoint Score
+Cooking Test Fries 90%
+Finished Product: Test Sandwich 100%
+Data Collection 0%
+Overall Score 97%"""
+
+
+def qiv_table_page():
+    words = [word('Cooking', 148, 98), word('Test', 206, 98), word('Fries', 240, 98),
+             word('Current', 635, 138), word('Previous', 707, 138)]
+    words += ss_row(166, [('3.6.2', 75), ('Fries', 148), ('lowered', 175), ('✔', 649), ('✔', 723)])
+    words += ss_row(196, [('3.6.3', 75), ('Basket', 148), ('shaken', 180), ('✘', 649), ('✔', 723)])
+    # Wrapped and missed on both visits.
+    words += ss_row(279, [('Box', 148), ('free', 170), ('of', 195)])
+    words += ss_row(284, [('4.3.13', 73), ('Q', 119), ('✘', 649), ('✘', 723)])
+    words += ss_row(288, [('staining', 148)])
+    # Missed last visit only: not a miss now.
+    words += ss_row(320, [('3.1.5', 75), ('Timer', 148), ('✔', 649), ('✘', 723)])
+    return FakePage('Cooking Test Fries', words)
+
+
+class QivTest(unittest.TestCase):
+    def test_scores_and_misses(self):
+        r = rp.parse_qiv(FakePdf([FakePage(QIV_FIRST), FakePage(QIV_SCORES), qiv_table_page()]))
+        self.assertEqual(rp.detect_kind(QIV_FIRST), 'qiv')
+        self.assertEqual((r['quarter'], r['date'], r['overall']), ('Q3-2026', '2026-08-12', 97))
+        self.assertEqual([t['name'] for t in r['touchpoints']], ['Cooking Test Fries', 'Finished Product: Test Sandwich', 'Data Collection'])
+        self.assertEqual([(m['id'], m['standard'], m['qualityDriver'], m['repeat']) for m in r['misses']],
+                         [('3.6.3', 'Basket shaken', False, False), ('4.3.13', 'Box free of staining', True, True)])
+        self.assertEqual(r['misses'][0]['section'], 'Cooking Test Fries')
+
+    def test_no_overall_is_an_error(self):
+        with self.assertRaises(rp.ReportParseError):
+            rp.parse_qiv(FakePdf([FakePage(QIV_FIRST)]))
+
+
 class FileTest(unittest.TestCase):
     def test_zip_without_pdf(self):
         buf = io.BytesIO()

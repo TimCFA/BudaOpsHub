@@ -1,6 +1,6 @@
 """Reads the Ops Hub PDF reports the Guest Obsession scoreboard runs on.
 
-Two kinds, recognized from the first page:
+Three kinds, recognized from the first page:
   * Smart Shop assessment ("Smart Shop … Category Breakdown"): one mystery
     shop visit. Kept: the visit month, weekday and daypart, the compliant /
     noncompliant counts per section, and every standard that was missed
@@ -8,6 +8,9 @@ Two kinds, recognized from the first page:
     the restaurant's address are not kept.
   * Food safety "All Findings" report: the quarter's findings, each with its
     code, category, risk level, whether it's a repeat, and the items cited.
+  * QIV (Quality Improvement Visit) "Icon Report": the quarter and visit
+    date, the overall score, each touchpoint's score, and every standard
+    marked ✘ on this visit (with whether it was also ✘ last visit).
 
 Ops Hub downloads Smart Shops as a .zip holding one PDF; a zip is opened and
 each PDF inside is read. Nothing is stored here — the page files the result.
@@ -50,6 +53,8 @@ def detect_kind(first_page_text):
         return 'smartShop'
     if re.search(r'\d+\s+Total Findings', first_page_text):
         return 'foodSafety'
+    if 'Icon Report' in first_page_text and 'Current Quarter' in first_page_text:
+        return 'qiv'
     return None
 
 
@@ -205,6 +210,81 @@ def parse_food_safety(pdf):
     return {'kind': 'foodSafety', 'quarter': quarter, 'total': total if total is not None else len(findings), 'findings': findings}
 
 
+# ----- QIV -----
+
+QIV_ID_RE = re.compile(r'^[A-Z]*\d+(?:\.+\d+)+[a-z0-9-]*$')
+QIV_SCORE_RE = re.compile(r'^(.+?)\s+(\d{1,3})%$')
+
+
+def _qiv_misses(pdf):
+    """Standards marked ✘ in the Current Response column. Rows have no rules
+    between them; a standard's ID sits on its middle line, with wrapped
+    description lines a few points above and below it."""
+    misses, mid, title = [], None, ''
+    for page in pdf.pages:
+        words = page.extract_words()
+        cur = [w for w in words if w['text'] == 'Current']
+        prev = [w for w in words if w['text'] == 'Previous']
+        top = 60
+        if cur and prev:
+            # A new table: its columns and its title (the line above).
+            mid = (cur[0]['x0'] + prev[0]['x0']) / 2 + 14
+            head_top = cur[0]['top']
+            title = ' '.join(w['text'] for w in sorted((w for w in words if w['top'] < head_top - 20 and w['x0'] > 100), key=lambda w: w['x0'])) or title
+            top = head_top + 15
+        if mid is None:
+            continue   # pages before the first table
+        # (A page without a header continues the last table.)
+        ids = [w for w in words if w['x0'] < 140 and w['top'] > top and QIV_ID_RE.match(w['text'])]
+        for x in (w for w in words if w['text'] == '✘' and w['x0'] > 600 and w['x0'] < mid):
+            if not ids:
+                break
+            row = min(ids, key=lambda w: abs(w['top'] - x['top']))
+            if abs(row['top'] - x['top']) > 14:
+                continue
+            band = [w for w in words if abs(w['top'] - row['top']) <= 10]
+            desc = ' '.join(w['text'] for w in sorted((w for w in band if 140 <= w['x0'] < 520), key=lambda w: (round(w['top']), w['x0'])))
+            misses.append({
+                'id': row['text'], 'section': title, 'standard': desc,
+                'qualityDriver': any(w['text'] == 'Q' and 110 <= w['x0'] < 130 for w in band),
+                'repeat': any(w['text'] == '✘' and w['x0'] >= mid for w in band),
+            })
+    return misses
+
+
+def parse_qiv(pdf):
+    first = _page_text(pdf.pages[0])
+    quarter = re.search(r'Current Quarter\s*:\s*(\d{4})\.(Q\d)', first)
+    visit = re.search(r'Visit Date:\s*(\d{1,2})/(\d{1,2})/(\d{4})', first)
+    vtype = re.search(r'Visit Type:\s*(.+)', first)
+    touchpoints, overall = [], None
+    for page in pdf.pages:
+        lines = _page_text(page).splitlines()
+        if not any('Touchpoint Score' in l for l in lines):
+            continue
+        start = next(i for i, l in enumerate(lines) if 'Touchpoint Score' in l)
+        for line in lines[start + 1:]:
+            m = QIV_SCORE_RE.match(line.strip())
+            if not m:
+                continue
+            if m.group(1) == 'Overall Score':
+                overall = int(m.group(2))
+                break
+            touchpoints.append({'name': m.group(1), 'score': int(m.group(2))})
+        break
+    if overall is None:
+        raise ReportParseError('No overall score in this QIV report.')
+    return {
+        'kind': 'qiv',
+        'quarter': f'{quarter.group(2)}-{quarter.group(1)}' if quarter else None,
+        'date': f'{visit.group(3)}-{int(visit.group(1)):02d}-{int(visit.group(2)):02d}' if visit else None,
+        'visitType': vtype.group(1).strip() if vtype else '',
+        'overall': overall,
+        'touchpoints': touchpoints,
+        'misses': _qiv_misses(pdf),
+    }
+
+
 # ----- Entry point -----
 
 def _parse_pdf(data, name):
@@ -220,6 +300,8 @@ def _parse_pdf(data, name):
             out = parse_smart_shop(pdf)
         elif kind == 'foodSafety':
             out = parse_food_safety(pdf)
+        elif kind == 'qiv':
+            out = parse_qiv(pdf)
         else:
             return {'kind': None, 'file': name}
     out['file'] = name

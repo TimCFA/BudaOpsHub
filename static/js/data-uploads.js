@@ -53,8 +53,8 @@ const DU_SOURCES = [
     feeds: 'Guest Obsession WIG — sales and % change vs last year'
   },
   {
-    key: 'dtRank', short: 'Detailed Rankings', icon: '🚗', name: 'Drive-thru rankings (Analytics Hub)', freq: 'monthly', accept: '.csv,.txt', multiple: true,
-    how: 'Analytics Hub → DT rankings → Detailed Rankings, export as CSV — once per comparison group (Market, State, Chain). The upload asks which group each file is.',
+    key: 'dtRank', short: 'rankings', icon: '🚗', name: 'Drive-thru rankings (Analytics Hub)', freq: 'monthly', accept: '.csv,.txt', multiple: true,
+    how: 'Analytics Hub → DT rankings → Detailed Rankings (or Composite Rank), export as CSV — once per comparison group. A chain-wide ranking is recognized on its own; for the others the upload asks Region, Market or State.',
     feeds: 'Guest Obsession DT ranking'
   },
   {
@@ -71,6 +71,11 @@ const DU_SOURCES = [
     key: 'foodSafety', short: 'food safety PDF', icon: '🧪', name: 'Food safety assessment (Ops Hub)', freq: 'monthly', fixedFreq: true, accept: '.pdf',
     how: 'Ops Hub → Food Safety → All Findings, print or save as PDF after each assessment.',
     feeds: 'Food Safety Walkthrough — the findings to check first'
+  },
+  {
+    key: 'qiv', short: 'QIV PDF', icon: '🔬', name: 'QIV visit (Ops Hub)', freq: 'monthly', fixedFreq: true, accept: '.pdf',
+    how: 'Ops Hub → QIV → the quarter’s Icon Report (QIV_QTR_…pdf), after each scored visit.',
+    feeds: 'Guest Obsession Most Recent QIV · QIV panel under Operational Excellence'
   }
 ];
 
@@ -501,7 +506,11 @@ async function duHandleFiles(fileList, hint){
       else if(job.kind === 'numbers') text = await knImportFile(job.file);
       else if(job.kind === 'sales') text = await rpImportSales(job.file, job.text);
       else if(job.kind === 'sos') text = await rpImportSos(job.file, job.text);
-      else if(job.kind === 'dtRank'){ rpParseDtRank(job.text); duWait(job, 'dtGroup'); continue; }
+      else if(job.kind === 'dtRank'){
+        const d = rpParseDtRank(job.text);
+        if(d.count >= RP_DT_CHAIN_MIN) text = await rpImportDtRank(job.file, job.text, 'chain');
+        else { duWait(job, 'dtGroup'); continue; }
+      }
       else if(job.kind === 'opsPdf'){
         const report = await rpImportOpsPdf(job.file);
         if(report === null){
@@ -549,7 +558,7 @@ function duWaitTwin(resultIndex, file, iso, twin){
 function duWait(job, need){
   duPending.push({id: ++duPendingSeq, kind: job.kind, need, file: job.file, text: job.text});
   const src = DU_SOURCES.find(s => s.key === job.kind);
-  duResults[job.i] = {file: job.file.name, state: 'waiting', kind: src ? src.name : job.kind, text: need === 'date' ? 'No date in this file — pick the day in the Sales Mix row below.' : need === 'dtGroup' ? 'Which ranking is this? Pick Market, State or Chain in the Drive-thru rankings row below.' : 'No weekday in this export — pick it in the Productivity row below.'};
+  duResults[job.i] = {file: job.file.name, state: 'waiting', kind: src ? src.name : job.kind, text: need === 'date' ? 'No date in this file — pick the day in the Sales Mix row below.' : need === 'dtGroup' ? 'Which ranking is this? Pick Region, Market, State or Chain in the Drive-thru rankings row below.' : 'No weekday in this export — pick it in the Productivity row below.'};
 }
 
 async function duResolvePending(id, value){
@@ -595,7 +604,7 @@ function duPendingHtml(item){
   }
   if(item.need === 'dtGroup'){
     let rank = '';
-    try{ const d = rpParseDtRank(item.text); rank = ` (rank #${d.rank}, composite ${d.composite})`; }catch(e){}
+    try{ const d = rpParseDtRank(item.text); rank = ` (rank #${d.rank}${d.count ? ` of ${d.count.toLocaleString('en-US')}` : ''}, composite ${d.composite})`; }catch(e){}
     return `<div class="du-pending">${name}
       <div class="du-pending-q">Which comparison group was this ranking${escapeHtml(rank)} filtered to?</div>
       <div class="du-chips">${Object.entries(RP_DT_GROUPS).map(([k, v]) => `<button type="button" class="du-chip" data-du-pending="${item.id}" data-du-value="${k}">${v}</button>`).join('')}</div>

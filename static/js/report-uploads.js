@@ -1,27 +1,33 @@
 // ===== GUEST OBSESSION REPORTS (TIM-30 … TIM-34) =====
-// Five more reports go through the Data Uploads drop zone, so the Guest
+// Six more reports go through the Data Uploads drop zone, so the Guest
 // Obsession scoreboard stops being typed in by hand:
 //   sales       Analytics Hub sales by day (CSV_DOWNLOAD): total sales and
-//               % change vs last year for the dates exported → WIG MTD (or
-//               YTD when the export starts in the first week of January)
-//   dtRank      Analytics Hub Detailed Rankings: drive-thru composite score
-//               and rank → Market, State or Chain (the file doesn't say which
-//               comparison group it was filtered to, so the upload asks)
-//   sos         Analytics Hub speed of service by day (Custom by Day):
-//               average total time per destination → Speed of Service
-//               (drive-thru, every car including mobile orders)
+//               % change vs last year → WIG MTD, from the 1st of the month
+//               (or YTD when the export starts in the first week of January)
+//   dtRank      Analytics Hub Detailed Rankings / Composite Rank: drive-thru
+//               composite score and rank → Region, Market, State or Chain. A
+//               ranking among 1,500+ restaurants is the chain; otherwise the
+//               upload asks which comparison group it was filtered to.
+//   sos         Analytics Hub speed of service (Custom by Day, or the hourly
+//               EXPORT – ALL DESTINATION): average total time per destination
+//               → Speed of Service (drive-thru, every car including mobile)
 //   smartShop   Ops Hub Smart Shop PDFs (or the zip Ops Hub downloads):
-//               compliance per visit and every standard missed
+//               share of scored standards met per visit and every standard
+//               missed → a Smart Shop panel in Operational Excellence
 //   foodSafety  Ops Hub food safety "All Findings" PDF: the quarter's findings
+//   qiv         Ops Hub QIV Icon Report PDF: overall and touchpoint scores and
+//               what was missed → Most Recent QIV, and a QIV panel
 // PDFs are read on the server (/api/reports/parse). What's read is kept in
 // reportData; files aren't. Location and operator names in the exports are
 // never kept.
 
-let reportData = {};   // {sales: {mtd, ytd}, dtRank: {market, state, chain}, sos, smartShop: {visits}, foodSafety: {quarters}}
+let reportData = {};   // {sales: {mtd, ytd}, dtRank: {region, market, state, chain}, sos, smartShop: {visits}, foodSafety: {quarters}, qiv: {visits}}
 
-const RP_KEYS = ['sales', 'dtRank', 'sos', 'smartShop', 'foodSafety'];
-const RP_DT_GROUPS = {market: 'Market', state: 'State', chain: 'Chain'};
+const RP_KEYS = ['sales', 'dtRank', 'sos', 'smartShop', 'foodSafety', 'qiv'];
+const RP_DT_GROUPS = {region: 'Region', market: 'Market', state: 'State', chain: 'Chain'};
+const RP_DT_CHAIN_MIN = 1500;   // a comparison group this big is the whole chain
 const RP_SS_KEEP = 24;   // Smart Shop visits kept
+const RP_QIV_KEEP = 8;   // QIV visits kept
 
 const rpNum = v => { const n = parseFloat(String(v == null ? '' : v).replace(/[$,%\s]/g, '')); return isNaN(n) ? null : n; };
 const rpMoney = n => '$' + Math.round(n).toLocaleString('en-US');
@@ -64,18 +70,33 @@ function rpParseSales(text){
   return out;
 }
 
+// Month to date runs from the 1st. An export that starts earlier is cut to
+// the 1st: sales add up exactly; the change vs last year is rebuilt from
+// each day's change (last year = sales / (1 + change)), so it's shown to one
+// decimal and marked estimated.
+function rpMonthToDate(s){
+  const first = s.to.slice(0, 8) + '01';
+  if(s.from >= first) return s;
+  const days = s.days.filter(d => d[0] >= first);
+  if(!days.length) return s;
+  const total = days.reduce((t, d) => t + d[1], 0);
+  const lastYear = days.every(d => d[2] != null && d[2] > -1) ? days.reduce((t, d) => t + d[1] / (1 + d[2]), 0) : null;
+  return {...s, from: days[0][0], total, change: lastYear ? total / lastYear - 1 : null, channels: {}, days, estimated: true, exportFrom: s.from};
+}
+
 async function rpImportSales(file, text){
-  const s = rpParseSales(text);
+  const parsed = rpParseSales(text);
   // Starts in the first week of January → year to date; otherwise month to date.
-  const ytd = /-01-0[1-7]$/.test(s.from) && s.from.slice(0, 4) === s.to.slice(0, 4);
+  const ytd = /-01-0[1-7]$/.test(parsed.from) && parsed.from.slice(0, 4) === parsed.to.slice(0, 4);
   const which = ytd ? 'ytd' : 'mtd';
+  const s = ytd ? parsed : rpMonthToDate(parsed);
   const sales = reportData.sales = reportData.sales || {};
   sales[which] = {...s, file: file.name, at: new Date().toISOString()};
   rpApplyToScoreboard();
   duRecord('sales', {file: file.name, summary: `${which.toUpperCase()} ${rpRange(s.from, s.to)}`, periodEnd: s.to});
   await saveState();
   rpRerender();
-  return `${ytd ? 'Year' : 'Month'} to date ${rpRange(s.from, s.to)}: ${rpMoney(s.total)} (${s.change === null ? 'no change %' : rpPct(s.change) + ' vs last year'}) → Guest Obsession WIG`;
+  return `${ytd ? 'Year' : 'Month'} to date ${rpRange(s.from, s.to)}: ${rpMoney(s.total)} (${s.change === null ? 'no change %' : rpPct(s.change) + ' vs last year'}${s.estimated ? `, estimated — the export started ${duShort(s.exportFrom)}; export from the 1st for the exact figure` : ''}) → Guest Obsession WIG`;
 }
 
 // ----- Drive-thru ranking -----
@@ -91,7 +112,7 @@ function rpParseDtRank(text){
   const h = header.slice(-n), v = row.slice(-n);
   const get = re => { const i = h.findIndex(x => re.test(x)); return i === -1 ? null : rpNum(v[i]); };
   const out = {
-    composite: get(/^Composite Score/i), rank: get(/^Ranking - Composite Score$/i),
+    composite: get(/^Composite Score/i), rank: get(/^Ranking - Composite Score/i), count: get(/Restaurant Count/i),
     dtSales: get(/^Avg DT Daily Sales$/i), dtSalesRank: get(/^Avg DT Daily Sales Rank$/i),
     dtCars: get(/^Avg DT Daily TCnt$/i), dtCarsRank: get(/TCnt Rank$/i),
     fastService: get(/Fast Service %$/i), fastServiceRank: get(/Fast Service % Rank$/i),
@@ -109,7 +130,7 @@ async function rpImportDtRank(file, text, group){
   duRecord('dtRank', {file: file.name, summary: `${RP_DT_GROUPS[group]} #${d.rank}`});
   await saveState();
   rpRerender();
-  return `${RP_DT_GROUPS[group]} rank #${d.rank} (composite ${d.composite}) → Guest Obsession DT ranking`;
+  return `${RP_DT_GROUPS[group]} rank #${d.rank}${d.count ? ` of ${d.count.toLocaleString('en-US')}` : ''} (composite ${d.composite}) → Guest Obsession DT ranking`;
 }
 
 // ----- Speed of service by day -----
@@ -117,8 +138,44 @@ async function rpImportDtRank(file, text, group){
 // Rows are keyed by the day's average order / payment / total / fulfillment
 // times, then destination and measure, with the value under the day's
 // column. → {from, to, destinations: {name: {cars, total, order, fulfill}}}
+// EXPORT – ALL DESTINATION: one row per day, daypart, hour and destination,
+// times in seconds. Also gives the drive-thru average per daypart.
+function rpParseSosHourly(rows){
+  const header = rows[0].map(c => String(c).trim());
+  const col = re => header.findIndex(c => re.test(c));
+  const dateCol = col(/^Date$/i), dpCol = col(/^Daypart/i), destCol = col(/Destination Type/i);
+  const carsCol = col(/^Trans Count Sos$/i), totalCol = col(/^Avg Total Time \(sec\)$/i);
+  const orderCol = col(/^Avg Order Time \(sec\)$/i), fulfillCol = col(/^Avg Fulfillment Time \(sec\)$/i);
+  if([dateCol, destCol, carsCol, totalCol].includes(-1)) throw new Error('This speed of service export is missing a column it should have.');
+  const acc = {}, dayparts = {}, days = [];
+  const add = (bucket, key, cars, r)=>{
+    const a = bucket[key] = bucket[key] || {cars: 0, total: 0, order: 0, fulfill: 0};
+    a.cars += cars;
+    a.total += cars * (rpNum(r[totalCol]) || 0);
+    a.order += cars * (orderCol === -1 ? 0 : rpNum(r[orderCol]) || 0);
+    a.fulfill += cars * (fulfillCol === -1 ? 0 : rpNum(r[fulfillCol]) || 0);
+  };
+  rows.slice(1).forEach(r=>{
+    const m = String(r[dateCol] || '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    const cars = rpNum(r[carsCol]);
+    const dest = String(r[destCol] || '').trim();
+    if(!m || !cars || !dest || rpNum(r[totalCol]) === null) return;
+    days.push(`${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`);
+    add(acc, dest, cars, r);
+    if(/^(M:\s*)?Drive Thru$/i.test(dest) && dpCol !== -1) add(dayparts, String(r[dpCol]).trim(), cars, r);
+  });
+  const avg = a => ({cars: a.cars, total: a.total / a.cars, order: a.order / a.cars, fulfill: a.fulfill / a.cars});
+  const destinations = {}, dt = {};
+  Object.entries(acc).forEach(([k, a]) => { destinations[k] = avg(a); });
+  Object.entries(dayparts).forEach(([k, a]) => { dt[k] = avg(a); });
+  if(!days.length) throw new Error('No speed of service numbers in this export.');
+  days.sort();
+  return {from: days[0], to: days[days.length - 1], destinations, dtDayparts: dt};
+}
+
 function rpParseSos(text, now){
   const rows = duParseTsv(text);
+  if((rows[0] || []).some(c => /Avg Total Time \(sec\)/i.test(c))) return rpParseSosHourly(rows);
   const hi = rows.findIndex(r => r.some(c => /Destination Type/i.test(c)));
   if(hi === -1) throw new Error('No destination column in this speed of service export.');
   const header = rows[hi].map(c => String(c).trim());
@@ -198,7 +255,8 @@ async function rpImportOpsPdf(file){
   const reports = data.reports || [];
   const shops = reports.filter(r => r.kind === 'smartShop');
   const safety = reports.filter(r => r.kind === 'foodSafety');
-  if(!shops.length && !safety.length) return null;
+  const qivs = reports.filter(r => r.kind === 'qiv');
+  if(!shops.length && !safety.length && !qivs.length) return null;
   const out = [];
   if(shops.length){
     const ss = reportData.smartShop = reportData.smartShop || {visits: []};
@@ -219,9 +277,24 @@ async function rpImportOpsPdf(file){
     duRecord('foodSafety', {file: file.name, summary: `${r.quarter} · ${r.total} findings`});
     out.push(`${r.quarter}: ${r.total} findings (${rpFindingCounts(r.findings)}) → Food Safety`);
   }
+  if(qivs.length){
+    const q = reportData.qiv = reportData.qiv || {visits: []};
+    qivs.forEach(v=>{
+      const visit = {file: v.file, quarter: v.quarter, date: v.date, visitType: v.visitType, overall: v.overall,
+        touchpoints: v.touchpoints, misses: v.misses, at: new Date().toISOString()};
+      q.visits = q.visits.filter(x => !(x.date === v.date && x.quarter === v.quarter)).concat(visit);
+    });
+    q.visits.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    q.visits = q.visits.slice(-RP_QIV_KEEP);
+    rpApplyToScoreboard();
+    const v = qivs[qivs.length - 1];
+    duRecord('qiv', {file: file.name, summary: `${v.quarter} · ${v.overall}%`});
+    out.push(`QIV ${v.quarter}${v.date ? ` (${duShort(v.date)})` : ''}: ${v.overall}% · ${v.misses.length} missed → Most Recent QIV`);
+  }
   await saveState();
   rpRerender();
-  return {text: out.join(' · '), kind: shops.length && safety.length ? 'opsPdf' : shops.length ? 'smartShop' : 'foodSafety'};
+  const kinds = [shops.length && 'smartShop', safety.length && 'foodSafety', qivs.length && 'qiv'].filter(Boolean);
+  return {text: out.join(' · '), kind: kinds.length === 1 ? kinds[0] : 'opsPdf'};
 }
 
 function rpFindingCounts(findings){
@@ -259,9 +332,15 @@ function rpSmartShopMonth(){
 function rpApplyToScoreboard(){
   const set = (group, key, v) => { if(v != null && gxData[group] && gxData[group][key]) gxData[group][key].value = v; };
   const s = reportData.sales || {};
-  if(s.mtd){ set('wig', 'mtdSales', rpMoney(s.mtd.total)); if(s.mtd.change != null) set('wig', 'mtdSalesChange', rpPct(s.mtd.change, 2, false)); }
+  if(s.mtd){ set('wig', 'mtdSales', rpMoney(s.mtd.total)); if(s.mtd.change != null) set('wig', 'mtdSalesChange', rpPct(s.mtd.change, s.mtd.estimated ? 1 : 2, false)); }
   if(s.ytd){ set('wig', 'ytdSales', rpMoney(s.ytd.total)); if(s.ytd.change != null) set('wig', 'ytdSalesChange', rpPct(s.ytd.change, 2, false)); }
-  Object.entries(reportData.dtRank || {}).forEach(([group, d]) => set('dt', group, String(d.rank)));
+  Object.entries(reportData.dtRank || {}).forEach(([group, d])=>{
+    // Region isn't one of the original three cards: add it, first.
+    if(!gxData.dt[group]) gxData.dt = {[group]: {value: '', label: RP_DT_GROUPS[group] || group}, ...gxData.dt};
+    set('dt', group, String(d.rank));
+  });
+  const qiv = rpLatestQiv();
+  if(qiv) set('craveable', 'mostRecentQIV', `${qiv.overall}%`);
   const dt = reportData.sos ? rpSosDriveThru(reportData.sos) : null;
   if(dt) set('service', 'speedOfService', rpClock(dt.total));
   gxData.lastUpdated = new Date().toISOString();
@@ -275,7 +354,62 @@ function rpGxAutoFields(){
   if(s.ytd) ['gx-ytd-sales', 'gx-ytd-change'].forEach(id => { ids[id] = `From the sales upload (${rpRange(s.ytd.from, s.ytd.to)})`; });
   Object.keys(reportData.dtRank || {}).forEach(g => { ids[`gx-dt-${g}`] = 'From the Detailed Rankings upload'; });
   if(reportData.sos && rpSosDriveThru(reportData.sos)) ids['gx-service-speedOfService'] = `From the speed of service upload (${rpRange(reportData.sos.from, reportData.sos.to)})`;
+  const qiv = rpLatestQiv();
+  if(qiv) ids['gx-craveable-mostRecentQIV'] = `From the QIV upload (${qiv.quarter})`;
+  // The per-pillar Smart Shop scores give way to the Smart Shop panel.
+  if(rpHasSmartShop()) ['craveable', 'service', 'welcoming'].forEach(g => ['', '-top5'].forEach(t => { ids[`gx-${g}-smartShopScore${t}`] = 'Replaced by the Smart Shop upload — see the Smart Shop panel under Operational Excellence'; }));
   return ids;
+}
+
+function rpHasSmartShop(){ return !!rpSmartShopMonth(); }
+
+function rpLatestQiv(){
+  const visits = (reportData.qiv || {}).visits || [];
+  return visits[visits.length - 1] || null;
+}
+
+// Touchpoints that aren't scored standards (Data Collection, Goal Setting)
+// report 0% or N/A; they're left out of "below 100%".
+const RP_QIV_UNSCORED = /Data Collection|Goal Setting/i;
+
+// Food safety score: 1 elite, 2 great, 3–5 fair, above 5 needs work.
+function rpFoodSafetyTier(value){
+  const n = parseFloat(String(value).replace(/[^0-9.]/g, ''));
+  if(isNaN(n)) return null;
+  if(n <= 1) return {key: 'elite', label: 'Elite'};
+  if(n <= 2) return {key: 'great', label: 'Great'};
+  if(n <= 5) return {key: 'fair', label: 'Fair'};
+  return {key: 'bad', label: 'Needs work'};
+}
+
+// Scoreboard: Smart Shop and QIV panels inside Operational Excellence.
+function rpOpsPanelsHtml(){
+  const parts = [];
+  const ss = rpSmartShopMonth();
+  if(ss){
+    parts.push(`<div class="gx-section-subtitle" style="margin-top:16px;">🕵️ Smart Shop · ${escapeHtml(ss.label.replace(/,/, ''))}</div>
+      <div class="rp-panel">
+        <div class="rp-panel-head"><span class="rp-big">${ss.score}%</span><span>of scored standards met across ${ss.visits.length} visit${ss.visits.length === 1 ? '' : 's'}</span></div>
+        <div class="rp-chips">${ss.visits.map(v => `<span class="rp-chip">${escapeHtml(v.dayOfWeek)} ${escapeHtml(v.daypart)} <b>${v.score}%</b></span>`).join('')}</div>
+        ${ss.top.length ? `<div class="rp-list-title">Missed most</div><ul class="rp-list">${ss.top.map(t => `<li>${escapeHtml(t.standard)}${t.visits.size > 1 ? ` <em>${t.visits.size} of ${ss.visits.length} visits</em>` : ''}</li>`).join('')}</ul>` : ''}
+      </div>`);
+  }
+  const q = rpLatestQiv();
+  if(q){
+    const low = (q.touchpoints || []).filter(t => t.score < 100 && !RP_QIV_UNSCORED.test(t.name));
+    parts.push(`<div class="gx-section-subtitle" style="margin-top:16px;">🔬 QIV · ${escapeHtml(q.quarter || '')}${q.date ? ` · ${escapeHtml(duShort(q.date))}` : ''}</div>
+      <div class="rp-panel">
+        <div class="rp-panel-head"><span class="rp-big">${q.overall}%</span><span>overall${low.length ? ` · ${low.length} touchpoint${low.length === 1 ? '' : 's'} below 100%` : ' · every touchpoint 100%'}</span></div>
+        ${low.length ? `<div class="rp-chips">${low.map(t => `<span class="rp-chip">${escapeHtml(t.name.replace(/^Finished Product:\s*/, '').replace(/Chick-fil-A\s*/g, ''))} <b>${t.score}%</b></span>`).join('')}</div>` : ''}
+        ${(q.misses || []).length ? `<div class="rp-list-title">Missed on this visit</div><ul class="rp-list">${q.misses.map(m => `<li>${escapeHtml(m.standard)}${m.repeat ? ' <em>missed last visit too</em>' : ''}</li>`).join('')}</ul>` : ''}
+      </div>`);
+  }
+  return parts.join('');
+}
+
+function rpRenderOpsPanels(){
+  const root = document.getElementById('gxOpsReports');
+  if(root) root.innerHTML = rpOpsPanelsHtml();
 }
 
 // Lines for the Guest Obsession Manage note: what each report says.
@@ -283,16 +417,19 @@ function rpGxSummaryHtml(){
   const lines = [];
   const s = reportData.sales || {};
   ['mtd', 'ytd'].forEach(k => { if(s[k]) lines.push(`<b>Sales ${k.toUpperCase()}</b> ${escapeHtml(rpRange(s[k].from, s[k].to))}: ${rpMoney(s[k].total)}${s[k].change != null ? ` (${rpPct(s[k].change)} vs last year)` : ''}`); });
-  Object.entries(reportData.dtRank || {}).forEach(([g, d]) => lines.push(`<b>DT ${RP_DT_GROUPS[g]}</b> #${d.rank} · composite ${d.composite}${d.fastService != null ? ` · fast service ${d.fastService}% (#${d.fastServiceRank})` : ''}${d.orderAcc != null ? ` · order accuracy ${d.orderAcc}% (#${d.orderAccRank})` : ''}`));
+  Object.entries(reportData.dtRank || {}).forEach(([g, d]) => lines.push(`<b>DT ${RP_DT_GROUPS[g]}</b> #${d.rank}${d.count ? ` of ${d.count.toLocaleString('en-US')}` : ''} · composite ${d.composite}${d.fastService != null ? ` · fast service ${d.fastService}% (#${d.fastServiceRank})` : ''}${d.orderAcc != null ? ` · order accuracy ${d.orderAcc}% (#${d.orderAccRank})` : ''}`));
   if(reportData.sos){
     const dt = rpSosDriveThru(reportData.sos), d = reportData.sos.destinations;
     const lane = name => d[name] ? `${name.replace(/^M:\s*/, 'mobile ')} ${rpClock(d[name].total)}` : '';
-    lines.push(`<b>Speed of service</b> ${escapeHtml(rpRange(reportData.sos.from, reportData.sos.to))}: drive-thru ${dt ? rpClock(dt.total) : '—'} (${[lane('Drive Thru'), lane('M: Drive Thru'), lane('Dine In'), lane('Carry Out')].filter(Boolean).map(escapeHtml).join(' · ')})`);
+    const dps = Object.entries(reportData.sos.dtDayparts || {}).sort((a, b) => b[1].cars - a[1].cars).slice(0, 6);
+    lines.push(`<b>Speed of service</b> ${escapeHtml(rpRange(reportData.sos.from, reportData.sos.to))}: drive-thru ${dt ? rpClock(dt.total) : '—'} (${[lane('Drive Thru'), lane('M: Drive Thru'), lane('Dine In'), lane('Carry Out')].filter(Boolean).map(escapeHtml).join(' · ')})${dps.length ? `<br><span class="rp-sub">Drive-thru by daypart: ${dps.map(([n, d]) => `${escapeHtml(n)} ${rpClock(d.total)}`).join(' · ')}</span>` : ''}`);
   }
   const ss = rpSmartShopMonth();
   if(ss) lines.push(`<b>Smart Shop ${escapeHtml(ss.label)}</b>: ${ss.visits.length} visit${ss.visits.length === 1 ? '' : 's'}, ${ss.score}% of scored standards met (${ss.visits.map(v => `${escapeHtml(v.dayOfWeek)} ${escapeHtml(v.daypart)} ${v.score}%`).join(' · ')})${ss.top.length ? `<br><span class="rp-sub">Missed most: ${ss.top.map(t => `${escapeHtml(t.standard)}${t.visits.size > 1 ? ` (${t.visits.size} visits)` : ''}`).join(' · ')}</span>` : ''}`);
   const fs = rpLatestFoodSafety();
-  if(fs) lines.push(`<b>Food safety ${escapeHtml(fs.quarter)}</b>: ${fs.total} findings (${escapeHtml(rpFindingCounts(fs.findings))})`);
+  if(fs) lines.push(`<b>Food safety ${escapeHtml(fs.quarter)}</b>: ${fs.total} findings (${escapeHtml(rpFindingCounts(fs.findings))}) — the score itself isn't in the findings report, so it stays typed in below`);
+  const q = rpLatestQiv();
+  if(q) lines.push(`<b>QIV ${escapeHtml(q.quarter || '')}</b>${q.date ? ` (${escapeHtml(duShort(q.date))})` : ''}: ${q.overall}% · ${(q.misses || []).length} missed`);
   return lines.length ? `<div class="rp-summary">${lines.map(l => `<div>${l}</div>`).join('')}</div>` : '';
 }
 
@@ -315,6 +452,7 @@ function rpRenderFoodSafetyFindings(){
 
 function rpRerender(){
   if(typeof renderGXScoreboard === 'function') renderGXScoreboard();
+  rpRenderOpsPanels();
   if(typeof renderGXManage === 'function' && document.getElementById('gxManageList')) renderGXManage();
   rpRenderFoodSafetyFindings();
 }
@@ -339,7 +477,8 @@ function rpSourceState(src, now, freq, logAt){
     const r = reportData.dtRank || {};
     const have = Object.keys(RP_DT_GROUPS).filter(g => r[g]);
     const cover = have.length ? have.map(g => `${RP_DT_GROUPS[g]} #${r[g].rank}`).join(' · ') : 'No rankings yet';
-    return {status: duStatusFromTime(logAt, freq, now), freq, cover, note: have.length && have.length < 3 ? `Still typed in: ${Object.keys(RP_DT_GROUPS).filter(g => !r[g]).map(g => RP_DT_GROUPS[g]).join(', ')}.` : '', last: logAt};
+    const typed = ['market', 'state', 'chain'].filter(g => !r[g]);
+    return {status: duStatusFromTime(logAt, freq, now), freq, cover, note: have.length && typed.length ? `Still typed in: ${typed.map(g => RP_DT_GROUPS[g]).join(', ')}.` : '', last: logAt};
   }
   if(src.key === 'sos'){
     const s = reportData.sos;
@@ -349,6 +488,12 @@ function rpSourceState(src, now, freq, logAt){
   if(src.key === 'smartShop'){
     const m = rpSmartShopMonth();
     return {status: duStatusFromTime(logAt, freq, now), freq, cover: m ? `${m.label} · ${m.visits.length} visit${m.visits.length === 1 ? '' : 's'} · ${m.score}% met` : 'No Smart Shops yet', note: '', last: logAt};
+  }
+  if(src.key === 'qiv'){
+    // One scored visit a quarter: current when the latest is this quarter's.
+    const q = rpLatestQiv();
+    const thisQ = `Q${Math.floor(now.getMonth() / 3) + 1}-${now.getFullYear()}`;
+    return {status: !q ? 'due' : q.quarter === thisQ ? 'fresh' : 'due', freq, cover: q ? `${q.quarter}${q.date ? ` · visit ${duShort(q.date)}` : ''} · ${q.overall}%` : 'No QIV yet', note: '', last: logAt};
   }
   if(src.key === 'foodSafety'){
     // Assessments come per visit, not on a schedule: never "overdue".
