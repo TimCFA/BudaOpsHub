@@ -171,12 +171,14 @@ def fetch_ratings(token, get=requests.get):
         ratings += found
         per_area[area] = {'people': len(body['data']), 'ratings': len(found), 'expected': expected}
         if expected and len(found) < expected:
-            warnings.append(f'Levelset sent {len(found)} of {expected} {area} ratings from the last 90 days — '
-                            f'upload the {area} PDF for the rest.')
+            warnings.append(f'Levelset listed {expected} {area} ratings from the last 90 days but sent {len(found)} — '
+                            f'if a score looks off, upload the {area} PDF for those dates.')
     today = datetime.now(STORE_TZ).date()
     start = today.fromordinal(today.toordinal() - (WINDOW_DAYS - 1))
-    # Only claim coverage for a side when Levelset sent all of its ratings.
-    complete = [a for a in AREAS if per_area[a]['ratings'] >= per_area[a]['expected']]
+    # Each side Levelset answered for counts as checked for the whole window
+    # (the Coverage Check stops asking for PDFs for it); ratings it listed but
+    # didn't send are still called out in the warnings.
+    complete = [a for a in AREAS if a in per_area]
     return {
         'ratings': ratings,
         'labels': fetch_labels(token, raw_positions, get=get),

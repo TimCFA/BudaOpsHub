@@ -33,6 +33,11 @@ const DU_SOURCES = [
     feeds: 'Strength map · Coverage Check · Set Ups Fill, Evaluate, Plan B, Develop'
   },
   {
+    key: 'numbers', short: 'numbers file', icon: '📈', name: 'Projected sales & productivity goals', freq: 'weekly', accept: '.csv,.xlsx,.xls,.txt',
+    how: 'A spreadsheet (Excel or CSV) with a Date column, a Daypart column, and Projected Sales / Productivity Goal columns — or one row per day with a column per daypart. Download the template in Know the Numbers. Special events stay typed in there.',
+    feeds: 'Know the Numbers · Set Ups game plan · Game Day / Practice Day'
+  },
+  {
     key: 'productivity', short: 'productivity reports', icon: '⏱️', name: 'Productivity by hour', freq: 'monthly', accept: '.csv,.txt', multiple: true,
     how: 'Productivity dashboard → Total | Daypart | Productivity, export as CSV, one per weekday (it says “for Tuesday” etc.). Month to date or longer.',
     feeds: 'Break planner — keeps breaks out of each day’s busiest hours'
@@ -165,6 +170,18 @@ function duSourceState(src, now){
     return {status, freq, cover: days.length ? `Profiles: ${days.join(', ')}` : 'No productivity report yet — breaks use default rush hours', note: days.length && missing.length ? `Days without their own profile borrow the closest one (${missing.join(', ')}).` : '', last};
   }
 
+  if(src.key === 'numbers'){
+    // Current when the rest of this week has projected sales; due from
+    // Thursday until next week's are in.
+    const has = iso => Object.values(numbersData[iso] || {}).some(e => e && e.projectedSales);
+    const ahead = Object.keys(numbersData).filter(d => isSetupDateKey(d) && d >= duISO(now) && has(d)).sort();
+    const monday = duMonday(now), saturday = duISO(duAddDays(monday, 5)), nextSaturday = duISO(duAddDays(monday, 12));
+    const latest = ahead[ahead.length - 1] || null;
+    const lateInWeek = ((now.getDay() + 6) % 7) >= 3;
+    const status = !latest || latest < duISO(now) ? 'overdue' : latest < saturday ? 'due' : lateInWeek && latest < nextSaturday ? 'due' : 'fresh';
+    return {status, freq, cover: latest ? `Projected sales through ${duShort(latest)}` : 'No projected sales ahead of today', note: status === 'fresh' ? '' : lateInWeek ? 'Upload next week’s numbers before Monday.' : 'Upload this week’s numbers.', last: logAt};
+  }
+
   if(src.key === 'salesMix'){
     const dates = (prepSoldEntries || []).map(e => e.date).filter(Boolean).sort();
     const latest = dates[dates.length - 1] || null;
@@ -255,6 +272,7 @@ function duDetect(file, text, workbook){
   if(/Daypart Hours Swap/i.test(head)) return 'productivity';
   if(/Daypart\s*Hours\s*Swap/i.test(head.replace(/\u0000/g, ''))) return 'productivity';
   if(/sales[\s_-]*mix/i.test(file.name) || /Sold Count/i.test(firstLine)) return 'salesMix';
+  if(/projected|forecast/i.test(head) && /productivity|goal|splh/i.test(head)) return 'numbers';
   return null;
 }
 
@@ -421,7 +439,7 @@ async function duHandleFiles(fileList, hint){
   renderDataUploads();
   // CEM files first so the scoreboard ends on the newest month; the roster
   // last because it opens a review window.
-  const order = {cem: 0, pea: 1, salesMix: 2, productivity: 3, roster: 4};
+  const order = {cem: 0, pea: 1, salesMix: 2, numbers: 2, productivity: 3, roster: 4};
   const jobs = [];
   for(let i = 0; i < files.length; i++){
     const file = files[i];
@@ -450,11 +468,12 @@ async function duHandleFiles(fileList, hint){
         catch(err){ if(!err.twin) throw err; duWaitTwin(job.i, job.file, iso, err.twin); continue; }
       }
       else if(job.kind === 'roster') text = duImportRoster(job.file, job.text);
+      else if(job.kind === 'numbers') text = await knImportFile(job.file);
       else if(job.kind === 'productivity'){
         if(!duProductivityDay(job.text)){ duWait(job, 'weekday'); continue; }
         text = await duImportProductivity(job.file, job.text);
       }
-      else throw new Error('Didn’t recognize this file. Expected a CEM Comparison Report, HotSchedules roster CSV, Levelset PEA PDF, or Sales Mix report.');
+      else throw new Error('Didn’t recognize this file. Expected a CEM Comparison Report, HotSchedules roster CSV, Levelset PEA PDF, Sales Mix report, productivity report, or projected sales & productivity goals.');
       duResults[job.i] = {file: job.file.name, state: 'ok', kind: src ? src.name : job.kind, text};
     }catch(err){
       duResults[job.i] = {file: job.file.name, state: 'error', kind: src ? src.name : '', text: err.message};
@@ -824,6 +843,92 @@ const DU_STATUS = {
   overdue: {label: 'Overdue', cls: 'is-overdue', icon: '!'}
 };
 
+// ----- Restore from the backup -----
+// When saving moved to sections (late September) the server kept a full copy
+// of the data as it was then. If uploads from before that have since gone
+// missing (an old tab saving its stale copy could do it, before old tabs
+// were limited to adding), this finds them and puts them back. Checked once
+// per visit to Manage, managers only.
+let duBackup = null;          // what the backup has that's missing now
+let duBackupChecked = false;
+
+async function duCheckBackup(){
+  if(duBackupChecked) return;
+  duBackupChecked = true;
+  try{
+    const res = await fetch(`${API_BASE}/api/state/backup`, {method: 'POST'});
+    if(!res.ok) return;
+    const body = await res.json();
+    if(!body.exists) return;
+    const missing = duBackupMissing(body.data || {});
+    if(missing.count){ duBackup = missing; renderDataUploads(); }
+  }catch(e){ console.warn('Backup check failed:', e); }
+}
+
+function duBackupMissing(d){
+  const out = {cem: [], salesMix: [], productivity: [], pea: [], log: d.dataUploadLog || {}, profiles: d.productivityProfiles || {}};
+  const cemKeys = new Set(cemEntries.map(e => e.key));
+  (Array.isArray(d.cemEntries) ? d.cemEntries : []).forEach(e => { if(e && e.key && !cemKeys.has(e.key)) out.cem.push(e); });
+  const smDays = new Set(prepSoldEntries.map(e => e.date));
+  (Array.isArray(d.prepSoldEntries) ? d.prepSoldEntries : []).forEach(e => { if(e && e.date && !smDays.has(e.date)) out.salesMix.push(e); });
+  Object.keys(out.profiles).forEach(day => { if(!productivityProfiles[day]) out.productivity.push(day); });
+  if(d.peaRatings && Array.isArray(d.peaRatings.rows)){
+    const saved = new Set(peaAllRatings().map(r => peaRowKey(r.at, r.employee, r.leader, r.position, r.criteria)));
+    out.pea = peaAllRatings(normalizePeaRatings(d.peaRatings)).filter(r => !saved.has(peaRowKey(r.at, r.employee, r.leader, r.position, r.criteria)));
+  }
+  out.count = out.cem.length + out.salesMix.length + out.productivity.length + out.pea.length;
+  return out;
+}
+
+function duBackupSummary(b){
+  const parts = [];
+  if(b.cem.length){
+    const dim = k => (DU_CEM_DIMS.find(x => x.key === k) || {label: k}).label;
+    const groups = {};
+    b.cem.forEach(e => { const g = `${e.periodLabel} (${dim(e.dimension)})`; groups[g] = (groups[g] || 0) + 1; });
+    parts.push(`CEM: ${Object.keys(groups).join(', ')}`);
+  }
+  if(b.salesMix.length) parts.push(`Sales Mix: ${b.salesMix.map(e => duShort(e.date)).join(', ')}`);
+  if(b.productivity.length) parts.push(`Productivity: ${b.productivity.join(', ')}`);
+  if(b.pea.length) parts.push(`${b.pea.length} PEA rating${b.pea.length === 1 ? '' : 's'}`);
+  return parts;
+}
+
+function duRestoreHtml(){
+  if(!duBackup || !duBackup.count) return '';
+  return `<div class="du-restore" role="status">
+    <b>Found in the backup, missing now</b>
+    <ul>${duBackupSummary(duBackup).map(p => `<li>${escapeHtml(p)}</li>`).join('')}</ul>
+    <p>The server kept a full copy of the data when saving changed in late September. These uploads are in it but not in the saved data now — restoring adds them back and changes nothing else.</p>
+    <button type="button" class="du-sync-btn" data-du-restore>Restore these</button>
+  </div>`;
+}
+
+async function duRestoreBackup(){
+  const b = duBackup;
+  if(!b) return;
+  if(b.cem.length){ cemEntries = ctMergeEntries(cemEntries, b.cem); cemSyncScoreboard(); }
+  b.salesMix.forEach(e => prepSoldEntries.push(e));
+  b.productivity.forEach(day => { productivityProfiles[day] = b.profiles[day]; });
+  if(b.pea.length) peaMergeRatings(b.pea);
+  // The upload history too, so each source's status reflects what's back.
+  Object.entries(b.log).forEach(([key, list])=>{
+    if(!Array.isArray(list)) return;
+    const mine = dataUploadLog[key] = dataUploadLog[key] || [];
+    const seen = new Set(mine.map(x => x.at));
+    list.forEach(x => { if(x && x.at && !seen.has(x.at)) mine.push(x); });
+    mine.sort((x, y) => String(x.at).localeCompare(String(y.at)));
+    dataUploadLog[key] = mine.slice(-8);
+  });
+  const n = b.count;
+  duBackup = null;
+  await saveState();
+  showToast(`✓ Restored ${n} item${n === 1 ? '' : 's'} from the backup`);
+  renderDataUploads();
+  if(typeof renderPeaManage === 'function') renderPeaManage();
+  if(typeof renderGXScoreboard === 'function') renderGXScoreboard();
+}
+
 // PEA: sync straight from Levelset (pea-ratings.js); the PDF upload is the backup.
 function duLevelsetHtml(){
   const last = typeof peaLastSync === 'function' ? peaLastSync() : null;
@@ -842,6 +947,7 @@ function renderDataUploads(){
   const rows = DU_SOURCES.map(src => ({src, st: duSourceState(src, now)}));
   const dueCount = rows.filter(r => r.st.status !== 'fresh').length;
   root.innerHTML = `
+    ${duRestoreHtml()}
     <div class="du-summary ${dueCount ? 'has-due' : ''}">${dueCount ? `${dueCount} of ${rows.length} need an upload` : `All ${rows.length} data sources are up to date`}</div>
     <label class="du-drop" data-du-drop>
       <input type="file" multiple accept=".csv,.xlsx,.xls,.pdf,.txt,.tsv" data-du-input>
@@ -881,6 +987,7 @@ function renderDataUploads(){
 
 document.getElementById('dataUploadsRoot').addEventListener('click', e=>{
   if(e.target.closest('[data-du-levelset]')) peaLevelsetSync(false);
+  if(e.target.closest('[data-du-restore]')) duRestoreBackup();
 });
 
 document.getElementById('dataUploadsRoot').addEventListener('change', async e=>{

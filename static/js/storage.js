@@ -378,6 +378,10 @@ function applyStateData(data){
   peaRatings = normalizePeaRatings(data.peaRatings);
   peaNameAliases = (data.peaNameAliases && typeof data.peaNameAliases === 'object') ? data.peaNameAliases : {};
   numbersHistory = (data.numbersHistory && typeof data.numbersHistory === 'object') ? data.numbersHistory : {};
+  // The monthly waste close-out: its date and each closed month's summary.
+  // (Saved all along but never read back, so a reload then a save wiped them.)
+  wasteLogLastClosedOut = data.wasteLogLastClosedOut || null;
+  wasteMonthlyHistory = (data.wasteMonthlyHistory && typeof data.wasteMonthlyHistory === 'object' && !Array.isArray(data.wasteMonthlyHistory)) ? data.wasteMonthlyHistory : {};
   setupDayTypes = (data.setupDayTypes && typeof data.setupDayTypes === 'object') ? data.setupDayTypes : {};
 }
 

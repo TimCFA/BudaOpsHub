@@ -114,3 +114,43 @@ def apply_ops(section, ops):
             parent = _parent(out, path, True)
             parent[path[-1]] = apply_list(parent.get(path[-1]), op.get('rm', []), op.get('add', []))
     return out
+
+
+def _identity(item):
+    """A record's stable id (products and prep entries have 'id', CEM entries
+    'key', waste entries 'ts'), or None for plain values."""
+    if isinstance(item, dict):
+        for field in ('id', 'key', 'ts'):
+            if item.get(field) not in (None, ''):
+                return f'{field}:{canon(item[field])}'
+    return None
+
+
+def union_merge(stored, incoming):
+    """What a page running old code (from before change-based saves) is
+    allowed to do to the saved data: add, never remove or overwrite. Keys and
+    list items it has that aren't saved are added; anything already saved —
+    a value, a record with the same id — stays as saved. Returns a new value."""
+    if isinstance(stored, dict) and isinstance(incoming, dict):
+        out = copy.deepcopy(stored)
+        for k, v in incoming.items():
+            out[k] = union_merge(stored[k], v) if k in stored else copy.deepcopy(v)
+        return out
+    if isinstance(stored, list) and isinstance(incoming, list):
+        out = copy.deepcopy(stored)
+        ids = {_identity(x) for x in stored} - {None}
+        plain = Counter(canon(x) for x in stored if _identity(x) is None)
+        for item in incoming:
+            ident = _identity(item)
+            if ident is not None:
+                if ident in ids:
+                    continue
+                ids.add(ident)
+            else:
+                c = canon(item)
+                if plain[c] > 0:
+                    plain[c] -= 1
+                    continue
+            out.append(copy.deepcopy(item))
+        return out
+    return copy.deepcopy(stored)

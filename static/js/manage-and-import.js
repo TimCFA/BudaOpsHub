@@ -75,7 +75,7 @@ async function renderManage(){
   document.getElementById('setupHistoryStatus').textContent = setupHistoryStatusText();
   renderDataUploads();
   renderPeaManage();
-  if(document.getElementById('manageContent').style.display === 'block') peaAutoSync();
+  if(document.getElementById('manageContent').style.display === 'block'){ peaAutoSync(); duCheckBackup(); }
 
   renderLXManage();
   renderGXManage();
@@ -121,6 +121,8 @@ async function saveProductsAndRefresh(){
   renderGrid();
 }
 
+let prodOpenSections = new Set();   // which of FOH / BOH is unfolded in Manage
+
 function renderProductManager(){
   const list = document.getElementById('prodList');
   const groups = [];
@@ -133,12 +135,12 @@ function renderProductManager(){
         .flatMap(e => e.type === 'variants' ? e.variants.map(v=>v.product) : [e.product])
     }));
   });
-  list.innerHTML = `
-    <div class="prod-cols" aria-hidden="true"><span>Item</span><span>Spanish</span><span>Category</span><span>Unit</span><span>Cost</span><span></span></div>
-  ` + groups.map((g, gi)=>`
+  // FOH and BOH each fold into their own dropdown, so finding an item doesn't
+  // mean scrolling past the other side. Open ones stay open while editing.
+  const groupHtml = (g, gi) => `
     <div class="prod-group">
       <div class="prod-group-header" data-group="${gi}">
-        <span class="prod-group-title">${g.section === 'foh' ? '🔴 FOH' : '🟠 BOH'} · ${escapeHtml(g.cat)} <span class="prod-group-count">${g.items.length}</span></span>
+        <span class="prod-group-title">${escapeHtml(g.cat)} <span class="prod-group-count">${g.items.length}</span></span>
         <span class="prod-group-actions">
           <button type="button" class="prod-cat-move" data-dir="-1" title="Move category up" aria-label="Move ${escapeHtml(g.cat)} up"${g.first ? ' disabled' : ''}>↑</button>
           <button type="button" class="prod-cat-move" data-dir="1" title="Move category down" aria-label="Move ${escapeHtml(g.cat)} down"${g.last ? ' disabled' : ''}>↓</button>
@@ -158,8 +160,20 @@ function renderProductManager(){
           <button type="button" class="prod-del" title="Delete permanently" aria-label="Delete ${escapeHtml(p.name)}">✕</button>
         </div>
       `).join('')}
-    </div>
-  `).join('');
+    </div>`;
+  list.innerHTML = ['foh', 'boh'].map(section=>{
+    const mine = groups.map((g, gi) => ({g, gi})).filter(x => x.g.section === section);
+    const count = mine.reduce((n, x) => n + x.g.items.length, 0);
+    return `
+      <details class="prod-section" data-prod-section="${section}" ${prodOpenSections.has(section) ? 'open' : ''}>
+        <summary><span>${section === 'foh' ? '🔴 Front of House' : '🟠 Back of House'}</span><span class="prod-section-meta">${count} items · ${mine.length} categories</span></summary>
+        <div class="prod-cols" aria-hidden="true"><span>Item</span><span>Spanish</span><span>Category</span><span>Unit</span><span>Cost</span><span></span></div>
+        ${mine.map(x => groupHtml(x.g, x.gi)).join('')}
+      </details>`;
+  }).join('');
+  list.querySelectorAll('[data-prod-section]').forEach(d=>{
+    d.addEventListener('toggle', ()=>{ if(d.open) prodOpenSections.add(d.dataset.prodSection); else prodOpenSections.delete(d.dataset.prodSection); });
+  });
 
   list.querySelectorAll('.prod-row').forEach(row=>{
     const id = row.dataset.id;
