@@ -344,6 +344,47 @@ function rpApplyToScoreboard(){
   const dt = reportData.sos ? rpSosDriveThru(reportData.sos) : null;
   if(dt) set('service', 'speedOfService', rpClock(dt.total));
   gxData.lastUpdated = new Date().toISOString();
+  rpSyncLx();
+}
+
+// ----- LX business metrics -----
+// Drive-Thru Ranking follows the chain rank upload; Food Safety Score follows
+// the score typed once in Guest Obsession. [{index, kind, title}]
+function rpLxLinks(){
+  if(!Array.isArray(lxMetrics)) return [];
+  const links = [];
+  const chain = (reportData.dtRank || {}).chain;
+  const dtIdx = lxMetrics.findIndex(m => /drive.?thru rank/i.test(m.name));
+  if(dtIdx !== -1 && chain) links.push({index: dtIdx, kind: 'dt', title: 'From the chain ranking upload in Data Uploads'});
+  const fsIdx = lxMetrics.findIndex(m => /food safety/i.test(m.name));
+  const fs = String((gxData.satisfaction && gxData.satisfaction.foodSafety && gxData.satisfaction.foodSafety.value) || '').trim();
+  if(fsIdx !== -1 && fs) links.push({index: fsIdx, kind: 'fs', title: 'Follows the Food Safety score in Guest Obsession (Manage → Scoreboards)'});
+  return links;
+}
+
+// Copies the linked values into lxMetrics. The drive-thru status follows its
+// "Top N" standard: in the top N meets it (or stays Exceeding if a leader set
+// that), outside is Below. Food safety's status stays a leader's call.
+// Returns whether anything changed.
+function rpSyncLx(){
+  let changed = false;
+  rpLxLinks().forEach(({index, kind})=>{
+    const m = lxMetrics[index];
+    let value = m.value, rating = m.rating;
+    if(kind === 'dt'){
+      const chain = reportData.dtRank.chain;
+      value = `#${chain.rank}${chain.count ? ` of ${chain.count.toLocaleString('en-US')}` : ''}`;
+      const top = parseInt((String(m.standard).match(/top\s*(\d+)/i) || [])[1], 10);
+      if(top) rating = chain.rank <= top ? (m.rating === 3 ? 3 : 2) : 1;
+    } else {
+      const raw = String(gxData.satisfaction.foodSafety.value).trim();
+      const tier = rpFoodSafetyTier(raw);
+      value = tier ? `${raw} · ${tier.label}` : raw;
+    }
+    if(value !== m.value || rating !== m.rating){ m.value = value; m.rating = rating; changed = true; }
+  });
+  if(changed) lxLastUpdated = new Date().toISOString();
+  return changed;
 }
 
 // Guest Obsession Manage: which inputs these reports fill ({id: title}).
@@ -452,6 +493,8 @@ function rpRenderFoodSafetyFindings(){
 
 function rpRerender(){
   if(typeof renderGXScoreboard === 'function') renderGXScoreboard();
+  if(typeof renderLXScoreboard === 'function' && document.getElementById('metricsTable')) renderLXScoreboard();
+  if(typeof renderLXManage === 'function' && document.getElementById('metricsManageList')) renderLXManage();
   rpRenderOpsPanels();
   if(typeof renderGXManage === 'function' && document.getElementById('gxManageList')) renderGXManage();
   rpRenderFoodSafetyFindings();

@@ -61,6 +61,7 @@ document.querySelector('.tabs').addEventListener('click', (e)=>{
       menu.style.left = rect.left + 'px';
       group.classList.add('open');
       groupLabel.setAttribute('aria-expanded', 'true');
+      tabDropdownOpenedAt = Date.now();
     }
     return;
   }
@@ -79,7 +80,10 @@ document.addEventListener('click', (e)=>{
   if(!e.target.closest('.tab-group')) closeAllTabDropdowns();
 });
 
-window.addEventListener('scroll', closeAllTabDropdowns, true);
+// Scrolling closes an open menu, except the nudge the browser can give the
+// page as the tapped button takes focus (that would close it as it opens).
+let tabDropdownOpenedAt = 0;
+window.addEventListener('scroll', ()=>{ if(Date.now() - tabDropdownOpenedAt > 400) closeAllTabDropdowns(); }, true);
 
 document.querySelectorAll('.toggle-btn').forEach(t=>{
   t.addEventListener('click',()=>{

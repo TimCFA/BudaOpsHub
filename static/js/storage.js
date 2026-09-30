@@ -11,7 +11,8 @@ const API_BASE = window.location.origin === 'file://' ? 'http://localhost:5000' 
 const STATE_SECTIONS = {
   manager: ['wasteTarget', 'safeTarget', 'products', 'deletedProductIds', 'productFixesVersion',
             'productCategoryOrder', 'lxPillars', 'lxMetrics', 'lxLastUpdated', 'gxData', 'txData',
-            'homeData', 'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData'],
+            'homeData', 'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData',
+            'launchMode'],
   pea: ['peaRatings', 'peaNameAliases'],
   rosters: ['fohRoster', 'bohRoster'],
   setups: ['posAssignments', 'posVacancyFlags', 'setupDayTypes', 'lastUpdated',
@@ -64,7 +65,7 @@ function stateSnapshot(){
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
-    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, prepTimes, prepTimers
+    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, launchMode, prepTimes, prepTimers
   };
 }
 
@@ -145,8 +146,11 @@ function stateAdoptServer(serverSections, versions, sent){
   names.forEach(name=>{
     let latest;
     try{ latest = JSON.parse(serverSections[name]); }catch(e){ return; }
-    const since = sent && sent[name] ? JSON.parse(sent[name]) : (stateBase[name] || {});
-    const pending = stateDiff(since, JSON.parse(current[name]));
+    // A section this page never had (a private one arriving after a manager
+    // signs in): the server's copy as it is. What the page holds for it is
+    // only defaults, never changes to keep.
+    const since = sent && sent[name] ? JSON.parse(sent[name]) : stateBase[name];
+    const pending = since ? stateDiff(since, JSON.parse(current[name])) : [];
     parts[name] = pending.length ? stateApplyOps(latest, pending) : latest;
     stateBase[name] = JSON.parse(serverSections[name]);
     savedSections[name] = stateSectionString(name, stateBase[name]);
@@ -373,6 +377,10 @@ function applyStateData(data){
   dataUploadSettings = (data.dataUploadSettings && typeof data.dataUploadSettings === 'object') ? data.dataUploadSettings : {};
   productivityProfiles = (data.productivityProfiles && typeof data.productivityProfiles === 'object' && !Array.isArray(data.productivityProfiles)) ? data.productivityProfiles : {};
   reportData = (data.reportData && typeof data.reportData === 'object' && !Array.isArray(data.reportData)) ? data.reportData : {};
+  // Launch mode is on unless a manager turned it off. Only "off" is saved
+  // (undefined isn't), so pages without a manager never send the setting.
+  launchMode = data.launchMode === false ? false : undefined;
+  if(typeof launchApply === 'function') launchApply();
   scoreboardItems = data.scoreboardItems || [];
   posVacancyFlags = data.posVacancyFlags || {};
   setupHistory = normalizeSetupHistory(data.setupHistory);

@@ -1,5 +1,6 @@
 const SHEET_TITLE = 'CFA Buda Waste Log';
 let currentSection = 'foh';
+let launchMode;   // undefined = on (the team sees the essentials only); false = off
 let entries = [];
 let products = [];
 let deletedProductIds = []; // ids of default products the user has explicitly removed — never re-added on load

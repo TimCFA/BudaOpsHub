@@ -32,6 +32,11 @@
 
   .hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:16px;}
   .hdr-title{display:flex;align-items:baseline;gap:12px;}
+  /* Phones: initials + clock always on their own line, so the header keeps
+     one height whether the initials box is open or not (it used to jump
+     40px on the first tap, moving the tabs out from under a finger). */
+  .hdr-meta{min-height:34px;}
+  @media (max-width:520px){ .hdr-meta{width:100%;} }
   .hdr-title h1{font-family:'Outfit',sans-serif;font-weight:700;font-size:28px;letter-spacing:-0.01em;margin:0;text-transform:uppercase;color:var(--text-primary);}
   .hdr-title .sub{font-size:11px;color:var(--text-tertiary);font-style:italic;letter-spacing:0.05em;}
   .hdr-title .location{font-family:'Outfit',sans-serif;font-weight:600;font-size:14px;color:var(--cfa-red);}
@@ -1741,6 +1746,7 @@
   .gx-auto{background:#EEF6EF !important;color:#1E5631;cursor:default;}
   .gx-source-note{font-size:12px;line-height:1.5;color:var(--text-secondary);background:#F4F8F4;border:1px solid #D7E8D9;border-radius:8px;padding:10px 12px;margin-bottom:12px;}
   .gx-source-note b{color:var(--text-primary);}
+  .lx-link-note{font-size:11px;color:#1E5631;margin-top:6px;}
   .rp-summary{margin:6px 0 2px;display:grid;gap:4px;}
   .rp-sub{color:var(--text-secondary);font-weight:400;}
   .rp-fs-card summary{cursor:pointer;font-size:14px;line-height:1.5;}
@@ -1764,3 +1770,21 @@
   .gx-fs-tier.is-elite,.gx-fs-tier.is-great{color:#1E7B34;}
   .gx-fs-tier.is-fair{color:#8A5A00;}
   .gx-fs-tier.is-bad{color:#B3261E;}
+
+/* ===== Launch mode (launch-mode.js) ===== */
+body.launch-mode .full-only{display:none !important;}
+body:not(.launch-mode) .launch-only{display:none !important;}
+/* Coach waits for the full site; the four launch tabs fit a phone. */
+body.launch-mode .su-mode,
+body.launch-mode .su-sheet-coachlink,
+body.launch-mode .su-strength,
+body.launch-mode .su-pea-todo,
+body.launch-mode .su-legend{display:none !important;}
+body.launch-mode .tabs{overflow-x:visible;}
+body.launch-mode .tab,
+body.launch-mode .tab-group{min-width:0;}
+body.launch-mode .tab,
+body.launch-mode .tab-group-label{padding:14px 4px;}
+.launch-setting{display:flex;gap:10px;align-items:flex-start;font-size:12px;line-height:1.5;color:var(--text-secondary);background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px;cursor:pointer;}
+.launch-setting input{margin-top:3px;width:18px;height:18px;flex:0 0 auto;}
+.launch-setting b{color:var(--text-primary);}

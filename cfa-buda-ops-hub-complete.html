@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/main.css">
 </head>
-<body>
+<body class="launch-mode">
 <div class="app">
 
   <div class="hdr">
@@ -16,7 +16,7 @@
       <h1>Ops Hub</h1>
       <span class="location">Buda</span>
     </div>
-    <div style="display:flex;align-items:center;gap:12px;">
+    <div class="hdr-meta" style="display:flex;align-items:center;gap:12px;">
       <span id="initialsBadge" title="Tap to change who's using this device" style="cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:var(--text-secondary);padding:4px 10px;border:1px solid var(--border);border-radius:14px;background:var(--cfa-white);user-select:none;"></span>
       <div class="clock" id="clock"></div>
     </div>
@@ -24,10 +24,21 @@
 
   <div class="tabs-wrap">
     <div class="tabs" role="tablist">
-      <button type="button" class="tab active" role="tab" aria-selected="true" aria-controls="homeView" data-view="home">Home <span class="sub"><i>Inicio</i></span></button>
+      <button type="button" class="tab active full-only" role="tab" aria-selected="true" aria-controls="homeView" data-view="home">Home <span class="sub"><i>Inicio</i></span></button>
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="positionsView" data-view="positions">Set Ups <span class="sub"><i>Configuración</i></span></button>
 
-      <div class="tab-group" data-group="oe">
+      <!-- Launch mode (launch-mode.js): the team's three essentials. -->
+      <button type="button" class="tab launch-only" role="tab" aria-selected="false" aria-controls="wastelogView" data-view="wastelog">Waste <span class="sub"><i>Desperdicio</i></span></button>
+      <div class="tab-group launch-only" data-group="lists">
+        <button type="button" class="tab-group-label" aria-haspopup="true" aria-expanded="false">Lists <span class="chevron-mini">▾</span></button>
+        <div class="tab-dropdown" role="menu">
+          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="zoneresetView" data-view="zonereset">Zone Reset & Walkthroughs <span class="sub-inline">Reinicio y Recorridos</span></button>
+          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="foodsafetyView" data-view="foodsafety">Food Safety Walkthrough <span class="sub-inline">Seguridad Alimentaria</span></button>
+          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="safecountView" data-view="safecount">Daily Safe Count <span class="sub-inline">Caja Fuerte</span></button>
+        </div>
+      </div>
+
+      <div class="tab-group full-only" data-group="oe">
         <button type="button" class="tab-group-label" aria-haspopup="true" aria-expanded="false">OE <span class="chevron-mini">▾</span></button>
         <div class="tab-dropdown" role="menu">
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="zoneresetView" data-view="zonereset">Zone Reset & Walkthroughs <span class="sub-inline">Reinicio y Recorridos</span></button>
@@ -38,7 +49,7 @@
         </div>
       </div>
 
-      <div class="tab-group" data-group="experience">
+      <div class="tab-group full-only" data-group="experience">
         <button type="button" class="tab-group-label" aria-haspopup="true" aria-expanded="false">Experience <span class="chevron-mini">▾</span></button>
         <div class="tab-dropdown" role="menu">
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="gxView" data-view="gx">Guest Obsession <span class="sub-inline">Experiencia</span></button>
@@ -47,7 +58,7 @@
         </div>
       </div>
 
-      <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="scoreboardView" data-view="scoreboard">Scoreboard <span class="sub"><i>Tableros</i></span></button>
+      <button type="button" class="tab full-only" role="tab" aria-selected="false" aria-controls="scoreboardView" data-view="scoreboard">Scoreboard <span class="sub"><i>Tableros</i></span></button>
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="manageView" data-view="manage">Manage <span class="sub"><i>Gestionar</i></span></button>
     </div>
   </div>
@@ -778,6 +789,11 @@
         <button id="btnLock" class="btn btn-ghost" style="width:auto;padding:8px 16px;margin:0;font-size:11px;">Lock <span class="sub"><i>Bloquear</i></span></button>
       </div>
 
+      <label class="launch-setting">
+        <input type="checkbox" id="launchModeToggle" checked>
+        <span><b>Launch mode</b> — the team sees only Set Ups, Waste and Lists (Zone Reset, Food Safety, Safe Count). Devices signed in here see everything.</span>
+      </label>
+
 
       <!-- GROUP: Data Uploads (TIM-46) -->
       <div class="manage-group open">
@@ -1057,5 +1073,6 @@
 <script src="/static/js/pea-coach.js"></script>
 <script src="/static/js/numbers-upload.js"></script>
 <script src="/static/js/report-uploads.js"></script>
+<script src="/static/js/launch-mode.js"></script>
 </body>
 </html>
