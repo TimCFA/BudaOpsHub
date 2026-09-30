@@ -221,7 +221,9 @@ function suDaypartCardsHtml(section, date, current, openHtml, m){
     const t = suDayType(section, date, dp);
     const lead = section === 'foh' ? posAssignments[suEvalKey(section, date, dp.name) + '||' + SU_LEAD_CAPTAIN] : '';
     const working = lead ? suLeadWorkingSlot(date, dp) : null;
-    const leadBtn = section === 'foh' ? `<button type="button" class="su-dp-lead" data-su-lead-open="1" data-su-lead-dp="${escapeHtml(dp.name)}"><span class="su-dp-k">Lead</span>${lead ? `<b>${escapeHtml(suDisplayName(lead))}</b>${working ? `<span class="su-dp-where"> · ${escapeHtml(working)}</span>` : ''}` : '<em>Choose a Lead Captain</em>'}</button>` : '';
+    // Only the Lead Captain's name opens the Lead picker; the rest of the
+    // banner opens and closes the card.
+    const leadBtn = section === 'foh' ? `<span class="su-dp-k">Lead</span><button type="button" class="su-dp-lead" data-su-lead-open="1" data-su-lead-dp="${escapeHtml(dp.name)}">${lead ? `<b>${escapeHtml(suDisplayName(lead))}</b>` : '<em>Choose a Lead Captain</em>'}</button>${working ? `<span class="su-dp-where">· ${escapeHtml(working)}</span>` : ''}` : '';
     const needed = open && m ? m.tiles.filter(x => x.needed).length : 0;
     const fillBtn = needed && m.unplaced.length ? `<button type="button" class="su-dp-fillbtn" data-su-tool="fill">Fill ${needed} open</button>` : '';
     const sky = suDaypartSky(dp.name);
@@ -234,7 +236,7 @@ function suDaypartCardsHtml(section, date, current, openHtml, m){
           <span class="su-sheet-daytype su-${t.type}">${t.type === 'game' ? 'Game' : 'Practice'}</span>
           <span class="su-dp-chev" aria-hidden="true">▾</span>
         </button>
-        ${leadBtn || fillBtn ? `<div class="su-dp-sub">${leadBtn}${fillBtn}</div>` : ''}
+        ${leadBtn || fillBtn ? `<div class="su-dp-sub" data-su-dp-toggle="${escapeHtml(dp.name)}">${leadBtn}${fillBtn}</div>` : ''}
       </div>
       ${open ? `<div class="su-dp-body">${openHtml}</div>` : ''}
     </section>`;
@@ -535,14 +537,14 @@ document.getElementById('allDayparts').addEventListener('click', e=>{
   const daypart = t.closest('[data-su-daypart]');
   if(daypart){ suSelectedDaypart[currentPosSection] = daypart.dataset.suDaypart; suDaypartClosed[currentPosSection] = false; suExpandedZones.clear(); suSheet = null; renderAllDayparts(); return; }
   const dpToggle = t.closest('[data-su-dp-toggle]');
-  if(dpToggle){
+  if(dpToggle && !t.closest('[data-su-lead-open],[data-su-tool]')){
     const sec = currentPosSection, name = dpToggle.dataset.suDpToggle;
     if(name === suSelectedDaypart[sec] && !suDaypartClosed[sec]) suDaypartClosed[sec] = true;
     else { suSelectedDaypart[sec] = name; suDaypartClosed[sec] = false; suExpandedZones.clear(); }
     suSheet = null;
     renderAllDayparts();
     // Keep the tapped card where the finger is.
-    const head = [...document.querySelectorAll('#allDayparts [data-su-dp-toggle]')].find(b => b.dataset.suDpToggle === name);
+    const head = [...document.querySelectorAll('#allDayparts .su-dp-head')].find(b => b.dataset.suDpToggle === name);
     if(head && !suDaypartClosed[sec]) head.scrollIntoView({block: 'nearest'});
     return;
   }
