@@ -89,39 +89,24 @@ function getLeaderTransitionOverall(){
   return total > 0 ? Math.round((checked/total)*100) : 0;
 }
 
-function renderLeaderTransitionDaypartPicker(){
-  const picker = document.getElementById('leaderTransitionDaypartPicker');
-  picker.innerHTML = getZoneDayparts().map(dp=>`<div class="day-pill ${dp === currentLeaderTransitionDaypart ? 'active' : ''}" data-daypart="${dp.replace(/"/g, '&quot;')}">${dp}</div>`).join('');
-  picker.querySelectorAll('.day-pill').forEach(pill=>{
-    pill.addEventListener('click', ()=>{
-      picker.querySelectorAll('.day-pill').forEach(p=>p.classList.remove('active'));
-      pill.classList.add('active');
-      currentLeaderTransitionDaypart = pill.dataset.daypart;
-      renderLeaderTransitionCard();
-    });
-  });
-}
+let leaderHandoffChosen = false;
 
+// Same handoff banners as Zone Reset; the open one shows its checklist.
 function renderLeaderTransitionCard(){
   const container = document.getElementById('fohLeaderTransitionChecklist');
   const daypart = currentLeaderTransitionDaypart;
-  if(!daypart){
-    container.innerHTML = `<div class="pos-option-empty">Pick a daypart above to see that handoff's checklist</div>`;
-  } else {
-    const state = fohLeaderTransitionChecked[daypart] || {};
-    const {checked, total} = getLeaderTransitionCompletion(daypart);
-    container.innerHTML = `<div class="lt-progress ${checked === total ? 'done' : ''}">${checked}/${total} complete • ${escapeHtml(daypart)}</div>` +
-      fohLeaderTransitionItems.map((item,i)=>{
-        const entry = state[i];
-        const isChecked = !!entry;
-        const stamp = isChecked ? `<span style="font-size:10px;color:var(--text-tertiary);font-style:italic;margin-left:auto;white-space:nowrap;">${escapeHtml(entry.initials)} · ${formatShortTime(entry.ts)}</span>` : '';
-        return `<div class="checklist-item-elevated ${isChecked?'checked':''}" data-lidx="${i}">
-          <input type="checkbox" ${isChecked?'checked':''}>
-          <span>${item}</span>
-          ${stamp}
-        </div>`;
-      }).join('');
-  }
+  const state = (daypart && fohLeaderTransitionChecked[daypart]) || {};
+  const listHtml = daypart ? fohLeaderTransitionItems.map((item,i)=>{
+    const entry = state[i];
+    const isChecked = !!entry;
+    const stamp = isChecked ? `<span style="font-size:10px;color:var(--text-tertiary);font-style:italic;margin-left:auto;white-space:nowrap;">${escapeHtml(entry.initials)} · ${formatShortTime(entry.ts)}</span>` : '';
+    return `<div class="checklist-item-elevated ${isChecked?'checked':''}" data-lidx="${i}">
+      <input type="checkbox" ${isChecked?'checked':''}>
+      <span>${item}</span>
+      ${stamp}
+    </div>`;
+  }).join('') : '';
+  container.innerHTML = zrHandoffBannersHtml('leader', daypart, getLeaderTransitionCompletion, listHtml);
   const overall = getLeaderTransitionOverall();
   const badge = document.getElementById('leaderTransitionBadge');
   badge.textContent = overall + '%';
@@ -138,7 +123,7 @@ function renderWalkthroughsPage(){
   renderOEDaypartPicker();
   renderOEWalkthroughCard();
 
-  renderLeaderTransitionDaypartPicker();
+  if(!leaderHandoffChosen) currentLeaderTransitionDaypart = zrCurrentHandoff();
   renderLeaderTransitionCard();
 
   // --- Food Safety Walkthrough (full checklist lives on its own page) ---
@@ -211,6 +196,16 @@ document.getElementById('btnMarkFOHOEDone').addEventListener('click', async ()=>
 });
 
 document.getElementById('fohLeaderTransitionChecklist').addEventListener('click', async (e)=>{
+  const handoff = e.target.closest('[data-zr-handoff]');
+  if(handoff){
+    const name = handoff.dataset.zrHandoff;
+    currentLeaderTransitionDaypart = currentLeaderTransitionDaypart === name ? '' : name;
+    leaderHandoffChosen = true;
+    renderLeaderTransitionCard();
+    const head = [...document.querySelectorAll('#fohLeaderTransitionChecklist [data-zr-handoff]')].find(h => h.dataset.zrHandoff === name);
+    if(currentLeaderTransitionDaypart && head) head.scrollIntoView({block: 'nearest'});
+    return;
+  }
   const row = e.target.closest('.checklist-item-elevated');
   const daypart = currentLeaderTransitionDaypart;
   if(!row || !daypart) return;

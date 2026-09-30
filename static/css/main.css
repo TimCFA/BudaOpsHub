@@ -308,8 +308,23 @@
   .zone-acc-item.open .zone-acc-chevron{transform:rotate(180deg);}
   .zone-acc-body{padding:10px;border-top:1px solid var(--border);background:var(--cfa-white);}
   @media (max-width:480px){ .zone-acc-track{flex-basis:44px;} }
-  .lt-progress{font-size:12px;font-weight:600;color:var(--text-secondary);margin:4px 0 10px;}
-  .lt-progress.done{color:var(--success);}
+  /* Zone Reset + Leader Transition: handoffs as the Set Ups sky banners. */
+  #zoneresetView{--su-card:#FFFFFF; --su-ink:#1C1B19; --su-muted:#6B665E; --su-line:#E6E0D6;}
+  #zoneresetView .standup-card h3 .sub{display:block;margin-top:2px;font-family:inherit;font-size:11px;text-transform:none;font-weight:500;}
+  .zr-dp-progress{flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;}
+  .zr-dp-track{width:56px;height:6px;border-radius:3px;background:rgba(28,27,25,0.10);overflow:hidden;}
+  .zr-dp-bar{display:block;height:100%;background:var(--cfa-red);border-radius:3px;transition:width .2s ease;}
+  .su-dp.is-done .zr-dp-bar{background:var(--success);}
+  .su-dp.is-done .su-dp-fill{color:var(--success);}
+  .su-sky-night .zr-dp-track{background:rgba(255,255,255,0.22);}
+  .su-sky-night.is-done .su-dp-fill{color:#9BE0A6;}
+  .su-sky-night.is-done .zr-dp-bar{background:#9BE0A6;}
+  .zr-dp-body{padding:10px 0 4px;}
+  .zr-history-label{margin-top:18px;font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-tertiary);}
+  .zr-history-label + .zone-reset-scoreboard{margin-top:8px;}
+  .zr-dp-list .su-dp-name{font-size:16px;line-height:1.25;}
+  .zr-dp-list .su-dp-time{display:block;margin-left:0;margin-top:2px;font-size:12.5px;}
+  @media (max-width:420px){ .zr-dp-track{display:none;} }
   .checklist-tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px;}
   .checklist-tile{display:flex;flex-direction:column;gap:8px;background:var(--cfa-light);border:1.5px solid var(--border);border-radius:12px;padding:14px 12px;cursor:pointer;transition:all .15s ease;text-align:left;font-family:inherit;}
   .checklist-tile:hover{border-color:var(--cfa-red);transform:translateY(-1px);box-shadow:0 4px 10px rgba(0,0,0,0.07);}
