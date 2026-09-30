@@ -1522,24 +1522,34 @@
   /* Set up view: dayparts as cards down the page; the open one shows its set up. */
   .su-dp-list{display:flex;flex-direction:column;gap:10px;}
   .su-dp-banner{background:var(--su-card);color:var(--su-ink);border-radius:16px;box-shadow:0 1px 0 var(--su-line);}
-  .su-dp.is-open .su-dp-banner{background:var(--su-ink);color:#fff;}
   .su-dp-head{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;border:0;background:transparent;border-radius:16px;padding:10px 14px;font-family:inherit;color:inherit;text-align:left;cursor:pointer;}
   .su-dp-sub{display:flex;align-items:center;gap:10px;padding:0 14px 10px;margin-top:-4px;}
   .su-dp-lead{flex:1 1 auto;min-width:0;display:flex;align-items:baseline;flex-wrap:wrap;gap:0 8px;border:0;background:transparent;padding:0;min-height:36px;font-family:inherit;font-size:14px;color:inherit;text-align:left;cursor:pointer;}
   .su-dp-lead em{font-style:normal;color:var(--su-muted);}
   .su-dp-k{font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--su-muted);}
   .su-dp-where{color:var(--su-muted);}
-  .su-dp.is-open .su-dp-lead em,.su-dp.is-open .su-dp-k,.su-dp.is-open .su-dp-where{color:rgba(255,255,255,0.7);}
   .su-dp-fillbtn{flex:0 0 auto;border:0;border-radius:999px;background:var(--su-ink);color:#fff;padding:6px 14px;min-height:34px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;}
-  .su-dp.is-open .su-dp-fillbtn{background:#fff;color:var(--su-ink);}
   .su-dp-name{flex:1 1 auto;min-width:0;font-size:17px;font-weight:700;}
   .su-dp-time{font-size:13px;font-weight:600;color:var(--su-muted);margin-left:4px;white-space:nowrap;}
-  .su-dp.is-open .su-dp-time{color:rgba(255,255,255,0.7);}
   .su-dp-fill{flex:0 0 auto;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--su-muted);}
-  .su-dp.is-open .su-dp-fill{color:#fff;}
   .su-dp-head .su-sheet-daytype{flex:0 0 auto;}
   .su-dp-chev{flex:0 0 auto;font-size:14px;transition:transform .15s ease;}
   .su-dp.is-open .su-dp-chev{transform:rotate(180deg);}
+  /* Daypart skies: a soft gradient per time of day; the open card gets an
+     outline instead of going dark, so its sky still shows. Close is night. */
+  .su-dp-art{flex:0 0 auto;display:inline-flex;margin-right:-2px;}
+  .su-sky-dawn .su-dp-banner{background:linear-gradient(100deg,#FCE4D4 0%,#F7E7F1 55%,#ECE8F8 100%);}
+  .su-sky-morning .su-dp-banner{background:linear-gradient(100deg,#FFF0D3 0%,#FDF6E6 45%,#E4F0FB 100%);}
+  .su-sky-midday .su-dp-banner{background:linear-gradient(100deg,#FFF7D8 0%,#EEF6FD 50%,#DCEDFB 100%);}
+  .su-sky-afternoon .su-dp-banner{background:linear-gradient(100deg,#FFEBD3 0%,#FEF2E6 50%,#F7E4EC 100%);}
+  .su-sky-dusk .su-dp-banner{background:linear-gradient(100deg,#F8DCCC 0%,#EEDDF1 50%,#DAD6F2 100%);}
+  .su-sky-night .su-dp-banner{background:linear-gradient(100deg,#2E3867 0%,#232B52 55%,#1B2141 100%);color:#fff;}
+  .su-sky-night .su-dp-time,.su-sky-night .su-dp-fill,.su-sky-night .su-dp-k,.su-sky-night .su-dp-where,.su-sky-night .su-dp-lead em{color:rgba(255,255,255,0.72);}
+  .su-sky-night .su-dp-fillbtn{background:#fff;color:var(--su-ink);}
+  .su-dp.is-open .su-dp-banner{box-shadow:0 0 0 2px var(--su-ink),0 6px 16px rgba(28,27,25,0.10);}
+  .su-sky-night.is-open .su-dp-banner{box-shadow:0 0 0 2px #F6E7A6,0 6px 16px rgba(28,27,25,0.18);}
+  .su-dp.is-open .su-dp-fill{color:var(--su-ink);}
+  .su-sky-night.is-open .su-dp-fill{color:#fff;}
   .su-dp-body{display:flex;flex-direction:column;gap:10px;padding-top:10px;}
   /* The card header already names the daypart and day type. */
   .su-dp-body .su-sheet-title{display:none;}

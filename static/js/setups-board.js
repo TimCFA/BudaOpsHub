@@ -179,6 +179,35 @@ function suDaypartFillText(section, date, dp, i){
   return onShift ? `${filled}/${onShift}` : filled ? `${filled} placed` : '—';
 }
 
+// Each daypart's sky: a soft gradient and a small scene, the sun climbing
+// from Early Breakfast to Lunch and sinking through the Afternoon, then a
+// moon and stars for Dinner and Close.
+function suDaypartSky(name){
+  const n = name.toLowerCase();
+  return /early/.test(n) ? 'dawn' : /breakfast/.test(n) ? 'morning' : /lunch|mid|transition/.test(n) ? 'midday'
+    : /afternoon/.test(n) ? 'afternoon' : /dinner/.test(n) ? 'dusk' : /clos|night/.test(n) ? 'night' : 'midday';
+}
+
+function suSkyArt(sky){
+  const sun = (cx, cy, r, rays) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#F4A73A"/>` + (rays ? [0, 45, 90, 135, 180, 225, 270, 315].map(a=>{
+    const t = a * Math.PI / 180, x1 = cx + Math.cos(t) * (r + 2), y1 = cy + Math.sin(t) * (r + 2), x2 = cx + Math.cos(t) * (r + 4.5), y2 = cy + Math.sin(t) * (r + 4.5);
+    return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#F4A73A" stroke-width="1.6" stroke-linecap="round"/>`;
+  }).join('') : '');
+  const horizon = '<line x1="2" y1="22" x2="34" y2="22" stroke="#C9A27A" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>';
+  const star = (x, y, s, c) => `<path d="M${x} ${y - s}L${x + s * 0.3} ${y - s * 0.3}L${x + s} ${y}L${x + s * 0.3} ${y + s * 0.3}L${x} ${y + s}L${x - s * 0.3} ${y + s * 0.3}L${x - s} ${y}L${x - s * 0.3} ${y - s * 0.3}Z" fill="${c}"/>`;
+  // Crescent: the left half of a circle, closed by a flatter arc back up.
+  const moon = (cx, cy, r, c) => `<path d="M${cx} ${cy - r}A${r} ${r} 0 1 0 ${cx} ${cy + r}A${r * 1.35} ${r * 1.35} 0 0 1 ${cx} ${cy - r}Z" fill="${c}"/>`;
+  const art = {
+    dawn: `<path d="M12 22A6 6 0 0 1 24 22Z" fill="#F4A73A"/>` + horizon,
+    morning: sun(18, 14, 4.5, true) + horizon,
+    midday: sun(18, 10, 5, true),
+    afternoon: sun(22, 13, 4.5, true) + horizon,
+    dusk: moon(19, 13, 8, '#8C6FC9') + star(29, 6, 2.6, '#8C6FC9'),
+    night: moon(17, 13, 8, '#F6E7A6') + star(28, 6, 2.4, '#F6E7A6') + star(32, 16, 1.6, '#F6E7A6') + star(25, 21, 1.3, '#F6E7A6')
+  }[sky];
+  return `<svg viewBox="0 0 36 26" width="36" height="26" aria-hidden="true">${art}</svg>`;
+}
+
 // Set up view: every daypart as a card down the page, one open at a time
 // (the selected daypart, which every tool and pop-up works on). Tap a card
 // to open it; tap the open one to close it. The banner carries the daypart,
@@ -194,9 +223,11 @@ function suDaypartCardsHtml(section, date, current, openHtml, m){
     const leadBtn = section === 'foh' ? `<button type="button" class="su-dp-lead" data-su-lead-open="1" data-su-lead-dp="${escapeHtml(dp.name)}"><span class="su-dp-k">Lead</span>${lead ? `<b>${escapeHtml(suDisplayName(lead))}</b>${working ? `<span class="su-dp-where"> · ${escapeHtml(working)}</span>` : ''}` : '<em>Choose a Lead Captain</em>'}</button>` : '';
     const needed = open && m ? m.tiles.filter(x => x.needed).length : 0;
     const fillBtn = needed && m.unplaced.length ? `<button type="button" class="su-dp-fillbtn" data-su-tool="fill">Fill ${needed} open</button>` : '';
-    return `<section class="su-dp ${open ? 'is-open' : ''}" aria-label="${escapeHtml(suShortDaypart(dp.name))}">
+    const sky = suDaypartSky(dp.name);
+    return `<section class="su-dp su-sky-${sky} ${open ? 'is-open' : ''}" aria-label="${escapeHtml(suShortDaypart(dp.name))}">
       <div class="su-dp-banner">
         <button type="button" class="su-dp-head" data-su-dp-toggle="${escapeHtml(dp.name)}" aria-expanded="${open}">
+          <span class="su-dp-art">${suSkyArt(sky)}</span>
           <span class="su-dp-name">${escapeHtml(suShortDaypart(dp.name))}${time ? ` <span class="su-dp-time">${escapeHtml(time)}</span>` : ''}</span>
           <span class="su-dp-fill">${suDaypartFillText(section, date, dp, i)}</span>
           <span class="su-sheet-daytype su-${t.type}">${t.type === 'game' ? 'Game' : 'Practice'}</span>
