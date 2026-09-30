@@ -75,60 +75,93 @@ function pruneZoneChecklistData(){
 
 let currentChecklistZone = '';
 let currentZoneDaypart = '';
+let zoneHandoffChosen = false;
 
-function renderZoneDaypartPicker(){
-  const dayparts = getZoneDayparts();
-  const picker = document.getElementById('zoneDaypartPicker');
-  picker.innerHTML = dayparts.map(dp=>`<div class="day-pill ${dp === currentZoneDaypart ? 'active' : ''}" data-daypart="${dp.replace(/"/g, '&quot;')}">${dp}</div>`).join('');
-  
-  picker.querySelectorAll('.day-pill').forEach(pill=>{
-    pill.addEventListener('click', ()=>{
-      picker.querySelectorAll('.day-pill').forEach(p=>p.classList.remove('active'));
-      pill.classList.add('active');
-      currentZoneDaypart = pill.dataset.daypart;
-      currentChecklistZone = '';
-      renderZoneResetCard();
-    });
-  });
+// Handoffs as sky banners, the same look as the Set Ups dayparts: every
+// handoff down the page (Close included, no sideways scrolling), its progress
+// on the banner, tap to open. The page opens on the handoff happening now.
+const ZR_HANDOFF_SKIES = ['morning', 'midday', 'afternoon', 'dusk', 'night'];
+
+function zrHandoffParts(name){
+  const m = name.match(/^(.*?)\s*\(([^)]*)\)$/);
+  return m ? {title: m[1].replace(' to ', ' → '), time: m[2]} : {title: name, time: ''};
 }
 
-// Zones render as dropdown rows: tap a zone to open its checklist in place
-// (one open at a time), the same inline style as the Leader Transition List.
+// The handoff under way now, or the next one; after the last, Close.
+function zrCurrentHandoff(){
+  const now = new Date();
+  const mins = now.getHours() * 60 + now.getMinutes();
+  const toMins = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+  const dp = zoneResetDayparts.find(d => mins < toMins(d.time) + 60) || zoneResetDayparts[zoneResetDayparts.length - 1];
+  return dp.name;
+}
+
+function zrHandoffBannersHtml(kind, current, progressFor, bodyHtml){
+  return `<div class="su-dp-list zr-dp-list">${zoneResetDayparts.map((dp, i)=>{
+    const open = dp.name === current;
+    const {title, time} = zrHandoffParts(dp.name);
+    const {checked, total} = progressFor(dp.name);
+    const done = total > 0 && checked === total;
+    const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
+    const sky = ZR_HANDOFF_SKIES[i] || 'midday';
+    return `<section class="su-dp su-sky-${sky} ${open ? 'is-open' : ''} ${done ? 'is-done' : ''}">
+      <div class="su-dp-banner">
+        <button type="button" class="su-dp-head" data-zr-handoff="${escapeHtml(dp.name)}" aria-expanded="${open}">
+          <span class="su-dp-art">${suSkyArt(sky)}</span>
+          <span class="su-dp-name">${escapeHtml(title)}${time ? ` <span class="su-dp-time">${escapeHtml(time)}</span>` : ''}</span>
+          <span class="zr-dp-progress"><span class="zr-dp-track"><span class="zr-dp-bar" style="width:${pct}%"></span></span><span class="su-dp-fill">${done ? '✓ ' : ''}${checked}/${total}</span></span>
+          <span class="su-dp-chev" aria-hidden="true">▾</span>
+        </button>
+      </div>
+      ${open ? `<div class="zr-dp-body" data-zr-kind="${kind}">${bodyHtml}</div>` : ''}
+    </section>`;
+  }).join('')}</div>`;
+}
+
+function getHandoffZoneCompletion(dateISO, daypart){
+  let checked = 0, total = 0;
+  ALL_ZONE_NAMES.forEach(zone=>{
+    const c = getZoneCompletion(dateISO, daypart, zone);
+    checked += c.checked;
+    total += c.total;
+  });
+  return {checked, total};
+}
+
+// Inside the open handoff, zones render as dropdown rows: tap a zone to open
+// its checklist in place (one open at a time).
 function renderZoneResetCard(){
   const container = document.getElementById('zoneButtonRow');
-  if(!currentZoneDaypart){
-    container.innerHTML = `<div class="pos-option-empty">Pick a daypart above to see its reset lists</div>`;
-  } else {
-    const dayState = (zoneChecklistState[today] && zoneChecklistState[today][currentZoneDaypart]) || {};
-    container.innerHTML = ALL_ZONE_NAMES.map(zone=>{
-      const {checked, total} = getZoneCompletion(today, currentZoneDaypart, zone);
-      const done = total > 0 && checked === total;
-      const open = zone === currentChecklistZone;
-      const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
-      const state = dayState[zone] || {};
-      const body = open ? `<div class="zone-acc-body">${getZoneItems(zone).map((item, i)=>{
-        const entry = state[item];
-        const isChecked = !!entry;
-        const stamp = isChecked ? `<span style="font-size:10px;color:var(--text-tertiary);font-style:italic;margin-left:auto;white-space:nowrap;">${escapeHtml(entry.initials)} · ${formatShortTime(entry.ts)}</span>` : '';
-        return `<div class="checklist-item-elevated ${isChecked?'checked':''}" data-zone-item="${i}">
-          <input type="checkbox" ${isChecked?'checked':''}>
-          <span>${escapeHtml(item)}</span>
-          ${stamp}
-        </div>`;
-      }).join('')}</div>` : '';
-      return `
-        <div class="zone-acc-item ${open ? 'open' : ''} ${done ? 'done' : ''}" data-zone="${escapeHtml(zone)}">
-          <button type="button" class="zone-acc-head" aria-expanded="${open}">
-            <span class="zone-acc-icon">${ZONE_ICONS[zone] || ''}</span>
-            <span class="zone-acc-name">${escapeHtml(zone)}</span>
-            <span class="zone-acc-track"><span class="zone-acc-fill" style="width:${pct}%"></span></span>
-            <span class="zone-acc-count">${done ? '✓ ' : ''}${checked}/${total}</span>
-            <span class="zone-acc-chevron">▾</span>
-          </button>
-          ${body}
-        </div>`;
-    }).join('');
-  }
+  const dayState = (zoneChecklistState[today] && zoneChecklistState[today][currentZoneDaypart]) || {};
+  const zonesHtml = currentZoneDaypart ? `<div class="zone-acc">${ALL_ZONE_NAMES.map(zone=>{
+    const {checked, total} = getZoneCompletion(today, currentZoneDaypart, zone);
+    const done = total > 0 && checked === total;
+    const open = zone === currentChecklistZone;
+    const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
+    const state = dayState[zone] || {};
+    const body = open ? `<div class="zone-acc-body">${getZoneItems(zone).map((item, i)=>{
+      const entry = state[item];
+      const isChecked = !!entry;
+      const stamp = isChecked ? `<span style="font-size:10px;color:var(--text-tertiary);font-style:italic;margin-left:auto;white-space:nowrap;">${escapeHtml(entry.initials)} · ${formatShortTime(entry.ts)}</span>` : '';
+      return `<div class="checklist-item-elevated ${isChecked?'checked':''}" data-zone-item="${i}">
+        <input type="checkbox" ${isChecked?'checked':''}>
+        <span>${escapeHtml(item)}</span>
+        ${stamp}
+      </div>`;
+    }).join('')}</div>` : '';
+    return `
+      <div class="zone-acc-item ${open ? 'open' : ''} ${done ? 'done' : ''}" data-zone="${escapeHtml(zone)}">
+        <button type="button" class="zone-acc-head" aria-expanded="${open}">
+          <span class="zone-acc-icon">${ZONE_ICONS[zone] || ''}</span>
+          <span class="zone-acc-name">${escapeHtml(zone)}</span>
+          <span class="zone-acc-track"><span class="zone-acc-fill" style="width:${pct}%"></span></span>
+          <span class="zone-acc-count">${done ? '✓ ' : ''}${checked}/${total}</span>
+          <span class="zone-acc-chevron">▾</span>
+        </button>
+        ${body}
+      </div>`;
+  }).join('')}</div>` : '';
+  container.innerHTML = zrHandoffBannersHtml('zone', currentZoneDaypart, dp => getHandoffZoneCompletion(today, dp), zonesHtml);
 
   const overall = getOverallCompletion(today);
   const pctEl = document.getElementById('zoneOverallPct');
@@ -137,6 +170,17 @@ function renderZoneResetCard(){
 }
 
 document.getElementById('zoneButtonRow').addEventListener('click', async (e)=>{
+  const handoff = e.target.closest('[data-zr-handoff]');
+  if(handoff){
+    const name = handoff.dataset.zrHandoff;
+    currentZoneDaypart = currentZoneDaypart === name ? '' : name;
+    zoneHandoffChosen = true;
+    currentChecklistZone = '';
+    renderZoneResetCard();
+    const head = [...document.querySelectorAll('#zoneButtonRow [data-zr-handoff]')].find(h => h.dataset.zrHandoff === name);
+    if(currentZoneDaypart && head) head.scrollIntoView({block: 'nearest'});
+    return;
+  }
   const itemEl = e.target.closest('.zone-acc-item');
   if(!itemEl || !currentZoneDaypart) return;
   const zoneName = itemEl.dataset.zone;
@@ -201,7 +245,7 @@ function renderZoneResetScoreboard(){
 }
 
 function renderZoneResetView(){
-  renderZoneDaypartPicker();
+  if(!zoneHandoffChosen) currentZoneDaypart = zrCurrentHandoff();
   renderZoneResetCard();
   renderZoneResetScoreboard();
 }
