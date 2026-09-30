@@ -30,7 +30,8 @@ function renderLXScoreboard(){
 
   const metricsTable = document.getElementById('metricsTable');
   // Values linked to uploads / the Guest Obsession score (report-uploads.js).
-  if(typeof rpSyncLx === 'function') rpSyncLx();
+  // On a manager's page, keep the change (only a manager can save LX).
+  if(typeof rpSyncLx === 'function' && rpSyncLx() && typeof launchManager !== 'undefined' && launchManager) saveState();
   const headerHtml = `
     <thead>
       <tr>
@@ -118,7 +119,7 @@ function renderLXManage(){
     el.readOnly = true;
     el.classList.add('gx-auto');
     el.title = title;
-    el.parentElement.insertAdjacentHTML('afterend', `<div class="lx-link-note">${escapeHtml(kind === 'dt' ? 'Automatic from the chain ranking upload — the status follows the Top 100 standard.' : 'Follows the Food Safety score in Guest Obsession — type it there.')}</div>`);
+    el.parentElement.insertAdjacentHTML('afterend', `<div class="lx-link-note">${escapeHtml(kind === 'dt' ? 'Automatic from the chain ranking upload — the status follows the Top 100 standard.' : 'Follows the Food Safety score in Guest Obsession — type it there. The status follows the standard of 1: a 1 meets it, higher is Below.')}</div>`);
   });
 }
 

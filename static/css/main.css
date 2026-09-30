@@ -1517,7 +1517,25 @@
   .su-sheet-k{flex:0 0 64px;font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--su-muted);padding-top:2px;}
   .su-sheet-act{flex:0 0 auto;border:1.5px solid var(--su-ink);background:transparent;border-radius:999px;padding:4px 12px;min-height:32px;font-family:inherit;font-size:12px;font-weight:700;color:var(--su-ink);cursor:pointer;}
   .su-sheet-act.is-dark{background:var(--su-ink);color:#fff;}
-  .su-sheet-table{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:10px;align-items:start;}
+  /* One column of positions, top to bottom, on every screen size. */
+  .su-sheet-table{display:flex;flex-direction:column;gap:10px;}
+  /* Set up view: dayparts as cards down the page; the open one shows its set up. */
+  .su-dp-list{display:flex;flex-direction:column;gap:10px;}
+  .su-dp{background:var(--su-card);border-radius:16px;box-shadow:0 1px 0 var(--su-line);}
+  .su-dp.is-open{background:transparent;box-shadow:none;}
+  .su-dp-head{display:flex;align-items:center;gap:10px;width:100%;min-height:56px;border:0;background:var(--su-card);border-radius:16px;padding:10px 14px;font-family:inherit;color:var(--su-ink);text-align:left;cursor:pointer;box-shadow:0 1px 0 var(--su-line);}
+  .su-dp.is-open .su-dp-head{background:var(--su-ink);color:#fff;}
+  .su-dp-name{flex:1 1 auto;min-width:0;font-size:17px;font-weight:700;}
+  .su-dp-time{font-size:13px;font-weight:600;color:var(--su-muted);margin-left:4px;white-space:nowrap;}
+  .su-dp.is-open .su-dp-time{color:rgba(255,255,255,0.7);}
+  .su-dp-fill{flex:0 0 auto;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--su-muted);}
+  .su-dp.is-open .su-dp-fill{color:#fff;}
+  .su-dp-head .su-sheet-daytype{flex:0 0 auto;}
+  .su-dp-chev{flex:0 0 auto;font-size:14px;transition:transform .15s ease;}
+  .su-dp.is-open .su-dp-chev{transform:rotate(180deg);}
+  .su-dp-body{display:flex;flex-direction:column;gap:10px;padding-top:10px;}
+  /* The card header already names the daypart and day type. */
+  .su-dp-body .su-sheet-title{display:none;}
   .su-sheet-zone{background:var(--su-card);border-radius:16px;padding:6px 12px 8px;box-shadow:0 1px 0 var(--su-line);}
   .su-sheet-zone h3{font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--su-muted);padding:6px 0 4px;}
   .su-row{display:grid;grid-template-columns:minmax(0,44%) minmax(0,1fr);align-items:center;gap:10px;width:100%;min-height:44px;border:0;border-top:1px solid var(--su-line);background:transparent;padding:6px 2px;text-align:left;font-family:inherit;color:var(--su-ink);cursor:pointer;}

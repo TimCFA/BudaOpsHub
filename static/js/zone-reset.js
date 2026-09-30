@@ -474,7 +474,7 @@ const defaultPillars = [
 
 const defaultMetrics = [
   { id: 'metric1', name: 'OSAT +2pt ≤ 20%', standard: '≤ 20%', value: '', rating: 2 },
-  { id: 'metric2', name: 'Food Safety Score', standard: '≥ 2', value: '', rating: 2 },
+  { id: 'metric2', name: 'Food Safety Score', standard: '1', value: '', rating: 2 },
   { id: 'metric3', name: 'Drive-Thru Ranking', standard: 'Top 100', value: '', rating: 2 },
   { id: 'metric4', name: 'Food Cost Gap', standard: '0.50%', value: '', rating: 2 },
   { id: 'metric5', name: 'Productivity', standard: '$90+', value: '', rating: 2 }
