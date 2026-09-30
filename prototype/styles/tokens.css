@@ -1,0 +1,64 @@
+/* Buda Ops Hub — fresh look. Design tokens (SPEC "Visual system"). */
+:root {
+  /* colour */
+  --red: #C8102E;
+  --red-dark: #A00D25;
+  --bg: #F6F3EE;
+  --page: #E9E4DC;        /* the page around the 390 px column on desktop */
+  --ink: #1C1B19;
+  --ink2: #5F5B55;
+  --ink3: #6B665F;        /* lightest allowed secondary text */
+  --white: #FFFFFF;
+  --line: #E6E1D8;
+  --chip: #ECE7DF;
+  --dark: #2A2825;
+  --green: #2A6E2E;        /* 5.4:1 on --green-bg (text) */
+  --green-bg: #E6F2E7;
+  --amber: #C97A1E;        /* dots and fills only */
+  --amber-text: #8A5212;   /* amber text: 5.7:1 on --amber-bg, 6.4:1 on white */
+  --amber-bg: #FBF0E2;
+  --needed-bg: #FFF3EE;
+  --pending-bg: #EFEBE4;
+  --undo: #FFC9C9;
+  --dim: rgba(28, 27, 25, 0.35);
+
+  /* radii */
+  --r-10: 10px;
+  --r-12: 12px;
+  --r-16: 16px;
+  --r-sheet: 18px;
+  --r-pill: 999px;
+
+  /* type scale — nothing under 12 px */
+  --font: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --fs-title: 26px;
+  --fs-sheet: 20px;
+  --fs-big: 30px;
+  --fs-name: 16px;
+  --fs-pos: 15px;
+  --fs-body: 14px;
+  --fs-meta: 13px;
+  --fs-sub: 12px;
+
+  /* spacing */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --gutter: 16px;
+
+  /* sizes */
+  --tap: 44px;
+  --chip-h: 36px;
+  --chip-tall: 44px;
+  --btn-h: 48px;
+  --col: 390px;
+  --nav-pad-bottom: 22px;
+
+  /* z-layers */
+  --z-header: 10;
+  --z-bottom: 20;
+  --z-toast: 30;
+  --z-sheet: 40;
+}

@@ -57,7 +57,7 @@ More → "Demo clock" with presets 10:52 · 12:40 · 1:58 · 2:04 · 5:10. Every
 "now" computation reads the store clock, never `Date.now()`.
 
 Devices: the store remembers per browser (localStorage) the chosen person
-("Who's using this phone"), the language and the FOH/BOH side. "Jacob" is a
+("Who's using this phone"), the language and the FOH/BOH side. "Dorian" is a
 manager and the default identity; the rest of the roster can be picked.
 
 ## Data schema (`data/`)
@@ -87,32 +87,32 @@ manager and the default identity; the rest of the roster can be picked.
 
 | Person | Role | Shift | Lunch spot at 10:52 |
 |---|---|---|---|
-| Maria | Trainer | 6:00–2:00 | iPOS 1 (Captain), on break 10:45–11:15, Lauren covers |
+| Maria | Trainer | 6:00–2:00 | iPOS 1 (Captain), on break 10:45–11:15, Harper covers |
 | Luke | TL | 10:00–8:00 | FC Bagger (Bagging captain) |
-| Avah | Trainer | 6:00–11:30 | Host 1 (Captain) → Sofia 11:30 (flag: Sofia isn’t a leader) |
+| Brielle | Trainer | 6:00–11:30 | Host 1 (Captain) → Sofia 11:30 (flag: Sofia isn’t a leader) |
 | Sofia | TM | 11:30–8:00 | takes Host 1 at 11:30 |
-| Josh | TM | 6:00–3:00 | iPOS 2 (flag: outside all Breakfast) |
-| Nestor | TM | 11:00–1:00 | Drinks 2 (On the Rise 2.1), leaves 1:00 |
+| Tobias | TM | 6:00–3:00 | iPOS 2 (flag: outside all Breakfast) |
+| Emilio | TM | 11:00–1:00 | Drinks 2 (On the Rise 2.1), leaves 1:00 |
 | Sam | TL | 10:00–8:00 | Lead Captain, works Runner |
-| Ki | Trainer | 6:00–1:00 | Drinks 3 → Ashley at 1:00 |
-| Ashley | TM | 12:30–8:00 | arrives 12:30, takes Drinks 3 at 1:00 |
-| Aurora | TM | 11:00–5:00 | OMD 2 (On the Rise 2.3, ★ getting a PEA, PEA due 31 days) |
-| Carlos | TM | 11:00–5:30 | not placed (Crushing It on Drinks 2.9); Fill → Drinks 1 |
-| Lauren | TM | 11:00–8:00 | not placed; Fill → DT Bagger 2 |
+| Noor | Trainer | 6:00–1:00 | Drinks 3 → Kendra at 1:00 |
+| Kendra | TM | 12:30–8:00 | arrives 12:30, takes Drinks 3 at 1:00 |
+| Sienna | TM | 11:00–5:00 | OMD 2 (On the Rise 2.3, ★ getting a PEA, PEA due 31 days) |
+| Rafael | TM | 11:00–5:30 | not placed (Crushing It on Drinks 2.9); Fill → Drinks 1 |
+| Harper | TM | 11:00–8:00 | not placed; Fill → DT Bagger 2 |
 | Diego | TM | 11:00–1:00 | not placed; Fill → OMD 1; inside all Breakfast |
-| Traci | TM | 11:00–4:00 | not placed; Not Yet on Drinks 1.5; never rated on Host; Fill → Host 2 with a flag |
+| Yesenia | TM | 11:00–4:00 | not placed; Not Yet on Drinks 1.5; never rated on Host; Fill → Host 2 with a flag |
 
 Breakfast (8–11) was fully set up (prefill it so carry-forward and the outside
-rule have history): Maria iPOS 1 (Captain), Josh iPOS 2, Avah Host 1, Ki Drinks 1,
-plus others as needed. Breaks: Maria 10:45; Sam 1:05 (Luke covers); Aurora 1:20
-(Carlos covers); Carlos 2:30 (Lauren covers). At 1:00: Ki leaves (Drinks 3 →
-Ashley), Nestor leaves (Drinks 2 closes), Diego leaves.
+rule have history): Maria iPOS 1 (Captain), Tobias iPOS 2, Brielle Host 1, Noor Drinks 1,
+plus others as needed. Breaks: Maria 10:45; Sam 1:05 (Luke covers); Sienna 1:20
+(Rafael covers); Rafael 2:30 (Harper covers). At 1:00: Noor leaves (Drinks 3 →
+Kendra), Emilio leaves (Drinks 2 closes), Diego leaves.
 
 BOH sample (Mid 10:30–2:00): 8 people, one TL (Primary captain), one Trainer
 (Raw), the rest team members; enough to show the BOH toggle working.
 
-Waste sample: 9 entries before 10:41 (Avah, Luke, Josh); Tasks sample: the
-2:00 Restrooms reset 3 of 8 done at 2:04 by Carlos.
+Waste sample: 9 entries before 10:41 (Brielle, Luke, Tobias); Tasks sample: the
+2:00 Restrooms reset 3 of 8 done at 2:04 by Rafael.
 
 ## Rules (`rules/`) — pure functions, tested
 
@@ -130,7 +130,7 @@ sub "Captain"). "(Captain)" in a slot name marks a captain slot.
 - **Headcount and Needed.** People on shift = roster entries overlapping the
   window (a start or end within 10 min of the edge counts as the whole
   daypart). A leaver paired with an arrival from 60 min before to 30 min
-  after their leaving time counts as one spot ("Ki → Ashley 1:00"). With N
+  after their leaving time counts as one spot ("Noor → Kendra 1:00"). With N
   effective people, slots 1..N are expected: empty ones are **Needed**, the
   rest fold behind "+ M more spots if you have extra people".
 - **Names**: first name; last initial only when first names collide.
@@ -249,6 +249,6 @@ column with the page background around it.
 - A Playwright script (`prototype/tests/smoke.mjs`, run with the repo's
   Chromium) opens each route at 390×844, asserts no horizontal overflow,
   asserts every `nav a`, `.btn`, `.prow`, `.person`, `.sizes button` is ≥ 44 px
-  tall, walks the flow Set Ups → Drinks 1 → pick Carlos → row pending → saved,
+  tall, walks the flow Set Ups → Drinks 1 → pick Rafael → row pending → saved,
   Fill → Confirm, Waste tap → snackbar → Undo, Tasks toggle, language switch,
   and saves screenshots to `prototype/tests/shots/` (git-ignored).
