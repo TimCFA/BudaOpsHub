@@ -575,26 +575,44 @@ const defaultTXData = {
 
 let txData = JSON.parse(JSON.stringify(defaultTXData));
 
-const truettQuotes = [
-  {text: "Pressurized jobs create pressurized people. That's not what we want to be.", author: "Truett Cathy"},
-  {text: "Be a servant leader. It's not about being the boss. It's about serving others.", author: "Truett Cathy"},
-  {text: "Opportunity doesn't come to those who wait. It comes to those who go out and find it.", author: "Truett Cathy"},
-  {text: "Make a difference in the lives of those around you. That's what it's all about.", author: "Truett Cathy"},
-  {text: "Keep the main thing, the main thing.", author: "Truett Cathy"},
-  {text: "My decision to operate on Sunday was perhaps the toughest thing I've ever had to do.", author: "Truett Cathy"},
-  {text: "Great businesses are built on relationships, not transactions.", author: "Truett Cathy"},
-  {text: "If you don't have time to do it right, when will you have time to do it over?", author: "Truett Cathy"},
-  {text: "We are not in the chicken business; we're in the people business.", author: "Truett Cathy"},
-  {text: "The greatest legacy we can leave is not money, but people who have been transformed by our investment in them.", author: "Truett Cathy"}
+// Home screen quotes. Every one is checked against a published source
+// (Chick-fil-A's own pages, S. Truett Cathy's books, or the leadership team's
+// books); nothing is paraphrased. Add new ones only with a source.
+const TRUETT = 'S. Truett Cathy';
+const homeQuotes = [
+  {text: "Food is essential to life. Therefore, make it good.", author: TRUETT, source: "On the wall of Chick-fil-A restaurants"},
+  {text: "We should be about more than just selling chicken. We should be a part of our customers' lives and the communities in which we serve.", author: TRUETT, source: "Chick-fil-A, Who We Are"},
+  {text: "How do you know someone needs encouragement? If they're breathing.", author: TRUETT, source: "Chick-fil-A founder"},
+  {text: "If you're not having fun, you're not doing it right.", author: TRUETT, source: "Chick-fil-A founder"},
+  {text: "If we're willing to do that for the president, why not treat every customer that well?", author: TRUETT, source: "Eat Mor Chikin: Inspire More People"},
+  {text: "Nearly every moment of every day we have the opportunity to give something to someone else – our time, our love, our resources.", author: TRUETT, source: "Eat Mor Chikin: Inspire More People"},
+  {text: "I delivered each paper as if I were delivering it to the front door of the governor's mansion.", author: TRUETT, source: "On his first job, delivering newspapers"},
+  {text: "We built our business and made friends at the same time, always seeking to meet their needs wherever we could.", author: TRUETT, source: "Chick-fil-A founder"},
+  {text: "You expect that from a five-star hotel. But to have teenagers in a fast-food atmosphere saying it's their pleasure to serve—that's a real head-turner.", author: TRUETT, source: "On \u201cMy pleasure\u201d"},
+  {text: "It's easier to build boys and girls than to mend men and women.", author: TRUETT, source: "It's Better to Build Boys Than Mend Men"},
+  {text: "I'd like to be remembered as one who kept my priorities in the right order.", author: TRUETT, source: "Chick-fil-A founder"},
+  {text: "We live in a changing world, but we need to be reminded that the important things have not changed.", author: TRUETT, source: "Chick-fil-A founder"},
+
+  {text: "Others control our opportunities, we control our readiness.", author: "Mark Miller", source: "The Heart of Leadership"},
+  {text: "When you expect the best from people, you will often see more in them than they see in themselves.", author: "Mark Miller", source: "The Heart of Leadership"},
+  {text: "You can lead with or without a title. If you wait until you get a title, you may wait forever.", author: "Mark Miller", source: "The Heart of Leadership"},
+  {text: "The best leaders don't blame others. They own their actions and their outcomes.", author: "Mark Miller", source: "The Heart of Leadership"},
+  {text: "Getting the right plate to the right person at the right table is service. But genuinely engaging with the person you're serving, so you can make an authentic connection—that's hospitality.", author: "Will Guidara", source: "Unreasonable Hospitality"},
+  {text: "A leader's responsibility is to identify the strengths of the people on their team, no matter how buried those strengths might be.", author: "Will Guidara", source: "Unreasonable Hospitality"},
+  {text: "It is teamwork that remains the ultimate competitive advantage, both because it is so powerful and so rare.", author: "Patrick Lencioni", source: "The Five Dysfunctions of a Team"},
+  {text: "Do what the customer loves, and the money will follow.", author: "Horst Schulze", source: "Excellence Wins"},
+  {text: "If you want to change the world, start off by making your bed.", author: "Admiral William H. McRaven", source: "Make Your Bed"},
+  {text: "If you want to change the world, get over being a sugar cookie and keep moving forward.", author: "Admiral William H. McRaven", source: "Make Your Bed"}
 ];
 
-const motivationalMessages = [
-  {text: "Today is a new opportunity to win hearts.", author: "— Team"},
-  {text: "Excellence is not a destination; it's a journey.", author: "— Team"},
-  {text: "Every guest interaction is a chance to create a moment that matters.", author: "— Team"},
-  {text: "We rise by lifting others.", author: "— Team"},
-  {text: "Your effort today is the stepping stone to tomorrow's success.", author: "— Team"}
-];
+// One quote per day, the same on every device, so a huddle can share it.
+// Tapping the quote shows the next one.
+let homeQuoteOffset = 0;
+function homeQuoteForToday(){
+  const d = new Date();
+  const day = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
+  return homeQuotes[(day + homeQuoteOffset) % homeQuotes.length];
+}
 
 const defaultHomeData = {
   vision: "***To be the most caring brand in Buda!***\n\nTo give back more, we are focused on growing our influence within our team, business and community through caring!",
