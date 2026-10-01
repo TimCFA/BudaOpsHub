@@ -79,7 +79,8 @@ let zoneHandoffChosen = false;
 
 // Handoffs as sky banners, the same look as the Set Ups dayparts: every
 // handoff down the page (Close included, no sideways scrolling), its progress
-// on the banner, tap to open. The page opens on the handoff happening now.
+// and the Lead Captain answerable for it on the banner, tap to open. The page
+// opens on the handoff happening now.
 const ZR_HANDOFF_SKIES = ['morning', 'midday', 'afternoon', 'dusk', 'night'];
 
 function zrHandoffParts(name){
@@ -96,6 +97,12 @@ function zrCurrentHandoff(){
   return dp.name;
 }
 
+// Today's Lead Captain for a handoff, from Set Ups (FOH), or ''.
+function zrHandoffLead(handoff){
+  const dp = fohDayparts.find(d => d.name.startsWith(handoff.leadFrom + ' ('));
+  return dp ? (posAssignments['foh||' + today + '||' + dp.name + '||' + SU_LEAD_CAPTAIN] || '') : '';
+}
+
 function zrHandoffBannersHtml(kind, current, progressFor, bodyHtml){
   return `<div class="su-dp-list zr-dp-list">${zoneResetDayparts.map((dp, i)=>{
     const open = dp.name === current;
@@ -104,11 +111,12 @@ function zrHandoffBannersHtml(kind, current, progressFor, bodyHtml){
     const done = total > 0 && checked === total;
     const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
     const sky = ZR_HANDOFF_SKIES[i] || 'midday';
+    const lead = zrHandoffLead(dp);
     return `<section class="su-dp su-sky-${sky} ${open ? 'is-open' : ''} ${done ? 'is-done' : ''}">
       <div class="su-dp-banner">
         <button type="button" class="su-dp-head" data-zr-handoff="${escapeHtml(dp.name)}" aria-expanded="${open}">
           <span class="su-dp-art">${suSkyArt(sky)}</span>
-          <span class="su-dp-name">${escapeHtml(title)}${time ? ` <span class="su-dp-time">${escapeHtml(time)}</span>` : ''}</span>
+          <span class="su-dp-name">${escapeHtml(title)}${time ? ` <span class="su-dp-time">${escapeHtml(time)}</span>` : ''}${lead ? `<span class="zr-dp-lead"><span class="su-dp-k">Lead</span> ${escapeHtml(suDisplayName(lead))}</span>` : `<span class="zr-dp-lead is-none">No Lead Captain set</span>`}</span>
           <span class="zr-dp-progress"><span class="zr-dp-track"><span class="zr-dp-bar" style="width:${pct}%"></span></span><span class="su-dp-fill">${done ? '✓ ' : ''}${checked}/${total}</span></span>
           <span class="su-dp-chev" aria-hidden="true">▾</span>
         </button>
@@ -328,12 +336,14 @@ const bohDayparts = [
   {name: 'Close (8:00-10:00)', time: '20:00'},
 ];
 
+// leadFrom: the FOH Set Ups daypart whose Lead Captain owns this reset (the
+// leader handing off), shown on the handoff's banner.
 const zoneResetDayparts = [
-  {name: 'Breakfast to Lunch (10:30am - 11:30am)', time: '10:30'},
-  {name: 'Lunch to Mid (1:00pm - 2:00pm)', time: '13:00'},
-  {name: 'Mid to Dinner (4:00pm - 5:00pm)', time: '16:00'},
-  {name: 'Dinner to Late Night (7:00pm - 8:00pm)', time: '19:00'},
-  {name: 'Close', time: '21:00'},
+  {name: 'Breakfast to Lunch (10:30am - 11:30am)', time: '10:30', leadFrom: 'Breakfast'},
+  {name: 'Lunch to Mid (1:00pm - 2:00pm)', time: '13:00', leadFrom: 'Lunch'},
+  {name: 'Mid to Dinner (4:00pm - 5:00pm)', time: '16:00', leadFrom: 'Afternoon'},
+  {name: 'Dinner to Late Night (7:00pm - 8:00pm)', time: '19:00', leadFrom: 'Dinner'},
+  {name: 'Close', time: '21:00', leadFrom: 'Close'},
 ];
 
 // FOH positions per daypart, in the Google Sheet set up's priority order (top
