@@ -226,11 +226,12 @@ document.getElementById('fohLeaderTransitionChecklist').addEventListener('click'
 
 // ===== DAILY SAFE COUNT =====
 const SAFE_COUNT_ENTRY_TYPES = ['Opening Count', 'Transition Count', 'Closing Count', 'Additional Count'];
+const SAFE_COUNT_TYPE_ICONS = {'Opening Count': '☀️', 'Transition Count': '🔄', 'Closing Count': '🌙', 'Additional Count': '➕'};
 let currentSafeCountEntryType = '';
 
 function renderSafeCountEntryPicker(){
   const picker = document.getElementById('safeCountEntryPicker');
-  picker.innerHTML = SAFE_COUNT_ENTRY_TYPES.map(type => `<div class="day-pill ${type === currentSafeCountEntryType ? 'active' : ''}" data-type="${type}">${type}</div>`).join('');
+  picker.innerHTML = SAFE_COUNT_ENTRY_TYPES.map(type => `<div class="day-pill ${type === currentSafeCountEntryType ? 'active' : ''}" data-type="${type}"><span class="sc-ic" aria-hidden="true">${SAFE_COUNT_TYPE_ICONS[type] || ''}</span><span>${type}</span></div>`).join('');
   picker.querySelectorAll('.day-pill').forEach(pill=>{
     pill.addEventListener('click', ()=>{
       currentSafeCountEntryType = pill.dataset.type;
