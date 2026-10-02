@@ -15,7 +15,8 @@
 //   completedAt: ts
 // }
 // A day counts toward foodSafetyDays (streak + Food Safety Compliance card) once every
-// check is answered and every temperature is filled in.
+// check is answered and every temperature is filled in. Temperatures sit in the
+// zone where they're taken (FS_TEMPS below).
 
 const FS_HANDWASH = { en: 'Are handwashing stations stocked, accessible, properly used, clean, and in good repair?', es: '¿Las estaciones de lavado de manos están abastecidas, son accesibles, se usan correctamente, están limpias y en buen estado?' };
 const FS_CONTACT_SURFACES = { en: 'Check ALL food contact surfaces for cleanliness.', es: 'Verifique que todas las superficies en contacto con los alimentos estén limpias.' };
@@ -110,27 +111,34 @@ const FS_SECTIONS = [
     { id: 'prev-cool-down-pans', en: 'Is Cool Down chicken in the fridge stored in a Metal pan, with a gap in the saran wrap and not stacked?', es: '¿Está el pollo de Cool Down en el refrigerador en charola de metal, con hueco en el saran wrap y no está apilado?' },
     { id: 'prev-chopped-lettuce', en: 'Is Chopped Lettuce stored in the fridge temping at <40 F? Does it have an air gap?', es: '¿Está la Lechuga Picada en el refrigerador con temperatura de <40 F? ¿Tiene hueco para respirar?' },
     { id: 'prev-contact-surfaces', en: 'Are food contact surfaces clean and in good repair?', es: '¿Las superficies en contacto con los alimentos están limpias y en buen estado?' }
-  ]},
-  { id: 'temps', name: 'Temperatures', es: 'Temperaturas', temps: true, items: [
-    { id: 'temp-salad', en: 'Salad of Choice', es: 'Ensalada de Elección' },
-    { id: 'temp-side', en: 'Side Item', es: 'Acompañamiento' },
-    { id: 'temp-romaine-walkin', en: 'Romaine Lettuce (walk-in)', es: 'Romaine Lettuce (refrigerador)' },
-    { id: 'temp-greenleaf-walkin', en: 'Green Leaf (walk-in)', es: 'Green Leaf (refrigerador)' },
-    { id: 'temp-tomato-walkin', en: 'Tomato (walk-in)', es: 'Tomate (refrigerador)' },
-    { id: 'temp-romaine-prep', en: 'Romaine Lettuce (prep)', es: 'Lechuga Romana (prep)' },
-    { id: 'temp-sliced-regular', en: 'Sliced regular (prep)', es: 'Pollo regular picado (prep)' },
-    { id: 'temp-sliced-spicy', en: 'Sliced spicy (prep)', es: 'Pollo picante picado (prep)' },
-    { id: 'temp-greenleaf-line', en: 'Green Leaf (line)', es: 'Green Leaf (línea)' },
-    { id: 'temp-tomato-line', en: 'Tomato (line)', es: 'Tomate (línea)' },
-    { id: 'temp-cheese-line', en: 'Cheese of choice (line)', es: 'Queso de elección (línea)' },
-    { id: 'temp-grilled-filets-line', en: 'Grilled Filets (line)', es: 'Filetes Asados (línea)' },
-    { id: 'temp-milkwash', en: 'Milkwash', es: 'Milkwash (mezcla de leche)' },
-    { id: 'temp-regular-filets-raw', en: 'Regular Filets (raw)', es: 'Filetes Regulares (crudo)' },
-    { id: 'temp-spicy-filets-raw', en: 'Spicy Filets (raw)', es: 'Filetes Picantes (crudo)' },
-    { id: 'temp-grilled-filets-raw', en: 'Grilled Filets (raw)', es: 'Filetes Asados (crudo)' },
-    { id: 'temp-grilled-nuggets-line', en: 'Grilled Nuggets (line)', es: 'Nuggets Asados (línea)' }
   ]}
 ];
+
+// Temperatures are taken in the zone where the product is, as the walkthrough
+// goes zone to zone (no circling back at the end). Each reading's zone comes
+// from where the form says it's taken: (raw) → Raw, (line) → Boards,
+// (prep) and the walk-in produce → Prep, salad and side → FOH. Saved by id in
+// rec.temps, the same as before they moved.
+const FS_TEMPS = [
+  { id: 'temp-salad', zone: 'foh', en: 'Salad of Choice', es: 'Ensalada de Elección' },
+  { id: 'temp-side', zone: 'foh', en: 'Side Item', es: 'Acompañamiento' },
+  { id: 'temp-romaine-walkin', zone: 'prep', en: 'Romaine Lettuce (walk-in)', es: 'Romaine Lettuce (refrigerador)' },
+  { id: 'temp-greenleaf-walkin', zone: 'prep', en: 'Green Leaf (walk-in)', es: 'Green Leaf (refrigerador)' },
+  { id: 'temp-tomato-walkin', zone: 'prep', en: 'Tomato (walk-in)', es: 'Tomate (refrigerador)' },
+  { id: 'temp-romaine-prep', zone: 'prep', en: 'Romaine Lettuce (prep)', es: 'Lechuga Romana (prep)' },
+  { id: 'temp-sliced-regular', zone: 'prep', en: 'Sliced regular (prep)', es: 'Pollo regular picado (prep)' },
+  { id: 'temp-sliced-spicy', zone: 'prep', en: 'Sliced spicy (prep)', es: 'Pollo picante picado (prep)' },
+  { id: 'temp-greenleaf-line', zone: 'boards', en: 'Green Leaf (line)', es: 'Green Leaf (línea)' },
+  { id: 'temp-tomato-line', zone: 'boards', en: 'Tomato (line)', es: 'Tomate (línea)' },
+  { id: 'temp-cheese-line', zone: 'boards', en: 'Cheese of choice (line)', es: 'Queso de elección (línea)' },
+  { id: 'temp-grilled-filets-line', zone: 'boards', en: 'Grilled Filets (line)', es: 'Filetes Asados (línea)' },
+  { id: 'temp-milkwash', zone: 'raw', en: 'Milkwash', es: 'Milkwash (mezcla de leche)' },
+  { id: 'temp-regular-filets-raw', zone: 'raw', en: 'Regular Filets (raw)', es: 'Filetes Regulares (crudo)' },
+  { id: 'temp-spicy-filets-raw', zone: 'raw', en: 'Spicy Filets (raw)', es: 'Filetes Picantes (crudo)' },
+  { id: 'temp-grilled-filets-raw', zone: 'raw', en: 'Grilled Filets (raw)', es: 'Filetes Asados (crudo)' },
+  { id: 'temp-grilled-nuggets-line', zone: 'boards', en: 'Grilled Nuggets (line)', es: 'Nuggets Asados (línea)' }
+];
+FS_SECTIONS.forEach(s => { s.temps = FS_TEMPS.filter(t => t.zone === s.id); });
 
 const FS_HISTORY_DAYS = 90;
 
@@ -142,13 +150,15 @@ let fsCurrentSection = FS_SECTIONS[0].id;
 function fsRecord(dateISO){ return foodSafetyWalkthroughs[dateISO] || null; }
 
 function fsSectionProgress(rec, section){
-  const bucket = rec ? (section.temps ? rec.temps : rec.answers) || {} : {};
+  const answers = (rec && rec.answers) || {}, temps = (rec && rec.temps) || {};
   let done = 0, coached = 0;
-  section.items.forEach(item => {
+  const count = (bucket, item) => {
     const a = bucket[item.id];
     if(a && String(a.v).trim() !== ''){ done++; if(a.v === 'coached') coached++; }
-  });
-  return { done, total: section.items.length, coached };
+  };
+  section.items.forEach(item => count(answers, item));
+  section.temps.forEach(item => count(temps, item));
+  return { done, total: section.items.length + section.temps.length, coached };
 }
 
 function fsTotals(rec){
@@ -298,12 +308,17 @@ function renderFoodSafety(){
         <div>
           <h3>${escapeHtml(section.name)} <span class="fs-section-es">${escapeHtml(section.es)}</span></h3>
           ${section.note ? `<div class="fs-section-note">${escapeHtml(section.note)} · <i>${escapeHtml(section.noteEs)}</i></div>` : ''}
-          ${section.temps ? `<div class="fs-section-note">Enter each reading in °F · <i>Ingrese cada temperatura en °F</i></div>` : ''}
         </div>
         <span class="fs-section-count">${idx + 1} of ${FS_SECTIONS.length} · ${sp.done}/${sp.total}</span>
       </div>
+      ${section.temps.length ? `
+      <div class="fs-temps-head">🌡️ Temperatures here <span>Temperaturas aquí · °F</span></div>
+      <div class="fs-list fs-temps">
+        ${section.temps.map(item => fsTempHtml(item, rec)).join('')}
+      </div>
+      <div class="fs-temps-head">Checks <span>Revisiones</span></div>` : ''}
       <div class="fs-list">
-        ${section.items.map(item => section.temps ? fsTempHtml(item, rec) : fsQuestionHtml(item, rec)).join('')}
+        ${section.items.map(item => fsQuestionHtml(item, rec)).join('')}
       </div>
       <div class="fs-nav">
         ${prev ? `<button type="button" class="btn btn-ghost fs-nav-btn" data-fs-section="${prev.id}" data-fs-scroll>← ${escapeHtml(prev.name)}</button>` : '<span></span>'}

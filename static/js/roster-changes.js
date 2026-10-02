@@ -31,6 +31,14 @@ function rcImported(list){
   return (list || []).filter(p => p && p.name && p.source !== 'manual');
 }
 
+function rcSlim(list){
+  return list.map(p => {
+    const slim = {name: p.name, start: p.start, end: p.end};
+    if(p.blocks && p.blocks.length > 1) slim.blocks = p.blocks.map(b => ({start: b.start, end: b.end}));
+    return slim;
+  });
+}
+
 // Before a day's roster is replaced by an import: keep what it had as the
 // posted schedule, unless it already has one (or has no imported roster yet,
 // i.e. this is the week's first import).
@@ -40,13 +48,35 @@ function rosterNotePosted(date, side, currentList){
   if(day[side]) return;
   const before = rcImported(currentList);
   if(!before.length) return;
-  day[side] = before.map(p => {
-    const slim = {name: p.name, start: p.start, end: p.end};
-    if(p.blocks && p.blocks.length > 1) slim.blocks = p.blocks.map(b => ({start: b.start, end: b.end}));
-    return slim;
-  });
+  day[side] = rcSlim(before);
   day.at = day.at || Date.now();
   rosterPosted[date] = day;
+}
+
+// Manager reset: the roster as it is now becomes the posted schedule for
+// these days (say the first sync was a draft), so their changes clear and
+// later syncs compare with it.
+function rosterResetPosted(dates){
+  dates.forEach(date=>{
+    const day = {};
+    ['foh', 'boh'].forEach(side=>{
+      const now = rcImported((side === 'foh' ? fohRoster : bohRoster)[date]);
+      if(now.length) day[side] = rcSlim(now);
+    });
+    if(day.foh || day.boh){ day.at = Date.now(); rosterPosted[date] = day; }
+    else delete rosterPosted[date];
+  });
+}
+
+// Monday–Saturday of `date`'s week, from today on.
+function rcWeekDates(date){
+  const d = new Date(date + 'T00:00:00');
+  const monday = isoAddDays(date, d.getDay() === 0 ? -6 : 1 - d.getDay());
+  return [0, 1, 2, 3, 4, 5].map(i => isoAddDays(monday, i)).filter(x => x >= today);
+}
+
+function rcDayLabel(date){
+  return new Date(date + 'T00:00:00').toLocaleDateString('en-US', {weekday: 'short', month: 'numeric', day: 'numeric'});
 }
 
 function rosterPrunePosted(){
@@ -115,5 +145,24 @@ function rosterChangesHtml(side, date){
     <div class="su-changes-head">Shift changes <span>since the schedule was posted</span></div>
     ${changes.length ? `<ul>${changes.map(line).join('')}</ul>` : ''}
     ${otherN ? `<div class="su-changes-other">${otherN} ${other.toUpperCase()} change${otherN === 1 ? '' : 's'} — switch to ${other.toUpperCase()} to see ${otherN === 1 ? 'it' : 'them'}</div>` : ''}
+    ${typeof launchManager !== 'undefined' && launchManager ? `<div class="su-changes-actions">
+      <button type="button" data-rc-reset="day" data-rc-date="${escapeHtml(date)}">Reset day</button>
+      <button type="button" data-rc-reset="week" data-rc-date="${escapeHtml(date)}">Reset week</button>
+      <span>Managers: make the roster as it is now the posted schedule</span>
+    </div>` : ''}
   </div>`;
 }
+
+document.getElementById('allDayparts').addEventListener('click', async e=>{
+  const btn = e.target.closest('[data-rc-reset]');
+  if(!btn) return;
+  const date = btn.dataset.rcDate;
+  const dates = btn.dataset.rcReset === 'week' ? rcWeekDates(date) : [date];
+  if(!dates.length) return;
+  const span = dates.length > 1 ? `${rcDayLabel(dates[0])} – ${rcDayLabel(dates[dates.length - 1])}` : rcDayLabel(dates[0]);
+  if(!confirm(`Use the roster as it is now as the posted schedule for ${span}? Its shift changes clear, and later syncs are compared with it.`)) return;
+  rosterResetPosted(dates);
+  renderAllDayparts();
+  showToast(`✓ Posted schedule reset · ${span}`);
+  await saveState();
+});
