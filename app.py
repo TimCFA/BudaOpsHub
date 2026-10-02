@@ -1,5 +1,5 @@
 from datetime import timedelta
-from collections import defaultdict
+from collections import Counter, defaultdict
 import gzip
 import json
 import os
@@ -19,7 +19,12 @@ import levelset_sync
 from state_patch import PatchError, apply_ops, canon, check_ops, union_merge
 
 app = Flask(__name__)
-CORS(app)
+# The page is served from this same app, so it needs no cross-site access.
+# Another site may call the API only if it's listed in ALLOWED_ORIGINS
+# (comma-separated); by default none can read the replies.
+_allowed_origins = [o.strip() for o in os.environ.get('ALLOWED_ORIGINS', '').split(',') if o.strip()]
+if _allowed_origins:
+    CORS(app, origins=_allowed_origins)
 
 # ===== SESSION / AUTH CONFIG =====
 app.secret_key = os.environ.get('FLASK_SECRET_KEY')
@@ -53,11 +58,46 @@ MANAGER_ONLY_KEYS = {
     'teamLeadProgress', 'scoreboardItems',
 }
 
-# Sections sent only to a manager session: PEA ratings, and people data
-# (Expression of Interest submissions, trial progress). Anyone else gets
-# every other section; the page treats one it never received as unknown and
-# never saves it (storage.js), and the keys in them are manager-only above.
-PRIVATE_SECTIONS = ('pea', 'people')
+# Sections sent only to a manager session: PEA ratings, people data
+# (Expression of Interest submissions, trial progress) and safe counts.
+# Anyone else gets every other section. The keys in pea and people are
+# manager-only above; safe counts are append-only below, since leaders log
+# them from any device.
+PRIVATE_SECTIONS = ('pea', 'people', 'safe')
+
+# Keys a device without a manager session may add to but never change or
+# remove. It isn't sent these (they're private), so what it sends can only be
+# new entries; anything else is dropped.
+APPEND_ONLY_KEYS = {'safeCounts'}
+
+# Keys that moved to another section: {key: (old section, new section)}.
+# Stored data is moved on the first read, and a page still running the old
+# code has its changes to them filed under the new section (as additions).
+MOVED_KEYS = {'safeCounts': ('ops', 'safe')}
+
+def _append_only_ops(ops):
+    """Changes to append-only keys reduced to additions: a list's new items.
+    A whole list sent as a value counts as adding each of its items."""
+    out = []
+    for op in ops:
+        if op['p'][0] not in APPEND_ONLY_KEYS:
+            out.append(op)
+            continue
+        if len(op['p']) != 1:
+            continue
+        if op['o'] == 'arr' and op.get('add'):
+            out.append({'o': 'arr', 'p': op['p'], 'add': op['add']})
+        elif op['o'] == 'set' and isinstance(op.get('v'), list):
+            counts = Counter(canon(v) for v in op['v'])
+            items, seen = [], set()
+            for v in op['v']:
+                k = canon(v)
+                if k not in seen:
+                    seen.add(k)
+                    items.append({'v': v, 'n': counts[k], 'i': 0, 'end': True})
+            if items:
+                out.append({'o': 'arr', 'p': op['p'], 'add': items})
+    return out
 
 def _changed_manager_fields(old_state, new_state):
     return sorted(
@@ -93,7 +133,8 @@ STATE_SECTIONS = {
     'waste': ['entries', 'wasteDays', 'formDone', 'formDoneDate', 'wasteLogLastClosedOut'],
     'ops': ['foodSafetyDays', 'foodSafetyWalkthroughs', 'fohOEDays', 'fohOEChecked', 'fohOECheckedDate',
             'fohLeaderTransitionChecked', 'fohLeaderTransitionDate', 'zoneChecklistState',
-            'numbersData', 'safeCounts'],
+            'numbersData'],
+    'safe': ['safeCounts'],
     'people': ['eoiSubmissions', 'trainerTrainees', 'trainerProgress', 'teamLeadTrainees',
                'teamLeadProgress', 'scoreboardItems'],
     'prep': ['prepBuffers', 'prepSoldEntries', 'prepWasteEntries', 'prepStockoutEvents', 'prepHistorySeeded'],
@@ -139,6 +180,7 @@ def _refresh_cache():
     raw = db.reference(STATE_ROOT).get()
     if not isinstance(raw, dict):
         return False
+    _move_stored_keys(raw)
     for name in STATE_SECTIONS:
         data = _parse_section(raw.get(name)) or {}
         old = _cache.get(name)
@@ -146,6 +188,26 @@ def _refresh_cache():
             _cache[name] = {'data': data, 'ver': _new_version()}
     _cache_ready = True
     return True
+
+def _move_stored_keys(raw):
+    """Move any key still stored in its old section (MOVED_KEYS) to its new
+    one, in Firebase and in `raw`. A list already in the new section keeps
+    its items and gains the old section's."""
+    for key, (old_name, new_name) in MOVED_KEYS.items():
+        old = _parse_section(raw.get(old_name))
+        if not old or key not in old:
+            continue
+        new = _parse_section(raw.get(new_name)) or {}
+        moving = old.pop(key)
+        if key in new and isinstance(new[key], list) and isinstance(moving, list):
+            have = {canon(v) for v in new[key]}
+            new[key] = new[key] + [v for v in moving if canon(v) not in have]
+        elif key not in new:
+            new[key] = moving
+        for name, section in ((new_name, new), (old_name, old)):
+            raw[name] = _dumps(section)
+            db.reference(f'{STATE_ROOT}/{name}').set(raw[name])
+        print(f"[STATE] Moved {key} from {old_name} to {new_name}")
 
 def _read_sections():
     """{name: dict} for every section, or None before the split."""
@@ -429,6 +491,23 @@ def state_patch():
             check_ops(patch.get('ops'))
         except PatchError as e:
             return jsonify({'error': str(e)}), 400
+    # A page running older code still files moved keys under their old
+    # section: send those changes to the new one, as additions only.
+    for key, (old_name, new_name) in MOVED_KEYS.items():
+        old_patch = patches.get(old_name)
+        moved = [op for op in (old_patch or {}).get('ops', []) if op['p'][0] == key]
+        if not moved:
+            continue
+        old_patch['ops'] = [op for op in old_patch['ops'] if op['p'][0] != key]
+        reduced = [op for op in _append_only_ops(moved) if op['p'][0] == key and op['o'] == 'arr']
+        if reduced:
+            target = patches.setdefault(new_name, {'ver': None, 'ops': []})
+            target['ops'] = target.get('ops', []) + reduced
+        if not old_patch['ops']:
+            del patches[old_name]
+    if not patches:
+        return jsonify({'success': True, **_state_reply([])})
+    for name, patch in patches.items():
         # A key belongs to one section only.
         stray = sorted({op['p'][0] for op in patch['ops'] if SECTION_OF_KEY.get(op['p'][0], 'misc') != name})
         if stray:
@@ -443,6 +522,8 @@ def state_patch():
             for name, patch in patches.items():
                 ops = patch['ops']
                 entry = _cache.get(name) or {'data': {}, 'ver': None}
+                if not session.get('manager'):
+                    ops = _append_only_ops(ops)
                 dropped = [] if session.get('manager') else [op for op in ops if op['p'][0] in MANAGER_ONLY_KEYS]
                 if dropped:
                     # Manager-only fields need a manager session. The rest of
@@ -506,6 +587,10 @@ def state_save():
             return jsonify({'error': f'Section {name} is not valid JSON'}), 400
         if not isinstance(section, dict):
             return jsonify({'error': f'Section {name} must be an object'}), 400
+        # A moved key arriving under its old section goes to its new one.
+        for key, (old_name, new_name) in MOVED_KEYS.items():
+            if name == old_name and key in section:
+                parsed.setdefault(new_name, {})[key] = section.pop(key)
         # A key belongs to one section only — no smuggling manager fields
         # into a section the gate doesn't check.
         stray = [k for k in section if SECTION_OF_KEY.get(k, 'misc') != name]

@@ -315,5 +315,77 @@ class PatchTest(unittest.TestCase):
         self.assertLess(len(r.get_data()), 2000)
 
 
+class SafeCountTest(unittest.TestCase):
+    """TIM-48: safe counts are private, team devices can only add to them,
+    and the stored list moves out of 'ops' on its own."""
+
+    COUNT = {'id': 's1', 'timestamp': 1, 'total': 4500}
+
+    def setUp(self):
+        appmod.db.reference = lambda path: FakeRef(path)
+        appmod._cache.clear()
+        appmod._cache_ready = False
+        store.clear()
+        # Saved the old way: safe counts inside 'ops'.
+        store['state/ops'] = json.dumps({'zoneChecklistState': {}, 'safeCounts': [self.COUNT]})
+        self.team = appmod.app.test_client()
+        self.mgr = appmod.app.test_client()
+        with self.mgr.session_transaction() as sess:
+            sess['manager'] = True
+
+    def patch(self, client, patches):
+        return client.post('/api/state/patch', json={'patches': patches}).get_json()
+
+    def test_moved_out_of_ops_on_first_read(self):
+        reply = self.mgr.post('/api/state/load', json={}).get_json()
+        self.assertEqual(json.loads(reply['sections']['safe'])['safeCounts'], [self.COUNT])
+        self.assertNotIn('safeCounts', section('ops'))
+        self.assertEqual(section('safe')['safeCounts'], [self.COUNT])
+
+    def test_only_managers_receive_them(self):
+        reply = self.team.post('/api/state/load', json={}).get_json()
+        self.assertNotIn('safe', reply['sections'])
+        self.assertNotIn('4500', json.dumps(reply))
+        sync = self.team.post('/api/state/sync', json={'versions': {}}).get_json()
+        self.assertNotIn('safe', sync['sections'])
+
+    def test_team_device_adds_but_cannot_change_or_remove(self):
+        self.team.post('/api/state/load', json={})
+        new = {'id': 's2', 'timestamp': 2, 'total': 4490}
+        r = self.patch(self.team, {'safe': {'ver': '?', 'ops': [{'o': 'arr', 'p': ['safeCounts'], 'add': [{'v': new, 'n': 1, 'i': 0, 'end': True}]}]}})
+        self.assertTrue(r['success'])
+        self.assertNotIn('safe', r['sections'])
+        self.assertEqual(section('safe')['safeCounts'], [self.COUNT, new])
+        # Wiping, removing or editing from a team device does nothing.
+        for ops in ([{'o': 'set', 'p': ['safeCounts'], 'v': []}],
+                    [{'o': 'arr', 'p': ['safeCounts'], 'rm': [{'v': self.COUNT, 'n': 0}]}],
+                    [{'o': 'del', 'p': ['safeCounts']}],
+                    [{'o': 'set', 'p': ['safeCounts', 'x'], 'v': 1}]):
+            self.patch(self.team, {'safe': {'ver': '?', 'ops': ops}})
+            self.assertEqual(section('safe')['safeCounts'], [self.COUNT, new], ops)
+
+    def test_manager_can_still_remove(self):
+        self.mgr.post('/api/state/load', json={})
+        self.patch(self.mgr, {'safe': {'ver': '?', 'ops': [{'o': 'set', 'p': ['safeCounts'], 'v': []}]}})
+        self.assertEqual(section('safe')['safeCounts'], [])
+
+    def test_older_page_saving_under_ops(self):
+        """A page from before the move: its safe counts go to 'safe', as
+        additions only, and its other 'ops' changes still save."""
+        self.team.post('/api/state/load', json={})
+        new = {'id': 's3', 'timestamp': 3, 'total': 4510}
+        r = self.patch(self.team, {'ops': {'ver': '?', 'ops': [
+            {'o': 'set', 'p': ['safeCounts'], 'v': [new]},            # its copy lacked the old ones
+            {'o': 'set', 'p': ['fohOECheckedDate'], 'v': '2026-10-02'}]}})
+        self.assertTrue(r['success'])
+        self.assertEqual(section('safe')['safeCounts'], [self.COUNT, new])
+        self.assertEqual(section('ops')['fohOECheckedDate'], '2026-10-02')
+        self.assertNotIn('safeCounts', section('ops'))
+
+    def test_no_cross_site_access_by_default(self):
+        r = self.team.post('/api/state/load', json={}, headers={'Origin': 'https://example.com'})
+        self.assertNotIn('Access-Control-Allow-Origin', r.headers)
+
+
 if __name__ == '__main__':
     unittest.main()

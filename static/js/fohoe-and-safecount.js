@@ -339,12 +339,16 @@ document.getElementById('safeCountForm').addEventListener('submit', async (e)=>{
 function renderSafeCountLog(){
   const container = document.getElementById('safeCountLogContainer');
   if(!container) return;
+  // Safe counts reach manager sessions only (TIM-48). Other devices still log
+  // counts and see the ones logged here since the page opened.
+  const manager = typeof launchManager !== 'undefined' && launchManager;
+  const note = manager ? '' : '<div class="safe-log-private">🔒 The full log is for managers (sign in on Manage). Counts you log here are saved and shown below.</div>';
   if(safeCounts.length === 0){
-    container.innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:20px;font-size:12px;">No safe counts logged yet</div>';
+    container.innerHTML = note + `<div style="text-align:center;color:var(--text-secondary);padding:20px;font-size:12px;">${manager ? 'No safe counts logged yet' : 'Nothing logged from this device yet'}</div>`;
     return;
   }
   const sorted = [...safeCounts].sort((a,b)=> b.timestamp - a.timestamp);
-  container.innerHTML = sorted.map(entry => {
+  container.innerHTML = note + sorted.map(entry => {
     const variance = Number(entry.variance) || 0;
     const varClass = Math.abs(variance) < 0.01 ? 'balanced' : (variance > 0 ? 'over' : 'short');
     const varText = Math.abs(variance) < 0.01 ? '✓ Balanced' : (variance > 0 ? `+$${variance.toFixed(2)} over` : `-$${Math.abs(variance).toFixed(2)} short`);
