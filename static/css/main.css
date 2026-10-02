@@ -353,6 +353,10 @@
   .scoreboard-day.star .scoreboard-day-bar{background:#FFB300;}
   .scoreboard-day-pct{font-size:9px;font-weight:700;color:var(--text-secondary);margin-top:3px;}
   .scoreboard-star{position:absolute;top:-13px;font-size:11px;}
+  /* Today's bar: bold dark label and percent, its track outlined. */
+  .scoreboard-day.is-today .scoreboard-day-label{font-size:10px;font-weight:800;color:var(--text-primary);}
+  .scoreboard-day.is-today .scoreboard-day-pct{font-size:10px;font-weight:800;color:var(--text-primary);}
+  .scoreboard-day.is-today .scoreboard-day-bar-wrap{outline:2px solid var(--text-primary);outline-offset:1px;}
   .break-complete-badge{display:inline-block;font-size:10px;font-weight:700;color:var(--success);background:#E8F5E9;padding:2px 7px;border-radius:8px;margin-left:6px;vertical-align:middle;border:none;cursor:pointer;font-family:'Inter',sans-serif;}
   .break-complete-badge:hover{background:#C8E6C9;}
   .wri-week-btn{background:none;border:none;padding:7px 16px;border-radius:16px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;transition:all .15s ease;user-select:none;}
@@ -1575,21 +1579,14 @@
   .su-dp-fill{flex:0 0 auto;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--su-muted);}
   .su-dp-chev{flex:0 0 auto;font-size:14px;transition:transform .15s ease;}
   .su-dp.is-open .su-dp-chev{transform:rotate(180deg);}
-  /* Daypart banners: clean white cards, dark text. Each daypart keeps its
-     own color, used sparingly: a thin edge on the left and a light tint
-     behind its sun/moon. The open card is outlined in its color. */
-  .su-dp{--dpc:#15803D;}
-  .su-dp.su-col-eb{--dpc:#C2410C;}
-  .su-dp.su-col-b{--dpc:#B7791F;}
-  .su-dp.su-col-l{--dpc:#15803D;}
-  .su-dp.su-col-t{--dpc:#0F766E;}
-  .su-dp.su-col-a{--dpc:#1D4ED8;}
-  .su-dp.su-col-d{--dpc:#6D28D9;}
-  .su-dp.su-col-c{--dpc:#334155;}
+  /* Daypart banners: clean white cards, dark text, all one color: a thin
+     red edge on the left, and the open card outlined in red. The sun/moon
+     sits on a plain light badge. */
+  .su-dp{--dpc:var(--cfa-red);}
   .su-dp .su-dp-banner{background:var(--su-card);color:var(--su-ink);border:1px solid var(--su-line);box-shadow:inset 5px 0 0 var(--dpc),0 1px 2px rgba(28,27,25,0.05);}
-  .su-dp-art{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:color-mix(in srgb,var(--dpc) 12%,#fff);}
+  .su-dp-art{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:#F4F2EE;}
   .su-dp-art svg{width:26px;height:auto;}
-  .su-col-c .su-dp-art{background:var(--dpc);}   /* the pale moon needs a dark badge */
+  .su-col-c .su-dp-art{background:var(--su-ink);}   /* the pale moon needs a dark badge */
   .su-dp .su-dp-time,.su-dp .su-dp-fill,.su-dp .su-dp-k,.su-dp .su-dp-where,.su-dp .su-dp-lead em,.su-dp .su-dp-chev{color:var(--su-muted);}
   .su-dp .su-dp-lead{background:#F4F2EE;border-color:#E2DDD4;color:var(--su-ink);}
   .su-dp .su-dp-lead:hover{background:#ECE8E1;}
