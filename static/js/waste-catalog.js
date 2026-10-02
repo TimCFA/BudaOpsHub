@@ -135,8 +135,8 @@ function wasteSlug(name){
 // Items from the old Log Waste list (by their old ids) → the catalog item
 // they are now, so this month's entries carry over. The old items with no
 // match keep their stored name on every screen. (For Tim to vet: Nuggets and
-// Grilled Nuggets 30 ct, Fruit Cups (Large), Ice Dream (Shake), Strips
-// (10 ct), Breaded Filet, Breaded Spicy Filet, Buttered Bun, Sauce Container.)
+// Grilled Nuggets 30 ct, Fruit Cups (Large), Strips (10 ct), Breaded Filet,
+// Breaded Spicy Filet, Buttered Bun, Sauce Container.)
 const WASTE_LEGACY_MAP = {
   foh1: 'lemonade', foh2: 'cfa-sandwich', foh3: 'spicy-sandwich',
   foh29: 'nugget', foh25: '5-count-nugget', foh4: '8-count-nugget', foh5: '12-count-nugget',
@@ -147,7 +147,7 @@ const WASTE_LEGACY_MAP = {
   foh33: 'hashbrowns', foh34: 'large-hashbrowns', foh15: 'side-salad',
   foh12: 'market-salad', foh13: 'cobb-salad', foh14: 'spicy-southwest-salad',
   foh16: 'cool-wrap', foh17: 'spicy-wrap',
-  foh21: 'icecream-cone', foh23: 'icecream-cup', foh24: 'ice-dream',
+  foh21: 'icecream-cone', foh23: 'icecream-cup', foh24: 'ice-dream', foh22: 'vanilla-milkshake',
   boh1: 'raw-breakfast-filet', boh2: 'raw-spicy-breakfast-filet', boh3: 'raw-filet', boh4: 'raw-spicy-filet',
   boh5: 'filet', boh6: 'spicy-filet',
   boh18: 'strips', boh19: '2-count-strip', boh20: '3-count-strip', boh21: '4-count-strip'

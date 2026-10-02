@@ -335,6 +335,7 @@ function renderScoreboardView(){
   document.getElementById('wasteStreakLabel').textContent = 'consecutive ' + (wasteStreak === 1 ? 'day' : 'days');
   document.getElementById('fohOEStreakNum').textContent = fohOEStreak;
   document.getElementById('fohOEStreakLabel').textContent = 'consecutive ' + (fohOEStreak === 1 ? 'day' : 'days');
+  if(typeof renderWasteDashboard === 'function') renderWasteDashboard();
 }
 
 // ===== WASTE THERMOMETER =====

@@ -661,6 +661,8 @@
       <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);font-weight:700;margin:0;">📈 Insights</p>
     </div>
 
+    <div id="wasteDashRoot"></div>
+
     <div class="standup-card">
       <h3>Waste Trend</h3>
       <div id="oiWasteTrend"></div>
@@ -993,9 +995,12 @@
         </div>
         <div class="manage-group-body">
           <div class="standup-card">
-            <h3>📦 Monthly Waste Archive</h3>
-            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Downloads a CSV and PDF of every waste entry logged since the last time this was pressed, then clears the waste log to start fresh. This can't be undone — make sure both files actually downloaded before confirming.</p>
-            <button id="btnCloseOutMonth" class="btn btn-primary">Export & Reset Waste Log</button>
+            <h3>📦 Monthly Waste Export</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Downloads a CSV and a PDF of one month's waste entries. Nothing is cleared: the log keeps the last 90 days on its own, and the Waste Dashboard on the Scoreboard tab covers any date range.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <select id="wasteExportMonth" aria-label="Month" style="flex:1;min-width:160px;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font:inherit;"></select>
+              <button id="btnCloseOutMonth" class="btn btn-primary" style="flex:0;width:auto;padding:10px 16px;">Export month</button>
+            </div>
             <div id="monthCloseStatus" style="font-size:11px;color:var(--text-secondary);margin-top:8px;"></div>
           </div>
 
@@ -1034,6 +1039,7 @@
 <script src="/static/js/scoreboards-and-eoi.js"></script>
 <script src="/static/js/navigation.js"></script>
 <script src="/static/js/waste-log.js"></script>
+<script src="/static/js/waste-dash.js"></script>
 <script src="/static/js/fohoe-and-safecount.js"></script>
 <script src="/static/js/food-safety.js"></script>
 <script src="/static/js/daypicker-and-positions.js"></script>
