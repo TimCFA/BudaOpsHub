@@ -31,14 +31,21 @@ function renderCustomScoreboards(){
   `).join('');
 }
 
-function renderScoreboardManage(){
+// Manage edits a copy (sbDraft); nothing changes on the Scoreboard, or gets
+// saved along with something else, until Save Scoreboard is tapped. A redraw
+// while the copy has unsaved edits keeps them; opening Manage starts fresh.
+let sbDraft = [];
+let sbDraftDirty = false;
+
+function renderScoreboardManage(opening){
   const list = document.getElementById('scoreboardManageList');
   if(!list) return;
-  if(scoreboardItems.length === 0){
+  if(opening || !sbDraftDirty){ sbDraft = JSON.parse(JSON.stringify(scoreboardItems)); sbDraftDirty = false; }
+  if(sbDraft.length === 0){
     list.innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:16px;font-size:12px;">No scoreboards yet — add one below</div>';
     return;
   }
-  list.innerHTML = scoreboardItems.map((item, i) => `
+  list.innerHTML = sbDraft.map((item, i) => `
     <div style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;">
       <div style="display:flex;gap:8px;margin-bottom:8px;">
         <input type="text" value="${escapeHtml(item.icon || '')}" placeholder="🔤" style="width:50px;padding:8px;border:1px solid var(--border);border-radius:6px;text-align:center;font-family:'Inter';" data-sb-field="icon" data-idx="${i}">
@@ -66,18 +73,23 @@ function renderScoreboardManage(){
 document.getElementById('scoreboardManageList').addEventListener('input', (e)=>{
   const idx = e.target.dataset.idx;
   if(e.target.matches('[data-sb-field]')){
-    scoreboardItems[idx][e.target.dataset.sbField] = e.target.value;
+    sbDraft[idx][e.target.dataset.sbField] = e.target.value;
+    sbDraftDirty = true;
   }
   if(e.target.matches('[data-sb-metric-field]')){
     const midx = e.target.dataset.midx;
-    scoreboardItems[idx].metrics[midx][e.target.dataset.sbMetricField] = e.target.value;
+    sbDraft[idx].metrics[midx][e.target.dataset.sbMetricField] = e.target.value;
+    sbDraftDirty = true;
   }
 });
 
 document.getElementById('scoreboardManageList').addEventListener('click', (e)=>{
   const delItem = e.target.closest('[data-sb-delete-item]');
   if(delItem){
-    scoreboardItems.splice(delItem.dataset.sbDeleteItem, 1);
+    const item = sbDraft[delItem.dataset.sbDeleteItem];
+    if(!confirm(`Delete the "${(item && item.title) || 'Untitled'}" scoreboard? It's removed when you tap Save Scoreboard.`)) return;
+    sbDraft.splice(delItem.dataset.sbDeleteItem, 1);
+    sbDraftDirty = true;
     renderScoreboardManage();
     return;
   }
@@ -85,26 +97,31 @@ document.getElementById('scoreboardManageList').addEventListener('click', (e)=>{
   if(delMetric){
     const idx = delMetric.dataset.sbDeleteMetric;
     const midx = delMetric.dataset.midx;
-    scoreboardItems[idx].metrics.splice(midx, 1);
+    sbDraft[idx].metrics.splice(midx, 1);
+    sbDraftDirty = true;
     renderScoreboardManage();
     return;
   }
   const addMetric = e.target.closest('[data-sb-add-metric]');
   if(addMetric){
     const idx = addMetric.dataset.sbAddMetric;
-    if(!scoreboardItems[idx].metrics) scoreboardItems[idx].metrics = [];
-    scoreboardItems[idx].metrics.push({label: '', value: ''});
+    if(!sbDraft[idx].metrics) sbDraft[idx].metrics = [];
+    sbDraft[idx].metrics.push({label: '', value: ''});
+    sbDraftDirty = true;
     renderScoreboardManage();
     return;
   }
 });
 
 document.getElementById('btnAddScoreboardItem').addEventListener('click', ()=>{
-  scoreboardItems.push({icon: '📊', title: 'New Scoreboard', notes: '', metrics: []});
+  sbDraft.push({icon: '📊', title: 'New Scoreboard', notes: '', metrics: []});
+  sbDraftDirty = true;
   renderScoreboardManage();
 });
 
 document.getElementById('btnSaveScoreboard').addEventListener('click', async ()=>{
+  scoreboardItems = JSON.parse(JSON.stringify(sbDraft));
+  sbDraftDirty = false;
   await saveState();
   renderCustomScoreboards();
   showToast('✓ Scoreboard Updated');

@@ -527,7 +527,7 @@ function ctTrendChartSvg(){
   const yFor = (v) => marginTop + (1 - (Math.min(100, Math.max(50, v)) - 50) / 50) * plotH;
   const buildPath = (key) => {
     const pts = [];
-    data.forEach((d,i) => { if(d[key] != null) pts.push([xFor(i), yFor(d[key])]); });
+    data.forEach((d,i) => { if(d[key] != null) pts.push([xFor(i), yFor(d[key]), i]); });   // i: the month it belongs to
     return { pts, path: pts.map((p,i) => (i===0?'M':'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ') };
   };
   const seriesPaths = seriesKeys.map((key) => ({ key, ...buildPath(key) }));
@@ -543,8 +543,8 @@ function ctTrendChartSvg(){
   if(bench.path) svg += `<path d="${bench.path}" class="ct-chart-line-bench" fill="none"></path>`;
   seriesPaths.forEach(({ key, path, pts }) => {
     if(path) svg += `<path d="${path}" fill="none" stroke="${ctColorFor(key)}" stroke-width="2.5"></path>`;
-    pts.forEach((p, i) => {
-      const d = data[i];
+    pts.forEach((p) => {
+      const d = data[p[2]];   // not the point's index: a month without this series has no point
       const tip = `${d.periodLabel}: ${key} ${d[key]}%${d['Top 5%']!=null ? ' · Top 5%: ' + d['Top 5%'] + '%' : ''}`;
       svg += `<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="${ctColorFor(key)}"><title>${escapeHtml(tip)}</title></circle>`;
     });
@@ -838,9 +838,13 @@ async function ctApplyImport(period, incoming){
 }
 
 async function ctDeleteEntry(key){
+  if(!confirm('Delete this CEM row? This can’t be undone.')) return;
   cemEntries = cemEntries.filter((e) => e.key !== key);
+  // The Guest Obsession scoreboard reads the latest CEM: keep it in step.
+  cemSyncScoreboard();
   await saveState();
   renderCemTrends();
+  renderGXScoreboard();
 }
 
 // ---------- events ----------

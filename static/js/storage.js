@@ -514,45 +514,31 @@ function stateNoteBuild(build){
   document.body.appendChild(bar);
 }
 
-function calcStreak(){
-  if(foodSafetyDays.length === 0){ foodSafetyStreak = 0; }
-  else {
-    const sorted = [...foodSafetyDays].sort().reverse();
-    let c = 1;
-    for(let i = 1; i < sorted.length; i++){
-      const d1 = new Date(sorted[i-1]);
-      const d2 = new Date(sorted[i]);
-      if((d1 - d2) / (1000*60*60*24) === 1) c++;
-      else break;
-    }
-    foodSafetyStreak = c;
-  }
-  
-  if(wasteDays.length === 0){ wasteStreak = 0; }
-  else {
-    const sorted = [...wasteDays].sort().reverse();
-    let c = 1;
-    for(let i = 1; i < sorted.length; i++){
-      const d1 = new Date(sorted[i-1]);
-      const d2 = new Date(sorted[i]);
-      if((d1 - d2) / (1000*60*60*24) === 1) c++;
-      else break;
-    }
-    wasteStreak = c;
-  }
+// Streaks count open days in a row. The store is closed Sundays, so
+// Saturday → Monday still counts as "in a row". Today doesn't have to be
+// earned yet, but a streak whose last day is before the last open day has
+// lapsed and shows 0 rather than an old number.
+function isoAddDays(iso, n){
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return toLocalISODate(d);
+}
+function prevOpenDay(iso){
+  const p = isoAddDays(iso, -1);
+  return new Date(p + 'T00:00:00').getDay() === 0 ? isoAddDays(p, -1) : p;
+}
+function openDayStreak(days){
+  const set = new Set(days);
+  let d = set.has(today) ? today : prevOpenDay(today);
+  let c = 0;
+  while(set.has(d)){ c++; d = prevOpenDay(d); }
+  return c;
+}
 
-  if(fohOEDays.length === 0){ fohOEStreak = 0; }
-  else {
-    const sorted = [...fohOEDays].sort().reverse();
-    let c = 1;
-    for(let i = 1; i < sorted.length; i++){
-      const d1 = new Date(sorted[i-1]);
-      const d2 = new Date(sorted[i]);
-      if((d1 - d2) / (1000*60*60*24) === 1) c++;
-      else break;
-    }
-    fohOEStreak = c;
-  }
+function calcStreak(){
+  foodSafetyStreak = openDayStreak(foodSafetyDays);
+  wasteStreak = openDayStreak(wasteDays);
+  fohOEStreak = openDayStreak(fohOEDays);
 }
 
 // Fixed: this used to sum EVERY entry ever logged, not just today's — meaning

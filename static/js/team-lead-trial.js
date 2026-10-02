@@ -475,9 +475,12 @@ document.getElementById('teamLeadTrialRoot').addEventListener('focusout', async 
   const itemId = ta.dataset.tlNotesInput;
   if(!teamLeadProgress[tlActiveId]) teamLeadProgress[tlActiveId] = {};
   const existing = teamLeadProgress[tlActiveId][itemId] || {};
+  if((existing.notes || '') === ta.value) return;
   teamLeadProgress[tlActiveId][itemId] = Object.assign({}, existing, {notes: ta.value});
+  // No redraw here: this runs as the next tap starts, and redrawing would
+  // swallow that tap. The note is already on screen in its box; the
+  // wins/struggles summary picks it up on the next redraw.
   await saveState();
-  renderTeamLeadTrial();
 });
 
 document.getElementById('btnTLCancelAdd').addEventListener('click', ()=>{

@@ -444,9 +444,12 @@ document.getElementById('trainerTrialRoot').addEventListener('focusout', async f
   const itemId = ta.dataset.ttNotesInput;
   if(!trainerProgress[ttActiveId]) trainerProgress[ttActiveId] = {};
   const existing = trainerProgress[ttActiveId][itemId] || {};
+  if((existing.notes || '') === ta.value) return;
   trainerProgress[ttActiveId][itemId] = Object.assign({}, existing, {notes: ta.value});
+  // No redraw here: this runs as the next tap starts, and redrawing would
+  // swallow that tap. The note is already on screen in its box; the
+  // wins/struggles summary picks it up on the next redraw.
   await saveState();
-  renderTrainerTrial();
 });
 
 document.getElementById('btnTTCancelAdd').addEventListener('click', ()=>{

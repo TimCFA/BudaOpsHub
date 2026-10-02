@@ -233,7 +233,7 @@ function peaStatusText(){
   if(!rows.length) return 'No PEA ratings uploaded yet.';
   const people = new Set(rows.map(r => r[1])).size;
   let text = `${rows.length} ratings · ${peaFormatDate(rows[0][0].slice(0, 10))} – ${peaFormatDate(rows[rows.length - 1][0].slice(0, 10), true)} · ${people} team members`;
-  const last = peaRatings.uploads[peaRatings.uploads.length - 1];
+  const last = (peaRatings.uploads || []).slice(-1)[0];
   if(last) text += ` · last upload ${new Date(last.at).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})}`;
   return text;
 }

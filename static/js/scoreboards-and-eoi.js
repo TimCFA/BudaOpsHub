@@ -180,7 +180,7 @@ function renderTXScoreboard(){
     celebContainer.innerHTML = '<div class="celeb-empty">No celebrations this month — check back soon! 🎈</div>';
   } else {
     celebContainer.innerHTML = txData.celebrations.map(celeb => {
-      const isBirthday = celeb.type === 'birthday';
+      const isBirthday = String(celeb.type).toLowerCase() === 'birthday';   // older saves have 'Birthday'
       const icon = isBirthday ? '🎂' : '🎊';
       return `
         <div class="celeb-card ${isBirthday ? 'celeb-birthday' : 'celeb-anniversary'}">
@@ -263,6 +263,8 @@ function renderEOISubmissions(){
 document.getElementById('eoiSubmissionsContainer') && document.getElementById('eoiSubmissionsContainer').addEventListener('click', async (e)=>{
   const btn = e.target.closest('.eoi-delete-btn');
   if(!btn) return;
+  const sub = eoiSubmissions.find(s => s.id === btn.dataset.id);
+  if(!confirm(`Delete ${sub && sub.name ? sub.name + '’s' : 'this'} expression of interest? This can’t be undone.`)) return;
   eoiSubmissions = eoiSubmissions.filter(s => s.id !== btn.dataset.id);
   await saveState();
   renderEOISubmissions();

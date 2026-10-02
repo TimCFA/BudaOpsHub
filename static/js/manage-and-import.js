@@ -78,6 +78,7 @@ document.getElementById('btnUpdateTarget').addEventListener('click', async ()=>{
   if(!isNaN(v) && v > 0){
     wasteTarget = v;
     input.defaultValue = input.value;
+    syncTodayWasteDay();
     await saveState();
     renderScoreboardView();
     showToast('✓ Limit Updated');
@@ -112,7 +113,7 @@ function refreshManage(opening){
   if(opening || clean('homeManageList')) renderHomeManage();
   renderTXManage();
   renderEOISubmissions();
-  renderScoreboardManage();
+  renderScoreboardManage(opening);
   renderProductManager();
 }
 
@@ -413,20 +414,26 @@ document.getElementById('btnCloseOutMonth').addEventListener('click', async ()=>
   // Save a lightweight permanent summary before wiping raw entries — this is
   // what lets month-over-month trends on Scoreboard keep working after a
   // close-out, without needing to keep every raw entry around forever.
-  const monthKey = today.slice(0, 7); // YYYY-MM
-  const closingFohTotal = entries.filter(e=>e.section==='foh').reduce((s,e)=>s+e.cost,0);
-  const closingBohTotal = entries.filter(e=>e.section==='boh').reduce((s,e)=>s+e.cost,0);
-  const closingByProduct = {};
-  entries.forEach(e=>{ closingByProduct[e.name] = (closingByProduct[e.name]||0) + e.cost; });
-  const closingTopProducts = Object.entries(closingByProduct).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([name,cost])=>({name, cost}));
-  wasteMonthlyHistory[monthKey] = {
-    total: entries.reduce((s,e)=>s+e.cost,0),
-    fohTotal: closingFohTotal,
-    bohTotal: closingBohTotal,
-    entryCount: entries.length,
-    topProducts: closingTopProducts,
-    closedOutAt: Date.now()
-  };
+  // Each entry is filed under the month it was logged (closing on Oct 1
+  // files September as September), and a second close-out in the same month
+  // adds to that month's summary instead of replacing it.
+  const sumCost = list => list.reduce((s, e) => s + (Number(e.cost) || 0), 0);
+  const byMonth = {};
+  entries.forEach(e => { const k = toLocalISODate(new Date(e.ts)).slice(0, 7); (byMonth[k] = byMonth[k] || []).push(e); });
+  Object.entries(byMonth).forEach(([monthKey, list])=>{
+    const prev = wasteMonthlyHistory[monthKey] || {};
+    const byProduct = {};
+    (prev.topProducts || []).forEach(p => { byProduct[p.name] = (byProduct[p.name] || 0) + (Number(p.cost) || 0); });
+    list.forEach(e => { byProduct[e.name] = (byProduct[e.name] || 0) + (Number(e.cost) || 0); });
+    wasteMonthlyHistory[monthKey] = {
+      total: (Number(prev.total) || 0) + sumCost(list),
+      fohTotal: (Number(prev.fohTotal) || 0) + sumCost(list.filter(e => e.section === 'foh')),
+      bohTotal: (Number(prev.bohTotal) || 0) + sumCost(list.filter(e => e.section === 'boh')),
+      entryCount: (Number(prev.entryCount) || 0) + list.length,
+      topProducts: Object.entries(byProduct).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, cost]) => ({name, cost})),
+      closedOutAt: Date.now()
+    };
+  });
 
   entries = [];
   wasteLogLastClosedOut = Date.now();
@@ -497,4 +504,7 @@ document.getElementById('btnDownloadTodayCsv').addEventListener('click', ()=>{
   renderHomeScoreboard();
   renderTrainingGuides('bohTrainingGuidesContainer', bohTrainingGuidesData, true);
   renderTrainingGuides('fohTrainingGuidesContainer', fohTrainingGuidesData, false);
+  // The page on screen (Set Ups, for the team) was drawn before the saved
+  // data arrived, so its roster and assignments were empty: draw it again.
+  stateRerender();
 })();

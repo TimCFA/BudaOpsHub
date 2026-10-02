@@ -1053,6 +1053,7 @@ async function pbApplySuggestion(day, suggested){
 async function pbRemoveEntry(list, id){
   const idx = list.findIndex(e => e.id === id);
   if(idx === -1) return;
+  if(!confirm(`Remove ${list[idx].label ? '“' + list[idx].label + '”' : 'this entry'}? This can’t be undone.`)) return;
   list.splice(idx, 1);
   await saveState();
   renderPrepBoard();
@@ -1158,7 +1159,10 @@ document.getElementById('prepBoardRoot').addEventListener('click', function(e){
     do { iso = pbAddDays(iso, delta); } while(pbWeekdayOf(iso) === 'Sunday');
     if(iso > today) return;
     pbEntryDates[kind] = iso;
+    // Keep anything already pasted: changing the date redraws the panel.
+    const pasted = [...document.querySelectorAll('[data-pb-paste-area], [data-pb-waste-paste-area]')].map(t => [t.matches('[data-pb-paste-area]') ? '[data-pb-paste-area]' : '[data-pb-waste-paste-area]', t.value]);
     renderPrepBoard();
+    pasted.forEach(([sel, v]) => { const t = document.querySelector(sel); if(t && v) t.value = v; });
     return;
   }
 

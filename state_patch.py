@@ -11,7 +11,9 @@ A change is one of:
   {"o": "arr", "p": [key, ...],               change a list item by item:
    "rm":  [{"v": item, "n": count}],            keep at most n copies of item
    "add": [{"v": item, "n": count,              have at least n copies of item,
-            "i": index, "end": bool}]}          inserted at index i (or at the end)
+            "i": index, "end": bool,            inserted at index i (or at the end);
+            "rep": bool}]}                      rep: an edited record, which replaces
+                                                the copy with its id that's there now
 
 Counts make every change safe to apply twice: a retried save can't log the
 same waste entry again. Paths go through objects only; list items are whole
@@ -88,10 +90,22 @@ def apply_list(current, rm, add):
             del out[at]
             del keys[at]
             counts[c] -= 1
+    add_keys = {canon(a['v']) for a in add}
     for item in sorted(add, key=lambda a: a['i']):
         c = canon(item['v'])
         if counts[c] >= item['n']:
             continue
+        # An edit of a record: replace whatever version of it is there now,
+        # so two people editing it at once leave one copy.
+        if item.get('rep'):
+            ident = _identity(item['v'])
+            j = next((x for x, v in enumerate(out) if _identity(v) == ident and keys[x] not in add_keys), None)
+            if j is not None:
+                counts[keys[j]] -= 1
+                out[j] = copy.deepcopy(item['v'])
+                keys[j] = c
+                counts[c] += 1
+                continue
         at = len(out) if item.get('end') else min(item['i'], len(out))
         out.insert(at, copy.deepcopy(item['v']))
         keys.insert(at, c)

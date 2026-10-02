@@ -259,6 +259,7 @@
   .tape-row{font-family:'Inter',sans-serif;font-size:12px;display:flex;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);gap:12px;color:var(--text-primary);}
   .tape-row:last-child{border-bottom:none;}
   .tape-row .l{color:var(--text-secondary);}
+  .tape-row .tape-who{color:var(--text-tertiary);font-weight:600;}
   .tape-row .r{color:var(--cfa-red);white-space:nowrap;font-weight:600;}
 
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.3);display:none;align-items:flex-end;justify-content:center;z-index:50;backdrop-filter:blur(2px);}

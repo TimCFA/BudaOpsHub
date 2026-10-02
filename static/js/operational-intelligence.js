@@ -200,17 +200,8 @@ function renderZoneResetTrendCard(){
     html += `<div class="oi-stat-sub">No Zone Reset checklists completed yet this week.</div>`;
   }
 
-  const greatDays = Object.keys(zoneChecklistHistory).filter(d => zoneChecklistHistory[d].overall >= 95).sort().reverse();
-  let streak = 0;
-  if(greatDays.length){
-    streak = 1;
-    for(let i = 1; i < greatDays.length; i++){
-      const d1 = new Date(greatDays[i-1]);
-      const d2 = new Date(greatDays[i]);
-      if((d1 - d2) / (1000*60*60*24) === 1) streak++;
-      else break;
-    }
-  }
+  const greatDays = Object.keys(zoneChecklistHistory).filter(d => zoneChecklistHistory[d].overall >= 95);
+  const streak = openDayStreak(greatDays);
   html += `<div class="oi-stat-sub" style="margin-top:8px;">${streak > 0 ? `${streak} day${streak===1?'':'s'} in a row at 95%+ completion` : 'No current 95%+ completion streak'}</div>`;
 
   el.innerHTML = html;
