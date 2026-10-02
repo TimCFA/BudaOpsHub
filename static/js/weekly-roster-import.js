@@ -212,7 +212,7 @@ function showWeeklyImportPreview(){
   const weekDays = weeklyImportDays();
   const rangeLabel = weekDays.length ? `${weekDays[0].label} – ${weekDays[weekDays.length-1].label}` : '';
   document.getElementById('weeklyImportWeekLabel').textContent = weeklyImportFileStart
-    ? `Applying to: ${rangeLabel} (dates from the file name)`
+    ? `Applying to: ${rangeLabel} (dates from ${/^HotSchedules_Sync_/.test(weeklyImportPendingFile || '') ? 'HotSchedules' : 'the file name'})`
     : `Applying to: ${weeklyImportOffset === 0 ? 'This Week' : 'Next Week'} (${rangeLabel}) — the file name has no dates`;
   // No dates in the file name: let the leader pick the week here.
   let weekPick = document.getElementById('weeklyImportWeekPick');

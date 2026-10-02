@@ -52,6 +52,8 @@ async function launchSetManager(isManager){
   launchApply();
   // Pick up the private sections this page wasn't sent without a session.
   if(isManager && typeof syncState === 'function') await syncState();
+  // A week sent from HotSchedules was waiting for a manager.
+  if(isManager && typeof hsSyncManagerReady === 'function') hsSyncManagerReady();
 }
 
 document.getElementById('launchModeToggle').addEventListener('change', async e=>{
