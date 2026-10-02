@@ -93,14 +93,16 @@ class StateTest(unittest.TestCase):
 
     def test_first_load_migrates_and_keeps_backup(self):
         data = self.load()
-        self.assertEqual(data['waste']['entries'], LEGACY['entries'])
+        self.assertEqual(section('waste')['entries'], LEGACY['entries'])
+        self.assertEqual(data['waste']['entries'], [])     # a team device gets recent entries only
         self.assertEqual(data['setups']['posAssignments'], LEGACY['posAssignments'])
         self.assertEqual(data['misc'], {'someFutureKey': 42})
         self.assertIn('appState', store)                     # backup kept
         self.assertEqual(section('manager')['products'], [{'id': 'p1'}])
         # Second load reads the sections, doesn't migrate again.
         store['appState'] = json.dumps({'entries': []})
-        self.assertEqual(self.load()['waste']['entries'], LEGACY['entries'])
+        self.load()
+        self.assertEqual(section('waste')['entries'], LEGACY['entries'])
 
     def test_save_only_touches_sent_sections(self):
         self.load()
@@ -222,14 +224,17 @@ class PatchTest(unittest.TestCase):
         self.assertNotIn('people', r['sections'])    # and it isn't sent back to them
 
     def test_two_phones_log_waste_at_once(self):
+        import time as _t
+        now = int(_t.time() * 1000)
         v = self.ver('waste')
         add = lambda ts, i: [{'o': 'arr', 'p': ['entries'], 'add': [{'v': {'ts': ts}, 'n': 1, 'i': i, 'end': True}]}]
-        r1 = self.patch(self.a, 'waste', v, add(10, 1)).get_json()
+        r1 = self.patch(self.a, 'waste', v, add(now + 10, 1)).get_json()
         self.assertNotIn('waste', r1['sections'])             # phone A was up to date: nothing to send back
-        r2 = self.patch(self.b, 'waste', v, add(11, 1)).get_json()
-        self.assertEqual([e['ts'] for e in section('waste')['entries']], [1, 10, 11])
-        # Phone B's copy was behind, so it gets the merged section back.
-        self.assertEqual([e['ts'] for e in json.loads(r2['sections']['waste'])['entries']], [1, 10, 11])
+        r2 = self.patch(self.b, 'waste', v, add(now + 11, 1)).get_json()
+        self.assertEqual([e['ts'] for e in section('waste')['entries']], [1, now + 10, now + 11])
+        # Phone B's copy was behind, so it gets the merged section back (recent
+        # entries only: the old ts=1 one stays on the server for managers).
+        self.assertEqual([e['ts'] for e in json.loads(r2['sections']['waste'])['entries']], [now + 10, now + 11])
         self.assertNotEqual(r2['versions']['waste'], v)
 
     def test_retried_save_does_not_double(self):
@@ -413,3 +418,42 @@ class SafeCountTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class WasteHistoryTest(unittest.TestCase):
+    """The waste log keeps 90 days for the dashboard, but a team device only
+    receives recent entries; its saves still apply to the whole stored list."""
+
+    def setUp(self):
+        appmod.db.reference = lambda path: FakeRef(path)
+        appmod._cache.clear()
+        appmod._cache_ready = False
+        store.clear()
+        import time as _t
+        now = int(_t.time() * 1000)
+        self.old = {'id': 'w1', 'ts': now - 10 * 86400000, 'prodId': 'filet', 'name': 'Filet', 'qty': 1, 'cost': 1.06, 'section': 'boh'}
+        self.fresh = {'id': 'w2', 'ts': now - 3600000, 'prodId': 'nugget', 'name': 'Nugget', 'qty': 2, 'cost': 0.32, 'section': 'foh'}
+        store['state/waste'] = json.dumps({'entries': [self.old, self.fresh], 'wasteDays': []})
+        self.team = appmod.app.test_client()
+        self.mgr = appmod.app.test_client()
+        with self.mgr.session_transaction() as sess:
+            sess['manager'] = True
+
+    def ids(self, reply):
+        return [e['id'] for e in json.loads(reply['sections']['waste'])['entries']]
+
+    def test_team_device_gets_recent_entries_only(self):
+        self.assertEqual(self.ids(self.team.post('/api/state/load', json={}).get_json()), ['w2'])
+        self.assertEqual(self.ids(self.team.post('/api/state/sync', json={'versions': {}}).get_json()), ['w2'])
+
+    def test_manager_gets_everything(self):
+        self.assertEqual(self.ids(self.mgr.post('/api/state/load', json={}).get_json()), ['w1', 'w2'])
+
+    def test_team_save_keeps_the_history(self):
+        self.team.post('/api/state/load', json={})
+        new = dict(self.fresh, id='w3', qty=1, cost=0.16)
+        r = self.team.post('/api/state/patch', json={'patches': {'waste': {'ver': '?', 'ops': [{'o': 'arr', 'p': ['entries'], 'add': [{'v': new, 'n': 1, 'i': 1, 'end': True}]}]}}}).get_json()
+        self.assertTrue(r['success'])
+        self.assertEqual([e['id'] for e in section('waste')['entries']], ['w1', 'w2', 'w3'])
+        # The section it gets back is trimmed too.
+        self.assertEqual(self.ids(r), ['w2', 'w3'])

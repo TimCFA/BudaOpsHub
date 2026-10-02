@@ -6,7 +6,7 @@ let products = [];
 let deletedProductIds = []; // ids of default products the user has explicitly removed — never re-added on load
 // One-time fixes to saved product lists (see loadState). Bump when adding one;
 // a fresh install starts current so the fixes never touch it.
-const PRODUCT_FIXES_VERSION = 4;
+const PRODUCT_FIXES_VERSION = 5;
 let productFixesVersion = PRODUCT_FIXES_VERSION;
 // Left over from the old Log Waste list (category order per side); still a
 // saved key, no longer read. Tracker categories follow WASTE_CAT_ORDER.

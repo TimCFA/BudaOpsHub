@@ -22,6 +22,7 @@ const out = vm.runInContext(`({
   items: wasteDefaultProducts(),
   legacy: WASTE_LEGACY_MAP,
   colors: WASTE_COLORS,
+  priceFix: WASTE_PRICE_FIX_5,
   catOrder: WASTE_CAT_ORDER,
   valid: ['#abcdef', '#ABCDEF', 'red', '#abc', 'url(x)', '#abcdeg'].map(wasteValidColor),
   textOn: [wasteTextOn('#ffffff'), wasteTextOn('#000000')],
@@ -62,6 +63,22 @@ class WasteCatalogTest(unittest.TestCase):
         ids = {p['id'] for p in self.data['items']}
         for old, new in self.data['legacy'].items():
             self.assertIn(new, ids, f'{old} → {new}')
+
+    def test_price_fix_matches_catalog(self):
+        # Every fixed price names a real item and lands on the catalog's current cost.
+        cost = {p['id']: p['cost'] for p in self.data['items']}
+        fix = self.data['priceFix']
+        self.assertGreater(len(fix), 70)
+        for pid, (old, new) in fix.items():
+            self.assertIn(pid, cost, pid)
+            self.assertAlmostEqual(cost[pid], new, places=2, msg=pid)
+            self.assertNotAlmostEqual(old, new, places=2, msg=pid)
+        self.assertEqual(fix['medium-waffle-fry'], [6.02, 0.57])
+        self.assertEqual(fix['spicy-sandwich'], [0, 1.49])
+        self.assertEqual(fix['lemonade'], [0, 1.33])
+        # Judgment calls left alone.
+        for pid in ('buttered-biscuit', 'egg-whites-2', 'yellow-egg-2', 'coke', 'bacon', 'brioche-bun', 'mini-bread'):
+            self.assertNotIn(pid, fix, pid)
 
     def test_color_guard(self):
         self.assertEqual(self.data['valid'], ['#abcdef', '#abcdef', '', '', '', ''])

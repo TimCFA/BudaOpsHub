@@ -437,12 +437,23 @@ def pea_levelset_sync():
 
 # ===== STATE ROUTES (sections) =====
 
+# Waste entries a team device needs: today's, for the tracker's counts.
+# The history behind the dashboard goes to manager sessions only.
+WASTE_TEAM_WINDOW_MS = 2 * 24 * 60 * 60 * 1000
+
+def _section_for_session(name, data):
+    if name == 'waste' and not session.get('manager') and isinstance(data, dict) and isinstance(data.get('entries'), list):
+        cutoff = int(time.time() * 1000) - WASTE_TEAM_WINDOW_MS
+        return {**data, 'entries': [e for e in data['entries'] if isinstance(e, dict) and isinstance(e.get('ts'), (int, float)) and e['ts'] >= cutoff]}
+    return data
+
 def _state_reply(names):
     """Sections (as JSON strings), every section's version, and the build.
-    Private sections go to manager sessions only."""
+    Private sections go to manager sessions only; the waste log is trimmed
+    to recent entries for team devices."""
     shown = lambda name: session.get('manager') or name not in PRIVATE_SECTIONS
     return {
-        'sections': {name: _dumps(_cache[name]['data']) for name in names if shown(name)},
+        'sections': {name: _dumps(_section_for_session(name, _cache[name]['data'])) for name in names if shown(name)},
         'versions': {name: entry['ver'] for name, entry in _cache.items() if shown(name)},
         'build': BUILD,
     }

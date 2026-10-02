@@ -35,7 +35,7 @@ function renderWasteTrendCard(){
   const thisWeekTotal = sumEntryCosts(thisWeekEntries);
   const lastWeekTotal = sumEntryCosts(lastWeekEntries);
   const lastWeekStartMs = new Date(lastWeekDates[0] + 'T00:00:00').getTime();
-  const lastWeekReliable = !wasteLogLastClosedOut || wasteLogLastClosedOut < lastWeekStartMs;
+  const lastWeekReliable = true;   // nothing clears the log any more: 90 days stay on file
 
   let html = '';
   if(lastWeekReliable && lastWeekTotal > 0){
@@ -60,7 +60,10 @@ function renderWasteTrendCard(){
   const prevMonthDate = new Date(cy, cm - 2, 1);
   const prevMonthKey = prevMonthDate.getFullYear() + '-' + String(prevMonthDate.getMonth()+1).padStart(2,'0');
   const currentMonthTotal = sumEntryCosts(entries.filter(e => toLocalISODate(new Date(e.ts)).slice(0,7) === currentMonthKey));
-  const prevMonthSummary = wasteMonthlyHistory[prevMonthKey];
+  // Last month from its entries while they're on file (90 days), else the
+  // summary saved by a month export.
+  const prevMonthEntries = entries.filter(e => toLocalISODate(new Date(e.ts)).slice(0,7) === prevMonthKey);
+  const prevMonthSummary = prevMonthEntries.length ? {total: sumEntryCosts(prevMonthEntries)} : wasteMonthlyHistory[prevMonthKey];
 
   if(prevMonthSummary && prevMonthSummary.total > 0){
     const pct = Math.round(((currentMonthTotal - prevMonthSummary.total) / prevMonthSummary.total) * 100);
@@ -73,7 +76,7 @@ function renderWasteTrendCard(){
       <div class="oi-stat-sub">$${currentMonthTotal.toFixed(2)} so far this month vs $${prevMonthSummary.total.toFixed(2)} total last month</div>
     `;
   } else {
-    html += `<div class="oi-stat-sub">No prior month on record yet — this fills in automatically after your first monthly close-out.</div>`;
+    html += `<div class="oi-stat-sub">No prior month on record yet — this fills in once last month has waste entries.</div>`;
   }
 
   el.innerHTML = html;

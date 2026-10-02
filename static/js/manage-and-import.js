@@ -103,9 +103,7 @@ function refreshManage(opening){
   const clean = (...ids) => ids.every(id => !mvDirty(document.getElementById(id)));
   const target = document.getElementById('targetInput');
   if(opening || !mvEdited(target)) target.value = target.defaultValue = wasteTarget;
-  document.getElementById('monthCloseStatus').textContent = wasteLogLastClosedOut
-    ? `Last closed out: ${new Date(wasteLogLastClosedOut).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})} · ${entries.length} entries since`
-    : `Never closed out yet · ${entries.length} entries logged so far`;
+  wasteExportStatus();
   document.getElementById('setupHistoryStatus').textContent = setupHistoryStatusText();
 
   if(opening || clean('pillarsManageList', 'metricsManageList')) renderLXManage();
@@ -298,17 +296,38 @@ document.addEventListener('click', (e) => {
   }
 });
 
-function generateWastePdf(){
+// The months with entries, newest first (for the export picker).
+function wasteExportMonths(){
+  const months = new Set(entries.map(e => wasteEntryDay(e).slice(0, 7)));
+  return [...months].sort().reverse();
+}
+function wasteMonthLabel(key){
+  const [y, m] = key.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString('en-US', {month: 'long', year: 'numeric'});
+}
+function wasteExportStatus(){
+  const el = document.getElementById('monthCloseStatus');
+  const sel = document.getElementById('wasteExportMonth');
+  if(sel){
+    const months = wasteExportMonths();
+    const prev = sel.value;
+    sel.innerHTML = months.map(k => `<option value="${k}" ${k === prev ? 'selected' : ''}>${escapeHtml(wasteMonthLabel(k))}</option>`).join('') || '<option value="">No entries yet</option>';
+  }
+  if(el) el.textContent = wasteLogLastClosedOut
+    ? `Last export: ${new Date(wasteLogLastClosedOut).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})} · ${entries.length} entries on file (the last ${WASTE_KEEP_DAYS} days)`
+    : `${entries.length} entries on file (the last ${WASTE_KEEP_DAYS} days)`;
+}
+
+function generateWastePdf(list, label){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  const throughDate = new Date().toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'});
 
   doc.setFontSize(16);
   doc.text('CFA Buda — Waste Log', 14, 18);
   doc.setFontSize(10);
-  doc.text(`Export through ${throughDate}`, 14, 25);
+  doc.text(label, 14, 25);
 
-  const sorted = [...entries].sort((a,b)=>a.ts-b.ts);
+  const sorted = [...list].sort((a,b)=>a.ts-b.ts);
   let y = 38;
   doc.setFontSize(9);
   doc.setFont(undefined, 'bold');
@@ -327,15 +346,15 @@ function generateWastePdf(){
   sorted.forEach(e=>{
     if(y > 280){ doc.addPage(); y = 20; }
     doc.text(new Date(e.ts).toLocaleString('en-US', {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}), 14, y);
-    doc.text(String(e.name).slice(0, 32), 55, y);
-    doc.text(`${e.qty}${e.unit}`, 118, y);
-    doc.text(`$${e.cost.toFixed(2)}`, 138, y);
+    doc.text(String(wasteItemFor(e).name).slice(0, 32), 55, y);
+    doc.text(`${e.qty}${e.unit || ''}`, 118, y);
+    doc.text(`$${(Number(e.cost) || 0).toFixed(2)}`, 138, y);
     doc.text(e.who || '', 160, y);
-    doc.text(e.section.toUpperCase(), 178, y);
+    doc.text(String(e.section || '').toUpperCase(), 178, y);
     y += 6;
   });
 
-  const total = entries.reduce((sum,e)=>sum+e.cost,0);
+  const total = list.reduce((sum,e)=>sum+(Number(e.cost) || 0),0);
   y += 3;
   doc.setLineWidth(0.4);
   doc.line(14, y - 3, 196, y - 3);
@@ -343,64 +362,46 @@ function generateWastePdf(){
   doc.setFontSize(11);
   doc.setFont(undefined, 'bold');
   doc.text(`Total Waste: $${total.toFixed(2)}`, 14, y);
-  doc.text(`Entries: ${entries.length}`, 110, y);
+  doc.text(`Entries: ${list.length}`, 110, y);
 
-  doc.save(`cfa-buda-waste-log-through-${today}.pdf`);
+  doc.save(`cfa-buda-waste-log-${label.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.pdf`);
 }
 
+// Export one month as CSV + PDF. Nothing is cleared: the log keeps the last
+// 90 days on its own, and the month's summary (wasteMonthlyHistory) is
+// refreshed so month-over-month comparisons outlive the raw entries.
 document.getElementById('btnCloseOutMonth').addEventListener('click', async ()=>{
-  if(entries.length === 0){
-    showToast('No waste entries to export yet');
+  const sel = document.getElementById('wasteExportMonth');
+  const monthKey = sel ? sel.value : '';
+  const list = entries.filter(e => wasteEntryDay(e).slice(0, 7) === monthKey);
+  if(!monthKey || !list.length){
+    showToast('No waste entries for that month');
     return;
   }
-  const confirmed = confirm(
-    `This will download a CSV and a PDF covering all ${entries.length} waste entries logged since the last close-out, then permanently clear the waste log to start fresh. This can't be undone. Continue?`
-  );
-  if(!confirmed) return;
+  const label = wasteMonthLabel(monthKey);
+  const blob = new Blob([wdCsv(list)], {type: 'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `cfa-buda-waste-log-${monthKey}.csv`;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  generateWastePdf(list, label);
 
-  const csv = buildCsvContent();
-  const csvBlob = new Blob([csv], {type: 'text/csv'});
-  const csvUrl = URL.createObjectURL(csvBlob);
-  const csvLink = document.createElement('a');
-  csvLink.href = csvUrl;
-  csvLink.download = `cfa-buda-waste-log-through-${today}.csv`;
-  csvLink.click();
-  URL.revokeObjectURL(csvUrl);
-
-  generateWastePdf();
-
-  // Save a lightweight permanent summary before wiping raw entries — this is
-  // what lets month-over-month trends on Scoreboard keep working after a
-  // close-out, without needing to keep every raw entry around forever.
-  // Each entry is filed under the month it was logged (closing on Oct 1
-  // files September as September), and a second close-out in the same month
-  // adds to that month's summary instead of replacing it.
-  const sumCost = list => list.reduce((s, e) => s + (Number(e.cost) || 0), 0);
-  const byMonth = {};
-  entries.forEach(e => { const k = toLocalISODate(new Date(e.ts)).slice(0, 7); (byMonth[k] = byMonth[k] || []).push(e); });
-  Object.entries(byMonth).forEach(([monthKey, list])=>{
-    const prev = wasteMonthlyHistory[monthKey] || {};
-    const byProduct = {};
-    (prev.topProducts || []).forEach(p => { byProduct[p.name] = (byProduct[p.name] || 0) + (Number(p.cost) || 0); });
-    list.forEach(e => { byProduct[e.name] = (byProduct[e.name] || 0) + (Number(e.cost) || 0); });
-    wasteMonthlyHistory[monthKey] = {
-      total: (Number(prev.total) || 0) + sumCost(list),
-      fohTotal: (Number(prev.fohTotal) || 0) + sumCost(list.filter(e => e.section === 'foh')),
-      bohTotal: (Number(prev.bohTotal) || 0) + sumCost(list.filter(e => e.section === 'boh')),
-      entryCount: (Number(prev.entryCount) || 0) + list.length,
-      topProducts: Object.entries(byProduct).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, cost]) => ({name, cost})),
-      closedOutAt: Date.now()
-    };
-  });
-
-  entries = [];
+  const sumCost = l => l.reduce((s, e) => s + (Number(e.cost) || 0), 0);
+  const byProduct = {};
+  list.forEach(e => { const n = wasteItemFor(e).name; byProduct[n] = (byProduct[n] || 0) + (Number(e.cost) || 0); });
+  wasteMonthlyHistory[monthKey] = {
+    total: sumCost(list),
+    fohTotal: sumCost(list.filter(e => e.section === 'foh')),
+    bohTotal: sumCost(list.filter(e => e.section === 'boh')),
+    entryCount: list.length,
+    topProducts: Object.entries(byProduct).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, cost]) => ({name, cost})),
+    closedOutAt: Date.now()
+  };
   wasteLogLastClosedOut = Date.now();
   await saveState();
-  renderGrid();
-  renderTape();
-  renderScoreboardView();
-  renderManage();
-  showToast('✓ Waste log exported and reset');
+  wasteExportStatus();
+  showToast(`✓ ${label} exported`);
 });
 
 document.getElementById('btnExportCsv').addEventListener('click',()=>{
@@ -415,14 +416,6 @@ document.getElementById('btnExportCsv').addEventListener('click',()=>{
   a.download = 'cfa-buda-operational-log.csv';
   a.click();
 });
-
-function buildCsvContent(){
-  const rows = [['Date/Time','Product','Qty','Unit','Unit Cost','Total Cost','Logged By','Section']];
-  [...entries].sort((a,b)=>b.ts-a.ts).forEach(e=>{
-    rows.push([new Date(e.ts).toLocaleString(), e.name, e.qty, e.unit, e.unitCost.toFixed(2), e.cost.toFixed(2), e.who, e.section.toUpperCase()]);
-  });
-  return rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-}
 
 function setSyncStatus(msg, cls){
   const el = document.getElementById('syncStatus');
