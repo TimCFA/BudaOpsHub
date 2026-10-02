@@ -1575,21 +1575,14 @@
   .su-dp-fill{flex:0 0 auto;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--su-muted);}
   .su-dp-chev{flex:0 0 auto;font-size:14px;transition:transform .15s ease;}
   .su-dp.is-open .su-dp-chev{transform:rotate(180deg);}
-  /* Daypart banners: clean white cards, dark text. Each daypart keeps its
-     own color, used sparingly: a thin edge on the left and a light tint
-     behind its sun/moon. The open card is outlined in its color. */
-  .su-dp{--dpc:#15803D;}
-  .su-dp.su-col-eb{--dpc:#C2410C;}
-  .su-dp.su-col-b{--dpc:#B7791F;}
-  .su-dp.su-col-l{--dpc:#15803D;}
-  .su-dp.su-col-t{--dpc:#0F766E;}
-  .su-dp.su-col-a{--dpc:#1D4ED8;}
-  .su-dp.su-col-d{--dpc:#6D28D9;}
-  .su-dp.su-col-c{--dpc:#334155;}
+  /* Daypart banners: clean white cards, dark text, all one color: a thin
+     red edge on the left, and the open card outlined in red. The sun/moon
+     sits on a plain light badge. */
+  .su-dp{--dpc:var(--cfa-red);}
   .su-dp .su-dp-banner{background:var(--su-card);color:var(--su-ink);border:1px solid var(--su-line);box-shadow:inset 5px 0 0 var(--dpc),0 1px 2px rgba(28,27,25,0.05);}
-  .su-dp-art{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:color-mix(in srgb,var(--dpc) 12%,#fff);}
+  .su-dp-art{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:#F4F2EE;}
   .su-dp-art svg{width:26px;height:auto;}
-  .su-col-c .su-dp-art{background:var(--dpc);}   /* the pale moon needs a dark badge */
+  .su-col-c .su-dp-art{background:var(--su-ink);}   /* the pale moon needs a dark badge */
   .su-dp .su-dp-time,.su-dp .su-dp-fill,.su-dp .su-dp-k,.su-dp .su-dp-where,.su-dp .su-dp-lead em,.su-dp .su-dp-chev{color:var(--su-muted);}
   .su-dp .su-dp-lead{background:#F4F2EE;border-color:#E2DDD4;color:var(--su-ink);}
   .su-dp .su-dp-lead:hover{background:#ECE8E1;}

@@ -189,8 +189,8 @@ function suDaypartSky(name){
     : /afternoon/.test(n) ? 'afternoon' : /dinner/.test(n) ? 'dusk' : /clos|night/.test(n) ? 'night' : 'midday';
 }
 
-// Each daypart's own color on its banner (and on the Zone Reset handoff it
-// hands off from), so they're easy to tell apart at a glance.
+// A class per daypart on its banner (and on the Zone Reset handoff it hands
+// off from). Banners are all one color; Close uses it for a dark moon badge.
 function suDaypartColor(name){
   const n = name.toLowerCase();
   return /early/.test(n) ? 'eb' : /breakfast/.test(n) ? 'b' : /lunch/.test(n) ? 'l' : /transition/.test(n) ? 't'
