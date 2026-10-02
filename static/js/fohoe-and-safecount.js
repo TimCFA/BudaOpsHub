@@ -102,7 +102,7 @@ function renderLeaderTransitionCard(){
     const stamp = isChecked ? `<span style="font-size:10px;color:var(--text-tertiary);font-style:italic;margin-left:auto;white-space:nowrap;">${escapeHtml(entry.initials)} · ${formatShortTime(entry.ts)}</span>` : '';
     return `<div class="checklist-item-elevated ${isChecked?'checked':''}" data-lidx="${i}">
       <input type="checkbox" ${isChecked?'checked':''}>
-      <span>${item}</span>
+      <span>${escapeHtml(item)}</span>
       ${stamp}
     </div>`;
   }).join('') : '';
@@ -147,12 +147,11 @@ function renderWalkthroughModal(){
   document.getElementById('wtModalList').innerHTML = group.items.map((item,i)=>{
     const entry = fohOEChecked[daypart] && fohOEChecked[daypart][cat] && fohOEChecked[daypart][cat][i];
     const isChecked = !!entry;
-    const escapedCat = cat.replace(/'/g, "\\'");
     const stamp = isChecked ? `<span style="font-size:10px;color:var(--text-tertiary);font-style:italic;white-space:nowrap;">${escapeHtml(entry.initials)} · ${formatShortTime(entry.ts)}</span>` : '';
     return `
       <label style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--border);cursor:pointer;">
-        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleWalkthroughItem('${escapedCat}', ${i})" style="width:18px;height:18px;flex-shrink:0;">
-        <span style="${isChecked ? 'text-decoration:line-through;color:var(--text-tertiary);' : ''}font-size:13px;flex:1;">${item}</span>
+        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleWalkthroughItem(${jsArg(cat)}, ${i})" style="width:18px;height:18px;flex-shrink:0;">
+        <span style="${isChecked ? 'text-decoration:line-through;color:var(--text-tertiary);' : ''}font-size:13px;flex:1;">${escapeHtml(item)}</span>
         ${stamp}
       </label>
     `;
@@ -346,19 +345,20 @@ function renderSafeCountLog(){
   }
   const sorted = [...safeCounts].sort((a,b)=> b.timestamp - a.timestamp);
   container.innerHTML = sorted.map(entry => {
-    const varClass = Math.abs(entry.variance) < 0.01 ? 'balanced' : (entry.variance > 0 ? 'over' : 'short');
-    const varText = Math.abs(entry.variance) < 0.01 ? '✓ Balanced' : (entry.variance > 0 ? `+$${entry.variance.toFixed(2)} over` : `-$${Math.abs(entry.variance).toFixed(2)} short`);
+    const variance = Number(entry.variance) || 0;
+    const varClass = Math.abs(variance) < 0.01 ? 'balanced' : (variance > 0 ? 'over' : 'short');
+    const varText = Math.abs(variance) < 0.01 ? '✓ Balanced' : (variance > 0 ? `+$${variance.toFixed(2)} over` : `-$${Math.abs(variance).toFixed(2)} short`);
     return `
       <div class="safe-log-entry">
         <div class="safe-log-top">
           <span class="safe-log-shift">${escapeHtml(entry.shift)}</span>
           <span class="safe-log-date">${escapeHtml(entry.date)}</span>
         </div>
-        <div class="safe-log-total">$${entry.total.toFixed(2)}</div>
+        <div class="safe-log-total">$${(Number(entry.total) || 0).toFixed(2)}</div>
         <div class="safe-log-variance ${varClass}">${varText}</div>
         <div class="safe-log-meta">Counted by ${escapeHtml(entry.countedBy)}${entry.witness ? ' · Witnessed by ' + escapeHtml(entry.witness) : ''}</div>
-        ${entry.tills ? `<div class="safe-log-meta"><b>Cashier tills:</b> $${entry.tills.toFixed(2)}</div>` : ''}
-        ${entry.coinRolls && Object.keys(entry.coinRolls).length ? `<div class="safe-log-meta"><b>Coin rolls:</b> ${Object.entries(entry.coinRolls).map(([k,v])=>`${v} ${escapeHtml(k)}`).join(', ')}</div>` : ''}
+        ${entry.tills ? `<div class="safe-log-meta"><b>Cashier tills:</b> $${(Number(entry.tills) || 0).toFixed(2)}</div>` : ''}
+        ${entry.coinRolls && Object.keys(entry.coinRolls).length ? `<div class="safe-log-meta"><b>Coin rolls:</b> ${Object.entries(entry.coinRolls).map(([k,v])=>`${escapeHtml(v)} ${escapeHtml(k)}`).join(', ')}</div>` : ''}
         ${entry.notes ? `<div class="safe-log-meta"><b>Notes:</b> ${escapeHtml(entry.notes)}</div>` : ''}
       </div>
     `;

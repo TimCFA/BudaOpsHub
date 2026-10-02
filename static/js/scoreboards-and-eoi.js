@@ -6,16 +6,16 @@ function renderGXScoreboard(){
   const wigContainer = document.getElementById('gxWigMetrics');
   wigContainer.innerHTML = Object.entries(gxData.wig).map(([key, metric]) => `
     <div class="gx-metric-card">
-      <div class="gx-metric-value">${metric.value}</div>
-      <div class="gx-metric-label">${metric.label}</div>
+      <div class="gx-metric-value">${escapeHtml(metric.value)}</div>
+      <div class="gx-metric-label">${escapeHtml(metric.label)}</div>
     </div>
   `).join('');
 
   const dtContainer = document.getElementById('gxDtMetrics');
   dtContainer.innerHTML = Object.entries(gxData.dt).map(([key, metric]) => `
     <div class="gx-metric-card">
-      <div class="gx-metric-value">${metric.value}</div>
-      <div class="gx-metric-label">${metric.label}</div>
+      <div class="gx-metric-value">${escapeHtml(metric.value)}</div>
+      <div class="gx-metric-label">${escapeHtml(metric.label)}</div>
     </div>
   `).join('');
 
@@ -26,21 +26,21 @@ function renderGXScoreboard(){
     <div style="margin-bottom:8px;">
       <div class="gx-satisfaction-ring" style="background:conic-gradient(#7C4DFF ${satPct}%, #E8E4FF ${satPct}%);">
         <div class="gx-satisfaction-ring-inner">
-          <div class="gx-satisfaction-ring-value">${gxData.satisfaction.highlySatisfied.value}</div>
+          <div class="gx-satisfaction-ring-value">${escapeHtml(gxData.satisfaction.highlySatisfied.value)}</div>
           <div class="gx-satisfaction-ring-label">Highly Satisfied</div>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
         <div class="gx-metric-card">
-          <div class="gx-metric-value">${gxData.satisfaction.top5Satisfied.value}</div>
+          <div class="gx-metric-value">${escapeHtml(gxData.satisfaction.top5Satisfied.value)}</div>
           <div class="gx-metric-label">Top 5%</div>
         </div>
         <div class="gx-metric-card">
-          <div class="gx-metric-value">${gxData.satisfaction.notSatisfied.value}</div>
+          <div class="gx-metric-value">${escapeHtml(gxData.satisfaction.notSatisfied.value)}</div>
           <div class="gx-metric-label">% Not Satisfied</div>
         </div>
         <div class="gx-metric-card">
-          <div class="gx-metric-value">${gxData.satisfaction.foodSafety.value}${fsTier ? `<span class="gx-fs-tier is-${fsTier.key}">${fsTier.label}</span>` : ''}</div>
+          <div class="gx-metric-value">${escapeHtml(gxData.satisfaction.foodSafety.value)}${fsTier ? `<span class="gx-fs-tier is-${escapeHtml(fsTier.key)}">${escapeHtml(fsTier.label)}</span>` : ''}</div>
           <div class="gx-metric-label">Food Safety</div>
         </div>
       </div>
@@ -51,12 +51,12 @@ function renderGXScoreboard(){
   craveableContainer.innerHTML = shown('craveable').map(([key, metric]) => `
     <div class="gx-comparison-card">
       <div class="gx-comparison-value">
-        <div class="gx-comparison-label">${metric.label}</div>
-        <div class="gx-comparison-num">${metric.value}</div>
+        <div class="gx-comparison-label">${escapeHtml(metric.label)}</div>
+        <div class="gx-comparison-num">${escapeHtml(metric.value)}</div>
       </div>
       <div class="gx-comparison-value">
         <div class="gx-comparison-label">Top 5%</div>
-        <div class="gx-comparison-num">${metric.top5}</div>
+        <div class="gx-comparison-num">${escapeHtml(metric.top5)}</div>
       </div>
     </div>
   `).join('');
@@ -65,12 +65,12 @@ function renderGXScoreboard(){
   serviceContainer.innerHTML = shown('service').map(([key, metric]) => `
     <div class="gx-comparison-card">
       <div class="gx-comparison-value">
-        <div class="gx-comparison-label">${metric.label}</div>
-        <div class="gx-comparison-num">${metric.value}</div>
+        <div class="gx-comparison-label">${escapeHtml(metric.label)}</div>
+        <div class="gx-comparison-num">${escapeHtml(metric.value)}</div>
       </div>
       <div class="gx-comparison-value">
         <div class="gx-comparison-label">Top 5%</div>
-        <div class="gx-comparison-num">${metric.top5}</div>
+        <div class="gx-comparison-num">${escapeHtml(metric.top5)}</div>
       </div>
     </div>
   `).join('');
@@ -79,39 +79,39 @@ function renderGXScoreboard(){
   welcomingContainer.innerHTML = shown('welcoming').map(([key, metric]) => `
     <div class="gx-comparison-card">
       <div class="gx-comparison-value">
-        <div class="gx-comparison-label">${metric.label}</div>
-        <div class="gx-comparison-num">${metric.value}</div>
+        <div class="gx-comparison-label">${escapeHtml(metric.label)}</div>
+        <div class="gx-comparison-num">${escapeHtml(metric.value)}</div>
       </div>
       <div class="gx-comparison-value">
         <div class="gx-comparison-label">Top 5%</div>
-        <div class="gx-comparison-num">${metric.top5}</div>
+        <div class="gx-comparison-num">${escapeHtml(metric.top5)}</div>
       </div>
     </div>
   `).join('');
 
   const secondMileOppContainer = document.getElementById('gxSecondMileOpportunities');
-  secondMileOppContainer.innerHTML = gxData.secondMile.opportunities.map(opp => `<li>${opp}</li>`).join('');
+  secondMileOppContainer.innerHTML = gxData.secondMile.opportunities.map(opp => `<li>${escapeHtml(opp)}</li>`).join('');
 
   const secondMileContainer = document.getElementById('gxSecondMileMetrics');
   secondMileContainer.innerHTML = uploadedShop ? '' : `
     <div class="gx-metric-card">
-      <div class="gx-metric-value">${gxData.secondMile.smartShopScore.value}</div>
-      <div class="gx-metric-label">${gxData.secondMile.smartShopScore.label}</div>
+      <div class="gx-metric-value">${escapeHtml(gxData.secondMile.smartShopScore.value)}</div>
+      <div class="gx-metric-label">${escapeHtml(gxData.secondMile.smartShopScore.label)}</div>
     </div>
   `;
 
   const coachingContainer = document.getElementById('gxTeamCoachingFocus');
-  coachingContainer.innerHTML = gxData.teamMembers.coachingFocus.map(focus => `<li>${focus}</li>`).join('');
+  coachingContainer.innerHTML = gxData.teamMembers.coachingFocus.map(focus => `<li>${escapeHtml(focus)}</li>`).join('');
 
   const teamContainer = document.getElementById('gxTeamMetrics');
   teamContainer.innerHTML = `
     <div class="gx-metric-card">
-      <div class="gx-metric-value">${gxData.teamMembers.attentiveCourteous.value}</div>
-      <div class="gx-metric-label">${gxData.teamMembers.attentiveCourteous.label}</div>
+      <div class="gx-metric-value">${escapeHtml(gxData.teamMembers.attentiveCourteous.value)}</div>
+      <div class="gx-metric-label">${escapeHtml(gxData.teamMembers.attentiveCourteous.label)}</div>
     </div>
     ${uploadedShop ? '' : `<div class="gx-metric-card">
-      <div class="gx-metric-value">${gxData.teamMembers.smartShopScore.value}</div>
-      <div class="gx-metric-label">${gxData.teamMembers.smartShopScore.label}</div>
+      <div class="gx-metric-value">${escapeHtml(gxData.teamMembers.smartShopScore.value)}</div>
+      <div class="gx-metric-label">${escapeHtml(gxData.teamMembers.smartShopScore.label)}</div>
     </div>`}
   `;
 
@@ -136,7 +136,7 @@ function renderTXScoreboard(){
       return `
         <div class="tx-event-card">
           <div class="tx-event-date">${dateStr}</div>
-          <div class="tx-event-name">${evt.name}</div>
+          <div class="tx-event-name">${escapeHtml(evt.name)}</div>
         </div>
       `;
     }).join('');
@@ -151,7 +151,7 @@ function renderTXScoreboard(){
       const dateStr = startDate.toLocaleDateString('en-US', {month:'short', day:'numeric'});
       return `
         <div class="tx-trial-card">
-          <div class="tx-trial-name">${trainer.name}</div>
+          <div class="tx-trial-name">${escapeHtml(trainer.name)}</div>
           <div class="tx-trial-date">Started: ${dateStr}</div>
         </div>
       `;
@@ -167,8 +167,8 @@ function renderTXScoreboard(){
       const dateStr = targetDate.toLocaleDateString('en-US', {month:'short', day:'numeric'});
       return `
         <div class="tx-cert-card">
-          <div class="tx-cert-name">${cert.name}</div>
-          <div class="tx-cert-level">${cert.level}</div>
+          <div class="tx-cert-name">${escapeHtml(cert.name)}</div>
+          <div class="tx-cert-level">${escapeHtml(cert.level)}</div>
           <div class="tx-cert-target">Target: ${dateStr}</div>
         </div>
       `;
@@ -185,8 +185,8 @@ function renderTXScoreboard(){
       return `
         <div class="celeb-card ${isBirthday ? 'celeb-birthday' : 'celeb-anniversary'}">
           <div class="celeb-icon">${icon}</div>
-          <div class="celeb-name">${celeb.name}</div>
-          <div class="celeb-date">${celeb.date}</div>
+          <div class="celeb-name">${escapeHtml(celeb.name)}</div>
+          <div class="celeb-date">${escapeHtml(celeb.date)}</div>
         </div>
       `;
     }).join('');
@@ -196,11 +196,11 @@ function renderTXScoreboard(){
 function renderEOI(){
   const track = document.getElementById('growthTrack');
   track.innerHTML = growthTrack.map((g,i)=>{
-    const clickable = eoiRoles[g.role] ? `data-role="${g.role}"` : '';
+    const clickable = eoiRoles[g.role] ? `data-role="${escapeHtml(g.role)}"` : '';
     const active = (g.role === currentEOIRole) ? 'active' : '';
     const cursor = eoiRoles[g.role] ? 'cursor:pointer;' : 'cursor:default;opacity:0.85;';
-    return `<div class="growth-pill ${active}" ${clickable} style="background:${g.color};${cursor}">
-      <div class="role-name">${g.role}</div>
+    return `<div class="growth-pill ${active}" ${clickable} style="background:${escapeHtml(g.color)};${cursor}">
+      <div class="role-name">${escapeHtml(g.role)}</div>
     </div>`;
   }).join('');
 
@@ -213,7 +213,7 @@ function renderEOIRequirements(){
   if(!roleInfo){ reqBox.innerHTML = ''; return; }
   reqBox.innerHTML = `
     <div class="eoi-req-card">
-      <div class="eoi-req-title">What it takes: ${roleInfo.from} → ${currentEOIRole}</div>
+      <div class="eoi-req-title">What it takes: ${escapeHtml(roleInfo.from)} → ${currentEOIRole}</div>
       <ul>${roleInfo.requirements.map(r=>`<li>${r}</li>`).join('')}</ul>
     </div>
   `;
@@ -246,10 +246,10 @@ function renderEOISubmissions(){
       sub.comments ? `<b>Comments:</b> ${escapeHtml(sub.comments)}` : ''
     ].filter(Boolean).map(t=>`<div class="eoi-sub-detail">${t}</div>`).join('');
     return `
-      <div class="eoi-submission" data-id="${sub.id}">
+      <div class="eoi-submission" data-id="${escapeHtml(sub.id)}">
         <div class="eoi-sub-top">
-          <span class="eoi-sub-name">${escapeHtml(sub.name)} <span style="font-weight:400;color:var(--text-secondary);">(${escapeHtml(sub.section.toUpperCase())})</span></span>
-          <span class="eoi-sub-date">${date} <button class="eoi-delete-btn" data-id="${sub.id}" style="background:none;border:none;color:var(--cfa-red);cursor:pointer;font-weight:700;margin-left:8px;">✕</button></span>
+          <span class="eoi-sub-name">${escapeHtml(sub.name)} <span style="font-weight:400;color:var(--text-secondary);">(${escapeHtml(String(sub.section || '').toUpperCase())})</span></span>
+          <span class="eoi-sub-date">${date} <button class="eoi-delete-btn" data-id="${escapeHtml(sub.id)}" style="background:none;border:none;color:var(--cfa-red);cursor:pointer;font-weight:700;margin-left:8px;">✕</button></span>
         </div>
         <div class="eoi-sub-role">${escapeHtml(sub.currentRole)} → ${escapeHtml(sub.targetRole)}</div>
         <div class="eoi-sub-detail"><b>Why:</b> ${escapeHtml(sub.why)}</div>
@@ -342,8 +342,9 @@ function renderHomeScoreboard(){
   
   const vmvContainer = document.getElementById('homeVMVContainer');
   
+  // Escape first, then apply the ***bold italic*** markup and line breaks.
   const formatText = (text) => {
-    return text
+    return escapeHtml(text)
       .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
       .replace(/\n/g, '<br>');
   };
@@ -364,9 +365,9 @@ function renderHomeScoreboard(){
   winsContainer.innerHTML = homeData.wins.map((win, idx) => `
     <div class="home-win-card">
       <div style="font-size:24px;margin-bottom:12px;">${winIcons[idx]}</div>
-      <div class="home-win-name">${win.name}</div>
-      <div class="home-win-role">${win.role}</div>
-      <div class="home-win-content">${win.content || '<em style="color:var(--text-secondary);">No update yet this month</em>'}</div>
+      <div class="home-win-name">${escapeHtml(win.name)}</div>
+      <div class="home-win-role">${escapeHtml(win.role)}</div>
+      <div class="home-win-content">${win.content ? escapeHtml(win.content) : '<em style="color:var(--text-secondary);">No update yet this month</em>'}</div>
     </div>
   `).join('');
 }

@@ -746,8 +746,8 @@ function duSalesMixDayHtml(e, flags){
       ${flags.map(f => `<div class="du-day-flag">⚠ ${escapeHtml(f)}</div>`).join('')}
       <ul class="du-day-items">${items.map(([n, c]) => `<li><span>${escapeHtml(n)}</span><b>${c}</b></li>`).join('')}</ul>
       <div class="du-day-actions">
-        <button type="button" class="du-chip is-wide" data-du-sm-replace="${e.date}">Replace this day’s file</button>
-        <button type="button" class="du-pending-skip" data-du-sm-remove="${e.date}">Remove this day</button>
+        <button type="button" class="du-chip is-wide" data-du-sm-replace="${escapeHtml(e.date)}">Replace this day’s file</button>
+        <button type="button" class="du-pending-skip" data-du-sm-remove="${escapeHtml(e.date)}">Remove this day</button>
       </div>
     </div>`;
 }

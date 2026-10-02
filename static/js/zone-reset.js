@@ -13,14 +13,13 @@ function renderChecklistTiles(containerId, tiles, onClickFn, emptyMessage){
   container.innerHTML = tiles.map(t=>{
     const done = t.total > 0 && t.checked === t.total;
     const pct = t.total > 0 ? Math.round((t.checked / t.total) * 100) : 0;
-    const escapedKey = t.key.replace(/'/g, "\\'");
     return `
-      <button type="button" class="checklist-tile ${done ? 'done' : ''}" onclick="${onClickFn}('${escapedKey}')">
+      <button type="button" class="checklist-tile ${done ? 'done' : ''}" onclick="${onClickFn}(${jsArg(t.key)})">
         <div class="checklist-tile-top">
-          <span class="checklist-tile-icon">${t.icon || ''}</span>
+          <span class="checklist-tile-icon">${escapeHtml(t.icon || '')}</span>
           <span class="checklist-tile-check">✓</span>
         </div>
-        <div class="checklist-tile-name">${t.name}</div>
+        <div class="checklist-tile-name">${escapeHtml(t.name)}</div>
         <div class="checklist-tile-progress-track"><div class="checklist-tile-progress-fill" style="width:${pct}%"></div></div>
         <div class="checklist-tile-count">${t.checked}/${t.total}</div>
       </button>

@@ -795,7 +795,7 @@ function ctRenderDataTab(){
               <td>${escapeHtml(e.segment)}</td>
               <td>${e.n ?? '—'}</td>
               ${CT_METRICS.map((m) => `<td>${e.scores[m.key] != null ? e.scores[m.key] + '%' : '—'}</td>`).join('')}
-              <td><button class="ct-icon-btn" data-ct-delete-entry="${e.key}" title="Delete row">✕</button></td>
+              <td><button class="ct-icon-btn" data-ct-delete-entry="${escapeHtml(e.key)}" title="Delete row">✕</button></td>
             </tr>
           `).join('')}
         </tbody>

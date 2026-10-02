@@ -334,7 +334,7 @@ function renderTeamLeadTrial(){
             <p class="trial-info-overall-label">Overall</p>
             <p class="trial-info-overall-value">${tlOverallPct(progress)}%</p>
           </div>
-          <button class="trial-remove-btn" data-tl-remove-trainee="${activeTrainee.id}" title="Remove trainee">🗑️</button>
+          <button class="trial-remove-btn" data-tl-remove-trainee="${escapeHtml(activeTrainee.id)}" title="Remove trainee">🗑️</button>
         </div>
       </div>
 

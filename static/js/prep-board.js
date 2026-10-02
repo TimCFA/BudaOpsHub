@@ -763,12 +763,12 @@ function pbRenderEntryCards(list, removeAttr, kind){
     const dateFix = entry.date ? '' : `
       <div class="pb-date-fix">
         <label>Set the date for this entry</label>
-        <input type="date" max="${today}" data-pb-set-date="${entry.id}" data-kind="${kind}">
+        <input type="date" max="${today}" data-pb-set-date="${escapeHtml(entry.id)}" data-kind="${kind}">
       </div>`;
     return `
       <div class="pb-entry-card ${open ? 'open' : ''} ${isNew ? 'new' : ''}">
         <div class="pb-entry-head">
-          <button type="button" class="pb-entry-toggle" data-pb-toggle-entry="${entry.id}" aria-expanded="${open}">
+          <button type="button" class="pb-entry-toggle" data-pb-toggle-entry="${escapeHtml(entry.id)}" aria-expanded="${open}">
             <span class="pb-entry-title">${title}</span>
             <span class="pb-entry-sum">${itemNames.length} item${itemNames.length===1?'':'s'} · ${Math.round(total*10)/10} total</span>
             ${isNew ? '<span class="pb-new-tag">New</span>' : ''}

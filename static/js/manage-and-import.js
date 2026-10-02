@@ -151,14 +151,14 @@ function renderProductManager(){
         </span>
       </div>
       ${g.items.map(p=>`
-        <div class="prod-row" data-id="${p.id}">
+        <div class="prod-row" data-id="${escapeHtml(p.id)}">
           <input class="prod-input prod-input-name" value="${escapeHtml(p.name)}" data-f="name" placeholder="Name" aria-label="Item name">
           <input class="prod-input prod-input-es" value="${escapeHtml(p.es || '')}" data-f="es" placeholder="Nombre" aria-label="Spanish name">
           <select class="prod-input prod-input-cat" data-f="cat" aria-label="Category">${productCategoryOptions(p.section, p.cat)}</select>
           <input class="prod-input prod-input-unit" value="${escapeHtml(p.unit)}" data-f="unit" placeholder="Unit" aria-label="Unit">
           <div class="prod-cost-wrap">
             <span class="prod-cost-sign">$</span>
-            <input class="prod-input prod-input-cost" type="number" step="0.01" value="${p.cost}" data-f="cost" placeholder="0.00" aria-label="Cost">
+            <input class="prod-input prod-input-cost" type="number" step="0.01" value="${escapeHtml(p.cost)}" data-f="cost" placeholder="0.00" aria-label="Cost">
           </div>
           <button type="button" class="prod-del" title="Delete permanently" aria-label="Delete ${escapeHtml(p.name)}">✕</button>
         </div>
