@@ -262,62 +262,7 @@ function renderZoneResetView(){
 
 
 
-const fohProducts = [
-  {id:'foh1', section:'foh', cat:'Beverages', name:'Lemonade (Quart)', es:'Limonada (Cuarto)', unit:'each', cost:0},
-  {id:'foh2', section:'foh', cat:'Sandwiches', name:'Chicken Sandwich', es:'Sándwich de Pollo', unit:'each', cost:0},
-  {id:'foh3', section:'foh', cat:'Sandwiches', name:'Spicy Sandwich', es:'Sándwich Picante', unit:'each', cost:0},
-  {id:'foh29', section:'foh', cat:'Nuggets', name:'Nuggets (1 ct)', es:'Pepitas (1 pieza)', unit:'each', cost:0},
-  {id:'foh25', section:'foh', cat:'Nuggets', name:'Nuggets (5 ct)', es:'Pepitas (5 piezas)', unit:'each', cost:0},
-  {id:'foh4', section:'foh', cat:'Nuggets', name:'Nuggets (8 ct)', es:'Pepitas (8 piezas)', unit:'each', cost:0},
-  {id:'foh5', section:'foh', cat:'Nuggets', name:'Nuggets (12 ct)', es:'Pepitas (12 piezas)', unit:'each', cost:0},
-  {id:'foh30', section:'foh', cat:'Nuggets', name:'Nuggets (30 ct)', es:'Pepitas (30 piezas)', unit:'each', cost:0},
-  {id:'foh31', section:'foh', cat:'Grilled', name:'Grilled Nuggets (1 ct)', es:'Pepitas Asadas (1 pieza)', unit:'each', cost:0},
-  {id:'foh26', section:'foh', cat:'Grilled', name:'Grilled Nuggets (5 ct)', es:'Pepitas Asadas (5 piezas)', unit:'each', cost:0},
-  {id:'foh27', section:'foh', cat:'Grilled', name:'Grilled Nuggets (8 ct)', es:'Pepitas Asadas (8 piezas)', unit:'each', cost:0},
-  {id:'foh28', section:'foh', cat:'Grilled', name:'Grilled Nuggets (12 ct)', es:'Pepitas Asadas (12 piezas)', unit:'each', cost:0},
-  {id:'foh32', section:'foh', cat:'Grilled', name:'Grilled Nuggets (30 ct)', es:'Pepitas Asadas (30 piezas)', unit:'each', cost:0},
-  {id:'foh6', section:'foh', cat:'Sides', name:'Waffle Fries (Small)', es:'Papas Onduladas (Pequeño)', unit:'each', cost:0},
-  {id:'foh7', section:'foh', cat:'Sides', name:'Waffle Fries (Medium)', es:'Papas Onduladas (Mediano)', unit:'each', cost:0},
-  {id:'foh8', section:'foh', cat:'Sides', name:'Waffle Fries (Large)', es:'Papas Onduladas (Grande)', unit:'each', cost:0},
-  {id:'foh9', section:'foh', cat:'Sides', name:'Mac & Cheese (Small)', es:'Pasta con Queso (Pequeño)', unit:'each', cost:0},
-  {id:'foh10', section:'foh', cat:'Sides', name:'Mac & Cheese (Medium)', es:'Pasta con Queso (Mediano)', unit:'each', cost:0},
-  {id:'foh11', section:'foh', cat:'Sides', name:'Mac & Cheese (Large)', es:'Pasta con Queso (Grande)', unit:'each', cost:0},
-  {id:'foh18', section:'foh', cat:'Sides', name:'Fruit Cups (Small)', es:'Vasos de Fruta (Pequeño)', unit:'each', cost:0},
-  {id:'foh19', section:'foh', cat:'Sides', name:'Fruit Cups (Medium)', es:'Vasos de Fruta (Mediano)', unit:'each', cost:0},
-  {id:'foh20', section:'foh', cat:'Sides', name:'Fruit Cups (Large)', es:'Vasos de Fruta (Grande)', unit:'each', cost:0},
-  {id:'foh33', section:'foh', cat:'Sides', name:'Hash Browns (Regular)', es:'Papitas Hash Brown (Regular)', unit:'each', cost:0},
-  {id:'foh34', section:'foh', cat:'Sides', name:'Hash Browns (Large)', es:'Papitas Hash Brown (Grande)', unit:'each', cost:0},
-  {id:'foh15', section:'foh', cat:'Sides', name:'Side Salads', es:'Ensaladas de Lado', unit:'each', cost:0},
-  {id:'foh12', section:'foh', cat:'Salads', name:'Market Salad', es:'Ensalada Market', unit:'each', cost:0},
-  {id:'foh13', section:'foh', cat:'Salads', name:'Cobb Salad', es:'Ensalada Cobb', unit:'each', cost:0},
-  {id:'foh14', section:'foh', cat:'Salads', name:'Southwest Salad', es:'Ensalada Suroeste', unit:'each', cost:0},
-  {id:'foh16', section:'foh', cat:'Wraps', name:'Grilled Wrap', es:'Envoltorio Asado', unit:'each', cost:0},
-  {id:'foh17', section:'foh', cat:'Wraps', name:'Spicy Wrap', es:'Envoltorio Picante', unit:'each', cost:0},
-  {id:'foh21', section:'foh', cat:'Ice Dream', name:'Ice Dream (Cone)', es:'Helado CFA (Cono)', unit:'each', cost:0},
-  {id:'foh22', section:'foh', cat:'Ice Dream', name:'Ice Dream (Shake)', es:'Helado CFA (Batido)', unit:'each', cost:0},
-  {id:'foh23', section:'foh', cat:'Ice Dream', name:'Ice Dream (Cup)', es:'Helado CFA (Vaso)', unit:'each', cost:0},
-  {id:'foh24', section:'foh', cat:'Ice Dream', name:'Ice Dream (Quart)', es:'Helado CFA (Cuarto)', unit:'each', cost:0},
-];
-
-const bohProducts = [
-  {id:'boh1', section:'boh', cat:'Raw Filets', name:'Raw Breakfast Filet', es:'Filete Desayuno Crudo', unit:'each', cost:0},
-  {id:'boh2', section:'boh', cat:'Raw Filets', name:'Raw Spicy Breakfast Filet', es:'Filete Picante Desayuno Crudo', unit:'each', cost:0},
-  {id:'boh3', section:'boh', cat:'Raw Filets', name:'Raw Filet', es:'Filete Crudo', unit:'each', cost:0},
-  {id:'boh4', section:'boh', cat:'Raw Filets', name:'Raw Spicy Filet', es:'Filete Picante Crudo', unit:'each', cost:0},
-  {id:'boh5', section:'boh', cat:'Cooked Filets', name:'CFA Filet', es:'Filete CFA', unit:'each', cost:0},
-  {id:'boh6', section:'boh', cat:'Cooked Filets', name:'Spicy Filet', es:'Filete Picante', unit:'each', cost:0},
-  {id:'boh18', section:'boh', cat:'Tenders', name:'Strips (1 ct)', es:'Tiras (1 pieza)', unit:'each', cost:0},
-  {id:'boh19', section:'boh', cat:'Tenders', name:'Strips (2 ct)', es:'Tiras (2 piezas)', unit:'each', cost:0},
-  {id:'boh20', section:'boh', cat:'Tenders', name:'Strips (3 ct)', es:'Tiras (3 piezas)', unit:'each', cost:0},
-  {id:'boh21', section:'boh', cat:'Tenders', name:'Strips (4 ct)', es:'Tiras (4 piezas)', unit:'each', cost:0},
-  {id:'boh22', section:'boh', cat:'Tenders', name:'Strips (10 ct)', es:'Tiras (10 piezas)', unit:'each', cost:0},
-  {id:'boh9', section:'boh', cat:'Prepared', name:'Breaded Filet', es:'Filete Empanizado', unit:'each', cost:0},
-  {id:'boh10', section:'boh', cat:'Prepared', name:'Breaded Spicy Filet', es:'Filete Picante Empanizado', unit:'each', cost:0},
-  {id:'boh11', section:'boh', cat:'Components', name:'Buttered Bun', es:'Bollo Mantequillado', unit:'each', cost:0},
-  {id:'boh13', section:'boh', cat:'Sauce Prep', name:'Sauce Container', es:'Recipiente de Salsa', unit:'each', cost:0},
-];
-
-products = [...fohProducts, ...bohProducts];
+products = wasteDefaultProducts();
 
 const fohDayparts = [
   {name: 'Early Breakfast (6:00-8:00)', time: '6:00'},

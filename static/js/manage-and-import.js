@@ -117,32 +117,13 @@ function refreshManage(opening){
   renderProductManager();
 }
 
-// ---- Products (Log Waste items) ----
-// Categories aren't stored separately: a category is just the `cat` shared by
-// products in the same section, so renaming one rewrites those products and a
-// new category comes into being with the first item placed in it.
-const NEW_CATEGORY = '__new__';
+// ---- Waste tracker items (Manage → Waste Tracking) ----
+// The saved item list, one row each; tapping a row opens the editor. The
+// catalog (waste-catalog.js) is the default; every change here is what the
+// tracker shows from then on. An item with waste history is hidden rather
+// than deleted so the history keeps its name and price.
 
-function productCategories(section){
-  const cats = [];
-  products.forEach(p=>{ if(p.section===section && !cats.includes(p.cat)) cats.push(p.cat); });
-  return sortCategories(section, cats);
-}
-
-async function moveProductCategory(section, cat, dir){
-  const cats = productCategories(section);
-  const i = cats.indexOf(cat), j = i + dir;
-  if(i < 0 || j < 0 || j >= cats.length) return;
-  [cats[i], cats[j]] = [cats[j], cats[i]];
-  productCategoryOrder[section] = cats;
-  await saveProductsAndRefresh();
-}
-
-function productCategoryOptions(section, selected){
-  return productCategories(section)
-    .map(c=>`<option value="${escapeHtml(c)}"${c===selected?' selected':''}>${escapeHtml(c)}</option>`)
-    .join('') + `<option value="${NEW_CATEGORY}">＋ New category…</option>`;
-}
+let wiQuery = '', wiCat = 'All', wiUnpriced = false, wiColor = '';
 
 async function saveProductsAndRefresh(){
   await saveState();
@@ -150,161 +131,138 @@ async function saveProductsAndRefresh(){
   renderGrid();
 }
 
-let prodOpenSections = new Set();   // which of FOH / BOH is unfolded in Manage
+function wasteItemUsed(id){
+  return entries.some(e => wasteItemId(e) === id);
+}
 
 function renderProductManager(){
   const list = document.getElementById('prodList');
-  const groups = [];
-  ['foh', 'boh'].forEach(section=>{
-    const cats = productCategories(section);
-    cats.forEach((cat, i)=>groups.push({
-      section, cat, first: i === 0, last: i === cats.length - 1,
-      // Same order as Log Waste: an item's options together, smallest first.
-      items: groupVariants(products.filter(p=>p.section===section && p.cat===cat))
-        .flatMap(e => e.type === 'variants' ? e.variants.map(v=>v.product) : [e.product])
-    }));
-  });
-  // FOH and BOH each fold into their own dropdown, so finding an item doesn't
-  // mean scrolling past the other side. Open ones stay open while editing.
-  const groupHtml = (g, gi) => `
-    <div class="prod-group">
-      <div class="prod-group-header" data-group="${gi}">
-        <span class="prod-group-title">${escapeHtml(g.cat)} <span class="prod-group-count">${g.items.length}</span></span>
-        <span class="prod-group-actions">
-          <button type="button" class="prod-cat-move" data-dir="-1" title="Move category up" aria-label="Move ${escapeHtml(g.cat)} up"${g.first ? ' disabled' : ''}>↑</button>
-          <button type="button" class="prod-cat-move" data-dir="1" title="Move category down" aria-label="Move ${escapeHtml(g.cat)} down"${g.last ? ' disabled' : ''}>↓</button>
-          <button type="button" class="prod-cat-rename">Rename</button>
-        </span>
-      </div>
-      ${g.items.map(p=>`
-        <div class="prod-row" data-id="${escapeHtml(p.id)}">
-          <input class="prod-input prod-input-name" value="${escapeHtml(p.name)}" data-f="name" placeholder="Name" aria-label="Item name">
-          <input class="prod-input prod-input-es" value="${escapeHtml(p.es || '')}" data-f="es" placeholder="Nombre" aria-label="Spanish name">
-          <select class="prod-input prod-input-cat" data-f="cat" aria-label="Category">${productCategoryOptions(p.section, p.cat)}</select>
-          <input class="prod-input prod-input-unit" value="${escapeHtml(p.unit)}" data-f="unit" placeholder="Unit" aria-label="Unit">
-          <div class="prod-cost-wrap">
-            <span class="prod-cost-sign">$</span>
-            <input class="prod-input prod-input-cost" type="number" step="0.01" value="${escapeHtml(p.cost)}" data-f="cost" placeholder="0.00" aria-label="Cost">
-          </div>
-          <button type="button" class="prod-del" title="Delete permanently" aria-label="Delete ${escapeHtml(p.name)}">✕</button>
-        </div>
-      `).join('')}
-    </div>`;
-  list.innerHTML = ['foh', 'boh'].map(section=>{
-    const mine = groups.map((g, gi) => ({g, gi})).filter(x => x.g.section === section);
-    const count = mine.reduce((n, x) => n + x.g.items.length, 0);
-    return `
-      <details class="prod-section" data-prod-section="${section}" ${prodOpenSections.has(section) ? 'open' : ''}>
-        <summary><span>${section === 'foh' ? '🔴 Front of House' : '🟠 Back of House'}</span><span class="prod-section-meta">${count} items · ${mine.length} categories</span></summary>
-        <div class="prod-cols" aria-hidden="true"><span>Item</span><span>Spanish</span><span>Category</span><span>Unit</span><span>Cost</span><span></span></div>
-        ${mine.map(x => groupHtml(x.g, x.gi)).join('')}
-      </details>`;
-  }).join('');
-  list.querySelectorAll('[data-prod-section]').forEach(d=>{
-    d.addEventListener('toggle', ()=>{ if(d.open) prodOpenSections.add(d.dataset.prodSection); else prodOpenSections.delete(d.dataset.prodSection); });
-  });
+  if(!list) return;
+  const q = wiQuery.trim().toLowerCase();
+  const cats = wasteCategories();
+  if(wiCat !== 'All' && !cats.includes(wiCat)) wiCat = 'All';
+  const rows = products.filter(p => (wiCat === 'All' || p.cat === wiCat) && (!wiUnpriced || !(Number(p.cost) > 0))
+    && (!q || p.name.toLowerCase().includes(q) || (p.es || '').toLowerCase().includes(q) || p.cat.toLowerCase().includes(q)))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+  const unpriced = products.filter(p => !(Number(p.cost) > 0)).length;
+  list.innerHTML = `
+    <div class="wi-tools">
+      <input type="search" class="wi-search" data-wi-search placeholder="Search items" value="${escapeHtml(wiQuery)}" autocomplete="off" aria-label="Search items">
+      <select data-wi-cat aria-label="Category">${['All', ...cats].map(c => `<option value="${escapeHtml(c)}" ${wiCat === c ? 'selected' : ''}>${c === 'All' ? 'All categories' : escapeHtml(c)}</option>`).join('')}</select>
+      <button type="button" class="wi-filter ${wiUnpriced ? 'is-on' : ''}" data-wi-unpriced aria-pressed="${wiUnpriced}">No price set${unpriced ? ` (${unpriced})` : ''}</button>
+      <button type="button" class="wi-add" data-wi-add>+ Add item</button>
+    </div>
+    <div class="wi-count">${rows.length} of ${products.length} items</div>
+    <div class="wi-list">${rows.length ? rows.map(p => `
+      <button type="button" class="wi-row ${p.active === false ? 'is-off' : ''}" data-wi-edit="${escapeHtml(p.id)}">
+        <span class="wi-dot" style="--c:${wasteItemColor(p)}"></span>
+        <span class="wi-nm"><b>${escapeHtml(p.name)}${p.active === false ? '<span class="wi-tag">Hidden</span>' : ''}</b><span>${escapeHtml(p.es || '')}${p.es ? ' · ' : ''}${escapeHtml(p.cat)}${p.ceil > 0 ? ` · Ceiling ${p.ceil}` : ''}</span></span>
+        <span class="wi-un">${escapeHtml(p.unit)}</span>
+        <span class="wi-pr ${Number(p.cost) > 0 ? '' : 'is-none'}">${Number(p.cost) > 0 ? wasteMoney(p.cost) : 'no price'}</span>
+      </button>`).join('') : '<div class="empty-state">No items match.</div>'}</div>`;
+}
 
-  list.querySelectorAll('.prod-row').forEach(row=>{
-    const id = row.dataset.id;
-    const prod = products.find(p=>p.id===id);
-    row.querySelectorAll('input.prod-input').forEach(inp=>{
-      inp.addEventListener('change', async ()=>{
-        const f = inp.dataset.f;
-        prod[f] = f==='cost' ? parseFloat(inp.value)||0 : inp.value.trim();
-        await saveState();
-        renderGrid();
-      });
-    });
-    const catSelect = row.querySelector('.prod-input-cat');
-    catSelect.addEventListener('change', async ()=>{
-      let cat = catSelect.value;
-      if(cat === NEW_CATEGORY){
-        cat = (prompt(`New category for "${prod.name}":`) || '').trim();
-        if(!cat){ catSelect.value = prod.cat; return; }
+function wasteItemModal(id){
+  const p = id ? products.find(x => x.id === id) : null;
+  if(id && !p) return;
+  const it = p || {name: '', es: '', cat: wiCat !== 'All' ? wiCat : 'Proteins', unit: 'pc', cost: 0, color: '', ceil: 0, active: true};
+  wiColor = wasteValidColor(it.color);
+  let modal = document.getElementById('wasteItemModal');
+  if(!modal){
+    document.body.insertAdjacentHTML('beforeend', '<div class="overlay" id="wasteItemModal"><div class="sheet wi-sheet"></div></div>');
+    modal = document.getElementById('wasteItemModal');
+    modal.addEventListener('click', e => {
+      if(e.target === modal || e.target.closest('[data-wi-cancel]')){ modal.classList.remove('active'); return; }
+      const sw = e.target.closest('[data-wi-color]');
+      if(sw){
+        wiColor = sw.dataset.wiColor;
+        modal.querySelectorAll('[data-wi-color]').forEach(b => b.classList.toggle('is-on', b.dataset.wiColor === wiColor));
+        return;
       }
-      prod.cat = cat;
-      await saveProductsAndRefresh();
-      showToast(`✓ Moved to ${cat}`);
+      if(e.target.closest('[data-wi-save]')) wasteItemSave(modal.dataset.id);
+      if(e.target.closest('[data-wi-delete]')) wasteItemDelete(modal.dataset.id);
     });
-    row.querySelector('.prod-del').addEventListener('click', async ()=>{
-      if(!confirm('Remove this product? It will not come back on future updates.')) return;
-      products = products.filter(p=>p.id!==id);
-      if(!deletedProductIds.includes(id)) deletedProductIds.push(id);
-      await saveProductsAndRefresh();
-    });
-  });
-
-  list.querySelectorAll('.prod-group-header').forEach(header=>{
-    const g = groups[header.dataset.group];
-    header.querySelectorAll('.prod-cat-move').forEach(btn=>{
-      btn.addEventListener('click', ()=>moveProductCategory(g.section, g.cat, parseInt(btn.dataset.dir, 10)));
-    });
-    header.querySelector('.prod-cat-rename').addEventListener('click', ()=>{
-      header.innerHTML = `
-        <input class="prod-input prod-cat-input" value="${escapeHtml(g.cat)}" aria-label="Category name">
-        <button type="button" class="prod-cat-save">Save</button>
-        <button type="button" class="prod-cat-cancel">Cancel</button>
-      `;
-      const input = header.querySelector('.prod-cat-input');
-      input.focus(); input.select();
-      const commit = async ()=>{
-        const name = input.value.trim();
-        if(!name || name === g.cat){ renderProductManager(); return; }
-        if(productCategories(g.section).includes(name) &&
-           !confirm(`"${name}" already exists — merge these items into it?`)) return;
-        products.forEach(p=>{ if(p.section===g.section && p.cat===g.cat) p.cat = name; });
-        // Keep the renamed category in its spot (a merge keeps the target's spot).
-        const order = productCategoryOrder[g.section] || [];
-        const at = order.indexOf(g.cat);
-        if(at >= 0){
-          if(order.includes(name)) order.splice(at, 1); else order[at] = name;
-        }
-        await saveProductsAndRefresh();
-        showToast(`✓ Renamed to ${name}`);
-      };
-      header.querySelector('.prod-cat-save').addEventListener('click', commit);
-      header.querySelector('.prod-cat-cancel').addEventListener('click', renderProductManager);
-      input.addEventListener('keydown', e=>{
-        if(e.key === 'Enter') commit();
-        if(e.key === 'Escape') renderProductManager();
-      });
-    });
-  });
-
-  refreshNewProductCategories();
+  }
+  modal.dataset.id = id || '';
+  const swatches = Object.keys(WASTE_COLORS).map(k => `<button type="button" class="wi-sw ${WASTE_COLORS[k] === wiColor ? 'is-on' : ''}" style="--c:${WASTE_COLORS[k]}" data-wi-color="${WASTE_COLORS[k]}" aria-label="${k}"></button>`).join('');
+  modal.querySelector('.sheet').innerHTML = `
+    <h2>${id ? 'Edit item' : 'Add item'}</h2>
+    <label class="wi-field">Name<input type="text" id="wiName" value="${escapeHtml(it.name)}" autocomplete="off"></label>
+    <label class="wi-field">Spanish name · Nombre<input type="text" id="wiEs" value="${escapeHtml(it.es || '')}" autocomplete="off"></label>
+    <div class="wi-row2">
+      <label class="wi-field">Category<input type="text" id="wiCat" list="wiCatList" value="${escapeHtml(it.cat)}" autocomplete="off"></label>
+      <label class="wi-field">Unit<input type="text" id="wiUnit" list="wiUnitList" value="${escapeHtml(it.unit)}" autocomplete="off"></label>
+    </div>
+    <div class="wi-row2">
+      <label class="wi-field">Cost per unit ($)<input type="number" id="wiCost" inputmode="decimal" step="0.01" min="0" value="${Number(it.cost) || 0}"></label>
+      <label class="wi-field">Daily ceiling (0 = none)<input type="number" id="wiCeil" inputmode="numeric" step="1" min="0" value="${Number(it.ceil) || 0}"></label>
+    </div>
+    <div class="wi-lbl">Tile color</div>
+    <div class="wi-swatches"><button type="button" class="wi-sw wi-sw-auto ${wiColor ? '' : 'is-on'}" data-wi-color="">Auto</button>${swatches}</div>
+    <label class="wi-check"><input type="checkbox" id="wiActive" ${it.active !== false ? 'checked' : ''}> Show on the Waste tracker</label>
+    <datalist id="wiCatList">${wasteCategories().map(c => `<option value="${escapeHtml(c)}">`).join('')}</datalist>
+    <datalist id="wiUnitList"><option value="pc"><option value="portion"><option value="bun"><option value="cup"><option value="quart"><option value="each"></datalist>
+    <div class="wi-btns">
+      ${id ? `<button type="button" class="wi-danger" data-wi-delete>${wasteItemUsed(id) ? 'Hide' : 'Delete'}</button>` : ''}
+      <span class="wi-grow"></span>
+      <button type="button" class="btn btn-ghost" data-wi-cancel>Cancel</button>
+      <button type="button" class="btn btn-primary" data-wi-save>Save</button>
+    </div>`;
+  modal.classList.add('active');
+  if(!id) setTimeout(() => document.getElementById('wiName').focus(), 40);
 }
 
-function refreshNewProductCategories(){
-  const section = document.getElementById('newSection').value;
-  const select = document.getElementById('newCat');
-  const prev = select.value;
-  select.innerHTML = productCategoryOptions(section, prev);
-  toggleNewCategoryInput();
-}
-
-function toggleNewCategoryInput(){
-  const isNew = document.getElementById('newCat').value === NEW_CATEGORY;
-  document.getElementById('newCatName').style.display = isNew ? '' : 'none';
-}
-
-document.getElementById('newSection').addEventListener('change', refreshNewProductCategories);
-document.getElementById('newCat').addEventListener('change', toggleNewCategoryInput);
-
-document.getElementById('btnAddProd').addEventListener('click', async ()=>{
-  const section = document.getElementById('newSection').value;
-  const catChoice = document.getElementById('newCat').value;
-  const cat = catChoice === NEW_CATEGORY ? document.getElementById('newCatName').value.trim() : catChoice;
-  const name = document.getElementById('newName').value.trim();
-  const es = document.getElementById('newEs').value.trim();
-  const unit = document.getElementById('newUnit').value.trim() || 'each';
-  const cost = parseFloat(document.getElementById('newCost').value)||0;
-  if(!name){ showToast('Enter an item name'); return; }
-  if(!cat){ showToast('Name the new category'); return; }
-  products.push({id:'p'+Date.now(), section, cat, name, es, unit, cost});
-  ['newName','newEs','newUnit','newCost','newCatName'].forEach(id=>{ document.getElementById(id).value=''; });
-  document.getElementById('newCat').value = cat;
+async function wasteItemSave(id){
+  const name = document.getElementById('wiName').value.trim();
+  const cat = document.getElementById('wiCat').value.trim();
+  if(!name){ showToast('Give the item a name'); return; }
+  if(!cat){ showToast('Pick a category'); return; }
+  const fields = {
+    name, cat, es: document.getElementById('wiEs').value.trim(),
+    unit: document.getElementById('wiUnit').value.trim() || 'pc',
+    cost: Math.max(0, Math.round((parseFloat(document.getElementById('wiCost').value) || 0) * 100) / 100),
+    ceil: Math.max(0, parseInt(document.getElementById('wiCeil').value, 10) || 0),
+    active: document.getElementById('wiActive').checked,
+    color: wasteValidColor(wiColor)
+  };
+  if(id){
+    Object.assign(products.find(x => x.id === id), fields);
+  } else {
+    let nid = wasteSlug(name), n = 2;
+    while(products.some(x => x.id === nid)) nid = wasteSlug(name) + '-' + (n++);
+    products.push({id: nid, ...fields, ord: 1000});
+  }
+  document.getElementById('wasteItemModal').classList.remove('active');
   await saveProductsAndRefresh();
-  showToast(`✓ Added to ${cat}`);
+  showToast('✓ Saved');
+}
+
+async function wasteItemDelete(id){
+  const p = products.find(x => x.id === id);
+  if(!p) return;
+  if(wasteItemUsed(id)){
+    if(!confirm(`"${p.name}" has waste history, so it's hidden from the tracker instead of deleted. Continue?`)) return;
+    p.active = false;
+  } else {
+    if(!confirm(`Delete "${p.name}"? It won't come back on future updates.`)) return;
+    products = products.filter(x => x.id !== id);
+    if(!deletedProductIds.includes(id)) deletedProductIds.push(id);
+  }
+  document.getElementById('wasteItemModal').classList.remove('active');
+  await saveProductsAndRefresh();
+}
+
+document.getElementById('prodList').addEventListener('click', e => {
+  if(e.target.closest('[data-wi-add]')){ wasteItemModal(null); return; }
+  const row = e.target.closest('[data-wi-edit]');
+  if(row){ wasteItemModal(row.dataset.wiEdit); return; }
+  if(e.target.closest('[data-wi-unpriced]')){ wiUnpriced = !wiUnpriced; renderProductManager(); }
+});
+document.getElementById('prodList').addEventListener('input', e => {
+  if(e.target.matches('[data-wi-search]')){ wiQuery = e.target.value; renderProductManager(); const s = document.querySelector('[data-wi-search]'); if(s){ s.focus(); s.setSelectionRange(s.value.length, s.value.length); } }
+});
+document.getElementById('prodList').addEventListener('change', e => {
+  if(e.target.matches('[data-wi-cat]')){ wiCat = e.target.value; renderProductManager(); }
 });
 
 document.getElementById('btnSaveLX').addEventListener('click', saveLXScoreboard);

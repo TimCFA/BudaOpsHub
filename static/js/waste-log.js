@@ -1,168 +1,63 @@
-// Products named "Base (Option)" in the same category — "Waffle Fries (Small)",
-// "Nuggets (5 ct)", "Hash Browns (Regular)" — collapse into one row with a
-// button per option, so adding "Nuggets (30 ct)" in Manage just adds a button.
-const VARIANT_SUFFIX_RE = /^(.*)\s\(([^)]+)\)$/;
-const VARIANT_SIZE_RANK = {Small:0, Regular:0, Medium:1, Large:2};
-const VARIANT_SIZE_SHORT = {Small:'S', Regular:'R', Medium:'M', Large:'L'};
+// ===== WASTE TRACKER (Track tab) =====
+// Tim's tile tracker, on Ops Hub's shared data. One tile per item with
+// today's count at the side being logged (FOH or BOH): tap adds 1, the −
+// corner takes 1 away, press and hold types an exact count. Items and prices
+// come from the catalog (waste-catalog.js) as saved in Manage.
+//
+// Entries stay the shape the rest of the hub reads (scoreboard, Operational
+// Intelligence, the monthly close-out): {id, ts, day, prodId, name, qty,
+// unit, unitCost, cost (qty × unitCost), who, section}. Quick taps on the
+// same tile by the same person within WASTE_MERGE_MS become one entry.
 
-function variantCount(option){
-  const m = option.match(/^(\d+)\s*ct$/i);
-  return m ? parseInt(m[1], 10) : null;
+const WASTE_MERGE_MS = 10 * 60 * 1000;
+const WASTE_HOLD_MS = 550;
+let wasteCat = 'All';
+let wasteQuery = '';
+
+const wasteMoney = n => '$' + (Number(n) || 0).toFixed(2);
+function wasteEntryDay(e){ return e.day || toLocalISODate(new Date(e.ts)); }
+function wasteItemId(e){ return WASTE_LEGACY_MAP[e.prodId] || e.prodId; }
+
+// Today's entries at this side, as {itemId: qty}.
+function wasteTodayCounts(section){
+  const out = {};
+  entries.forEach(e => { if(e.section === section && wasteEntryDay(e) === today) out[wasteItemId(e)] = (out[wasteItemId(e)] || 0) + (Number(e.qty) || 0); });
+  return out;
+}
+function wasteTodayTotal(section){
+  return entries.reduce((t, e) => t + (e.section === section && wasteEntryDay(e) === today ? (Number(e.cost) || 0) : 0), 0);
 }
 
-// Button text: sizes as one letter (S/M/L/R), counts as the number ("5 ct" -> "5").
-function variantLabel(option){
-  if(VARIANT_SIZE_SHORT[option]) return VARIANT_SIZE_SHORT[option];
-  const n = variantCount(option);
-  return n !== null ? String(n) : option;
-}
-
-// Sizes small→large, counts low→high, anything else keeps its list order.
-function variantRank(option, index){
-  if(option in VARIANT_SIZE_RANK) return VARIANT_SIZE_RANK[option];
-  const n = variantCount(option);
-  return n !== null ? n : 1000 + index;
-}
-
-// Each category card gets its own hue, assigned by the category's position in
-// the section's order (so neighbours never match and renames keep the color).
-// Ordered so adjacent hues contrast: blue, orange, green, violet, coral, teal,
-// amber, indigo, pink, lime.
-const WASTE_CATEGORY_HUES = [205, 30, 145, 265, 8, 178, 45, 228, 322, 95];
-
-function groupProductsByCategory(list){
-  const byCat = {};
-  const seen = [];
-  list.forEach(p=>{
-    if(!byCat[p.cat]){ byCat[p.cat] = []; seen.push(p.cat); }
-    byCat[p.cat].push(p);
-  });
-  const section = list.length ? list[0].section : currentSection;
-  return sortCategories(section, seen).map(cat => ({cat, items: byCat[cat]}));
-}
-
-function groupVariants(items){
-  const bases = {};
-  const order = [];
-  items.forEach((p, index)=>{
-    const m = p.name.match(VARIANT_SUFFIX_RE);
-    if(m){
-      const base = m[1];
-      if(!bases[base]){ bases[base] = []; order.push({type:'variants', base}); }
-      bases[base].push({option: m[2], rank: variantRank(m[2], index), product: p});
-    } else {
-      order.push({type:'single', product: p});
+function wasteAdd(item, qty, who){
+  if(qty <= 0) return;
+  const now = Date.now();
+  // A tap on the same tile by the same person a moment ago: one entry.
+  for(let i = entries.length - 1; i >= 0; i--){
+    const e = entries[i];
+    if(now - e.ts > WASTE_MERGE_MS) break;
+    if(wasteItemId(e) === item.id && e.section === currentSection && e.who === who && e.unitCost === item.cost && wasteEntryDay(e) === today){
+      e.qty += qty; e.cost = Math.round(e.qty * e.unitCost * 100) / 100;
+      return;
     }
-  });
-  return order.map(entry=>{
-    if(entry.type !== 'variants') return entry;
-    const variants = bases[entry.base].slice().sort((a,b)=>a.rank-b.rank);
-    if(variants.length < 2) return {type:'single', product: variants[0].product};
-    return {type:'variants', base: entry.base, variants};
-  });
-}
-
-function wasteCostLabel(cost){
-  return cost>0 ? '$'+cost.toFixed(2) : '';
-}
-
-function renderItemRow(p){
-  const cost = wasteCostLabel(p.cost);
-  return `
-    <div class="waste-item" data-id="${escapeHtml(p.id)}">
-      <div class="waste-item-text">
-        <div class="waste-item-name">${escapeHtml(p.name)}</div>
-        ${p.es ? `<div class="waste-item-es">${escapeHtml(p.es)}</div>` : ''}
-      </div>
-      ${cost ? `<span class="waste-item-cost">${cost}</span>` : ''}
-    </div>
-  `;
-}
-
-// Option variants share one row: the item name, then a button per option.
-function renderVariantRow(base, variants){
-  const es = (variants[0].product.es || '').replace(/\s*\([^)]*\)$/, '');
-  return `
-    <div class="waste-item">
-      <div class="waste-item-text">
-        <div class="waste-item-name">${escapeHtml(base)}</div>
-        ${es ? `<div class="waste-item-es">${escapeHtml(es)}</div>` : ''}
-      </div>
-      <div class="waste-sizes${variants.some(v=>variantLabel(v.option).length > 2) ? ' waste-sizes-words' : ''}">
-        ${variants.map(v => {
-          const cost = wasteCostLabel(v.product.cost);
-          return `<button type="button" class="waste-size-btn" data-id="${escapeHtml(v.product.id)}" title="${escapeHtml(v.product.name)}" aria-label="${escapeHtml(v.product.name)}">${escapeHtml(variantLabel(v.option))}${cost ? `<small>${cost}</small>` : ''}</button>`;
-        }).join('')}
-      </div>
-    </div>
-  `;
-}
-
-function renderGrid(){
-  const grid = document.getElementById('grid');
-  const filtered = products.filter(p=>p.section===currentSection);
-  if(filtered.length===0){
-    grid.innerHTML = `<div class="empty-state"><b>No products</b></div>`;
-    return;
   }
-  const groups = groupProductsByCategory(filtered);
-  grid.innerHTML = groups.map(({cat, items}, catIndex)=>{
-    // Option rows lead their category so their buttons line up together.
-    const grouped = groupVariants(items);
-    const entries = [...grouped.filter(e=>e.type==='variants'), ...grouped.filter(e=>e.type!=='variants')];
-    const rowsHtml = entries.map(entry =>
-      entry.type === 'variants' ? renderVariantRow(entry.base, entry.variants) : renderItemRow(entry.product)
-    ).join('');
-    return `
-      <section class="waste-cat-card" style="--cat-h:${WASTE_CATEGORY_HUES[catIndex % WASTE_CATEGORY_HUES.length]}">
-        <div class="waste-cat-heading"><span>${escapeHtml(cat)}</span><span class="waste-cat-count">${items.length}</span></div>
-        ${rowsHtml}
-      </section>
-    `;
-  }).join('');
-  grid.querySelectorAll('[data-id]').forEach(el=>{
-    el.addEventListener('click',()=>openLogModal(el.dataset.id));
-  });
+  entries.push({id: 'w' + now.toString(36) + Math.random().toString(36).slice(2, 6), ts: now, day: today, prodId: item.id, name: item.name,
+    qty, unit: item.unit, unitCost: item.cost, cost: Math.round(qty * item.cost * 100) / 100, who, section: currentSection});
+}
+function wasteRemove(item, qty){
+  for(let i = entries.length - 1; i >= 0 && qty > 0; i--){
+    const e = entries[i];
+    if(wasteItemId(e) !== item.id || e.section !== currentSection || wasteEntryDay(e) !== today) continue;
+    const take = Math.min(e.qty, qty);
+    e.qty -= take; qty -= take;
+    if(e.qty <= 0) entries.splice(i, 1);
+    else e.cost = Math.round(e.qty * (Number(e.unitCost) || 0) * 100) / 100;
+  }
 }
 
-let selectedProd = null;
-function openLogModal(prodId){
-  selectedProd = products.find(p=>p.id===prodId);
-  if(!selectedProd) return;
-  document.getElementById('modalProduct').textContent = selectedProd.name + ' @ $' + selectedProd.cost.toFixed(2);
-  document.getElementById('qty').value = 1;
-  updateCostPreview();
-  document.getElementById('logModal').classList.add('active');
-}
-
-document.getElementById('logModal').addEventListener('click',(e)=>{
-  if(e.target===document.getElementById('logModal')) document.getElementById('logModal').classList.remove('active');
-});
-
-document.getElementById('btnCancelLog').addEventListener('click',()=>document.getElementById('logModal').classList.remove('active'));
-
-document.getElementById('incQty').addEventListener('click',()=>{
-  document.getElementById('qty').value = parseInt(document.getElementById('qty').value||0)+1;
-  updateCostPreview();
-});
-
-document.getElementById('decQty').addEventListener('click',()=>{
-  const v = Math.max(1, parseInt(document.getElementById('qty').value||1)-1);
-  document.getElementById('qty').value = v;
-  updateCostPreview();
-});
-
-document.getElementById('qty').addEventListener('change',updateCostPreview);
-
-// A whole number of 1 or more, or null (blank, zero, negative or a fraction).
-function wasteQty(){
-  const v = Number(document.getElementById('qty').value);
-  return Number.isInteger(v) && v >= 1 ? v : null;
-}
-
-function updateCostPreview(){
-  const qty = wasteQty();
-  document.getElementById('costPreview').innerHTML = qty ? `Cost: <b>$${(qty * selectedProd.cost).toFixed(2)}</b>` : 'Enter a quantity of 1 or more';
+function wasteRequireInitials(){
+  const who = getInitials();
+  if(!who){ showToast('Set your initials first (top right)'); beginEditInitials(); }
+  return who;
 }
 
 // Today counts toward the under-limit streak only while today's total stays
@@ -170,7 +65,7 @@ function updateCostPreview(){
 // changes (a later entry can push the day over). With no entries today
 // (nothing logged yet, or just closed out) it's left as it is.
 function syncTodayWasteDay(){
-  if(!entries.some(e => toLocalISODate(new Date(e.ts)) === today)) return;
+  if(!entries.some(e => wasteEntryDay(e) === today)) return;
   const has = wasteDays.includes(today);
   const under = getTodayTotal() < wasteTarget;
   if(under === has) return;
@@ -178,38 +73,187 @@ function syncTodayWasteDay(){
   calcStreak();
 }
 
-document.getElementById('btnSubmitLog').addEventListener('click', async ()=>{
-  const who = getInitials();
-  if(!who){
-    showToast('Set your initials first (top right)');
-    beginEditInitials();
-    return;
-  }
-  const qty = wasteQty();
-  if(!qty){
-    showToast('Enter a quantity of 1 or more');
-    return;
-  }
-  const entry = {
-    ts: Date.now(),
-    prodId: selectedProd.id,
-    name: selectedProd.name,
-    qty: qty,
-    unit: selectedProd.unit,
-    unitCost: selectedProd.cost,
-    cost: qty * selectedProd.cost,
-    who: who,
-    section: currentSection
-  };
-  entries.push(entry);
+async function wasteAfterChange(item){
   syncTodayWasteDay();
-
-  await saveState();
+  wasteRefreshTile(item.id);
   renderTape();
   renderScoreboardView();
-  showToast('✓ Logged!');
-  document.getElementById('logModal').classList.remove('active');
-});
+  await saveState();
+}
+
+// ---------- tiles ----------
+
+function wasteTileHtml(p, n){
+  const c = wasteItemColor(p), ink = wasteTextOn(c);
+  const over = p.ceil > 0 && n >= p.ceil;
+  return `<div class="wt-tile ${n ? '' : 'is-zero'} ${over ? 'is-over' : ''} ${ink !== '#ffffff' ? 'is-light' : ''}" data-wt-id="${escapeHtml(p.id)}" style="--c:${c};--t:${ink}" role="button" tabindex="0" aria-label="${escapeHtml(p.name)}: ${n} today">
+    <span class="wt-flag">At ceiling</span>
+    <button type="button" class="wt-minus" data-wt-minus="${escapeHtml(p.id)}" aria-label="Remove one ${escapeHtml(p.name)}">−</button>
+    <div class="wt-n">${n}</div><div class="wt-u">${escapeHtml(p.unit)}</div>
+    <div class="wt-nm">${escapeHtml(p.name)}</div>
+    ${p.es ? `<div class="wt-es">${escapeHtml(p.es)}</div>` : ''}
+    <div class="wt-p">${wasteMoney(n * (Number(p.cost) || 0))}</div>
+  </div>`;
+}
+
+function wasteVisibleItems(){
+  const q = wasteQuery.trim().toLowerCase();
+  return products.filter(p => p.active !== false && (wasteCat === 'All' || p.cat === wasteCat)
+    && (!q || p.name.toLowerCase().includes(q) || (p.es || '').toLowerCase().includes(q) || p.cat.toLowerCase().includes(q)))
+    .sort((a, b) => ((a.ord || 1000) - (b.ord || 1000)) || a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+}
+
+// The whole Track tab (also called when the saved items change).
+function renderGrid(){
+  const grid = document.getElementById('grid');
+  if(!grid) return;
+  const cats = wasteCategories();
+  if(wasteCat !== 'All' && !cats.includes(wasteCat)) wasteCat = 'All';
+  const chips = document.getElementById('wasteChips');
+  if(chips) chips.innerHTML = ['All', ...cats].map(c => `<button type="button" class="wt-chip ${wasteCat === c ? 'is-on' : ''}" data-wt-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
+  const search = document.getElementById('wasteSearch');
+  if(search && search.value !== wasteQuery) search.value = wasteQuery;
+  const amt = document.getElementById('wasteTodayAmt');
+  if(amt) amt.textContent = wasteMoney(wasteTodayTotal(currentSection));
+  const sub = document.getElementById('wasteTodaySub');
+  if(sub) sub.textContent = `Wasted today · ${currentSection.toUpperCase()}`;
+
+  const counts = wasteTodayCounts(currentSection);
+  const items = wasteVisibleItems();
+  if(!items.length){ grid.innerHTML = `<div class="empty-state"><b>No items match</b></div>`; return; }
+  if(wasteCat === 'All'){
+    grid.innerHTML = cats.map(c => {
+      const list = items.filter(p => p.cat === c);
+      return list.length ? `<div class="wt-cat-h">${escapeHtml(c)}</div><div class="wt-grid">${list.map(p => wasteTileHtml(p, counts[p.id] || 0)).join('')}</div>` : '';
+    }).join('');
+  } else {
+    grid.innerHTML = `<div class="wt-grid">${items.map(p => wasteTileHtml(p, counts[p.id] || 0)).join('')}</div>`;
+  }
+}
+
+function wasteRefreshTile(id){
+  const p = products.find(x => x.id === id);
+  const el = document.querySelector(`.wt-tile[data-wt-id="${CSS.escape(id)}"]`);
+  const n = wasteTodayCounts(currentSection)[id] || 0;
+  if(p && el){
+    el.querySelector('.wt-n').textContent = n;
+    el.querySelector('.wt-p').textContent = wasteMoney(n * (Number(p.cost) || 0));
+    el.classList.toggle('is-zero', !n);
+    el.classList.toggle('is-over', p.ceil > 0 && n >= p.ceil);
+    el.setAttribute('aria-label', `${p.name}: ${n} today`);
+  }
+  const amt = document.getElementById('wasteTodayAmt');
+  if(amt) amt.textContent = wasteMoney(wasteTodayTotal(currentSection));
+}
+
+// ---------- exact count (press and hold) ----------
+
+function wasteCountModal(id){
+  const p = products.find(x => x.id === id);
+  if(!p) return;
+  let modal = document.getElementById('wasteCountModal');
+  if(!modal){
+    document.body.insertAdjacentHTML('beforeend', `
+      <div class="overlay" id="wasteCountModal">
+        <div class="sheet">
+          <h2 id="wasteCountTitle"></h2>
+          <div class="sub" id="wasteCountSub"></div>
+          <div class="stepper">
+            <button type="button" data-wt-step="-1" aria-label="One less">−</button>
+            <input type="number" id="wasteCountN" min="0" step="1" inputmode="numeric">
+            <button type="button" data-wt-step="1" aria-label="One more">+</button>
+          </div>
+          <div class="wt-quick"><button type="button" data-wt-step="5">+5</button><button type="button" data-wt-step="10">+10</button><button type="button" data-wt-step="20">+20</button></div>
+          <div class="cost-preview" id="wasteCountCost"></div>
+          <button type="button" id="wasteCountSave" class="btn btn-primary">Save count</button>
+          <button type="button" id="wasteCountCancel" class="btn btn-ghost">Cancel</button>
+        </div>
+      </div>`);
+    modal = document.getElementById('wasteCountModal');
+    const input = document.getElementById('wasteCountN');
+    const preview = () => {
+      const item = products.find(x => x.id === modal.dataset.id) || {};
+      const n = Math.max(0, parseInt(input.value, 10) || 0);
+      document.getElementById('wasteCountCost').innerHTML = `Today: <b>${wasteMoney(n * (Number(item.cost) || 0))}</b>`;
+    };
+    modal.addEventListener('click', e => {
+      if(e.target === modal || e.target.id === 'wasteCountCancel'){ modal.classList.remove('active'); return; }
+      const step = e.target.closest('[data-wt-step]');
+      if(step){ input.value = Math.max(0, (parseInt(input.value, 10) || 0) + parseInt(step.dataset.wtStep, 10)); preview(); }
+    });
+    input.addEventListener('input', preview);
+    input.addEventListener('keydown', e => { if(e.key === 'Enter') document.getElementById('wasteCountSave').click(); });
+    document.getElementById('wasteCountSave').addEventListener('click', async ()=>{
+      const item = products.find(x => x.id === modal.dataset.id);
+      if(!item) return;
+      const who = wasteRequireInitials();
+      if(!who) return;
+      const want = Math.max(0, parseInt(input.value, 10) || 0);
+      const cur = wasteTodayCounts(currentSection)[item.id] || 0;
+      if(want > cur) wasteAdd(item, want - cur, who);
+      else if(want < cur) wasteRemove(item, cur - want);
+      modal.classList.remove('active');
+      await wasteAfterChange(item);
+    });
+  }
+  modal.dataset.id = id;
+  document.getElementById('wasteCountTitle').textContent = p.name;
+  document.getElementById('wasteCountSub').textContent = `Today's count at ${currentSection.toUpperCase()} · ${wasteMoney(p.cost)} per ${p.unit}`;
+  const input = document.getElementById('wasteCountN');
+  input.value = wasteTodayCounts(currentSection)[id] || 0;
+  input.dispatchEvent(new Event('input'));
+  modal.classList.add('active');
+  setTimeout(() => { input.focus(); input.select(); }, 40);
+}
+
+// ---------- events ----------
+
+(function(){
+  const view = document.getElementById('wastelogView');
+  if(!view) return;
+  let holdTimer = null, held = false;
+
+  view.addEventListener('click', async e => {
+    const chip = e.target.closest('[data-wt-cat]');
+    if(chip){ wasteCat = chip.dataset.wtCat; renderGrid(); return; }
+    const minus = e.target.closest('[data-wt-minus]');
+    if(minus){
+      const item = products.find(x => x.id === minus.dataset.wtMinus);
+      if(!item) return;
+      wasteRemove(item, 1);
+      await wasteAfterChange(item);
+      return;
+    }
+    const tile = e.target.closest('[data-wt-id]');
+    if(!tile) return;
+    if(held){ held = false; return; }   // the press-and-hold already opened the count
+    const item = products.find(x => x.id === tile.dataset.wtId);
+    if(!item) return;
+    const who = wasteRequireInitials();
+    if(!who) return;
+    wasteAdd(item, 1, who);
+    if(navigator.vibrate) navigator.vibrate(8);
+    await wasteAfterChange(item);
+  });
+  view.addEventListener('keydown', e => {
+    const tile = e.target.closest('[data-wt-id]');
+    if(tile && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); tile.click(); }
+  });
+  view.addEventListener('pointerdown', e => {
+    const tile = e.target.closest('[data-wt-id]');
+    if(!tile || e.target.closest('[data-wt-minus]')) return;
+    held = false; clearTimeout(holdTimer);
+    holdTimer = setTimeout(() => {
+      held = true;
+      if(navigator.vibrate) navigator.vibrate(15);
+      if(wasteRequireInitials()) wasteCountModal(tile.dataset.wtId);
+    }, WASTE_HOLD_MS);
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => view.addEventListener(ev, () => clearTimeout(holdTimer), true));
+  document.addEventListener('scroll', () => clearTimeout(holdTimer), true);
+  view.addEventListener('contextmenu', e => { if(e.target.closest('[data-wt-id]')) e.preventDefault(); });
+  view.addEventListener('input', e => { if(e.target.id === 'wasteSearch'){ wasteQuery = e.target.value; renderGrid(); } });
+})();
 
 function showToast(msg){
   const t = document.querySelector('.toast') || document.createElement('div');
@@ -220,9 +264,6 @@ function showToast(msg){
   setTimeout(()=>t.classList.remove('show'), 1800);
 }
 
-// Recent Entries is a rolling 15-minute display window, NOT a data deletion —
-// entries stay in the underlying `entries` array (and count toward totals,
-// exports, etc.) long after they scroll out of this list.
 const RECENT_ENTRIES_WINDOW_MS = 15 * 60 * 1000;
 
 function renderTape(){
