@@ -189,6 +189,14 @@ function suDaypartSky(name){
     : /afternoon/.test(n) ? 'afternoon' : /dinner/.test(n) ? 'dusk' : /clos|night/.test(n) ? 'night' : 'midday';
 }
 
+// Each daypart's own color on its banner (and on the Zone Reset handoff it
+// hands off from), so they're easy to tell apart at a glance.
+function suDaypartColor(name){
+  const n = name.toLowerCase();
+  return /early/.test(n) ? 'eb' : /breakfast/.test(n) ? 'b' : /lunch/.test(n) ? 'l' : /transition/.test(n) ? 't'
+    : /afternoon|mid/.test(n) ? 'a' : /dinner/.test(n) ? 'd' : /clos|night/.test(n) ? 'c' : 'l';
+}
+
 function suSkyArt(sky){
   const sun = (cx, cy, r, rays) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#F4A73A"/>` + (rays ? [0, 45, 90, 135, 180, 225, 270, 315].map(a=>{
     const t = a * Math.PI / 180, x1 = cx + Math.cos(t) * (r + 2), y1 = cy + Math.sin(t) * (r + 2), x2 = cx + Math.cos(t) * (r + 4.5), y2 = cy + Math.sin(t) * (r + 4.5);
@@ -224,7 +232,6 @@ function suDaypartCardsHtml(section, date, current, openHtml, m){
   return `<div class="su-dp-list">${suDaypartsFor(section).map((dp, i)=>{
     const open = dp.name === current && !suDaypartClosed[section];
     const time = (dp.name.match(/\(([^)]*)\)/) || [])[1] || '';
-    const t = suDayType(section, date, dp);
     const lead = section === 'foh' ? posAssignments[suEvalKey(section, date, dp.name) + '||' + SU_LEAD_CAPTAIN] : '';
     const working = lead ? suLeadWorkingSlot(date, dp) : null;
     // Only the Lead Captain's name opens the Lead picker; the rest of the
@@ -233,13 +240,12 @@ function suDaypartCardsHtml(section, date, current, openHtml, m){
     const needed = open && m ? m.tiles.filter(x => x.needed).length : 0;
     const fillBtn = needed && m.unplaced.length && suFillAvailable() ? `<button type="button" class="su-dp-fillbtn" data-su-tool="fill">Fill ${needed} open</button>` : '';
     const sky = suDaypartSky(dp.name);
-    return `<section class="su-dp su-sky-${sky} ${open ? 'is-open' : ''}" aria-label="${escapeHtml(suShortDaypart(dp.name))}">
+    return `<section class="su-dp su-col-${suDaypartColor(dp.name)} ${open ? 'is-open' : ''}" aria-label="${escapeHtml(suShortDaypart(dp.name))}">
       <div class="su-dp-banner">
         <button type="button" class="su-dp-head" data-su-dp-toggle="${escapeHtml(dp.name)}" aria-expanded="${open}">
           <span class="su-dp-art">${suSkyArt(sky)}</span>
           <span class="su-dp-name">${escapeHtml(suShortDaypart(dp.name))}${time ? ` <span class="su-dp-time">${escapeHtml(time)}</span>` : ''}</span>
           <span class="su-dp-fill">${suDaypartFillText(section, date, dp, i)}</span>
-          <span class="su-sheet-daytype su-${t.type}">${t.type === 'game' ? 'Game' : 'Practice'}</span>
           <span class="su-dp-chev" aria-hidden="true">▾</span>
         </button>
         ${leadBtn || fillBtn ? `<div class="su-dp-sub" data-su-dp-toggle="${escapeHtml(dp.name)}">${leadBtn}${fillBtn}</div>` : ''}

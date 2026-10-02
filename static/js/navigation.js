@@ -14,6 +14,7 @@ function activateView(view){
   if(view === 'tx') renderTXScoreboard();
   if(view === 'lx') renderLXScoreboard();
   if(view === 'home') renderHomeScoreboard();
+  if(view === 'manage' && typeof refreshManage === 'function') refreshManage();
 }
 
 document.querySelector('.sb-subtabs').addEventListener('click', function(e){

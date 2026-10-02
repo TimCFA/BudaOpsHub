@@ -33,11 +33,23 @@ async function checkPin(){
 }
 
 document.getElementById('btnLock').addEventListener('click', async ()=>{
-  await saveState();
-  await fetch(`${API_BASE}/api/manager/logout`, {method: 'POST'});
-  // Start over as a team member's device: private data (PEA, people) is
-  // cleared from the page, and launch mode applies again.
-  location.reload();
+  try{ await saveState(); }catch(err){ /* still lock */ }
+  let signedOut = false;
+  try{
+    const res = await fetch(`${API_BASE}/api/manager/logout`, {method: 'POST'});
+    signedOut = res.ok;
+  }catch(err){ /* offline */ }
+  if(signedOut){
+    // Start over as a team member's device: private data (PEA, people) is
+    // cleared from the page, and launch mode applies again.
+    location.reload();
+    return;
+  }
+  // The server didn't hear it, so the session is still open there. Close
+  // Manage on this screen anyway and say so, rather than leave it unlocked.
+  document.getElementById('manageContent').style.display = 'none';
+  document.getElementById('pinGate').style.display = '';
+  showToast("Couldn't reach the server to sign out. Manage is closed here; tap Lock again once you're back online.");
 });
 
 (async function checkManagerStatus(){
@@ -61,9 +73,11 @@ window.toggleManageGroup = function(headerEl){
 };
 
 document.getElementById('btnUpdateTarget').addEventListener('click', async ()=>{
-  const v = parseInt(document.getElementById('targetInput').value);
+  const input = document.getElementById('targetInput');
+  const v = parseInt(input.value);
   if(!isNaN(v) && v > 0){
     wasteTarget = v;
+    input.defaultValue = input.value;
     await saveState();
     renderScoreboardView();
     showToast('✓ Limit Updated');
@@ -71,23 +85,34 @@ document.getElementById('btnUpdateTarget').addEventListener('click', async ()=>{
 });
 
 async function renderManage(){
-  document.getElementById('targetInput').value = wasteTarget;
+  renderDataUploads();
+  renderPeaManage();
+  if(document.getElementById('manageContent').style.display === 'block'){ peaAutoSync(); duCheckBackup(); }
+  renderNumbersTab();
+  refreshManage(true);
+}
+
+// Redraws Manage from the current data: when it opens, and when another
+// device's changes (or an upload) arrive while it's on screen, so it never
+// shows (and saves back) old numbers. Forms that only save from the screen
+// (waste limit, LX, GX, Home) are skipped while they hold unsaved typing; the
+// rest write to the data as they're edited, so redrawing keeps those edits.
+function refreshManage(opening){
+  if(!opening && document.getElementById('manageContent').style.display !== 'block') return;
+  const clean = (...ids) => ids.every(id => !mvDirty(document.getElementById(id)));
+  const target = document.getElementById('targetInput');
+  if(opening || !mvEdited(target)) target.value = target.defaultValue = wasteTarget;
   document.getElementById('monthCloseStatus').textContent = wasteLogLastClosedOut
     ? `Last closed out: ${new Date(wasteLogLastClosedOut).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})} · ${entries.length} entries since`
     : `Never closed out yet · ${entries.length} entries logged so far`;
   document.getElementById('setupHistoryStatus').textContent = setupHistoryStatusText();
-  renderDataUploads();
-  renderPeaManage();
-  if(document.getElementById('manageContent').style.display === 'block'){ peaAutoSync(); duCheckBackup(); }
 
-  renderLXManage();
-  renderGXManage();
+  if(opening || clean('pillarsManageList', 'metricsManageList')) renderLXManage();
+  if(opening || clean('gxManageList')) renderGXManage();
+  if(opening || clean('homeManageList')) renderHomeManage();
   renderTXManage();
-  renderHomeManage();
   renderEOISubmissions();
-  renderNumbersTab();
   renderScoreboardManage();
-  
   renderProductManager();
 }
 

@@ -356,6 +356,33 @@ function renderTXManage(){
   `).join('');
 }
 
+// ===== SAVING ONLY WHAT CHANGED (TIM-53) =====
+// A Manage form is a snapshot of the data when it was drawn. Saving it whole
+// would put every untouched field back too, undoing another manager's edit or
+// numbers an upload filled in since. So a save takes only the fields this
+// manager changed (value differs from what the form was drawn with), then
+// marks them as the new starting point.
+function mvEdited(el){
+  if(!el) return false;
+  if(el.tagName === 'SELECT') return [...el.options].some(o => o.selected !== o.defaultSelected);
+  return el.value !== el.defaultValue;
+}
+
+function mvTake(el, apply){
+  if(!mvEdited(el)) return false;
+  apply(el.value);
+  if(el.tagName === 'SELECT') [...el.options].forEach(o => { o.defaultSelected = o.selected; });
+  else el.defaultValue = el.value;
+  return true;
+}
+
+const mvTakeId = (id, apply) => mvTake(document.getElementById(id), apply);
+
+// Unsaved typing anywhere in this part of Manage.
+function mvDirty(container){
+  return !!container && [...container.querySelectorAll('input, textarea, select')].some(mvEdited);
+}
+
 async function saveTXScoreboard(){
   txData.lastUpdated = new Date().toISOString();
   await saveState();
@@ -394,11 +421,11 @@ function renderHomeManage(){
 }
 
 async function saveHomeScoreboard(){
-  homeData.vision = document.getElementById('home-vision').value;
-  homeData.mission = document.getElementById('home-mission').value;
-  homeData.values = document.getElementById('home-values').value;
+  mvTakeId('home-vision', v => { homeData.vision = v; });
+  mvTakeId('home-mission', v => { homeData.mission = v; });
+  mvTakeId('home-values', v => { homeData.values = v; });
   homeData.wins.forEach((win, i) => {
-    win.content = document.getElementById('home-win-' + i).value;
+    mvTakeId('home-win-' + i, v => { win.content = v; });
   });
   homeData.lastUpdated = new Date().toISOString();
   await saveState();
@@ -408,8 +435,8 @@ async function saveHomeScoreboard(){
 
 async function saveLXScoreboard(){
   lxMetrics.forEach((m, idx) => {
-    m.value = document.getElementById('metric-val-' + idx).value;
-    m.rating = parseInt(document.getElementById('metric-rating-' + idx).value);
+    mvTakeId('metric-val-' + idx, v => { m.value = v; });
+    mvTakeId('metric-rating-' + idx, v => { m.rating = parseInt(v); });
   });
   lxLastUpdated = new Date().toISOString();
   await saveState();
@@ -418,38 +445,24 @@ async function saveLXScoreboard(){
 }
 
 async function saveGXScoreboard(){
-  gxData.wig.mtdSales.value = document.getElementById('gx-mtd-sales').value;
-  gxData.wig.mtdSalesChange.value = document.getElementById('gx-mtd-change').value;
-  gxData.wig.ytdSales.value = document.getElementById('gx-ytd-sales').value;
-  gxData.wig.ytdSalesChange.value = document.getElementById('gx-ytd-change').value;
-  gxData.dt.market.value = document.getElementById('gx-dt-market').value;
-  gxData.dt.state.value = document.getElementById('gx-dt-state').value;
-  gxData.dt.chain.value = document.getElementById('gx-dt-chain').value;
-  gxData.satisfaction.highlySatisfied.value = document.getElementById('gx-satisfaction').value;
-  gxData.satisfaction.foodSafety.value = document.getElementById('gx-food-safety').value;
-  
-  Object.keys(gxData.craveable).forEach(key => {
-    const valEl = document.getElementById('gx-craveable-' + key);
-    const top5El = document.getElementById('gx-craveable-' + key + '-top5');
-    if(valEl) gxData.craveable[key].value = valEl.value;
-    if(top5El) gxData.craveable[key].top5 = top5El.value;
-  });
-  
-  Object.keys(gxData.service).forEach(key => {
-    const valEl = document.getElementById('gx-service-' + key);
-    const top5El = document.getElementById('gx-service-' + key + '-top5');
-    if(valEl) gxData.service[key].value = valEl.value;
-    if(top5El) gxData.service[key].top5 = top5El.value;
-  });
-  
-  Object.keys(gxData.welcoming).forEach(key => {
-    const valEl = document.getElementById('gx-welcoming-' + key);
-    const top5El = document.getElementById('gx-welcoming-' + key + '-top5');
-    if(valEl) gxData.welcoming[key].value = valEl.value;
-    if(top5El) gxData.welcoming[key].top5 = top5El.value;
+  mvTakeId('gx-mtd-sales', v => { gxData.wig.mtdSales.value = v; });
+  mvTakeId('gx-mtd-change', v => { gxData.wig.mtdSalesChange.value = v; });
+  mvTakeId('gx-ytd-sales', v => { gxData.wig.ytdSales.value = v; });
+  mvTakeId('gx-ytd-change', v => { gxData.wig.ytdSalesChange.value = v; });
+  mvTakeId('gx-dt-market', v => { gxData.dt.market.value = v; });
+  mvTakeId('gx-dt-state', v => { gxData.dt.state.value = v; });
+  mvTakeId('gx-dt-chain', v => { gxData.dt.chain.value = v; });
+  mvTakeId('gx-satisfaction', v => { gxData.satisfaction.highlySatisfied.value = v; });
+  mvTakeId('gx-food-safety', v => { gxData.satisfaction.foodSafety.value = v; });
+
+  ['craveable', 'service', 'welcoming'].forEach(group => {
+    Object.keys(gxData[group]).forEach(key => {
+      mvTakeId(`gx-${group}-${key}`, v => { gxData[group][key].value = v; });
+      mvTakeId(`gx-${group}-${key}-top5`, v => { gxData[group][key].top5 = v; });
+    });
   });
 
-  gxData.teamMembers.attentiveCourteous.value = document.getElementById('gx-team-attentive').value;
+  mvTakeId('gx-team-attentive', v => { gxData.teamMembers.attentiveCourteous.value = v; });
 
   gxData.lastUpdated = new Date().toISOString();
   if(typeof rpSyncLx === 'function' && rpSyncLx()) renderLXScoreboard();   // LX Food Safety Score follows this one
@@ -460,12 +473,13 @@ async function saveGXScoreboard(){
 
 async function savePillars(){
   lxPillars.forEach((p, idx) => {
-    p.focus = document.getElementById('pillar-focus-' + idx).value;
-    p.goal = document.getElementById('pillar-goal-' + idx).value;
-    p.initiatives = document.getElementById('pillar-initiatives-' + idx).value;
+    mvTakeId('pillar-focus-' + idx, v => { p.focus = v; });
+    mvTakeId('pillar-goal-' + idx, v => { p.goal = v; });
+    mvTakeId('pillar-initiatives-' + idx, v => { p.initiatives = v; });
   });
   await saveState();
-  renderLXManage();
+  // Redraw only if the metrics above have no unsaved typing to lose.
+  if(!mvDirty(document.getElementById('metricsManageList'))) renderLXManage();
   renderLXScoreboard();
   showToast('✓ Pillars Updated');
 }
