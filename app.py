@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import date, timedelta
 from collections import Counter, defaultdict
 import gzip
 import json
@@ -547,6 +547,26 @@ def state_patch():
     except Exception as e:
         print(f"[STATE PATCH ERROR] {e}")
         return jsonify({'error': 'Save failed'}), 500
+
+@app.route('/api/safe-counts/today', methods=['GET'])
+def safe_counts_today():
+    """One day's safe counts for any device, so a leader on shift can check
+    the opening count before doing the transition one. The full log stays
+    manager-only (TIM-48): only today (by the store's calendar, give or take
+    a day for time zones) can be asked for."""
+    try:
+        day = date.fromisoformat(request.args.get('date', ''))
+    except ValueError:
+        return jsonify({'error': 'date must be YYYY-MM-DD'}), 400
+    if abs((day - date.today()).days) > 1:
+        return jsonify({'error': 'Only today\'s counts are available'}), 403
+    try:
+        sections = _read_sections() or {}
+    except Exception as e:
+        print(f"[SAFE TODAY ERROR] {e}")
+        return jsonify({'error': 'Could not read safe counts'}), 500
+    counts = (sections.get('safe') or {}).get('safeCounts') or []
+    return jsonify({'counts': [c for c in counts if isinstance(c, dict) and c.get('date') == day.isoformat()]})
 
 # What the one-time backup (appState, kept when saving moved to sections)
 # can put back: data that came in through uploads.

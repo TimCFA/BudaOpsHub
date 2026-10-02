@@ -10,6 +10,10 @@
     --radius:8px;
     --success:#4CAF50;
   }
+  /* Quick repeated taps (the waste + button, check-offs) stay taps instead
+     of zooming the page: phones skip double-tap zoom here. Pinch-to-zoom
+     still works. */
+  html, button, input, select, textarea, a, label, [role="button"], [onclick], .day-pill{touch-action:manipulation;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;background:var(--cfa-bg);color:var(--text-primary);font-family:'Inter',sans-serif;height:100%;overflow-x:hidden;overflow-y:visible;}
   ::selection{background:var(--cfa-red);color:var(--cfa-white);}
