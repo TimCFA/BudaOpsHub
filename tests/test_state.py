@@ -364,6 +364,15 @@ class SafeCountTest(unittest.TestCase):
             self.patch(self.team, {'safe': {'ver': '?', 'ops': ops}})
             self.assertEqual(section('safe')['safeCounts'], [self.COUNT, new], ops)
 
+    def test_team_device_cannot_replace_a_count(self):
+        """An edit of a record (an add marked rep) only replaces it for
+        managers; from a team device it can't overwrite a saved count."""
+        self.team.post('/api/state/load', json={})
+        edited = dict(self.COUNT, total=1)
+        self.patch(self.team, {'safe': {'ver': '?', 'ops': [{'o': 'arr', 'p': ['safeCounts'], 'rm': [{'v': self.COUNT, 'n': 0}],
+                                                                'add': [{'v': edited, 'n': 1, 'i': 0, 'end': True, 'rep': True}]}]}})
+        self.assertIn(self.COUNT, section('safe')['safeCounts'])
+
     def test_manager_can_still_remove(self):
         self.mgr.post('/api/state/load', json={})
         self.patch(self.mgr, {'safe': {'ver': '?', 'ops': [{'o': 'set', 'p': ['safeCounts'], 'v': []}]}})

@@ -348,8 +348,8 @@ function renderTXManage(){
       <input type="text" value="${escapeHtml(celeb.name)}" placeholder="Name" style="flex:1;padding:5px;border:1px solid var(--border);border-radius:4px;font-family:'Inter';font-size:11px;" onchange="txData.celebrations[${i}].name=this.value;">
       <input type="text" value="${escapeHtml(celeb.date)}" placeholder="MM-DD" style="width:60px;padding:5px;border:1px solid var(--border);border-radius:4px;font-family:'Inter';font-size:11px;" onchange="txData.celebrations[${i}].date=this.value;">
       <select style="padding:5px;border:1px solid var(--border);border-radius:4px;font-family:'Inter';font-size:11px;" onchange="txData.celebrations[${i}].type=this.value;">
-        <option ${celeb.type==='birthday'?'selected':''}>Birthday</option>
-        <option ${celeb.type==='anniversary'?'selected':''}>Anniversary</option>
+        <option value="birthday" ${String(celeb.type).toLowerCase()==='birthday'?'selected':''}>Birthday</option>
+        <option value="anniversary" ${String(celeb.type).toLowerCase()==='anniversary'?'selected':''}>Anniversary</option>
       </select>
       <button onclick="txData.celebrations.splice(${i},1);renderTXManage();" style="background:none;border:none;color:var(--cfa-red);cursor:pointer;font-weight:bold;">✕</button>
     </div>

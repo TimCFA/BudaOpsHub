@@ -52,6 +52,10 @@ function stateDiffList(b, m, path, ops){
   mk.forEach((k, i) => { if(!addedAt.has(i)) lastKept = i; });
   const add = [...addedAt].sort((x, y) => x - y).map(i => ({v: m[i], n: cm.get(mk[i]), i, end: i > lastKept}));
   const rmOut = rm.map(r => ({v: b[bk.indexOf(r.k)], n: r.n}));
+  // An edited record (same id, new contents) replaces its old copy, so two
+  // people editing it at once leave one copy, not both versions.
+  const removedIds = new Set(rmOut.map(r => stateIdentity(r.v)).filter(Boolean));
+  add.forEach(a => { const id = stateIdentity(a.v); if(id && removedIds.has(id)) a.rep = true; });
   const op = {o: 'arr', p: path};
   if(rmOut.length) op.rm = rmOut;
   if(add.length) op.add = add;
@@ -80,6 +84,17 @@ function stateDiff(base, mine){
   return ops;
 }
 
+// A record's stable id (products and prep entries have 'id', CEM entries
+// 'key', waste entries 'ts'), or null for plain values. Same as _identity in
+// state_patch.py.
+function stateIdentity(item){
+  if(!stateIsObj(item)) return null;
+  for(const f of ['id', 'key', 'ts']){
+    if(stateHas(item, f) && item[f] !== null && item[f] !== '') return f + ':' + stateCanon(item[f]);
+  }
+  return null;
+}
+
 function stateApplyList(current, rm, add){
   const out = Array.isArray(current) ? current.slice() : [];
   const keys = out.map(stateCanon);
@@ -92,9 +107,21 @@ function stateApplyList(current, rm, add){
       counts.set(k, counts.get(k) - 1);
     }
   });
+  const addKeys = new Set((add || []).map(a => stateCanon(a.v)));
   (add || []).slice().sort((x, y) => x.i - y.i).forEach(a=>{
     const k = stateCanon(a.v);
     if((counts.get(k) || 0) >= a.n) return;
+    // An edit of a record: replace whatever version of it is there now.
+    if(a.rep){
+      const id = stateIdentity(a.v);
+      const j = out.findIndex((v, x) => stateIdentity(v) === id && !addKeys.has(keys[x]));
+      if(j !== -1){
+        counts.set(keys[j], counts.get(keys[j]) - 1);
+        out[j] = JSON.parse(JSON.stringify(a.v)); keys[j] = k;
+        counts.set(k, (counts.get(k) || 0) + 1);
+        return;
+      }
+    }
     const at = a.end ? out.length : Math.min(a.i, out.length);
     out.splice(at, 0, JSON.parse(JSON.stringify(a.v)));
     keys.splice(at, 0, k);

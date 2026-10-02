@@ -86,7 +86,8 @@ def _append_only_ops(ops):
         if len(op['p']) != 1:
             continue
         if op['o'] == 'arr' and op.get('add'):
-            out.append({'o': 'arr', 'p': op['p'], 'add': op['add']})
+            # Additions only: never "replace the record with this id".
+            out.append({'o': 'arr', 'p': op['p'], 'add': [{k: v for k, v in a.items() if k != 'rep'} for a in op['add']]})
         elif op['o'] == 'set' and isinstance(op.get('v'), list):
             counts = Counter(canon(v) for v in op['v'])
             items, seen = [], set()

@@ -154,10 +154,28 @@ document.getElementById('decQty').addEventListener('click',()=>{
 
 document.getElementById('qty').addEventListener('change',updateCostPreview);
 
+// A whole number of 1 or more, or null (blank, zero, negative or a fraction).
+function wasteQty(){
+  const v = Number(document.getElementById('qty').value);
+  return Number.isInteger(v) && v >= 1 ? v : null;
+}
+
 function updateCostPreview(){
-  const qty = parseInt(document.getElementById('qty').value)||1;
-  const cost = qty * selectedProd.cost;
-  document.getElementById('costPreview').innerHTML = `Cost: <b>$${cost.toFixed(2)}</b>`;
+  const qty = wasteQty();
+  document.getElementById('costPreview').innerHTML = qty ? `Cost: <b>$${(qty * selectedProd.cost).toFixed(2)}</b>` : 'Enter a quantity of 1 or more';
+}
+
+// Today counts toward the under-limit streak only while today's total stays
+// under the limit, so it's re-checked on every entry and when the limit
+// changes (a later entry can push the day over). With no entries today
+// (nothing logged yet, or just closed out) it's left as it is.
+function syncTodayWasteDay(){
+  if(!entries.some(e => toLocalISODate(new Date(e.ts)) === today)) return;
+  const has = wasteDays.includes(today);
+  const under = getTodayTotal() < wasteTarget;
+  if(under === has) return;
+  wasteDays = under ? [...wasteDays, today] : wasteDays.filter(d => d !== today);
+  calcStreak();
 }
 
 document.getElementById('btnSubmitLog').addEventListener('click', async ()=>{
@@ -167,7 +185,11 @@ document.getElementById('btnSubmitLog').addEventListener('click', async ()=>{
     beginEditInitials();
     return;
   }
-  const qty = parseInt(document.getElementById('qty').value)||1;
+  const qty = wasteQty();
+  if(!qty){
+    showToast('Enter a quantity of 1 or more');
+    return;
+  }
   const entry = {
     ts: Date.now(),
     prodId: selectedProd.id,
@@ -180,14 +202,8 @@ document.getElementById('btnSubmitLog').addEventListener('click', async ()=>{
     section: currentSection
   };
   entries.push(entry);
-  
-  if(getTodayTotal() < wasteTarget){
-    if(!wasteDays.includes(today)){
-      wasteDays.push(today);
-      calcStreak();
-    }
-  }
-  
+  syncTodayWasteDay();
+
   await saveState();
   renderTape();
   renderScoreboardView();
@@ -219,7 +235,7 @@ function renderTape(){
   }
   tape.innerHTML = [...filtered].sort((a,b)=>b.ts-a.ts).map(e=>`
     <div class="tape-row">
-      <span class="l">${new Date(e.ts).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})} · ${escapeHtml(e.name)}</span>
+      <span class="l">${new Date(e.ts).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})} · ${escapeHtml(e.name)}${e.who ? ` <span class="tape-who">· ${escapeHtml(e.who)}</span>` : ''}</span>
       <span class="r">${escapeHtml(e.qty)}${escapeHtml(e.unit)} · $${(Number(e.cost) || 0).toFixed(2)}</span>
     </div>
   `).join('');
@@ -238,6 +254,8 @@ setInterval(()=>{
 // whichever future leadership-only scoreboard reads across the full month.
 // The manual monthly close-out (Manage tab) is the only thing that clears it.
 function renderScoreboardView(){
+  // Entries from other devices may have pushed today over the limit.
+  syncTodayWasteDay();
   const todayEntries = entries.filter(e => toLocalISODate(new Date(e.ts)) === today);
   const total = todayEntries.reduce((sum,e)=>sum+e.cost,0);
   const fohTotal = todayEntries.filter(e=>e.section==='foh').reduce((sum,e)=>sum+e.cost,0);

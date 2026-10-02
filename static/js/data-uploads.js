@@ -183,7 +183,7 @@ function duSourceState(src, now){
   }
 
   if(src.key === 'pea'){
-    const up = (peaRatings.uploads || [])[peaRatings.uploads.length - 1] || null;
+    const up = (peaRatings.uploads || []).slice(-1)[0] || null;
     const last = [logAt, up ? new Date(up.at) : null].filter(Boolean).sort((a, b) => a - b).pop() || null;
     const rows = peaRatings.rows || [];
     const cover = rows.length ? `Ratings through ${duShort(rows[rows.length - 1][0].slice(0, 10))} · ${rows.length} saved` : 'No PEA ratings yet';
@@ -345,7 +345,7 @@ async function duImportPea(file){
   const before = (peaRatings.uploads || []).length;
   const beforeLast = (peaRatings.uploads || [])[before - 1];
   await peaHandleUpload(file);
-  const up = (peaRatings.uploads || [])[peaRatings.uploads.length - 1];
+  const up = (peaRatings.uploads || []).slice(-1)[0];
   if(!up || up === beforeLast) throw new Error(document.getElementById('peaUploadStatus').textContent || 'PEA upload failed.');
   return `${up.read} ratings read · ${up.added} new${up.rangeStart ? ` · ${duShort(up.rangeStart)}–${duShort(up.rangeEnd)}` : ''} (${(up.areas || []).join(', ')})`;
 }
