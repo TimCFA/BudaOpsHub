@@ -312,14 +312,15 @@
   .zone-acc-item.open .zone-acc-chevron{transform:rotate(180deg);}
   .zone-acc-body{padding:10px;border-top:1px solid var(--border);background:var(--cfa-white);}
   @media (max-width:480px){ .zone-acc-track{flex-basis:44px;} }
-  /* Zone Reset + Leader Transition: handoffs as the Set Ups sky banners. */
+  /* Zone Reset + Leader Transition: handoffs as the Set Ups daypart banners. */
   #zoneresetView{--su-card:#FFFFFF; --su-ink:#1C1B19; --su-muted:#6B665E; --su-line:#E6E0D6;}
   #zoneresetView .standup-card h3 .sub{display:block;margin-top:2px;font-family:inherit;font-size:11px;text-transform:none;font-weight:500;}
   .zr-dp-progress{flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;}
   .zr-dp-track{width:56px;height:6px;border-radius:3px;background:rgba(28,27,25,0.10);overflow:hidden;}
   .zr-dp-bar{display:block;height:100%;background:var(--cfa-red);border-radius:3px;transition:width .2s ease;}
-  .su-dp .zr-dp-track{background:rgba(255,255,255,0.28);}
-  .su-dp .zr-dp-bar{background:#fff;}
+  .su-dp .zr-dp-bar{background:var(--dpc);}
+  .su-dp.is-done .zr-dp-bar{background:var(--success);}
+  .su-dp.is-done .su-dp-fill{color:var(--success);}
   .zr-dp-body{padding:10px 0 4px;}
   .zr-history-label{margin-top:18px;font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-tertiary);}
   .zr-history-label + .zone-reset-scoreboard{margin-top:8px;}
@@ -327,7 +328,7 @@
   .zr-dp-list .su-dp-time{display:block;margin-left:0;margin-top:2px;font-size:12.5px;}
   .zr-dp-lead{display:block;margin-top:4px;font-size:13px;font-weight:700;}
   .zr-dp-lead .su-dp-k{margin-right:4px;}
-  .zr-dp-lead.is-none{font-weight:500;font-style:italic;color:rgba(255,255,255,0.85);}
+  .zr-dp-lead.is-none{font-weight:500;font-style:italic;color:var(--su-muted);}
   @media (max-width:420px){ .zr-dp-track{display:none;} }
   .checklist-tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px;}
   .checklist-tile{display:flex;flex-direction:column;gap:8px;background:var(--cfa-light);border:1.5px solid var(--border);border-radius:12px;padding:14px 12px;cursor:pointer;transition:all .15s ease;text-align:left;font-family:inherit;}
@@ -1574,27 +1575,26 @@
   .su-dp-fill{flex:0 0 auto;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--su-muted);}
   .su-dp-chev{flex:0 0 auto;font-size:14px;transition:transform .15s ease;}
   .su-dp.is-open .su-dp-chev{transform:rotate(180deg);}
-  /* Each daypart has its own solid color (white text), so the banners are
-     easy to tell apart. The sun/moon sits on a white badge; the open card
-     gets a white ring plus a ring in its own color. */
-  .su-dp{--dpc:#2E7D32;}
-  .su-dp.su-col-eb{--dpc:#C8501A;}
-  .su-dp.su-col-b{--dpc:#A87300;}
-  .su-dp.su-col-l{--dpc:#2E7D32;}
-  .su-dp.su-col-t{--dpc:#00838F;}
-  .su-dp.su-col-a{--dpc:#1565C0;}
-  .su-dp.su-col-d{--dpc:#7B1FA2;}
-  .su-dp.su-col-c{--dpc:#1F2A55;}
-  .su-dp .su-dp-banner{background:var(--dpc);color:#fff;}
-  .su-dp-art{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.18);}
-  .su-dp-art svg{width:30px;height:auto;}
-  .su-col-c .su-dp-art{background:#2F3A6B;}
-  .su-dp .su-dp-time,.su-dp .su-dp-fill,.su-dp .su-dp-k,.su-dp .su-dp-where,.su-dp .su-dp-lead em,.su-dp .su-dp-chev{color:rgba(255,255,255,0.85);}
-  .su-dp .su-dp-fillbtn{background:#fff;color:var(--su-ink);}
-  .su-dp .su-dp-lead{background:rgba(255,255,255,0.16);border-color:rgba(255,255,255,0.45);color:#fff;}
-  .su-dp .su-dp-lead:hover{background:rgba(255,255,255,0.26);}
-  .su-dp.is-open .su-dp-banner{box-shadow:0 0 0 3px #fff,0 0 0 6px var(--dpc),0 6px 16px rgba(28,27,25,0.18);}
-  .su-dp.is-open .su-dp-fill{color:#fff;}
+  /* Daypart banners: clean white cards, dark text. Each daypart keeps its
+     own color, used sparingly: a thin edge on the left and a light tint
+     behind its sun/moon. The open card is outlined in its color. */
+  .su-dp{--dpc:#15803D;}
+  .su-dp.su-col-eb{--dpc:#C2410C;}
+  .su-dp.su-col-b{--dpc:#B7791F;}
+  .su-dp.su-col-l{--dpc:#15803D;}
+  .su-dp.su-col-t{--dpc:#0F766E;}
+  .su-dp.su-col-a{--dpc:#1D4ED8;}
+  .su-dp.su-col-d{--dpc:#6D28D9;}
+  .su-dp.su-col-c{--dpc:#334155;}
+  .su-dp .su-dp-banner{background:var(--su-card);color:var(--su-ink);border:1px solid var(--su-line);box-shadow:inset 5px 0 0 var(--dpc),0 1px 2px rgba(28,27,25,0.05);}
+  .su-dp-art{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:color-mix(in srgb,var(--dpc) 12%,#fff);}
+  .su-dp-art svg{width:26px;height:auto;}
+  .su-col-c .su-dp-art{background:var(--dpc);}   /* the pale moon needs a dark badge */
+  .su-dp .su-dp-time,.su-dp .su-dp-fill,.su-dp .su-dp-k,.su-dp .su-dp-where,.su-dp .su-dp-lead em,.su-dp .su-dp-chev{color:var(--su-muted);}
+  .su-dp .su-dp-lead{background:#F4F2EE;border-color:#E2DDD4;color:var(--su-ink);}
+  .su-dp .su-dp-lead:hover{background:#ECE8E1;}
+  .su-dp.is-open .su-dp-banner{border-color:transparent;box-shadow:inset 5px 0 0 var(--dpc),0 0 0 2px var(--dpc),0 6px 18px rgba(28,27,25,0.10);}
+  .su-dp.is-open .su-dp-fill{color:var(--su-ink);}
   .su-dp-body{display:flex;flex-direction:column;gap:10px;padding-top:10px;}
   /* The card header already names the daypart and day type. */
   .su-dp-body .su-sheet-title{display:none;}
