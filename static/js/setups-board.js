@@ -214,6 +214,12 @@ function suSkyArt(sky){
 // to open it; tap the open one to close it. The banner carries the daypart,
 // how full it is, the day type and (FOH) the Lead Captain; the open one adds
 // Fill when spots are open. The body is just the positions.
+// Fill is off in the simplified (launch) view for now: leaders build set ups
+// by hand until the fill rules are reworked. The full site keeps it.
+function suFillAvailable(){
+  return !(typeof launchIsOn === 'function' && launchIsOn());
+}
+
 function suDaypartCardsHtml(section, date, current, openHtml, m){
   return `<div class="su-dp-list">${suDaypartsFor(section).map((dp, i)=>{
     const open = dp.name === current && !suDaypartClosed[section];
@@ -225,7 +231,7 @@ function suDaypartCardsHtml(section, date, current, openHtml, m){
     // banner opens and closes the card.
     const leadBtn = section === 'foh' ? `<span class="su-dp-k">Lead</span><button type="button" class="su-dp-lead" data-su-lead-open="1" data-su-lead-dp="${escapeHtml(dp.name)}">${lead ? `<b>${escapeHtml(suDisplayName(lead))}</b>` : '<em>Choose</em>'}</button>${working ? `<span class="su-dp-where">· ${escapeHtml(working)}</span>` : ''}` : '';
     const needed = open && m ? m.tiles.filter(x => x.needed).length : 0;
-    const fillBtn = needed && m.unplaced.length ? `<button type="button" class="su-dp-fillbtn" data-su-tool="fill">Fill ${needed} open</button>` : '';
+    const fillBtn = needed && m.unplaced.length && suFillAvailable() ? `<button type="button" class="su-dp-fillbtn" data-su-tool="fill">Fill ${needed} open</button>` : '';
     const sky = suDaypartSky(dp.name);
     return `<section class="su-dp su-sky-${sky} ${open ? 'is-open' : ''}" aria-label="${escapeHtml(suShortDaypart(dp.name))}">
       <div class="su-dp-banner">
@@ -292,7 +298,7 @@ function suGamePlanHtml(section, date, dp, dpIndex, m){
         <div class="su-plan-line"><span class="su-plan-tag is-dev">Develop</span><span>${escapeHtml(devText)}${devStale ? ' <em>· out of date</em>' : ''}</span></div>
         <div class="su-plan-line"><span class="su-plan-tag is-watch">Watch</span><span>${escapeHtml(watchText)}${evStale ? ' <em>· out of date</em>' : ''}</span></div>
         ${suChangesLineHtml(m)}
-        <div class="su-plan-line su-plan-open"><span class="su-plan-tag is-open">Open</span><span>${escapeHtml(openText)}</span>${needed.length && m.unplaced.length ? '<button type="button" class="su-plan-link" data-su-tool="fill">Fill</button>' : ''}</div>
+        <div class="su-plan-line su-plan-open"><span class="su-plan-tag is-open">Open</span><span>${escapeHtml(openText)}</span>${needed.length && m.unplaced.length && suFillAvailable() ? '<button type="button" class="su-plan-link" data-su-tool="fill">Fill</button>' : ''}</div>
       </div>
     </section>`;
 }
@@ -362,7 +368,7 @@ function suToolbarHtml(){
   return `
     <nav class="su-toolbar" aria-label="Coaching tools">
       ${tool('develop', 'Develop', '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F2C14E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>')}
-      ${tool('fill', 'Fill', '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><path d="M16.5 13.5v6M13.5 16.5h6"/></svg>')}
+      ${suFillAvailable() ? tool('fill', 'Fill', '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><path d="M16.5 13.5v6M13.5 16.5h6"/></svg>') : ''}
       ${tool('planb', 'Plan B', '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg>')}
       ${tool('evaluate', 'Evaluate', '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>')}
     </nav>`;
@@ -495,6 +501,7 @@ function renderSetupsBoard(date){
 }
 
 function suRunTool(kind){
+  if(kind === 'fill' && !suFillAvailable()) return;
   const section = currentPosSection;
   const date = document.getElementById('daySelect').value;
   const {dp, dpIndex} = suCurrentDaypart(section, date);

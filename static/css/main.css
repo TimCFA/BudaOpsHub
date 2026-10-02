@@ -324,6 +324,10 @@
   .zr-history-label + .zone-reset-scoreboard{margin-top:8px;}
   .zr-dp-list .su-dp-name{font-size:16px;line-height:1.25;}
   .zr-dp-list .su-dp-time{display:block;margin-left:0;margin-top:2px;font-size:12.5px;}
+  .zr-dp-lead{display:block;margin-top:4px;font-size:13px;font-weight:700;}
+  .zr-dp-lead .su-dp-k{margin-right:4px;}
+  .zr-dp-lead.is-none{font-weight:500;font-style:italic;color:var(--su-muted);}
+  .su-sky-night .zr-dp-lead.is-none{color:rgba(255,255,255,0.72);}
   @media (max-width:420px){ .zr-dp-track{display:none;} }
   .checklist-tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px;}
   .checklist-tile{display:flex;flex-direction:column;gap:8px;background:var(--cfa-light);border:1.5px solid var(--border);border-radius:12px;padding:14px 12px;cursor:pointer;transition:all .15s ease;text-align:left;font-family:inherit;}
