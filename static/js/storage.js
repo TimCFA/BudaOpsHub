@@ -300,6 +300,14 @@ function applyStateData(data){
     const savedIds = new Set(data.products.map(p=>p.id));
     const missingDefaults = defaultProducts.filter(p=>!savedIds.has(p.id) && !deletedProductIds.includes(p.id));
     products = [...data.products, ...missingDefaults];
+    if(fixesDone < 5){
+      // Fix 5: costs from the Menu Details report. An item still at its old
+      // catalog cost (or with none) takes the new one; a typed-in cost stays.
+      products.forEach(p=>{
+        const fix = WASTE_PRICE_FIX_5[p.id];
+        if(fix && (!(Number(p.cost) > 0) || Math.abs(Number(p.cost) - fix[0]) < 0.005)) p.cost = fix[1];
+      });
+    }
   } else if(data.products){
     // Fix 4: the Waste tracker's catalog replaces the old Log Waste list.
     // A price a manager had typed in for an old item carries to the item it
