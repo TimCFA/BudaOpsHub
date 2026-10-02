@@ -14,7 +14,7 @@ const STATE_SECTIONS = {
             'homeData', 'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData',
             'launchMode'],
   pea: ['peaRatings', 'peaNameAliases'],
-  rosters: ['fohRoster', 'bohRoster'],
+  rosters: ['fohRoster', 'bohRoster', 'rosterPosted'],
   setups: ['posAssignments', 'posVacancyFlags', 'setupDayTypes', 'lastUpdated',
            'breakCountdowns', 'completedBreaks'],
   history: ['setupHistory', 'numbersHistory', 'wasteMonthlyHistory', 'zoneChecklistHistory'],
@@ -61,7 +61,7 @@ function stateSnapshot(){
   return {
     entries, products, wasteTarget, formDone,
     formDoneDate: formDone ? today : null, foodSafetyDays, wasteDays, breakCountdowns, completedBreaks, posAssignments,
-    fohRoster, bohRoster, lxPillars, lxMetrics, lxLastUpdated, gxData, txData, homeData,
+    fohRoster, bohRoster, rosterPosted, lxPillars, lxMetrics, lxLastUpdated, gxData, txData, homeData,
     fohOEDays, fohOEChecked, fohOECheckedDate,
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
@@ -363,6 +363,7 @@ function applyStateData(data){
   homeData = data.homeData || JSON.parse(JSON.stringify(defaultHomeData));
   if(data.fohRoster) Object.assign(fohRoster, data.fohRoster);
   if(data.bohRoster) Object.assign(bohRoster, data.bohRoster);
+  rosterPosted = (data.rosterPosted && typeof data.rosterPosted === 'object' && !Array.isArray(data.rosterPosted)) ? data.rosterPosted : {};
   formDone = data.formDoneDate === today ? !!data.formDone : false;
   fohOEDays = data.fohOEDays || [];
   fohOECheckedDate = data.fohOECheckedDate || null;

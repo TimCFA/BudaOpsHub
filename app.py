@@ -127,7 +127,7 @@ STATE_SECTIONS = {
                 'homeData', 'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData',
                 'launchMode'],
     'pea': ['peaRatings', 'peaNameAliases'],
-    'rosters': ['fohRoster', 'bohRoster'],
+    'rosters': ['fohRoster', 'bohRoster', 'rosterPosted'],
     'setups': ['posAssignments', 'posVacancyFlags', 'setupDayTypes', 'lastUpdated',
                'breakCountdowns', 'completedBreaks'],
     'history': ['setupHistory', 'numbersHistory', 'wasteMonthlyHistory', 'zoneChecklistHistory'],

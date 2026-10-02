@@ -277,15 +277,21 @@ function showWeeklyImportPreview(){
 
 async function confirmWeeklyImport(){
   const weekDays = weeklyImportDays();
+  const changeCount = () => weekDays.filter(d => d.date >= today).reduce((n, d) => n + rosterDayChanges(d.date, 'foh').length + rosterDayChanges(d.date, 'boh').length, 0);
   HS_DAY_ORDER.forEach(hsDay=>{
     const wd = weekDays.find(d => d.weekday === HS_DAY_TO_WEEKDAY[hsDay]);
     if(!wd) return;
     const dateISO = wd.date;
     const dayData = weeklyImportParsed[hsDay];
+    // Keep the day's posted schedule before it's replaced (shift changes).
+    rosterNotePosted(dateISO, 'foh', fohRoster[dateISO]);
+    rosterNotePosted(dateISO, 'boh', bohRoster[dateISO]);
     fohRoster[dateISO] = mergeImportedDayRoster(fohRoster[dateISO], dayData.foh);
     bohRoster[dateISO] = mergeImportedDayRoster(bohRoster[dateISO], dayData.boh);
     touchLastUpdated(dateISO);
   });
+  rosterPrunePosted();
+  const changesNow = changeCount();
   duRecord('roster', {file: weeklyImportPendingFile, summary: `${weekDays[0].label} – ${weekDays[weekDays.length - 1].label}`});
   await saveState();
   document.getElementById('weeklyImportPreviewModal').classList.remove('active');
@@ -294,5 +300,5 @@ async function confirmWeeklyImport(){
   renderAllDayparts();
   updateSelectedDayInfo('daySelect', 'daySelectedInfo');
   renderDataUploads();
-  showToast('✓ Weekly Roster Imported!');
+  showToast(changesNow ? `✓ Roster saved · ${changesNow} shift change${changesNow === 1 ? '' : 's'}` : '✓ Weekly Roster Imported!');
 }
