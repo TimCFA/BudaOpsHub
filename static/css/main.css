@@ -690,6 +690,10 @@
   .safe-log-variance.over{background:#E3F2FD;color:#1565C0;}
   .safe-log-variance.short{background:#FFEBEE;color:#C62828;}
   .safe-log-meta{font-size:12px;color:var(--text-secondary);margin-top:6px;}
+  /* Safe count types: a 2x2 grid instead of a sideways-scrolling row. */
+  .sc-type-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;overflow:visible;}
+  .sc-type-grid .day-pill{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;white-space:normal;text-align:center;padding:14px 10px;border-radius:14px;font-size:14px;}
+  .sc-type-grid .day-pill .sc-ic{font-size:22px;line-height:1;}
   .safe-count-entry-title{font-family:'Outfit',sans-serif;font-weight:700;font-size:14px;color:var(--text-primary);text-transform:uppercase;letter-spacing:0.02em;}
 
   /* ===== Trial Trackers (Trainer Trial + Team Lead Trial) =====
@@ -1104,10 +1108,12 @@
   .fs-meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--text-secondary);margin:8px 0 14px;}
   .fs-status.done{color:var(--fs-yes);font-weight:600;}
   .fs-coached-total{color:var(--fs-coach);font-weight:600;}
-  .fs-chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;}
-  .fs-chip{flex:none;display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:7px 11px;border:1.5px solid var(--border);border-radius:10px;background:var(--cfa-white);cursor:pointer;font-family:inherit;text-align:left;transition:all .15s ease;}
+  /* Zones wrap into a grid (three across on a phone): every zone and its
+     progress in view, no sideways scrolling. */
+  .fs-chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px;margin-bottom:14px;}
+  .fs-chip{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:7px 11px;border:1.5px solid var(--border);border-radius:10px;background:var(--cfa-white);cursor:pointer;font-family:inherit;text-align:left;transition:all .15s ease;}
   .fs-chip:hover{border-color:var(--cfa-red);}
-  .fs-chip-name{font-family:'Outfit',sans-serif;font-size:12.5px;font-weight:600;color:var(--text-primary);white-space:nowrap;}
+  .fs-chip-name{font-family:'Outfit',sans-serif;font-size:12.5px;font-weight:600;color:var(--text-primary);line-height:1.2;}
   .fs-chip-count{font-size:10.5px;color:var(--text-tertiary);white-space:nowrap;}
   .fs-chip-count i{font-style:normal;color:var(--fs-coach);font-weight:600;}
   .fs-chip.done{border-color:var(--fs-yes);background:var(--fs-yes-bg);}
