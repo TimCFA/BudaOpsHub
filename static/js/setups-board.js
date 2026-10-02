@@ -486,6 +486,7 @@ function renderSetupsBoard(date){
     return `
     <div class="su-board is-sheet">
       ${suModeBarHtml()}
+      ${rosterChangesHtml(section, date)}
       ${suDaypartCardsHtml(section, date, dp.name, suSheetViewHtml(section, date, dp, dpIndex, m), m)}
       ${suSheetHtml(section, date, dp, dpIndex, m)}
     </div>`;
@@ -493,6 +494,7 @@ function renderSetupsBoard(date){
   return `
     <div class="su-board">
       ${suModeBarHtml()}
+      ${rosterChangesHtml(section, date)}
       ${suDaypartChipsHtml(section, date, dp.name)}
       ${suGamePlanHtml(section, date, dp, dpIndex, m)}
       ${suZonesHtml(m)}

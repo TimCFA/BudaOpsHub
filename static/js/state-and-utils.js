@@ -23,6 +23,7 @@ let safeCounts = [];
 let formDone = false;
 let foodSafetyDays = [];
 let wasteDays = [];
+let rosterPosted = {};   // {date: {foh: [...], boh: [...], at}}: each day's posted schedule (roster-changes.js)
 let foodSafetyStreak = 0;
 let wasteStreak = 0;
 let wasteLogLastClosedOut = null; // timestamp of the last manual export+reset, shown in Manage
