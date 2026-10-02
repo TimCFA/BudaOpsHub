@@ -17,6 +17,7 @@ RUNNER = r"""
 const fs = require('fs'), vm = require('vm');
 const ctx = {
   today: '2026-10-02', fohRoster: {}, bohRoster: {}, rosterPosted: {}, posAssignments: {},
+  document: {getElementById(){ return {addEventListener(){}}; }},
   parseShiftTimeToMinutes(s){ const m = String(s).trim().toLowerCase().match(/^(\d{1,2}):(\d{2})\s*([ap])/); if(!m) return null;
     let h = +m[1] % 12; if(m[3] === 'p') h += 12; return h * 60 + +m[2]; },
   suClock(min){ const h = Math.floor(min / 60) % 24; return `${(h + 11) % 12 + 1}:${String(min % 60).padStart(2, '0')}`; },
@@ -85,6 +86,33 @@ class RosterChangesTest(unittest.TestCase):
         [r] = run([scenario(posted, posted, again)])
         self.assertEqual(r['changes'], [])
         self.assertEqual(r['html'], '')
+
+    def test_manager_reset(self):
+        posted = [P('Avery Stone', '6:00a', '1:00p')]
+        now = [P('Jordan Lee', '6:00a', '1:00p'), P('Hand Added', '11:00a', '2:00p', source='manual')]
+        reset = """rosterResetPosted(['2026-10-02', '2026-10-03']);
+          var after = rosterDayChanges('2026-10-02', 'foh').length;
+          var kept = rosterPosted['2026-10-02'].foh.map(function(p){ return p.name; });
+          var emptyDay = '2026-10-03' in rosterPosted;"""
+        js = scenario(posted, now, reset).replace(
+            "return {changes:", "return {after: after, kept: kept, emptyDay: emptyDay, changes:")
+        [r] = run([js])
+        self.assertEqual(r['after'], 0)
+        self.assertEqual(r['kept'], ['Jordan Lee'])     # the hand-added person isn't part of it
+        self.assertFalse(r['emptyDay'])                 # a day with no roster keeps nothing
+
+    def test_week_dates_from_today(self):
+        [fri, nextmon] = run(["function(){ return rcWeekDates('2026-10-02'); }",
+                              "function(){ return rcWeekDates('2026-10-05'); }"])
+        self.assertEqual(fri, ['2026-10-02', '2026-10-03'])
+        self.assertEqual(nextmon, ['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09', '2026-10-10'])
+
+    def test_reset_buttons_only_for_managers(self):
+        posted = [P('Avery Stone', '6:00a', '1:00p')]
+        now = [P('Jordan Lee', '6:00a', '1:00p')]
+        [team, mgr] = run([scenario(posted, now), scenario(posted, now, 'launchManager = true;')])
+        self.assertNotIn('data-rc-reset', team['html'])
+        self.assertIn('data-rc-reset="week"', mgr['html'])
 
     def test_names_escaped(self):
         posted = [P('Avery Stone', '6:00a', '1:00p')]
