@@ -232,17 +232,20 @@ function renderZoneResetScoreboard(){
   // slot on a day the store was never open.
   const days = [];
   const cursor = new Date();
+  const todayIso = toLocalISODate(cursor);
   while(days.length < 6){
     if(cursor.getDay() !== 0){
       const iso = toLocalISODate(cursor);
       const pct = zoneChecklistHistory[iso] ? zoneChecklistHistory[iso].overall : null;
-      days.push({label: cursor.toLocaleDateString('en-US', {weekday: 'short'}).slice(0, 1), pct});
+      // Today is labeled "Today" and stands out, so it's clear which bar is live.
+      const isToday = iso === todayIso;
+      days.push({label: isToday ? 'Today' : cursor.toLocaleDateString('en-US', {weekday: 'short'}).slice(0, 1), pct, isToday});
     }
     cursor.setDate(cursor.getDate() - 1);
   }
   days.reverse();
   container.innerHTML = days.map(d=>`
-    <div class="scoreboard-day ${d.pct !== null && d.pct >= 95 ? 'star' : ''}">
+    <div class="scoreboard-day ${d.pct !== null && d.pct >= 95 ? 'star' : ''} ${d.isToday ? 'is-today' : ''}"${d.isToday ? ' aria-current="date"' : ''}>
       ${d.pct !== null && d.pct >= 95 ? '<div class="scoreboard-star">⭐</div>' : ''}
       <div class="scoreboard-day-bar-wrap"><div class="scoreboard-day-bar" style="height:${d.pct || 0}%"></div></div>
       <div class="scoreboard-day-pct">${d.pct !== null ? d.pct + '%' : '—'}</div>
