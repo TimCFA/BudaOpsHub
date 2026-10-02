@@ -1828,6 +1828,11 @@
   .du-sync-btn{border:0;border-radius:8px;padding:8px 14px;background:var(--cfa-red);color:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
   .du-sync-btn[disabled]{opacity:.6;cursor:default;}
   .du-sync-note{font-size:12px;color:var(--text-secondary);min-width:0;}
+  /* HotSchedules sync: the bookmark to drag, and the status bar while a week arrives. */
+  .hs-sync-link{text-decoration:none;cursor:grab;}
+  .hs-sync-copy{border:1px solid var(--border);border-radius:8px;padding:7px 12px;background:var(--cfa-white);color:inherit;font:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+  .hs-sync-bar{position:fixed;left:0;right:0;top:12px;margin:0 auto;width:fit-content;box-sizing:border-box;z-index:3000;display:flex;align-items:center;gap:12px;max-width:min(560px, calc(100vw - 32px));padding:10px 14px;border-radius:10px;background:#fff;color:#222;border:2px solid var(--cfa-red);box-shadow:0 6px 24px rgba(0,0,0,.18);font-size:14px;font-weight:600;}
+  .hs-sync-bar button{border:0;background:none;font-size:16px;cursor:pointer;color:inherit;padding:2px 4px;}
 
   /* Restore from the backup (Data Uploads) */
   .du-restore{background:#FFF3CF;color:#4A3700;border-radius:12px;padding:12px 14px;margin:0 0 12px;font-size:13px;line-height:1.45;}

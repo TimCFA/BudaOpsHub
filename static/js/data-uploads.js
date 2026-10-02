@@ -24,7 +24,7 @@ const DU_SOURCES = [
   },
   {
     key: 'roster', short: 'roster CSV', icon: '🗓️', name: 'HotSchedules weekly roster', freq: 'weekly', fixedFreq: true, accept: '.csv',
-    how: 'HotSchedules → Weekly Roster CSV for next week. Keep the file name — it carries the dates.',
+    how: 'Easiest: the Ops Hub Sync bookmark above — click it on HotSchedules → Scheduling (week view). Or HotSchedules → Weekly Roster CSV for next week; keep the file name — it carries the dates.',
     feeds: 'Set Ups · Fill · Evaluate · Lead Captain · shift changes'
   },
   {
@@ -1037,6 +1037,7 @@ function renderDataUploads(){
           ${src.key === 'salesMix' ? duSalesMixCalendarHtml() : src.key === 'cem' ? duCemGridHtml() : src.key === 'productivity' ? duProdGridHtml() : ''}
           ${duPending.filter(p => p.kind === src.key).map(duPendingHtml).join('')}
           ${src.key === 'pea' ? duLevelsetHtml() : ''}
+          ${src.key === 'roster' && typeof hsSyncInstallHtml === 'function' ? hsSyncInstallHtml() : ''}
           <label class="du-row-upload"><input type="file" accept="${src.accept}" ${src.multiple ? 'multiple' : ''} data-du-row-input="${src.key}"><span>⬆ Upload ${escapeHtml(src.short || src.name.split(' (')[0])}${src.key === 'pea' ? ' (backup)' : ''}</span></label>
           <details class="du-more">
             <summary>How to get it · ${src.fixedFreq ? DU_FREQUENCIES[st.freq] : `<span>${DU_FREQUENCIES[st.freq]}</span>`}</summary>
