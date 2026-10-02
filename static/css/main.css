@@ -314,11 +314,8 @@
   .zr-dp-progress{flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;}
   .zr-dp-track{width:56px;height:6px;border-radius:3px;background:rgba(28,27,25,0.10);overflow:hidden;}
   .zr-dp-bar{display:block;height:100%;background:var(--cfa-red);border-radius:3px;transition:width .2s ease;}
-  .su-dp.is-done .zr-dp-bar{background:var(--success);}
-  .su-dp.is-done .su-dp-fill{color:var(--success);}
-  .su-sky-night .zr-dp-track{background:rgba(255,255,255,0.22);}
-  .su-sky-night.is-done .su-dp-fill{color:#9BE0A6;}
-  .su-sky-night.is-done .zr-dp-bar{background:#9BE0A6;}
+  .su-dp .zr-dp-track{background:rgba(255,255,255,0.28);}
+  .su-dp .zr-dp-bar{background:#fff;}
   .zr-dp-body{padding:10px 0 4px;}
   .zr-history-label{margin-top:18px;font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-tertiary);}
   .zr-history-label + .zone-reset-scoreboard{margin-top:8px;}
@@ -326,8 +323,7 @@
   .zr-dp-list .su-dp-time{display:block;margin-left:0;margin-top:2px;font-size:12.5px;}
   .zr-dp-lead{display:block;margin-top:4px;font-size:13px;font-weight:700;}
   .zr-dp-lead .su-dp-k{margin-right:4px;}
-  .zr-dp-lead.is-none{font-weight:500;font-style:italic;color:var(--su-muted);}
-  .su-sky-night .zr-dp-lead.is-none{color:rgba(255,255,255,0.72);}
+  .zr-dp-lead.is-none{font-weight:500;font-style:italic;color:rgba(255,255,255,0.85);}
   @media (max-width:420px){ .zr-dp-track{display:none;} }
   .checklist-tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px;}
   .checklist-tile{display:flex;flex-direction:column;gap:8px;background:var(--cfa-light);border:1.5px solid var(--border);border-radius:12px;padding:14px 12px;cursor:pointer;transition:all .15s ease;text-align:left;font-family:inherit;}
@@ -1571,30 +1567,29 @@
   .su-dp-name{flex:1 1 auto;min-width:0;font-size:17px;font-weight:700;}
   .su-dp-time{font-size:13px;font-weight:600;color:var(--su-muted);margin-left:4px;white-space:nowrap;}
   .su-dp-fill{flex:0 0 auto;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--su-muted);}
-  .su-dp-head .su-sheet-daytype{flex:0 0 auto;}
   .su-dp-chev{flex:0 0 auto;font-size:14px;transition:transform .15s ease;}
   .su-dp.is-open .su-dp-chev{transform:rotate(180deg);}
-  /* Daypart skies: a soft gradient per time of day; the open card gets an
-     outline instead of going dark, so its sky still shows. Close is night. */
-  .su-dp-art{flex:0 0 auto;display:inline-flex;margin-right:-2px;}
-  /* Each banner is a strip of sky, east on the left and west on the right,
-     so the day reads left to right: the sun's glow rises on the east edge at
-     Early Breakfast, climbs to the middle by Lunch, and sets on the west edge
-     at Dinner, with night coming in from the east. */
-  .su-sky-dawn .su-dp-banner{background:radial-gradient(120% 140% at 0% 100%,rgba(255,176,120,0.55) 0%,rgba(255,176,120,0) 55%),linear-gradient(90deg,#FCE2CF 0%,#EFE4F3 45%,#DCDDF3 100%);}
-  .su-sky-morning .su-dp-banner{background:radial-gradient(90% 150% at 22% 90%,rgba(255,214,140,0.6) 0%,rgba(255,214,140,0) 60%),linear-gradient(90deg,#FFF0D6 0%,#F6F4EC 45%,#E2EEFB 100%);}
-  .su-sky-midday .su-dp-banner{background:radial-gradient(70% 160% at 50% 0%,rgba(255,236,160,0.7) 0%,rgba(255,236,160,0) 60%),linear-gradient(90deg,#E4F0FB 0%,#F4F8FD 50%,#E4F0FB 100%);}
-  .su-sky-afternoon .su-dp-banner{background:radial-gradient(90% 150% at 76% 85%,rgba(255,196,130,0.55) 0%,rgba(255,196,130,0) 60%),linear-gradient(90deg,#E3EEFA 0%,#F7F1EC 55%,#FFE9D2 100%);}
-  .su-sky-dusk .su-dp-banner{background:radial-gradient(110% 150% at 100% 100%,rgba(255,150,110,0.55) 0%,rgba(255,150,110,0) 58%),linear-gradient(90deg,#D6D2F0 0%,#E8D9F0 50%,#F8D8C8 100%);}
-  .su-sky-night .su-dp-banner{background:radial-gradient(90% 140% at 100% 100%,rgba(120,110,190,0.35) 0%,rgba(120,110,190,0) 60%),linear-gradient(90deg,#181E3C 0%,#232B52 50%,#333C6E 100%);color:#fff;}
-  .su-sky-night .su-dp-time,.su-sky-night .su-dp-fill,.su-sky-night .su-dp-k,.su-sky-night .su-dp-where,.su-sky-night .su-dp-lead em{color:rgba(255,255,255,0.72);}
-  .su-sky-night .su-dp-fillbtn{background:#fff;color:var(--su-ink);}
-  .su-sky-night .su-dp-lead{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.3);}
-  .su-sky-night .su-dp-lead:hover{background:rgba(255,255,255,0.2);}
-  .su-dp.is-open .su-dp-banner{box-shadow:0 0 0 2px var(--su-ink),0 6px 16px rgba(28,27,25,0.10);}
-  .su-sky-night.is-open .su-dp-banner{box-shadow:0 0 0 2px #F6E7A6,0 6px 16px rgba(28,27,25,0.18);}
-  .su-dp.is-open .su-dp-fill{color:var(--su-ink);}
-  .su-sky-night.is-open .su-dp-fill{color:#fff;}
+  /* Each daypart has its own solid color (white text), so the banners are
+     easy to tell apart. The sun/moon sits on a white badge; the open card
+     gets a white ring plus a ring in its own color. */
+  .su-dp{--dpc:#2E7D32;}
+  .su-dp.su-col-eb{--dpc:#C8501A;}
+  .su-dp.su-col-b{--dpc:#A87300;}
+  .su-dp.su-col-l{--dpc:#2E7D32;}
+  .su-dp.su-col-t{--dpc:#00838F;}
+  .su-dp.su-col-a{--dpc:#1565C0;}
+  .su-dp.su-col-d{--dpc:#7B1FA2;}
+  .su-dp.su-col-c{--dpc:#1F2A55;}
+  .su-dp .su-dp-banner{background:var(--dpc);color:#fff;}
+  .su-dp-art{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.18);}
+  .su-dp-art svg{width:30px;height:auto;}
+  .su-col-c .su-dp-art{background:#2F3A6B;}
+  .su-dp .su-dp-time,.su-dp .su-dp-fill,.su-dp .su-dp-k,.su-dp .su-dp-where,.su-dp .su-dp-lead em,.su-dp .su-dp-chev{color:rgba(255,255,255,0.85);}
+  .su-dp .su-dp-fillbtn{background:#fff;color:var(--su-ink);}
+  .su-dp .su-dp-lead{background:rgba(255,255,255,0.16);border-color:rgba(255,255,255,0.45);color:#fff;}
+  .su-dp .su-dp-lead:hover{background:rgba(255,255,255,0.26);}
+  .su-dp.is-open .su-dp-banner{box-shadow:0 0 0 3px #fff,0 0 0 6px var(--dpc),0 6px 16px rgba(28,27,25,0.18);}
+  .su-dp.is-open .su-dp-fill{color:#fff;}
   .su-dp-body{display:flex;flex-direction:column;gap:10px;padding-top:10px;}
   /* The card header already names the daypart and day type. */
   .su-dp-body .su-sheet-title{display:none;}
@@ -1602,7 +1597,10 @@
      wash per zone, the priority number in a small badge. Needed spots stay
      red; open extras are quieter. */
   .su-sheet-list{padding:6px 8px 8px;}
-  .su-sheet-list .su-row-slot{white-space:normal;overflow:visible;line-height:1.3;display:flex;align-items:center;}
+  /* Position titles bold and dark; each row's name sits right after its
+     title (the title column fits the title, up to 60%). */
+  .su-sheet-list .su-row{grid-template-columns:fit-content(60%) minmax(0,1fr);column-gap:14px;}
+  .su-sheet-list .su-row-slot{white-space:normal;overflow:visible;line-height:1.3;display:flex;align-items:center;font-size:14px;font-weight:700;color:var(--su-ink);}
   .su-sheet-list .su-row-rank{flex:0 0 auto;}
   /* Zone color is only the bold stripe on the left; rows are otherwise
      neutral so the list stays calm. Empty spots get a light red. */
@@ -1619,7 +1617,6 @@
   .su-row.su-z-raw{--zc:#5B6B7C;}
   .su-sheet-list .su-row.is-needed{background:#FCEBE9;}
   .su-sheet-list .su-row.is-open:not(.is-needed){background:#FAFAF8;}
-  .su-sheet-list .su-row.is-open:not(.is-needed) .su-row-slot{opacity:0.75;}
   .su-row-rank{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;margin-right:8px;border-radius:6px;background:var(--su-card);color:var(--su-muted);font-size:11px;font-weight:800;font-variant-numeric:tabular-nums;box-shadow:0 0 0 1px rgba(0,0,0,0.06);vertical-align:1px;}
   /* PEA tier of the person in their placed position. */
   .su-tier-dot{display:inline-block;flex:0 0 auto;width:11px;height:11px;border-radius:50%;margin-right:7px;box-shadow:0 0 0 1px rgba(0,0,0,0.12);vertical-align:1px;}
@@ -1891,6 +1888,13 @@ body.launch-mode .su-sheet-coachlink,
 body.launch-mode .su-strength,
 body.launch-mode .su-pea-todo,
 body.launch-mode .su-legend{display:none !important;}
+/* Scheduled breaks wait for the full site too (to come back later). */
+body.launch-mode .break-btn,
+body.launch-mode .btn-complete-break,
+body.launch-mode .break-complete-badge,
+body.launch-mode .countdown,
+body.launch-mode .roster-break-plan,
+body.launch-mode .su-row-note.is-break{display:none !important;}
 body.launch-mode .tabs{overflow-x:visible;}
 body.launch-mode .tab,
 body.launch-mode .tab-group{min-width:0;}

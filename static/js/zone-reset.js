@@ -111,7 +111,7 @@ function zrHandoffBannersHtml(kind, current, progressFor, bodyHtml){
     const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
     const sky = ZR_HANDOFF_SKIES[i] || 'midday';
     const lead = zrHandoffLead(dp);
-    return `<section class="su-dp su-sky-${sky} ${open ? 'is-open' : ''} ${done ? 'is-done' : ''}">
+    return `<section class="su-dp su-col-${suDaypartColor(dp.leadFrom)} ${open ? 'is-open' : ''} ${done ? 'is-done' : ''}">
       <div class="su-dp-banner">
         <button type="button" class="su-dp-head" data-zr-handoff="${escapeHtml(dp.name)}" aria-expanded="${open}">
           <span class="su-dp-art">${suSkyArt(sky)}</span>
