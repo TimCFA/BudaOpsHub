@@ -21,7 +21,8 @@ const STATE_SECTIONS = {
   waste: ['entries', 'wasteDays', 'formDone', 'formDoneDate', 'wasteLogLastClosedOut'],
   ops: ['foodSafetyDays', 'foodSafetyWalkthroughs', 'fohOEDays', 'fohOEChecked', 'fohOECheckedDate',
         'fohLeaderTransitionChecked', 'fohLeaderTransitionDate', 'zoneChecklistState',
-        'numbersData', 'safeCounts'],
+        'numbersData'],
+  safe: ['safeCounts'],
   people: ['eoiSubmissions', 'trainerTrainees', 'trainerProgress', 'teamLeadTrainees',
            'teamLeadProgress', 'scoreboardItems'],
   prep: ['prepBuffers', 'prepSoldEntries', 'prepWasteEntries', 'prepStockoutEvents', 'prepHistorySeeded'],
@@ -248,7 +249,19 @@ async function loadState(){
     if(saved) data = JSON.parse(saved);
   }
   if(data) applyStateData(data);
-  if(!Object.keys(stateVersions).length){
+  if(Object.keys(stateVersions).length){
+    // Sections the server holds back from this device (private ones, without
+    // a manager session): start from the page's empty defaults, so what's
+    // added here (a leader's safe count) is sent as an addition the server
+    // merges in. The server never lets such a device change or remove them.
+    const start = stateSections(stateSnapshot());
+    Object.keys(STATE_SECTIONS).forEach(name=>{
+      if(name in stateBase) return;
+      stateBase[name] = JSON.parse(start[name]);
+      savedSections[name] = start[name];
+      stateVersions[name] = '?';
+    });
+  } else {
     // The server couldn't be reached: count what this page starts with as
     // the base, so only changes made here are sent once it's back (merged
     // into whatever the server has, never replacing it).
