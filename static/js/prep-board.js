@@ -78,7 +78,6 @@ let pbCurrentPage = 'buildto';
 let pbDismissedSuggestions = {};
 let pbInsightItem = null;
 let pbAddPanelOpen = false;
-let pbWastePanelOpen = false;
 
 function pbUid(){
   return 'pb' + Date.now() + Math.random().toString(36).slice(2, 8);
@@ -156,6 +155,41 @@ function pbBucketTotals(entry){
 }
 
 function pbEntriesFor(list, day){ return list.filter(e => e.day === day); }
+
+// ---------- waste from the Waste tracker ----------
+// Prep waste isn't pasted here any more: it's whatever the team logged on the
+// Waste tab for cold-side items. Each catalog item that is a prep item maps
+// to a build-to bucket (a cold Market or Spicy SW salad is the one prepped
+// ahead, so it counts as the grilled-filet (cold) version). One derived
+// entry per day, shaped like the pasted ones were, so the build-to math,
+// buffer suggestions and Insights read it unchanged. Waste days pasted
+// before the tracker (prepWasteEntries) still count for dates the tracker
+// has nothing for.
+const PB_TRACKER_BUCKET = {
+  'cobb-salad': 'Cobb Salad', 'market-salad': 'Mkt Salad — Grilled Filet (Cold)', 'spicy-southwest-salad': 'Spicy SW Salad — Spicy Grilled Filet (Cold)',
+  'side-salad': 'Side Salad', 'kale-crunch-side': 'Kale Salad', 'cool-wrap': 'Regular Cool Wrap', 'spicy-wrap': 'Spicy Wrap',
+  'small-fruit-cup': 'Fruit Cup, Small', 'medium-fruit-cup': 'Fruit Cup, Medium', 'greek-yogurt-parfait': 'Parfait'
+};
+function pbTrackerBucket(entry){
+  const item = wasteItemFor(entry);
+  if(PB_TRACKER_BUCKET[item.id]) return PB_TRACKER_BUCKET[item.id];
+  if(item.cat !== 'Prep') return null;
+  const mapped = pbMapToTrackedItem(item.name);
+  return /^Unmapped/.test(mapped) ? null : mapped;
+}
+function pbWasteEntries(){
+  const byDate = {};
+  entries.forEach(e => {
+    const bucket = pbTrackerBucket(e);
+    if(!bucket) return;
+    const date = wasteEntryDay(e);
+    const day = byDate[date] || (byDate[date] = {id: 'wt-' + date, date, day: pbWeekdayOf(date), label: pbFormatDate(date, {year: true}), items: {}, source: 'tracker'});
+    day.items[bucket] = (day.items[bucket] || 0) + (Number(e.qty) || 0);
+  });
+  const fromTracker = Object.values(byDate);
+  const covered = new Set(fromTracker.map(d => d.date));
+  return prepWasteEntries.filter(e => !e.date || !covered.has(e.date)).concat(fromTracker);
+}
 
 // ---------- dates ----------
 // Every sold/waste entry carries a real calendar date (ISO "YYYY-MM-DD"), so
@@ -259,7 +293,7 @@ function pbForecast(targetISO){
 
   const buckets = {};
   basis.forEach(e => Object.keys(pbBucketTotals(e)).forEach(b => { buckets[b] = true; }));
-  const wasteForDay = pbEntriesFor(prepWasteEntries, weekday);
+  const wasteForDay = pbEntriesFor(pbWasteEntries(), weekday);
 
   const stats = Object.keys(buckets).map(bucket => {
     const level = weightSum ? basis.reduce((sum, e, i) => sum + weights[i] * (pbBucketTotals(e)[bucket] || 0), 0) / weightSum : 0;
@@ -293,7 +327,7 @@ function pbConfidenceClass(n){
 
 function pbComputeSuggestion(day){
   const sold = pbEntriesFor(prepSoldEntries, day);
-  const waste = pbEntriesFor(prepWasteEntries, day);
+  const waste = pbEntriesFor(pbWasteEntries(), day);
   if(waste.length < 3) return null;
   function sumAll(list){
     let total = 0;
@@ -546,7 +580,7 @@ function pbComputeVolatility(){
 function pbComputeWasteRatios(){
   const soldTotals = {}, wasteTotals = {};
   prepSoldEntries.forEach(e => { const t = pbBucketTotals(e); Object.keys(t).forEach(b => { soldTotals[b] = (soldTotals[b]||0) + t[b]; }); });
-  prepWasteEntries.forEach(e => { const t = pbBucketTotals(e); Object.keys(t).forEach(b => { wasteTotals[b] = (wasteTotals[b]||0) + t[b]; }); });
+  pbWasteEntries().forEach(e => { const t = pbBucketTotals(e); Object.keys(t).forEach(b => { wasteTotals[b] = (wasteTotals[b]||0) + t[b]; }); });
   const rows = [];
   Object.keys(wasteTotals).forEach(b => {
     const sold = soldTotals[b] || 0;
@@ -567,13 +601,13 @@ function pbRatioStatus(ratio){
 function pbAllBucketNames(){
   const set = {};
   prepSoldEntries.forEach(e => Object.keys(pbBucketTotals(e)).forEach(b => { set[b] = true; }));
-  prepWasteEntries.forEach(e => Object.keys(pbBucketTotals(e)).forEach(b => { set[b] = true; }));
+  pbWasteEntries().forEach(e => Object.keys(pbBucketTotals(e)).forEach(b => { set[b] = true; }));
   return Object.keys(set).sort();
 }
 
 function pbWasteTrendForBucket(bucket){
   const rows = [];
-  prepWasteEntries.forEach(e => {
+  pbWasteEntries().forEach(e => {
     const totals = pbBucketTotals(e);
     if(!(bucket in totals)) return;
     rows.push({ label: e.date ? pbFormatDate(e.date, {weekday: false}) : (e.label || e.day), value: totals[bucket], date: e.date || '' });
@@ -760,7 +794,7 @@ function pbRenderEntryCards(list, removeAttr, kind){
     const title = entry.date
       ? escapeHtml(pbFormatDate(entry.date, {year: true}))
       : `<span class="pb-undated">Undated${entry.label ? ' — ' + escapeHtml(entry.label) : ''}</span>`;
-    const dateFix = entry.date ? '' : `
+    const dateFix = entry.date || !removeAttr ? '' : `
       <div class="pb-date-fix">
         <label>Set the date for this entry</label>
         <input type="date" max="${today}" data-pb-set-date="${escapeHtml(entry.id)}" data-kind="${kind}">
@@ -775,7 +809,7 @@ function pbRenderEntryCards(list, removeAttr, kind){
             <span class="pb-src-tag">${escapeHtml(entry.source || 'manual')}</span>
             <span class="pb-entry-chevron">▾</span>
           </button>
-          <button class="pb-entry-remove" data-${removeAttr}="${entry.id}">Remove</button>
+          ${removeAttr ? `<button class="pb-entry-remove" data-${removeAttr}="${entry.id}">Remove</button>` : ''}
         </div>
         ${dateFix}
         ${open ? `<div class="pb-entry-items">
@@ -834,30 +868,12 @@ function pbRenderRecorded(){
 }
 
 function pbRenderWaste(){
-  let html = pbHistorySubline(prepWasteEntries, 'waste day');
-  html += `
-    <div class="pb-panel">
-      <button class="pb-panel-toggle" data-pb-toggle-panel="waste">${pbWastePanelOpen?'−':'+'} Log waste</button>
-      ${pbWastePanelOpen ? `
-        <div class="pb-panel-body">
-          ${pbDateFieldHtml('data-pb-waste-date', 'What date is this waste from?', 'waste')}
-          <div class="pb-field">
-            <label>Paste item name + count thrown away (tab-separated)</label>
-            <textarea data-pb-waste-paste-area rows="5" placeholder="Salad, Cobb w/ Nuggets&#9;4"></textarea>
-          </div>
-          <div class="pb-field">
-            <label>...or upload a CSV / Excel file</label>
-            <input type="file" data-pb-waste-file accept=".csv,.tsv,.txt,.xlsx,.xls">
-          </div>
-          <div class="pb-panel-actions">
-            <button class="btn btn-primary" style="width:auto;padding:9px 18px;" data-pb-add-waste>Add this day's waste</button>
-          </div>
-          <div class="pb-feedback" data-pb-waste-feedback></div>
-        </div>
-      ` : ''}
-    </div>
-  `;
-  html += pbRenderEntryCards(prepWasteEntries, 'pb-remove-waste', 'waste');
+  const list = pbWasteEntries();
+  let html = pbHistorySubline(list, 'waste day');
+  html += `<div class="pb-panel"><div class="pb-panel-body pb-waste-note">
+    <b>Waste comes from the Waste tab.</b> Cold-side items logged there (salads, wraps, fruit cups, parfaits) show here by day and feed the build-to numbers, buffer suggestions and Insights. To fix an entry, use the Waste Summary on the Scoreboard tab.
+  </div></div>`;
+  html += pbRenderEntryCards(list, null, 'waste');
   return html;
 }
 
@@ -889,7 +905,7 @@ function pbRenderBuffers(){
 }
 
 function pbRenderInsights(){
-  let html = `<p class="pb-subline">Cross-day trends · pulled from every Sold Counts and Waste Log entry on file</p>`;
+  let html = `<p class="pb-subline">Cross-day trends · pulled from every Sold Counts entry and the Waste tab</p>`;
 
   // Sales over time: weekly totals + month / season averages for one item.
   const soldNames = {};
@@ -925,7 +941,7 @@ function pbRenderInsights(){
 
   html += `<section class="pb-category"><div class="pb-category-head"><h3>Waste vs. sold</h3><span class="pb-count">share of build thrown away</span></div>`;
   html += pbHbarChart(pbComputeWasteRatios().slice(0, 10), {
-    emptyText: 'Log some Waste entries to see which items run heaviest.',
+    emptyText: 'Log cold-side waste on the Waste tab to see which items run heaviest.',
     valueFn: r => r.ratio,
     valueLabel: (r,v) => Math.round(v*100) + '%',
     subHtml: r => { const st = pbRatioStatus(r.ratio); return `<span class="pb-status-pill ${st.cls}">${st.label}</span>`; },
@@ -1011,7 +1027,7 @@ function renderPrepBoard(){
   const pages = [
     { id: 'buildto', label: 'Build-To Sheet' },
     { id: 'recorded', label: 'Sold Counts' },
-    { id: 'waste', label: 'Waste Log' },
+    { id: 'waste', label: 'Waste' },
     { id: 'insights', label: 'Insights' },
     { id: 'times', label: 'Prep Times' },
     { id: 'buffers', label: 'Buffers' }
@@ -1027,7 +1043,7 @@ function renderPrepBoard(){
 
   if(pbCurrentPage === 'buildto') html += pbDateNavHtml();
   else if(pbCurrentPage === 'recorded') html += pbListFilterNavHtml(prepSoldEntries);
-  else if(pbCurrentPage === 'waste') html += pbListFilterNavHtml(prepWasteEntries);
+  else if(pbCurrentPage === 'waste') html += pbListFilterNavHtml(pbWasteEntries());
   html += pbSuggestBannerHtml();
 
   if(pbCurrentPage === 'buildto') html += pbRenderBuildTo();
@@ -1062,8 +1078,7 @@ async function pbRemoveEntry(list, id){
 // ---------- adding dated entries ----------
 
 const PB_KIND = {
-  sold:  { list: () => prepSoldEntries,  dateAttr: 'data-pb-sold-date',  paste: '[data-pb-paste-area]',       feedback: '[data-pb-feedback]',       noun: 'sold' },
-  waste: { list: () => prepWasteEntries, dateAttr: 'data-pb-waste-date', paste: '[data-pb-waste-paste-area]', feedback: '[data-pb-waste-feedback]', noun: 'wasted' }
+  sold: { list: () => prepSoldEntries, dateAttr: 'data-pb-sold-date', paste: '[data-pb-paste-area]', feedback: '[data-pb-feedback]', noun: 'sold' }
 };
 
 function pbPanelDate(kind){
@@ -1160,7 +1175,7 @@ document.getElementById('prepBoardRoot').addEventListener('click', function(e){
     if(iso > today) return;
     pbEntryDates[kind] = iso;
     // Keep anything already pasted: changing the date redraws the panel.
-    const pasted = [...document.querySelectorAll('[data-pb-paste-area], [data-pb-waste-paste-area]')].map(t => [t.matches('[data-pb-paste-area]') ? '[data-pb-paste-area]' : '[data-pb-waste-paste-area]', t.value]);
+    const pasted = [...document.querySelectorAll('[data-pb-paste-area]')].map(t => ['[data-pb-paste-area]', t.value]);
     renderPrepBoard();
     pasted.forEach(([sel, v]) => { const t = document.querySelector(sel); if(t && v) t.value = v; });
     return;
@@ -1171,8 +1186,7 @@ document.getElementById('prepBoardRoot').addEventListener('click', function(e){
 
   const togglePanel = e.target.closest('[data-pb-toggle-panel]');
   if(togglePanel){
-    if(togglePanel.dataset.pbTogglePanel === 'add') pbAddPanelOpen = !pbAddPanelOpen;
-    else pbWastePanelOpen = !pbWastePanelOpen;
+    pbAddPanelOpen = !pbAddPanelOpen;
     renderPrepBoard();
     return;
   }
@@ -1204,14 +1218,10 @@ document.getElementById('prepBoardRoot').addEventListener('click', function(e){
 
   const removeSold = e.target.closest('[data-pb-remove-sold]');
   if(removeSold){ pbRemoveEntry(prepSoldEntries, removeSold.dataset.pbRemoveSold); return; }
-  const removeWaste = e.target.closest('[data-pb-remove-waste]');
-  if(removeWaste){ pbRemoveEntry(prepWasteEntries, removeWaste.dataset.pbRemoveWaste); return; }
 
   const addDayBtn = e.target.closest('[data-pb-add-day]');
   if(addDayBtn){ pbAddPasted('sold'); return; }
 
-  const addWasteBtn = e.target.closest('[data-pb-add-waste]');
-  if(addWasteBtn){ pbAddPasted('waste'); return; }
 
   const logStockout = e.target.closest('[data-pb-log-stockout]');
   if(logStockout){
@@ -1269,6 +1279,4 @@ document.getElementById('prepBoardRoot').addEventListener('change', function(e){
     saveState().then(() => { renderPrepBoard(); showToast('✓ Date set'); });
     return;
   }
-  const wasteFile = e.target.closest('[data-pb-waste-file]');
-  if(wasteFile && wasteFile.files && wasteFile.files[0]){ pbImportFile('waste', wasteFile); return; }
 });
