@@ -382,6 +382,21 @@ class SafeCountTest(unittest.TestCase):
         self.assertEqual(section('ops')['fohOECheckedDate'], '2026-10-02')
         self.assertNotIn('safeCounts', section('ops'))
 
+    def test_today_only_for_team_devices(self):
+        import datetime
+        today = datetime.date.today().isoformat()
+        old_day = (datetime.date.today() - datetime.timedelta(days=5)).isoformat()
+        store['state/ops'] = json.dumps({'safeCounts': [
+            {'id': 'a', 'date': today, 'timestamp': 5, 'total': 4500},
+            {'id': 'b', 'date': old_day, 'timestamp': 1, 'total': 4400}]})
+        appmod._cache.clear()
+        appmod._cache_ready = False
+        r = self.team.get(f'/api/safe-counts/today?date={today}')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual([c['id'] for c in r.get_json()['counts']], ['a'])
+        self.assertEqual(self.team.get(f'/api/safe-counts/today?date={old_day}').status_code, 403)
+        self.assertEqual(self.team.get('/api/safe-counts/today?date=nope').status_code, 400)
+
     def test_no_cross_site_access_by_default(self):
         r = self.team.post('/api/state/load', json={}, headers={'Origin': 'https://example.com'})
         self.assertNotIn('Access-Control-Allow-Origin', r.headers)

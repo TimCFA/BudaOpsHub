@@ -256,6 +256,21 @@ function renderSafeCount(){
   if(safeDateInput) safeDateInput.value = new Date().toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric', year:'numeric'});
   openSafeCountEntry();
   renderSafeCountLog();
+  scLoadToday();
+}
+
+// Team devices aren't sent the safe count log (TIM-48), only today's counts
+// on request, so a leader can check the opening count. null = not asked yet.
+let safeCountsToday = null;
+
+async function scLoadToday(){
+  if(typeof launchManager !== 'undefined' && launchManager) return;
+  try{
+    const res = await fetch(`${API_BASE}/api/safe-counts/today?date=${encodeURIComponent(today)}`);
+    if(!res.ok) return;
+    safeCountsToday = (await res.json()).counts || [];
+    renderSafeCountLog();
+  }catch(err){ /* offline: show what this device logged */ }
 }
 
 function calcSafeCountTotal(){
@@ -328,6 +343,7 @@ document.getElementById('safeCountForm').addEventListener('submit', async (e)=>{
   safeCounts.push(entry);
   await saveState();
   renderSafeCountLog();
+  scLoadToday();
   document.getElementById('safeCountForm').reset();
   document.getElementById('safeCountDate').value = new Date().toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric', year:'numeric'});
   calcSafeCountTotal();
@@ -339,15 +355,25 @@ document.getElementById('safeCountForm').addEventListener('submit', async (e)=>{
 function renderSafeCountLog(){
   const container = document.getElementById('safeCountLogContainer');
   if(!container) return;
-  // Safe counts reach manager sessions only (TIM-48). Other devices still log
-  // counts and see the ones logged here since the page opened.
+  // Safe counts reach manager sessions only (TIM-48). Other devices see
+  // today's counts (fetched) plus any logged here.
   const manager = typeof launchManager !== 'undefined' && launchManager;
-  const note = manager ? '' : '<div class="safe-log-private">🔒 The full log is for managers (sign in on Manage). Counts you log here are saved and shown below.</div>';
-  if(safeCounts.length === 0){
-    container.innerHTML = note + `<div style="text-align:center;color:var(--text-secondary);padding:20px;font-size:12px;">${manager ? 'No safe counts logged yet' : 'Nothing logged from this device yet'}</div>`;
+  const note = manager ? '' : '<div class="safe-log-private">🔒 Today\'s counts. The full history is for managers (sign in on Manage).</div>';
+  let list = safeCounts;
+  if(!manager){
+    const seen = new Set();
+    list = [...(safeCountsToday || []), ...safeCounts.filter(e => e.date === today)].filter(e=>{
+      const k = `${e.timestamp}|${e.countedBy}|${e.total}`;
+      if(seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  }
+  if(list.length === 0){
+    container.innerHTML = note + `<div style="text-align:center;color:var(--text-secondary);padding:20px;font-size:12px;">${manager ? 'No safe counts logged yet' : 'No counts logged yet today'}</div>`;
     return;
   }
-  const sorted = [...safeCounts].sort((a,b)=> b.timestamp - a.timestamp);
+  const sorted = [...list].sort((a,b)=> b.timestamp - a.timestamp);
   container.innerHTML = note + sorted.map(entry => {
     const variance = Number(entry.variance) || 0;
     const varClass = Math.abs(variance) < 0.01 ? 'balanced' : (variance > 0 ? 'over' : 'short');
