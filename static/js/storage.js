@@ -294,42 +294,27 @@ function applyStateData(data){
   // silently reappears on the next load just because it's "missing" from
   // their saved list — missing now means "deleted", not "needs restoring".
   deletedProductIds = data.deletedProductIds || [];
-  const defaultProducts = [...fohProducts, ...bohProducts];
-  if(data.products){
+  const defaultProducts = wasteDefaultProducts();
+  const fixesDone = data.productFixesVersion || 0;
+  if(data.products && fixesDone >= 4){
     const savedIds = new Set(data.products.map(p=>p.id));
     const missingDefaults = defaultProducts.filter(p=>!savedIds.has(p.id) && !deletedProductIds.includes(p.id));
     products = [...data.products, ...missingDefaults];
-    // Each fix runs once per saved list, so later edits in Manage (renames,
-    // category moves) aren't overwritten on the next load.
-    const fixesDone = data.productFixesVersion || 0;
-    if(fixesDone < 1){
-      const renameFixes = {foh26:'5 ct Grilled Nugget', foh27:'8 ct Grilled Nugget', foh28:'12 ct Grilled Nugget'};
-      products.forEach(p=>{ if(renameFixes[p.id]) p.name = renameFixes[p.id]; });
-    }
-    if(fixesDone < 2){
-      const sideIds = ['foh6','foh7','foh8','foh9','foh10','foh11','foh15','foh18','foh19','foh20'];
-      products.forEach(p=>{ if(sideIds.includes(p.id)) p.cat = 'Sides'; });
-    }
-    if(fixesDone < 3){
-      // Count items become "Base (N ct)" so they share one row of option
-      // buttons on Log Waste. Only renamed if still at their old default name.
-      const optionRenames = {
-        foh25: ['5 ct Nugget', 'Nuggets (5 ct)'], foh4: ['8 ct Nugget', 'Nuggets (8 ct)'], foh5: ['12 ct Nugget', 'Nuggets (12 ct)'],
-        foh26: ['5 ct Grilled Nugget', 'Grilled Nuggets (5 ct)'], foh27: ['8 ct Grilled Nugget', 'Grilled Nuggets (8 ct)'], foh28: ['12 ct Grilled Nugget', 'Grilled Nuggets (12 ct)'],
-        boh18: ['Strip', 'Strips (1 ct)']
-      };
-      products.forEach(p=>{
-        const fix = optionRenames[p.id];
-        if(fix && p.name === fix[0]){
-          p.name = fix[1];
-          const def = defaultProducts.find(d=>d.id===p.id);
-          if(def) p.es = def.es;
-        }
-      });
-    }
+  } else if(data.products){
+    // Fix 4: the Waste tracker's catalog replaces the old Log Waste list.
+    // A price a manager had typed in for an old item carries to the item it
+    // became (WASTE_LEGACY_MAP); every other price is the catalog's.
+    products = defaultProducts;
+    data.products.forEach(old=>{
+      const id = WASTE_LEGACY_MAP[old.id];
+      const p = id && products.find(x => x.id === id);
+      if(p && Number(old.cost) > 0) p.cost = Number(old.cost);
+    });
+    deletedProductIds = [];
   } else {
     products = defaultProducts;
   }
+  products.forEach(p=>{ p.ceil = Number(p.ceil) || 0; p.cost = Number(p.cost) || 0; if(p.active === undefined) p.active = true; });
   productFixesVersion = PRODUCT_FIXES_VERSION;
   productCategoryOrder = Object.assign({foh: [], boh: []}, data.productCategoryOrder || {});
   wasteTarget = data.wasteTarget || 100;
