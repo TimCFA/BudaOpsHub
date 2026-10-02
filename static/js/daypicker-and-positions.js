@@ -297,10 +297,9 @@ function renderPosOptionList(eligible, filterText){
     html += '<div class="pos-option-empty">No matches</div>';
   } else {
     html += filtered.map(p=>{
-      const escapedName = p.name.replace(/'/g, "\\'");
       return `
-        <div class="pos-option" onclick="commitPosAssignment('${escapedName}')">
-          <span>${p.name}</span>
+        <div class="pos-option" onclick="commitPosAssignment(${jsArg(p.name)})">
+          <span>${escapeHtml(p.name)}</span>
           ${p.offShift ? '<span class="pos-option-tag">off shift</span>' : ''}
         </div>
       `;
@@ -423,11 +422,10 @@ function renderVacancyOptionList(eligible, filterText){
   }
 
   container.innerHTML = filtered.map(p=>{
-    const escapedName = p.name.replace(/'/g, "\\'");
     const isSelected = pendingVacancySelection === p.name;
     return `
-      <div class="pos-option ${isSelected ? 'selected' : ''}" onclick="selectVacancyOption('${escapedName}')">
-        <span>${p.name}</span>
+      <div class="pos-option ${isSelected ? 'selected' : ''}" onclick="selectVacancyOption(${jsArg(p.name)})">
+        <span>${escapeHtml(p.name)}</span>
         <span class="pos-option-check">✓</span>
       </div>
     `;
@@ -508,7 +506,7 @@ function renderRoster(){
 
   const html = sortedRoster.map(person=>{
     const key = person.name + today;
-    const escapedName = person.name.replace(/'/g, "\\'");
+    const nameArg = jsArg(person.name);
     let remaining = 0;
     if(breakCountdowns[key]){
       remaining = Math.round((breakCountdowns[key] - Date.now()) / 1000);
@@ -526,15 +524,15 @@ function renderRoster(){
     const customBadge = person.source === 'manual' ? `<span class="roster-custom-badge">✏️ Custom${person.addedBy ? ' · ' + escapeHtml(person.addedBy) : ''}</span>` : '';
     return `
       <div class="roster-item">
-        <button class="roster-remove" onclick="removeFromRoster('${escapedName}')" title="Remove from today's roster">✕</button>
-        <div class="roster-name">${escapeHtml(person.name)}${person.leader ? '<span class="roster-leader-badge">Team Leader</span>' : ''}${customBadge}${(isCompleted && !onBreak) ? `<button class="break-complete-badge" onclick="undoBreakComplete('${escapedName}')" title="Tap to undo">✓ Break Complete ↺</button>` : ''}</div>
+        <button class="roster-remove" onclick="removeFromRoster(${nameArg})" title="Remove from today's roster">✕</button>
+        <div class="roster-name">${escapeHtml(person.name)}${person.leader ? '<span class="roster-leader-badge">Team Leader</span>' : ''}${customBadge}${(isCompleted && !onBreak) ? `<button class="break-complete-badge" onclick="undoBreakComplete(${nameArg})" title="Tap to undo">✓ Break Complete ↺</button>` : ''}</div>
         <div class="roster-time">${escapeHtml(rosterTimeText(person))}${(()=>{ const b = !isCompleted && !onBreak ? breakFor(currentPosSection, dayName, person.name) : null; return b && b.start !== null ? ` <span class="roster-break-plan">· ☕ break ${suClock(b.start)}–${suClock(b.end)}</span>` : ''; })()}</div>
         ${onBreak ? `
-          <div class="countdown" id="timer-${person.name}">${mins}:${secs<10?'0':''}${secs}</div>
+          <div class="countdown" id="timer-${escapeHtml(person.name)}">${mins}:${secs<10?'0':''}${secs}</div>
           <button class="break-btn onbreak" disabled>On Break</button>
-          <button class="btn-complete-break" onclick="completeBreakNow('${escapedName}')">Mark Break Complete</button>
+          <button class="btn-complete-break" onclick="completeBreakNow(${nameArg})">Mark Break Complete</button>
         ` : `
-          <button class="break-btn" onclick="toggleBreak('${escapedName}')">Start Break</button>
+          <button class="break-btn" onclick="toggleBreak(${nameArg})">Start Break</button>
         `}
       </div>
     `;
@@ -748,23 +746,23 @@ function renderNumbersContent(){
   
   container.innerHTML = fohDayparts.map(dp=>{
     const entry = numbersData[dayName][dp.name] || {};
-    const escapedDp = dp.name.replace(/'/g, "\\'");
+    const dayArg = jsArg(dayName), dpArg = jsArg(dp.name);
     return `
       <div class="standup-card" style="margin-bottom:14px;">
-        <h3 style="margin-bottom:12px;">${dp.name}</h3>
+        <h3 style="margin-bottom:12px;">${escapeHtml(dp.name)}</h3>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
           <div class="field">
             <label>Projected Sales</label>
-            <input type="text" inputmode="decimal" value="${entry.projectedSales || ''}" placeholder="$0.00" onchange="formatAndUpdateCurrency(this,'${dayName}','${escapedDp}','projectedSales')" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+            <input type="text" inputmode="decimal" value="${escapeHtml(entry.projectedSales || '')}" placeholder="$0.00" onchange="formatAndUpdateCurrency(this,${dayArg},${dpArg},'projectedSales')" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
           </div>
           <div class="field">
             <label>Productivity Goal</label>
-            <input type="text" inputmode="decimal" value="${entry.productivityGoal || ''}" placeholder="$0.00" onchange="formatAndUpdateCurrency(this,'${dayName}','${escapedDp}','productivityGoal')" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+            <input type="text" inputmode="decimal" value="${escapeHtml(entry.productivityGoal || '')}" placeholder="$0.00" onchange="formatAndUpdateCurrency(this,${dayArg},${dpArg},'productivityGoal')" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
           </div>
         </div>
         <div class="field">
           <label>Special Events</label>
-          <input type="text" value="${entry.specialEvents || ''}" placeholder="e.g. Football watch party, large catering pickup at 2pm" onchange="updateNumbersField('${dayName}','${escapedDp}','specialEvents',this.value)" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+          <input type="text" value="${escapeHtml(entry.specialEvents || '')}" placeholder="e.g. Football watch party, large catering pickup at 2pm" onchange="updateNumbersField(${dayArg},${dpArg},'specialEvents',this.value)" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
         </div>
       </div>
     `;

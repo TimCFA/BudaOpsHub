@@ -9,15 +9,15 @@ function renderTrainingGuides(containerId, guides, bilingual){
     const cardId = containerId + '-' + idx;
     return `
     <div class="tguide-card" style="--tg-color:${g.color};">
-      <div class="tguide-header" onclick="toggleTrainingGuide('${cardId}')">
+      <div class="tguide-header" onclick="toggleTrainingGuide(${jsArg(cardId)})">
         <div class="tguide-title"><span class="tguide-icon">${g.icon}</span>${g.title}</div>
         <div class="tguide-toggle" id="tgt-${cardId}">▼</div>
       </div>
       <div class="tguide-content" id="tgc-${cardId}">
         ${bilingual ? `
         <div class="tguide-lang-row">
-          <button type="button" class="tguide-lang-btn active" data-lang="en" onclick="setTrainingGuideLang('${cardId}','en')">English</button>
-          <button type="button" class="tguide-lang-btn" data-lang="es" onclick="setTrainingGuideLang('${cardId}','es')">Español</button>
+          <button type="button" class="tguide-lang-btn active" data-lang="en" onclick="setTrainingGuideLang(${jsArg(cardId)},'en')">English</button>
+          <button type="button" class="tguide-lang-btn" data-lang="es" onclick="setTrainingGuideLang(${jsArg(cardId)},'es')">Español</button>
         </div>
         ` : ''}
         <div class="tguide-lang-panel" data-lang="en" id="tgl-en-${cardId}">

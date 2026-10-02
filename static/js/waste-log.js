@@ -69,7 +69,7 @@ function wasteCostLabel(cost){
 function renderItemRow(p){
   const cost = wasteCostLabel(p.cost);
   return `
-    <div class="waste-item" data-id="${p.id}">
+    <div class="waste-item" data-id="${escapeHtml(p.id)}">
       <div class="waste-item-text">
         <div class="waste-item-name">${escapeHtml(p.name)}</div>
         ${p.es ? `<div class="waste-item-es">${escapeHtml(p.es)}</div>` : ''}
@@ -91,7 +91,7 @@ function renderVariantRow(base, variants){
       <div class="waste-sizes${variants.some(v=>variantLabel(v.option).length > 2) ? ' waste-sizes-words' : ''}">
         ${variants.map(v => {
           const cost = wasteCostLabel(v.product.cost);
-          return `<button type="button" class="waste-size-btn" data-id="${v.product.id}" title="${escapeHtml(v.product.name)}" aria-label="${escapeHtml(v.product.name)}">${escapeHtml(variantLabel(v.option))}${cost ? `<small>${cost}</small>` : ''}</button>`;
+          return `<button type="button" class="waste-size-btn" data-id="${escapeHtml(v.product.id)}" title="${escapeHtml(v.product.name)}" aria-label="${escapeHtml(v.product.name)}">${escapeHtml(variantLabel(v.option))}${cost ? `<small>${cost}</small>` : ''}</button>`;
         }).join('')}
       </div>
     </div>
@@ -219,8 +219,8 @@ function renderTape(){
   }
   tape.innerHTML = [...filtered].sort((a,b)=>b.ts-a.ts).map(e=>`
     <div class="tape-row">
-      <span class="l">${new Date(e.ts).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})} · ${e.name}</span>
-      <span class="r">${e.qty}${e.unit} · $${e.cost.toFixed(2)}</span>
+      <span class="l">${new Date(e.ts).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})} · ${escapeHtml(e.name)}</span>
+      <span class="r">${escapeHtml(e.qty)}${escapeHtml(e.unit)} · $${(Number(e.cost) || 0).toFixed(2)}</span>
     </div>
   `).join('');
 }
@@ -249,7 +249,7 @@ function renderScoreboardView(){
 
   const byProduct = {};
   todayEntries.forEach(e=>{
-    byProduct[e.name] = (byProduct[e.name]||0) + e.cost;
+    byProduct[e.name] = (byProduct[e.name]||0) + (Number(e.cost) || 0);
   });
   const sorted = Object.entries(byProduct).sort((a,b)=>b[1]-a[1]).slice(0,8);
   const maxVal = sorted[0]?sorted[0][1]:1;
@@ -257,7 +257,7 @@ function renderScoreboardView(){
   document.getElementById('barList').innerHTML = sorted.length ? sorted.map(([name,cost])=>`
     <div class="bar-item">
       <div class="bi-top">
-        <span class="bn">${name}</span>
+        <span class="bn">${escapeHtml(name)}</span>
         <span class="bv">$${cost.toFixed(2)}</span>
       </div>
       <div class="bar-track">

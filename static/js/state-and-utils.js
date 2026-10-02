@@ -37,6 +37,13 @@ function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
 
+// A value handed to an inline handler, e.g. onclick="fn(${jsArg(name)})":
+// a quoted JS string, escaped again for the HTML attribute around it, so a
+// quote or tag in a name can't break out of either.
+function jsArg(value){
+  return escapeHtml(JSON.stringify(value === null || value === undefined ? '' : String(value)));
+}
+
 // ===== TEAM MEMBER INITIALS (attribution) =====
 // Not a login, not verified — just a quick low-friction way to stamp who did
 // what during a shift. Lives in localStorage per-device, switches instantly.
@@ -69,7 +76,7 @@ function beginEditInitials(){
   const badge = document.getElementById('initialsBadge');
   if(!badge || badge.querySelector('input')) return;
   const current = getInitials();
-  badge.innerHTML = `<input type="text" id="initialsInput" maxlength="4" value="${current}" placeholder="JD" style="width:50px;text-transform:uppercase;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;border:1px solid var(--cfa-red);border-radius:4px;padding:2px 4px;background:var(--cfa-white);color:var(--text-primary);">`;
+  badge.innerHTML = `<input type="text" id="initialsInput" maxlength="4" value="${escapeHtml(current)}" placeholder="JD" style="width:50px;text-transform:uppercase;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;border:1px solid var(--cfa-red);border-radius:4px;padding:2px 4px;background:var(--cfa-white);color:var(--text-primary);">`;
   const input = document.getElementById('initialsInput');
   input.focus();
   input.select();

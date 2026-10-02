@@ -138,10 +138,10 @@ function ptRenderPage(){
       ${running.map(t => `
         <div class="pt-timer">
           <div class="pt-timer-who"><b>${escapeHtml(t.name)}</b><span>${escapeHtml(ptShortItem(t.item))} × ${t.qty}</span></div>
-          <div class="pt-timer-clock" data-pt-elapsed="${t.startedAt}">${ptClock((Date.now() - t.startedAt) / 1000)}</div>
+          <div class="pt-timer-clock" data-pt-elapsed="${escapeHtml(t.startedAt)}">${ptClock((Date.now() - t.startedAt) / 1000)}</div>
           <div class="pt-timer-actions">
-            <button type="button" class="pt-done" data-pt-done="${t.id}">Done</button>
-            <button type="button" class="pt-cancel" data-pt-cancel="${t.id}" aria-label="Cancel this timer">Cancel</button>
+            <button type="button" class="pt-done" data-pt-done="${escapeHtml(t.id)}">Done</button>
+            <button type="button" class="pt-cancel" data-pt-cancel="${escapeHtml(t.id)}" aria-label="Cancel this timer">Cancel</button>
           </div>
         </div>`).join('')}
     </section>` : '';
