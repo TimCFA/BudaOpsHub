@@ -308,6 +308,11 @@ function applyStateData(data){
         if(fix && (!(Number(p.cost) > 0) || Math.abs(Number(p.cost) - fix[0]) < 0.005)) p.cost = fix[1];
       });
     }
+    if(fixesDone < 6){
+      // Fix 6: each item gets its side (FOH / BOH); items added in Manage
+      // that the catalog doesn't know show on both.
+      products.forEach(p=>{ if(!WASTE_SIDES.includes(p.side)) p.side = WASTE_CATALOG_IDS.has(p.id) ? wasteDefaultSide(p.id) : 'both'; });
+    }
   } else if(data.products){
     // Fix 4: the Waste tracker's catalog replaces the old Log Waste list.
     // A price a manager had typed in for an old item carries to the item it

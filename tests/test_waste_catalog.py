@@ -23,6 +23,8 @@ const out = vm.runInContext(`({
   legacy: WASTE_LEGACY_MAP,
   colors: WASTE_COLORS,
   priceFix: WASTE_PRICE_FIX_5,
+  bohIds: [...WASTE_BOH_ITEMS],
+  shows: [wasteItemShows({side: 'foh'}, 'foh'), wasteItemShows({side: 'foh'}, 'boh'), wasteItemShows({side: 'both'}, 'boh'), wasteItemShows({}, 'boh'), wasteItemShows({side: 'x'}, 'foh')],
   catOrder: WASTE_CAT_ORDER,
   valid: ['#abcdef', '#ABCDEF', 'red', '#abc', 'url(x)', '#abcdeg'].map(wasteValidColor),
   textOn: [wasteTextOn('#ffffff'), wasteTextOn('#000000')],
@@ -79,6 +81,20 @@ class WasteCatalogTest(unittest.TestCase):
         # Judgment calls left alone.
         for pid in ('buttered-biscuit', 'egg-whites-2', 'yellow-egg-2', 'coke', 'bacon', 'brioche-bun', 'mini-bread'):
             self.assertNotIn(pid, fix, pid)
+
+    def test_sides(self):
+        items = {p['id']: p for p in self.data['items']}
+        for pid in self.data['bohIds']:
+            self.assertIn(pid, items, pid)
+        sides = {p['side'] for p in items.values()}
+        self.assertEqual(sides, {'foh', 'boh'})
+        self.assertEqual(sum(1 for p in items.values() if p['side'] == 'boh'), len(self.data['bohIds']))
+        for pid in ('raw-filet', 'filet', 'white-bun', 'yellow-egg', 'waffle-bkfst'):
+            self.assertEqual(items[pid]['side'], 'boh', pid)
+        for pid in ('cfa-sandwich', 'cobb-salad', 'medium-waffle-fry', 'lemonade', 'bec-biscuit', '8-count-nugget', 'vanilla-milkshake'):
+            self.assertEqual(items[pid]['side'], 'foh', pid)
+        # Items with no side (or a bad one) show on both sides.
+        self.assertEqual(self.data['shows'], [True, False, True, True, True])
 
     def test_color_guard(self):
         self.assertEqual(self.data['valid'], ['#abcdef', '#abcdef', '', '', '', ''])

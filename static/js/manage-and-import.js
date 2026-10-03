@@ -129,6 +129,8 @@ async function saveProductsAndRefresh(){
   renderGrid();
 }
 
+function wasteSideLabel(side){ return side === 'foh' ? 'FOH' : side === 'boh' ? 'BOH' : 'FOH + BOH'; }
+
 function wasteItemUsed(id){
   return entries.some(e => wasteItemId(e) === id);
 }
@@ -154,7 +156,7 @@ function renderProductManager(){
     <div class="wi-list">${rows.length ? rows.map(p => `
       <button type="button" class="wi-row ${p.active === false ? 'is-off' : ''}" data-wi-edit="${escapeHtml(p.id)}">
         <span class="wi-dot" style="--c:${wasteItemColor(p)}"></span>
-        <span class="wi-nm"><b>${escapeHtml(p.name)}${p.active === false ? '<span class="wi-tag">Hidden</span>' : ''}</b><span>${escapeHtml(p.es || '')}${p.es ? ' · ' : ''}${escapeHtml(p.cat)}${p.ceil > 0 ? ` · Ceiling ${p.ceil}` : ''}</span></span>
+        <span class="wi-nm"><b>${escapeHtml(p.name)}${p.active === false ? '<span class="wi-tag">Hidden</span>' : ''}</b><span>${escapeHtml(p.es || '')}${p.es ? ' · ' : ''}${escapeHtml(p.cat)} · ${wasteSideLabel(p.side)}${p.ceil > 0 ? ` · Ceiling ${p.ceil}` : ''}</span></span>
         <span class="wi-un">${escapeHtml(p.unit)}</span>
         <span class="wi-pr ${Number(p.cost) > 0 ? '' : 'is-none'}">${Number(p.cost) > 0 ? wasteMoney(p.cost) : 'no price'}</span>
       </button>`).join('') : '<div class="empty-state">No items match.</div>'}</div>`;
@@ -163,12 +165,16 @@ function renderProductManager(){
 function wasteItemModal(id){
   const p = id ? products.find(x => x.id === id) : null;
   if(id && !p) return;
-  const it = p || {name: '', es: '', cat: wiCat !== 'All' ? wiCat : 'Proteins', unit: 'pc', cost: 0, color: '', ceil: 0, active: true};
+  const it = p || {name: '', es: '', cat: wiCat !== 'All' ? wiCat : 'Proteins', unit: 'pc', cost: 0, color: '', ceil: 0, active: true, side: 'both'};
+  const side = WASTE_SIDES.includes(it.side) ? it.side : 'both';
   wiColor = wasteValidColor(it.color);
   let modal = document.getElementById('wasteItemModal');
   if(!modal){
     document.body.insertAdjacentHTML('beforeend', '<div class="overlay" id="wasteItemModal"><div class="sheet wi-sheet"></div></div>');
     modal = document.getElementById('wasteItemModal');
+    modal.addEventListener('change', e => {
+      if(e.target.name === 'wiSide') modal.querySelectorAll('.wi-side').forEach(l => l.classList.toggle('is-on', l.querySelector('input').checked));
+    });
     modal.addEventListener('click', e => {
       if(e.target === modal || e.target.closest('[data-wi-cancel]')){ modal.classList.remove('active'); return; }
       const sw = e.target.closest('[data-wi-color]');
@@ -195,6 +201,8 @@ function wasteItemModal(id){
       <label class="wi-field">Cost per unit ($)<input type="number" id="wiCost" inputmode="decimal" step="0.01" min="0" value="${Number(it.cost) || 0}"></label>
       <label class="wi-field">Daily ceiling (0 = none)<input type="number" id="wiCeil" inputmode="numeric" step="1" min="0" value="${Number(it.ceil) || 0}"></label>
     </div>
+    <div class="wi-lbl">Shows at</div>
+    <div class="wi-sides">${[['foh', 'FOH'], ['boh', 'BOH'], ['both', 'Both']].map(([v, l]) => `<label class="wi-side ${side === v ? 'is-on' : ''}"><input type="radio" name="wiSide" value="${v}" ${side === v ? 'checked' : ''}> ${l}</label>`).join('')}</div>
     <div class="wi-lbl">Tile color</div>
     <div class="wi-swatches"><button type="button" class="wi-sw wi-sw-auto ${wiColor ? '' : 'is-on'}" data-wi-color="">Auto</button>${swatches}</div>
     <label class="wi-check"><input type="checkbox" id="wiActive" ${it.active !== false ? 'checked' : ''}> Show on the Waste tracker</label>
@@ -221,7 +229,8 @@ async function wasteItemSave(id){
     cost: Math.max(0, Math.round((parseFloat(document.getElementById('wiCost').value) || 0) * 100) / 100),
     ceil: Math.max(0, parseInt(document.getElementById('wiCeil').value, 10) || 0),
     active: document.getElementById('wiActive').checked,
-    color: wasteValidColor(wiColor)
+    color: wasteValidColor(wiColor),
+    side: (document.querySelector('input[name="wiSide"]:checked') || {}).value || 'both'
   };
   if(id){
     Object.assign(products.find(x => x.id === id), fields);

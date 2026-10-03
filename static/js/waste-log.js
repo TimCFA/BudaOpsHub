@@ -98,7 +98,7 @@ function wasteTileHtml(p, n){
 
 function wasteVisibleItems(){
   const q = wasteQuery.trim().toLowerCase();
-  return products.filter(p => p.active !== false && (wasteCat === 'All' || p.cat === wasteCat)
+  return products.filter(p => p.active !== false && wasteItemShows(p, currentSection) && (wasteCat === 'All' || p.cat === wasteCat)
     && (!q || p.name.toLowerCase().includes(q) || (p.es || '').toLowerCase().includes(q) || p.cat.toLowerCase().includes(q)))
     .sort((a, b) => ((a.ord || 1000) - (b.ord || 1000)) || a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
 }
