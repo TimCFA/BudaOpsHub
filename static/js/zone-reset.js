@@ -618,13 +618,23 @@ const homeQuotes = [
   {text: "What we want to hear least is generally what we need to hear most.", author: "Andy Stanley", source: "Andy Stanley Leadership Podcast"}
 ];
 
-// One quote per day, the same on every device, so a huddle can share it.
-// Tapping the quote shows the next one.
-let homeQuoteOffset = 0;
-function homeQuoteForToday(){
-  const d = new Date();
-  const day = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
-  return homeQuotes[(day + homeQuoteOffset) % homeQuotes.length];
+// A different quote every time the site is opened: each device remembers its
+// place in the list and moves one on at every load, so the quotes cycle
+// through instead of starting over at the top. The first open on a device
+// starts at a random spot. Tapping the quote shows the next one.
+const HOME_QUOTE_KEY = 'cfaBudaQuoteIdx';
+let homeQuoteIndex = (()=>{
+  let i = NaN;
+  try{ i = parseInt(localStorage.getItem(HOME_QUOTE_KEY), 10); }catch(e){ /* storage blocked */ }
+  if(!(i >= 0)) i = Math.floor(Math.random() * homeQuotes.length);
+  i = i % homeQuotes.length;
+  try{ localStorage.setItem(HOME_QUOTE_KEY, String((i + 1) % homeQuotes.length)); }catch(e){ /* fine */ }
+  return i;
+})();
+function homeQuoteCurrent(){ return homeQuotes[homeQuoteIndex % homeQuotes.length]; }
+function homeQuoteNext(){
+  homeQuoteIndex = (homeQuoteIndex + 1) % homeQuotes.length;
+  try{ localStorage.setItem(HOME_QUOTE_KEY, String((homeQuoteIndex + 1) % homeQuotes.length)); }catch(e){ /* fine */ }
 }
 
 const defaultHomeData = {

@@ -321,14 +321,14 @@ document.getElementById('eoiForm').addEventListener('submit', async (e)=>{
 });
 
 function renderHomeQuote(){
-  const quote = homeQuoteForToday();
+  const quote = homeQuoteCurrent();
   document.getElementById('homeQuote').textContent = '\u201c' + quote.text + '\u201d';
   document.getElementById('homeQuoteAuthor').textContent = '— ' + quote.author;
   document.getElementById('homeQuoteSource').textContent = quote.source;
 }
 
 document.getElementById('homeQuoteBox').addEventListener('click', ()=>{
-  homeQuoteOffset++;
+  homeQuoteNext();
   renderHomeQuote();
 });
 
