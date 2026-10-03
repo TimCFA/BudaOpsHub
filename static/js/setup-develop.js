@@ -96,14 +96,25 @@ function suDayTypeBadge(section, date, dp){
 
 // ----- Develop this shift -----
 
-// All green = Crushing It in every position of their area. Tim: all green on
-// their PEAs means ready for certification or already certified — the goal
-// for every team member who isn't certified yet. (PEAs can't tell those two
-// apart, so the app treats both as the goal reached.)
+// All green = Crushing It in every position they've been rated in on their
+// side — the same rule Levelset shows. Tim: all green on their PEAs means
+// ready for certification or already certified, and pay is tied to it, so a
+// position never rated doesn't count against anyone and nobody drops off for
+// going a while without a PEA. (PEAs can't tell certified from ready, so the
+// app treats both as the goal reached.) `missing` = rated but not green;
+// `unrated` = the side's positions with no rating yet (depth still to build).
 function suCertification(person, section){
   const positions = (PEA_POSITION_GROUPS.find(g => g.key === section) || {positions: []}).positions;
-  const green = positions.filter(p => person && person.positions[p] && person.positions[p].tier.key === 'crushing');
-  return {green: green.length, total: positions.length, missing: positions.filter(p => !green.includes(p)), allGreen: green.length === positions.length};
+  const rated = positions.filter(p => person && person.positions[p]);
+  const green = rated.filter(p => person.positions[p].tier.key === 'crushing');
+  return {green: green.length, rated: rated.length, total: positions.length, missing: rated.filter(p => !green.includes(p)),
+    unrated: positions.filter(p => !rated.includes(p)), allGreen: rated.length > 0 && green.length === rated.length};
+}
+
+// "3/4 rated green", "all green · 4/7 rated", or "no position ratings yet".
+function suCertText(cert){
+  if(!cert.rated) return 'no position ratings yet';
+  return cert.allGreen ? `all green · ${cert.rated}/${cert.total} rated` : `${cert.green}/${cert.rated} rated green`;
 }
 
 // A position where repeated ratings aren't moving: 3+ ratings, not green,
@@ -157,12 +168,12 @@ function developShift(section, date, dp, dpIndex){
 
   const candidates = people.filter(p => p.person && !SU_LEADER_ROLES.includes(p.person.role)).map(p=>{
     const cert = suCertification(p.person, section);
-    if(cert.allGreen) return null;
+    if(cert.allGreen && !cert.unrated.length) return null;   // nothing left to develop
     const reasons = [];
     let score = 0;
     const stalled = suStalledPositions(p.peaName, section);
     if(stalled.length){ score += 3; reasons.push(`stalled on ${stalled.map(s => `${s.pos} (${s.n} ratings)`).join(', ')}`); }
-    if(cert.total - cert.green <= 2){ score += 2; reasons.push(`${cert.green} of ${cert.total} green — close to all green`); }
+    if(cert.missing.length && cert.missing.length <= 2){ score += 2; reasons.push(`${cert.green} of ${cert.rated} rated green — close to all green`); }
     const last = suLastPositionalRating(p.person, section);
     if(!last){ score += 2; reasons.push('no position ratings yet'); }
     else {
@@ -183,7 +194,7 @@ function developShift(section, date, dp, dpIndex){
     // first, then On the Rise (closest to green), then unrated, then Not Yet.
     // A Game Day only takes On the Rise — no first tries or Not Yet on the
     // busiest shifts.
-    const options = cert.missing.filter(pos => slotPositions.has(pos)).map(pos=>{
+    const options = [...cert.missing, ...cert.unrated].filter(pos => slotPositions.has(pos)).map(pos=>{
       const cell = p.person.positions[pos];
       const tier = cell ? cell.tier.key : 'unrated';
       const rank = stalled.some(s => s.pos === pos) ? 0 : tier === 'rise' ? 1 : tier === 'unrated' ? 2 : 3;
@@ -240,7 +251,7 @@ function suPickHtml(pick, i){
   const where = t ? `Develop on <b>${escapeHtml(t.pos)}</b> <span class="su-muted">(${t.cell ? `${t.cell.tier.label} ${t.cell.avg.toFixed(2)} ×${t.cell.total}` : 'not rated yet'})</span>` : '<span class="su-muted">No non-green position in this daypart that fits today</span>';
   return `
     <li class="su-pick">
-      <div class="su-pick-head"><span class="su-pick-n">${i + 1}</span><b>${escapeHtml(pick.name)}</b><span class="su-muted">${pick.cert.green}/${pick.cert.total} green${pick.placed ? ` · in ${escapeHtml(pick.placed)}` : ' · not placed yet'}</span></div>
+      <div class="su-pick-head"><span class="su-pick-n">${i + 1}</span><b>${escapeHtml(pick.name)}</b><span class="su-muted">${suCertText(pick.cert)}${pick.placed ? ` · in ${escapeHtml(pick.placed)}` : ' · not placed yet'}</span></div>
       <div class="su-pick-why">${pick.reasons.map(r => `<span>${escapeHtml(r)}</span>`).join('')}</div>
       <div class="su-pick-plan">${where}${pick.pair ? ` · pair with <b>${escapeHtml(pick.pair.name)}</b> <span class="su-muted">(${escapeHtml(pick.pair.kind)})</span>` : ''}${pick.peaDue && t ? ` · 📝 complete a ${escapeHtml(t.pos)} PEA` : ''}</div>
     </li>`;

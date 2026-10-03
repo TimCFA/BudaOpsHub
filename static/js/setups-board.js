@@ -412,12 +412,12 @@ function suPersonSheetHtml(section, date, dp, dpIndex, m, slot){
 
   const stats = `<div class="su-stats">
     ${t.positions.length ? stat(escapeHtml(posLabel), t.cell ? `${t.cell.avg.toFixed(2)}${peaTrendMark(trend)}` : '—', t.cell ? `${escapeHtml(t.cell.tier.label)} · ${t.cell.total} rating${t.cell.total === 1 ? '' : 's'}${trend && trend.dir !== 'flat' ? ` · ${trend.dir === 'up' ? 'rising' : 'slipping'}` : ''}` : 'Not rated here', t.cell ? 'is-' + t.cell.tier.key : '') : stat('Spot', '—', 'Not a Levelset position')}
-    ${stat('Green', cert ? `${cert.green} / ${cert.total}` : '—', cert && cert.allGreen ? 'all green' : 'positions', cert && cert.allGreen ? 'is-crushing' : '')}
+    ${stat('Green', cert && cert.rated ? `${cert.green} / ${cert.rated}` : '—', cert && cert.allGreen ? `all green · ${cert.rated}/${cert.total} rated` : cert && cert.rated ? 'rated positions' : 'no position ratings', cert && cert.allGreen ? 'is-crushing' : '')}
     ${stat('Last PEA', last ? `${suDaysBetween(last, today)}d` : '—', last ? peaFormatDate(last) : person ? 'no position ratings' : 'no Levelset match')}
   </div>`;
 
   const greenNote = !cert || SU_LEADER_ROLES.includes(person.role) ? ''
-    : cert.allGreen ? '<div class="su-note is-green"><b>All green.</b> Ready for certification, or already certified.</div>'
+    : cert.allGreen ? `<div class="su-note is-green"><b>All green.</b> Ready for certification, or already certified.${cert.unrated.length ? ` Not rated yet: ${escapeHtml(cert.unrated.join(', '))}.` : ''}</div>`
     : `<p class="su-green-left">Not green yet: ${escapeHtml(agNotGreenText(person, section))}</p>`;
   // What to coach in the position they're working now.
   const coachOn = peaName ? t.positions.map(pos => ({pos, w: peaWeakest(peaName, pos)})).filter(x => x.w) : [];
