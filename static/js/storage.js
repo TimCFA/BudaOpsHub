@@ -496,6 +496,7 @@ function stateRerender(){
   stateRerenderPending = false;
   const view = document.querySelector('.view.active');
   if(view && typeof activateView === 'function') activateView(view.id.replace(/View$/, ''));
+  if(typeof renderWasteMeters === 'function') renderWasteMeters();   // the header meter is on every page
 }
 
 // A new version of the hub went live: offer a reload (never forced — it

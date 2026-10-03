@@ -223,9 +223,40 @@
   /* Waste tracker (waste-log.js): one tile per item with today's count at
      the side being logged. The tile's color is the item's (or its
      category's); the text color follows it. */
-  .wt-head{text-align:center;margin:6px 0 14px;}
-  .wt-amt{font-family:'Outfit',sans-serif;font-size:44px;font-weight:800;letter-spacing:-1px;line-height:1;color:var(--text-primary);}
-  .wt-sub{font-size:14px;color:var(--text-secondary);margin-top:4px;}
+  /* Today's waste card on the Waste tab: the thermometer lying on its side.
+     Same zones as the Scoreboard one (green, amber from 75%, red and hatched
+     past the limit at 80% of the scale, which runs to 125% of the limit). */
+  .wt-today{background:var(--cfa-white);border:1px solid var(--border);border-radius:14px;padding:12px 14px 12px;margin:4px 0 14px;}
+  .wt-today-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px;}
+  .wt-amt{font-family:'Outfit',sans-serif;font-size:40px;font-weight:800;letter-spacing:-1px;line-height:1;color:var(--text-primary);}
+  .wt-sub{font-size:13px;color:var(--text-secondary);margin-top:4px;}
+  .wt-sub i{color:var(--text-tertiary);}
+  .wt-today .waste-status-pill{flex:none;margin-top:4px;}
+  .hw-tube{--wt-c:#2E9E4F;--lv:0;position:relative;display:block;height:8px;width:56px;border-radius:5px;overflow:hidden;
+    background:repeating-linear-gradient(135deg,rgba(227,28,35,.3) 0 2px,transparent 2px 5px) right/20% 100% no-repeat,linear-gradient(to right,#E3F3E7 0 60%,#FFF0D4 60% 80%,#FBDDDF 80%);box-shadow:inset 0 0 0 1px rgba(0,0,0,.06);}
+  .hw-tube.is-close{--wt-c:#F0A020;} .hw-tube.is-over{--wt-c:var(--cfa-red);}
+  .hw-fill{position:absolute;left:0;top:0;bottom:0;width:calc(var(--lv) * 100%);min-width:4px;border-radius:5px;background:var(--wt-c);transition:width .9s cubic-bezier(.2,.8,.2,1),background-color .5s ease;}
+  .hw-limit{position:absolute;left:80%;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--cfa-red);}
+  .hw-tube.is-big{width:100%;height:18px;border-radius:9px;}
+  .hw-tube.is-big .hw-fill{border-radius:9px;min-width:8px;}
+  .hw-tube.is-big .hw-limit{width:3px;}
+  .hw-tube.is-over .hw-fill{animation:hw-pulse 2.4s ease-in-out infinite;}
+  @keyframes hw-pulse{0%,100%{opacity:1;}50%{opacity:.7;}}
+  .hw-ticks{position:relative;height:16px;margin-top:3px;font-size:10px;font-weight:600;color:var(--text-tertiary);}
+  .hw-ticks span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap;}
+  .hw-ticks span:first-child{transform:none;} .hw-ticks span:last-child{transform:translateX(-100%);}
+  .hw-ticks span.is-limit{color:#B3141A;font-weight:800;}
+  .wt-today-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:13px;color:var(--text-secondary);}
+  .wt-today-foot b{color:var(--text-primary);}
+  .wt-sides span{padding:2px 8px;border-radius:10px;background:var(--cfa-bg);margin-left:4px;}
+  .wt-sides span.is-on{background:var(--cfa-red);color:#fff;font-weight:700;}
+  /* The same meter, tiny, in the header next to the clock. */
+  .hdr-waste{display:inline-flex;align-items:center;gap:8px;padding:5px 10px;border:1px solid var(--border);border-radius:14px;background:var(--cfa-white);cursor:pointer;font-family:'Inter',sans-serif;font-size:12px;color:var(--text-secondary);line-height:1;}
+  .hdr-waste:hover{border-color:var(--cfa-red);}
+  .hdr-waste .hw-txt b{color:var(--text-primary);font-weight:700;}
+  .hdr-waste.is-over .hw-txt b{color:#B3141A;}
+  @media (prefers-reduced-motion: reduce){ .hw-fill{transition:none;} .hw-tube.is-over .hw-fill{animation:none;} }
+  @media (max-width:380px){ .wt-amt{font-size:34px;} .hdr-waste{padding:5px 8px;gap:6px;} .hdr-waste .hw-tube{width:44px;} }
   .wt-tools{display:grid;gap:10px;margin-bottom:14px;}
   @media (min-width:760px){.wt-tools{grid-template-columns:1fr 280px;align-items:center;}}
   .wt-chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 4px;scrollbar-width:none;}
