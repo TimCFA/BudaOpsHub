@@ -1274,11 +1274,7 @@
   .ag-gap-pos{font-weight:600;}
   .ag-gap-bar{display:flex;gap:2px;height:10px;}
   .ag-seg.is-below{background:#E0A100;}
-  .ag-seg.is-unrated{background:#BDBDBD;}
   .ag-gap-n{grid-column:2;font-size:11px;color:var(--text-secondary);}
-  .ag-legend{display:flex;gap:14px;font-size:11px;color:var(--text-secondary);margin-top:8px;}
-  .ag-key{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;}
-  .ag-key.is-below{background:#E0A100;} .ag-key.is-unrated{background:#BDBDBD;}
   .ag-coach{margin-top:6px;font-size:11px;color:var(--text-secondary);}
   .ag-coach b{color:var(--text-primary);font-weight:600;}
   .ag-done{font-size:12px;color:var(--text-secondary);line-height:1.5;}

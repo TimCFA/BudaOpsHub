@@ -108,11 +108,16 @@ Waste Tracking (limit, products), PEA Ratings, Backup & Data.
   **On the Rise 1.75–2.74**, **Not Yet 1.00–1.74**.
 - A position's score = average of that person's **latest 5 ratings** there.
 - A "safe pick" = Crushing It on 2+ ratings.
-- **All green** = Crushing It in **every** position of their side (FOH: iPOS,
-  Bagging, Drinks 1/3, Drinks 2, OMD, Host, Runner; BOH: Breader, Primary,
-  Secondary, Machines, Fries, Prep). It means **ready for certification or
-  already certified** — the goal for every team member not yet certified.
-  **A position never rated is not green.** Trainers and Team Leads aren't counted.
+- **All green** = Crushing It in **every position they've been rated in** on
+  their side (FOH: iPOS, Bagging, Drinks 1/3, Drinks 2, OMD, Host, Runner;
+  BOH: Breader, Primary, Secondary, Machines, Fries, Prep) — the same rule
+  Levelset shows. It means **ready for certification or already certified**,
+  and pay is tied to it, so **a position never rated doesn't count against
+  anyone** and nobody is dropped for going a while without a PEA (Tim, Oct
+  2026; earlier the app required every position rated). The app shows how
+  many of the side's positions are rated next to each name. Trainers and Team
+  Leads aren't counted. Future idea: schedule re-assessments for all-green
+  team members who haven't had a PEA in a while, without demoting anyone.
 
 ### Zones and leaders
 - **FOH zones**: iPOS, Bagging, Drinks, OMD, Host (+ extra hands).

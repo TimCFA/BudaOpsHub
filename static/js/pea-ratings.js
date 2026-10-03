@@ -446,15 +446,15 @@ function peaRenderPersonList(people){
   const rank = pos => { const i = order.indexOf(pos); return i === -1 ? order.length : i; };
   const names = Object.keys(people).filter(n => !q || n.toLowerCase().includes(q)).sort((a, b) => a.localeCompare(b));
   if(!names.length) return `<p class="pea-muted">No one matches "${escapeHtml(peaPersonFilter)}".</p>`;
-  // Each team member's side (from the rosters), so the card can say how
-  // many of that side's positions are green — including ones never rated,
-  // which have no chip below.
+  // Each team member's side (from the rosters), so the card can say whether
+  // they're all green there (every rated position green) and which of the
+  // side's positions have no rating yet — those have no chip below.
   const team = typeof agTeamMembers === 'function' ? agTeamMembers(people).members : [];
   return names.map(name=>{
     const p = people[name];
     const sides = team.filter(m => m.peaName === name).map(m=>{
       const cert = suCertification(p, m.area);
-      return `<div class="pea-person-green ${cert.allGreen ? 'is-all' : ''}"><b>${m.area.toUpperCase()} ${cert.green}/${cert.total} green</b>${cert.allGreen ? ' · all green' : ` · not green yet: ${escapeHtml(agNotGreenText(p, m.area))}`}</div>`;
+      return `<div class="pea-person-green ${cert.allGreen ? 'is-all' : ''}"><b>${m.area.toUpperCase()} ${escapeHtml(suCertText(cert))}</b>${cert.allGreen ? (cert.unrated.length ? ` · not rated: ${escapeHtml(cert.unrated.join(', '))}` : '') : cert.rated ? ` · not green yet: ${escapeHtml(agNotGreenText(p, m.area))}` : ''}</div>`;
     }).join('');
     const positions = Object.keys(p.positions).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
     const onlyNew = positions.length === 1 && positions[0] === PEA_3H_WEEK;

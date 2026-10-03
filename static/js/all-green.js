@@ -1,15 +1,16 @@
 // ===== ALL-GREEN TRACKER =====
-// Tim: all green on their PEAs — Crushing It (2.75+) in every position of
-// their side of the house — means a team member is ready for certification
-// or already certified. It's the goal for everyone not certified yet.
+// Tim: all green on their PEAs — Crushing It (2.75+) in every position
+// they've been rated in on their side, the same rule Levelset shows — means
+// a team member is ready for certification or already certified. Pay is tied
+// to it, so a position never rated doesn't count against anyone and nobody
+// drops off for going a while without a PEA; the tracker shows how many of
+// the side's positions are rated so depth is visible.
 //
 // Counts the team members on the current HotSchedules rosters (FOH roster →
 // FOH positions, BOH roster → BOH positions; someone on both counts on each).
-// Trainers and Team Leads aren't counted. A position with no rating isn't
-// green — that's usually the gap the Position Strength Map can't show, since
-// it only lists positions someone has been rated in. With no rosters
-// imported, it falls back to everyone rated in the last 60 days, on the side
-// most of their ratings are from.
+// Trainers and Team Leads aren't counted. With no rosters imported, it falls
+// back to everyone rated in the last 60 days, on the side most of their
+// ratings are from.
 
 const AG_WEEKS = 8;
 const AG_FALLBACK_DAYS = 60;
@@ -57,14 +58,17 @@ function agTeamMembers(strength){
   return {members, unmatched: [...new Set(unmatched)].sort((a, b) => a.localeCompare(b)), fromRoster};
 }
 
-// What still isn't green for someone: [{pos, cell}] (cell null = not rated).
+// The positions rated but not green yet for someone: [{pos, cell}].
 function agNotGreen(person, area){
-  return agAreaPositions(area).filter(pos => !(person.positions[pos] && person.positions[pos].tier.key === 'crushing'))
-    .map(pos => ({pos, cell: person.positions[pos] || null}));
+  return suCertification(person, area).missing.map(pos => ({pos, cell: person.positions[pos]}));
 }
 
+// "Bagging 2.48, Host 2.68 · not rated: OMD, Runner".
 function agNotGreenText(person, area){
-  return agNotGreen(person, area).map(g => g.cell ? `${g.pos} ${g.cell.avg.toFixed(2)}` : `${g.pos} (not rated)`).join(', ');
+  const cert = suCertification(person, area);
+  if(!cert.rated) return 'no position ratings yet';
+  const below = agNotGreen(person, area).map(g => `${g.pos} ${g.cell.avg.toFixed(2)}`).join(', ');
+  return below + (cert.unrated.length ? `${below ? ' · ' : ''}not rated: ${cert.unrated.join(', ')}` : '');
 }
 
 function agSnapshot(){
@@ -87,7 +91,7 @@ function agSnapshot(){
 function agTrendHtml(trend, rows){
   if(!trend.some(t => t.green)){
     // Nothing to chart yet: say so, and how close people are.
-    const oneAway = rows.filter(r => !r.cert.allGreen && r.cert.total - r.cert.green === 1).length;
+    const oneAway = rows.filter(r => !r.cert.allGreen && r.cert.missing.length === 1).length;
     return `<p class="ag-trend-none">No one on today's team has been all green in the last ${AG_WEEKS} weeks${oneAway ? ` — <b>${oneAway} ${oneAway === 1 ? 'is' : 'are'} one position away</b>` : ''}. A week-by-week chart appears here once someone gets there.</p>`;
   }
   const max = Math.max(1, ...trend.map(t => t.green));
@@ -107,9 +111,10 @@ function agTrendHtml(trend, rows){
 }
 
 function agMissingChips(person, area){
-  return agNotGreen(person, area).map(g => g.cell
-    ? `<span class="ag-miss"><span class="pea-dot pea-${g.cell.tier.key}" aria-hidden="true"></span>${escapeHtml(g.pos)} <b>${g.cell.avg.toFixed(2)}</b></span>`
-    : `<span class="ag-miss is-unrated"><span class="pea-dot pea-empty" aria-hidden="true"></span>${escapeHtml(g.pos)} <b>not rated</b></span>`).join('');
+  const cert = suCertification(person, area);
+  const below = agNotGreen(person, area).map(g => `<span class="ag-miss"><span class="pea-dot pea-${g.cell.tier.key}" aria-hidden="true"></span>${escapeHtml(g.pos)} <b>${g.cell.avg.toFixed(2)}</b></span>`);
+  if(cert.unrated.length) below.push(`<span class="ag-miss is-unrated"><span class="pea-dot pea-empty" aria-hidden="true"></span>not rated: <b>${escapeHtml(cert.unrated.join(', '))}</b></span>`);
+  return below.join('');
 }
 
 // For positions rated but not green yet: the category to coach.
@@ -134,22 +139,24 @@ function renderAllGreenTracker(){
 
   const areaRows = rows.filter(r => r.area === agArea);
   const done = areaRows.filter(r => r.cert.allGreen).sort((a, b) => a.name.localeCompare(b.name));
-  const todo = areaRows.filter(r => !r.cert.allGreen).sort((a, b) => b.cert.green - a.cert.green || a.name.localeCompare(b.name));
-  const closest = todo.filter(r => r.cert.green >= r.cert.total - 2);
+  // Fewest positions left first; people with no ratings yet go last.
+  const left = r => r.cert.rated ? r.cert.missing.length : Infinity;
+  const todo = areaRows.filter(r => !r.cert.allGreen).sort((a, b) => left(a) - left(b) || b.cert.green - a.cert.green || a.name.localeCompare(b.name));
+  const closest = todo.filter(r => r.cert.rated && r.cert.missing.length <= 2);
   const shown = closest.length >= 5 ? closest : todo.slice(0, 8);
+  const noRatings = todo.filter(r => !r.cert.rated).length;
 
-  // What holds people back: per position, among those not all green.
+  // What holds people back: per position, how many of those not all green
+  // are rated below green there. (Unrated positions don't hold anyone back.)
   const positions = agAreaPositions(agArea);
   const gaps = positions.map(pos=>{
-    let unrated = 0, below = 0, lastOne = 0;
+    let below = 0, lastOne = 0;
     todo.forEach(r=>{
-      const miss = agNotGreen(r.person, agArea);
-      const mine = miss.find(m => m.pos === pos);
-      if(!mine) return;
-      if(mine.cell) below++; else unrated++;
-      if(miss.length === 1) lastOne++;
+      if(!r.cert.missing.includes(pos)) return;
+      below++;
+      if(r.cert.missing.length === 1) lastOne++;
     });
-    return {pos, unrated, below, lastOne, total: unrated + below};
+    return {pos, below, lastOne, total: below};
   }).sort((a, b) => b.lastOne - a.lastOne || b.total - a.total);
   const gapMax = Math.max(1, ...gaps.map(g => g.total));
 
@@ -158,7 +165,7 @@ function renderAllGreenTracker(){
       <div><div class="ag-hero-num">${green}<span> of ${rows.length}</span></div><div class="pea-muted">team members all green</div></div>
       <div class="ag-hero-split"><span><b>FOH</b> ${foh.green} of ${foh.total}</span><span><b>BOH</b> ${boh.green} of ${boh.total}</span></div>
     </div>
-    <p class="pea-muted pea-note">All green = Crushing It (2.75+) in every position of their side — ready for certification or already certified. A position with no rating isn't green. ${fromRoster ? 'Counts the team members on the current HotSchedules rosters' : `No rosters imported, so this counts everyone rated in the last ${AG_FALLBACK_DAYS} days`}; Trainers and Team Leads aren't counted.</p>
+    <p class="pea-muted pea-note">All green = Crushing It (2.75+) in every position they've been rated in on their side, the same rule as Levelset — ready for certification or already certified. A position never rated doesn't count against anyone; the count after each name is how many of the side's positions are rated. ${fromRoster ? 'Counts the team members on the current HotSchedules rosters' : `No rosters imported, so this counts everyone rated in the last ${AG_FALLBACK_DAYS} days`}; Trainers and Team Leads aren't counted.</p>
     ${agTrendHtml(trend, rows)}
     ${unmatched.length ? `<p class="ag-warn">${unmatched.length} roster name${unmatched.length === 1 ? ' isn’t' : 's aren’t'} matched to Levelset, so ${unmatched.length === 1 ? 'isn’t' : 'aren’t'} counted: ${escapeHtml(unmatched.slice(0, 6).join(', '))}${unmatched.length > 6 ? '…' : ''}. See Name Matching below.</p>` : ''}
     <div class="week-toggle pea-view-toggle">
@@ -168,21 +175,20 @@ function renderAllGreenTracker(){
     <h4 class="ag-h">Closest to all green</h4>
     ${shown.length ? `<div class="ag-list">${shown.map(r => `
       <div class="ag-row">
-        <div class="ag-row-head"><b>${escapeHtml(r.name)}</b><span class="ag-count">${r.cert.green}/${r.cert.total}</span></div>
+        <div class="ag-row-head"><b>${escapeHtml(r.name)}</b><span class="ag-count" title="${r.cert.rated ? `${r.cert.green} of ${r.cert.rated} rated positions green` : 'no position ratings yet'}">${r.cert.rated ? `${r.cert.green}/${r.cert.rated}` : 'not rated'}</span></div>
         <div class="ag-misses">${agMissingChips(r.person, agArea)}</div>
         ${agCoachLine(r)}
       </div>`).join('')}</div>` : `<p class="pea-muted">${areaRows.length ? 'Everyone here is all green.' : 'No one on this roster yet.'}</p>`}
     ${todo.length ? `
     <h4 class="ag-h">What's holding people back</h4>
-    <p class="pea-muted">Among the ${todo.length} not all green yet. "Last one" = the only position left for that many people.</p>
-    <div class="ag-gaps">${gaps.filter(g => g.total).map(g => `
-      <div class="ag-gap" title="${escapeHtml(`${g.pos}: ${g.below} rated below green, ${g.unrated} not rated`)}">
+    <p class="pea-muted">Positions rated below green among the ${todo.length} not all green yet${noRatings ? ` (${noRatings} ${noRatings === 1 ? 'has' : 'have'} no position ratings yet)` : ''}. "Last one" = the only position left for that many people.</p>
+    ${gaps.some(g => g.total) ? `<div class="ag-gaps">${gaps.filter(g => g.total).map(g => `
+      <div class="ag-gap" title="${escapeHtml(`${g.pos}: ${g.below} rated below green`)}">
         <span class="ag-gap-pos">${escapeHtml(g.pos)}</span>
-        <span class="ag-gap-bar"><span class="ag-seg is-below" style="flex:${g.below}"></span><span class="ag-seg is-unrated" style="flex:${g.unrated}"></span><span style="flex:${gapMax - g.total}"></span></span>
-        <span class="ag-gap-n">${g.below} below · ${g.unrated} not rated${g.lastOne ? ` · <b>last one for ${g.lastOne}</b>` : ''}</span>
-      </div>`).join('')}</div>
-    <div class="ag-legend"><span><span class="ag-key is-below"></span>Rated, not green yet</span><span><span class="ag-key is-unrated"></span>Not rated</span></div>` : ''}
-    ${done.length ? `<h4 class="ag-h">All green (${done.length})</h4><p class="ag-done">${done.map(r => escapeHtml(r.name)).join(', ')}</p>` : ''}`;
+        <span class="ag-gap-bar"><span class="ag-seg is-below" style="flex:${g.below}"></span><span style="flex:${gapMax - g.total}"></span></span>
+        <span class="ag-gap-n">${g.below} below${g.lastOne ? ` · <b>last one for ${g.lastOne}</b>` : ''}</span>
+      </div>`).join('')}</div>` : ''}` : ''}
+    ${done.length ? `<h4 class="ag-h">All green (${done.length})</h4><p class="ag-done">${done.map(r => `${escapeHtml(r.name)} <span class="pea-muted">${r.cert.rated}/${r.cert.total} rated</span>`).join(', ')}</p>` : ''}`;
 }
 
 document.addEventListener('click', e=>{

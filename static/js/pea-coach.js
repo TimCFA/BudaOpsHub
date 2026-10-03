@@ -105,7 +105,7 @@ function suPeaTodo(section, date, dp){
       else if(cell.tier.key !== 'crushing' && age >= 14){ score += 1; reasons.push(`${cell.tier.label} ${cell.avg.toFixed(2)} — re-rate to see progress`); }
       else return;
       if(!cert.allGreen && cert.missing.includes(pos)){
-        const left = cert.total - cert.green;
+        const left = cert.missing.length;
         if(left === 1){ score += 2; reasons.push('the last position to all green'); }
         else if(left === 2){ score += 1; reasons.push('close to all green'); }
       }
@@ -131,7 +131,7 @@ function suPeaTodoHtml(section, date, dp){
     <section class="su-bt su-pea-todo" aria-label="PEAs to do">
       <h3>PEAs to do</h3>
       <ul class="su-bt-list">${items.map(row).join('')}${done.map(doneRow).join('')}</ul>
-      <p class="su-bt-foot">Rate these in Levelset while they're on the floor — never-rated positions first, since an unrated position keeps someone from all green. Rated today shows a ✓ after the next sync.</p>
+      <p class="su-bt-foot">Rate these in Levelset while they're on the floor. Never-rated positions first: all green only counts the positions someone has been rated in, so a first rating is what builds depth. Rated today shows a ✓ after the next sync.</p>
     </section>`;
 }
 
