@@ -107,7 +107,8 @@ function wasteVisibleItems(){
 function renderGrid(){
   const grid = document.getElementById('grid');
   if(!grid) return;
-  const cats = wasteCategories();
+  // Chips only for categories this side actually has: no empty pills.
+  const cats = wasteCategories(products.filter(p => p.active !== false && wasteItemShows(p, currentSection)));
   if(wasteCat !== 'All' && !cats.includes(wasteCat)) wasteCat = 'All';
   const chips = document.getElementById('wasteChips');
   if(chips) chips.innerHTML = ['All', ...cats].map(c => `<button type="button" class="wt-chip ${wasteCat === c ? 'is-on' : ''}" data-wt-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
