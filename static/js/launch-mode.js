@@ -1,5 +1,5 @@
 // ===== LAUNCH MODE =====
-// While the team is getting started, the site shows only the three
+// While the team is getting started, the site shows only Home and the three
 // essentials: Set Ups, Waste, and Lists (Zone Reset & Walkthroughs, Food
 // Safety Walkthrough, Daily Safe Count). Everything else is still there:
 // a device signed in with the manager PIN (Manage tab) sees every tab again,
@@ -13,7 +13,7 @@
 // (app.py PRIVATE_SECTIONS), so signing in fetches it right away, and
 // locking reloads the page to clear it from the device.
 
-const LAUNCH_VIEWS = ['positions', 'wastelog', 'zonereset', 'foodsafety', 'safecount', 'manage'];
+const LAUNCH_VIEWS = ['home', 'positions', 'wastelog', 'zonereset', 'foodsafety', 'safecount', 'manage'];
 let launchManager = false;
 
 function launchIsOn(){ return launchMode !== false && !launchManager; }
@@ -40,7 +40,8 @@ function launchApply(){
     suMode = 'sheet';
     if(document.getElementById('positionsView').classList.contains('active') && typeof renderAllDayparts === 'function') renderAllDayparts();
   }
-  // Showing a page the team can't reach (Home is the default): go to Set Ups.
+  // Showing a page the team can't reach (e.g. after locking Manage on the
+  // Scoreboard): go to Set Ups.
   const active = document.querySelector('.view.active');
   const view = active ? active.id.replace(/View$/, '') : '';
   if(!LAUNCH_VIEWS.includes(view)) launchShowTab('positions');
@@ -60,9 +61,9 @@ document.getElementById('launchModeToggle').addEventListener('change', async e=>
   launchMode = e.target.checked ? undefined : false;
   await saveState();
   launchApply();
-  showToast(e.target.checked ? 'Launch mode on — the team sees Set Ups, Waste and Lists' : 'Launch mode off — everyone sees every tab');
+  showToast(e.target.checked ? 'Launch mode on — the team sees Home, Set Ups, Waste and Lists' : 'Launch mode off — everyone sees every tab');
 });
 
-// Before the saved data arrives, start team members on Set Ups rather than
-// a page they can't see.
+// Before the saved data arrives, make sure team members start on a page
+// they can see.
 launchApply();
