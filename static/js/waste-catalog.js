@@ -212,6 +212,26 @@ const WASTE_PRICE_FIX_5 = {
   'yellow-egg': [0.00, 0.16]
 };
 
+// Which side each item shows on (Tim, Oct 2026): raw product, cooked
+// proteins, breakfast components and breads are logged in the back; finished
+// menu items, drinks, desserts, sides and the cold-side prep in the front.
+// Every item's side can be changed in Manage (FOH, BOH or Both).
+const WASTE_BOH_ITEMS = new Set([
+  'raw-filet', 'raw-grilled-filet', 'raw-grilled-nugget', 'raw-nugget', 'raw-spicy-breakfast-filet', 'raw-spicy-filet', 'raw-strip', 'raw-breakfast-filet',
+  'filet', 'grilled-filet', 'spicy-filet', 'nugget', 'grilled-nugget', 'strips', 'bacon',
+  'breakfast-filet', 'grilled-breakfast-filet', 'spicy-breakfast-filet', 'egg-whites', 'egg-whites-2', 'yellow-egg', 'yellow-egg-2',
+  'sausage', 'tortilla', 'mini-bread', 'muffin', 'buttered-biscuit',
+  'brioche-bun', 'gluten-free-bun', 'multi-grain-bun', 'white-bun', 'waffle-bkfst', 'waffle-lunch'
+]);
+const WASTE_SIDES = ['foh', 'boh', 'both'];
+function wasteDefaultSide(id){ return WASTE_BOH_ITEMS.has(id) ? 'boh' : 'foh'; }
+// Does this item belong on the FOH or BOH tracker? An item with no side set
+// (added before sides existed) shows on both.
+function wasteItemShows(p, section){
+  const side = WASTE_SIDES.includes(p.side) ? p.side : 'both';
+  return side === 'both' || side === section;
+}
+
 // "5 Count Nugget" → "5-count-nugget": a stable id from the name.
 function wasteSlug(name){
   return String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'item';
@@ -238,6 +258,8 @@ const WASTE_LEGACY_MAP = {
   boh18: 'strips', boh19: '2-count-strip', boh20: '3-count-strip', boh21: '4-count-strip'
 };
 
+const WASTE_CATALOG_IDS = new Set(WASTE_CATALOG_ROWS.map(r => wasteSlug(r[0])));
+
 // A fresh copy of the built-in list (the saved list starts from it).
 function wasteDefaultProducts(){
   const seen = {};
@@ -245,7 +267,7 @@ function wasteDefaultProducts(){
     let id = wasteSlug(r[0]), n = 2;
     while(seen[id]) id = wasteSlug(r[0]) + '-' + (n++);
     seen[id] = 1;
-    return {id, name: r[0], es: r[1], cat: r[2], unit: r[3], cost: r[4], color: r[5] ? WASTE_COLORS[r[5]] : '', ceil: 0, active: true,
+    return {id, name: r[0], es: r[1], cat: r[2], unit: r[3], cost: r[4], color: r[5] ? WASTE_COLORS[r[5]] : '', ceil: 0, active: true, side: wasteDefaultSide(id),
             ord: (r[2] === 'Proteins' && WASTE_PROTEIN_ORDER[r[0]]) || 1000};
   });
 }

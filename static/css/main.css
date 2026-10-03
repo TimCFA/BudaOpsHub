@@ -2024,3 +2024,7 @@ body.launch-mode .tab-group-label{padding:14px 4px;}
 .wd-entry{display:flex;gap:8px;align-items:center;font-size:13px;padding:5px 0;color:var(--text-secondary);}
 .wd-entry span{flex:1;}
 .wd-entry button{border:0;background:none;color:var(--cfa-red);font-size:20px;width:36px;height:36px;cursor:pointer;}
+.wi-sides{display:flex;gap:8px;margin-bottom:14px;}
+.wi-side{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--border);border-radius:10px;padding:9px 8px;font-size:14px;font-weight:700;color:var(--text-primary);background:var(--cfa-white);cursor:pointer;}
+.wi-side input{margin:0;}
+.wi-side.is-on{border-color:var(--cfa-red);background:#FFF0F0;color:var(--cfa-red);}
