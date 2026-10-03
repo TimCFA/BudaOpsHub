@@ -18,6 +18,11 @@
     </div>
     <div class="hdr-meta" style="display:flex;align-items:center;gap:12px;">
       <span id="initialsBadge" title="Tap to change who's using this device" style="cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:var(--text-secondary);padding:4px 10px;border:1px solid var(--border);border-radius:14px;background:var(--cfa-white);user-select:none;"></span>
+      <!-- Today's waste against the daily limit, always in view (waste-log.js renderWasteMeters). Tap for the Waste tab. -->
+      <button type="button" class="hdr-waste" id="hdrWaste" title="Today's waste against the daily limit — tap for the Waste tab" aria-label="Today's waste">
+        <span class="hw-tube" aria-hidden="true"><span class="hw-fill"></span><span class="hw-limit"></span></span>
+        <span class="hw-txt"><b id="hdrWasteAmt">$0</b><span id="hdrWasteOf"> of $100</span></span>
+      </button>
       <div class="clock" id="clock"></div>
     </div>
   </div>
@@ -412,9 +417,21 @@
       <button type="button" class="toggle-btn active" aria-pressed="true" data-section="foh">FOH <span class="sub"><i>Frente</i></span></button>
       <button type="button" class="toggle-btn" aria-pressed="false" data-section="boh">BOH <span class="sub"><i>Atrás</i></span></button>
     </div>
-    <div class="wt-head">
-      <div class="wt-amt" id="wasteTodayAmt">$0.00</div>
-      <div class="wt-sub" id="wasteTodaySub">Wasted today</div>
+    <!-- The team's waste scoreboard: today FOH + BOH against the daily limit (renderWasteMeters). -->
+    <div class="wt-today" id="wasteTodayCard">
+      <div class="wt-today-top">
+        <div>
+          <div class="wt-amt" id="wasteTodayAmt">$0.00</div>
+          <div class="wt-sub" id="wasteTodaySub">wasted today of the $100 limit <i>· desperdicio de hoy</i></div>
+        </div>
+        <span class="waste-status-pill" id="wasteTrackPill">✓ Under limit</span>
+      </div>
+      <div class="hw-tube is-big" aria-hidden="true"><span class="hw-fill"></span><span class="hw-limit"></span></div>
+      <div class="hw-ticks" id="wasteTrackTicks" aria-hidden="true"></div>
+      <div class="wt-today-foot">
+        <span id="wasteTrackLeft"></span>
+        <span class="wt-sides" id="wasteTrackSides"></span>
+      </div>
     </div>
     <div class="wt-tools">
       <div class="wt-chips" id="wasteChips"></div>

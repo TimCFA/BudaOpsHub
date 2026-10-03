@@ -77,9 +77,60 @@ async function wasteAfterChange(item){
   syncTodayWasteDay();
   wasteRefreshTile(item.id);
   renderTape();
+  renderWasteMeters();
   renderScoreboardView();
   await saveState();
 }
+
+// ---------- today's waste meters ----------
+// The team's scoreboard: today's waste, FOH and BOH together, against the
+// daily limit — on the Waste tab (big) and in the header (tiny, every page).
+// Same zones as the Scoreboard thermometer; the scale runs to 125% of the
+// limit, so the limit line sits at 80% of the tube.
+function renderWasteMeters(){
+  const limit = Number(wasteTarget) || 0;
+  const foh = wasteTodayTotal('foh'), boh = wasteTodayTotal('boh'), total = foh + boh;
+  const state = wasteThermoState(total, limit);
+  const level = Math.min(1, state.ratio / WT_SCALE_MAX);
+  const money = n => '$' + n.toFixed(2);
+  const short = n => n >= 100 ? '$' + Math.round(n) : money(n);
+  const fill = (tube, cls) => {
+    if(!tube) return;
+    tube.className = `hw-tube ${cls || ''} is-${state.key}`;
+    tube.style.setProperty('--lv', level);
+  };
+
+  const hdr = document.getElementById('hdrWaste');
+  if(hdr){
+    hdr.className = 'hdr-waste is-' + state.key;
+    document.getElementById('hdrWasteAmt').textContent = short(total);
+    document.getElementById('hdrWasteOf').textContent = ` of ${short(limit)}`;
+    hdr.title = `${money(total)} wasted today of the ${money(limit)} daily limit — tap for the Waste tab`;
+    fill(hdr.querySelector('.hw-tube'), '');
+  }
+
+  const card = document.getElementById('wasteTodayCard');
+  if(!card) return;
+  document.getElementById('wasteTodayAmt').textContent = money(total);
+  document.getElementById('wasteTodaySub').innerHTML = `wasted today of the <b>${money(limit)}</b> limit <i>· desperdicio de hoy</i>`;
+  const pill = document.getElementById('wasteTrackPill');
+  pill.textContent = state.pill;
+  pill.className = 'waste-status-pill is-' + state.key;
+  fill(card.querySelector('.hw-tube'), 'is-big');
+  document.getElementById('wasteTrackTicks').innerHTML = WT_TICKS.map(f =>
+    `<span class="${f === 1 ? 'is-limit' : ''}" style="left:${f / WT_SCALE_MAX * 100}%">${f === 1 ? 'Limit ' : ''}$${Math.round(limit * f)}</span>`).join('');
+  document.getElementById('wasteTrackLeft').innerHTML = total > limit
+    ? `<b>${money(total - limit)}</b> over the limit`
+    : total === limit ? '<b>Right at</b> the limit'
+    : `<b>${money(limit - total)}</b> of room left · lower is better`;
+  document.getElementById('wasteTrackSides').innerHTML = [['foh', 'FOH', foh], ['boh', 'BOH', boh]]
+    .map(([k, l, v]) => `<span class="${k === currentSection ? 'is-on' : ''}">${l} ${money(v)}</span>`).join('');
+}
+
+document.getElementById('hdrWaste').addEventListener('click', ()=>{
+  if(typeof launchShowTab === 'function') launchShowTab('wastelog');
+  window.scrollTo({top: 0, behavior: 'smooth'});
+});
 
 // ---------- tiles ----------
 
@@ -114,10 +165,7 @@ function renderGrid(){
   if(chips) chips.innerHTML = ['All', ...cats].map(c => `<button type="button" class="wt-chip ${wasteCat === c ? 'is-on' : ''}" data-wt-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
   const search = document.getElementById('wasteSearch');
   if(search && search.value !== wasteQuery) search.value = wasteQuery;
-  const amt = document.getElementById('wasteTodayAmt');
-  if(amt) amt.textContent = wasteMoney(wasteTodayTotal(currentSection));
-  const sub = document.getElementById('wasteTodaySub');
-  if(sub) sub.textContent = `Wasted today · ${currentSection.toUpperCase()}`;
+  renderWasteMeters();
 
   const counts = wasteTodayCounts(currentSection);
   const items = wasteVisibleItems();
@@ -143,8 +191,7 @@ function wasteRefreshTile(id){
     el.classList.toggle('is-over', p.ceil > 0 && n >= p.ceil);
     el.setAttribute('aria-label', `${p.name}: ${n} today`);
   }
-  const amt = document.getElementById('wasteTodayAmt');
-  if(amt) amt.textContent = wasteMoney(wasteTodayTotal(currentSection));
+  renderWasteMeters();
 }
 
 // ---------- exact count (press and hold) ----------
