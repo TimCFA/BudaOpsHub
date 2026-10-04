@@ -286,7 +286,7 @@ function renderFoodSafety(){
   let html = `
     <div class="fs-head">
       <div>
-        <h2 class="fs-title">🛡️ Food Safety Walkthrough</h2>
+        <h2 class="fs-title">Food Safety Walkthrough</h2>
         <div class="fs-subtitle">Recorrido de Seguridad Alimentaria · ${escapeHtml(formatVerboseDate(today))}</div>
       </div>
       <div class="fs-count"><b>${t.done}</b><span>/ ${t.total}</span></div>
