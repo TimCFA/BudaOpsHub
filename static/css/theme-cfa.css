@@ -216,3 +216,108 @@ button,input,select,textarea{font-family:inherit;}
 .tape{border-radius:16px;box-shadow:none;}
 .tape-row{font-family:var(--font-ui);font-size:13px;}
 .tape-row .r{color:var(--cfa-dark-red);}
+
+/* ===== Shared cards, buttons and fields (the shell every list page sits in) ===== */
+.standup-card{background:var(--cfa-white);border:1px solid var(--border);border-radius:16px;box-shadow:none;padding:18px;}
+.standup-card h3{font-family:var(--font-display);font-size:19px;font-weight:600;text-transform:none;letter-spacing:0;}
+.standup-card h3 .sub,#zoneresetView .standup-card h3 .sub{font-family:var(--font-display);font-style:italic;font-weight:400;font-size:13px;color:var(--text-tertiary);text-transform:none;}
+.standup-card .sub{font-family:var(--font-ui);}
+.section-intro{background:var(--cfa-light);border-radius:14px;font-family:var(--font-ui);font-size:13px;}
+.standup-btn,.btn{font-family:var(--font-ui);font-size:14px;font-weight:700;text-transform:none;letter-spacing:0;border-radius:999px;min-height:44px;}
+.standup-btn:hover,.btn-primary:hover{background:var(--cfa-dark-red);box-shadow:none;}
+.btn-ghost{color:var(--text-primary);background:var(--cfa-white);}
+.field label,.eoi-field label{font-family:var(--font-ui);font-size:11px;font-weight:600;letter-spacing:0.12em;color:var(--text-secondary);}
+.field select,.field input[type=text],.field input[type=number],.field input[type=password],.eoi-field input,.eoi-field select,.eoi-field textarea{font-family:var(--font-ui);border-radius:12px;background:var(--cfa-white);}
+.gx-section-subtitle{font-family:var(--font-ui);font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-secondary);}
+.zone-overall-pct{font-family:var(--font-display);font-weight:700;font-size:24px;}
+.zone-overall-pct.high{color:var(--success);}
+
+/* ===== Zone Reset & Walkthroughs ===== */
+#zoneresetView{--su-card:var(--cfa-white);--su-ink:#1C1B19;--su-muted:#5F5A52;--su-line:#E4DCCF;}
+.zr-history-label{font-family:var(--font-ui);font-size:11px;font-weight:600;letter-spacing:0.12em;color:var(--text-secondary);}
+.zr-dp-track{background:var(--cfa-soft);}
+.zr-dp-bar,.su-dp .zr-dp-bar{background:var(--cfa-navy);}
+.su-dp.is-done .zr-dp-bar{background:var(--success);}
+.zr-dp-lead{font-family:var(--font-ui);}
+.zone-acc-item{border:1px solid var(--border);border-radius:14px;background:var(--cfa-white);}
+.zone-acc-item.open{border-color:var(--cfa-navy);box-shadow:none;}
+.zone-acc-item.done{border-color:var(--success);}
+.zone-acc-head{background:var(--cfa-white);min-height:52px;padding:10px 12px;}
+.zone-acc-head:hover{background:var(--cfa-light);}
+.zone-acc-item.done .zone-acc-head{background:#EEF6F0;}
+.zone-acc-icon{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:9px;background:var(--cfa-soft);color:var(--text-primary);font-size:0;}
+.zone-acc-item.done .zone-acc-icon{background:#DCEFE1;color:#1F5B30;}
+.zone-acc-name{font-family:var(--font-ui);font-size:15px;font-weight:600;}
+.zone-acc-track{background:var(--cfa-soft);}
+.zone-acc-fill{background:var(--cfa-navy);}
+.zone-acc-count{font-family:var(--font-display);font-size:14px;}
+.zone-acc-body{background:var(--cfa-light);}
+.checklist-item-elevated{background:var(--cfa-white);border:1px solid var(--border);border-radius:12px;padding:11px 12px;}
+.checklist-item-elevated:hover{border-color:var(--cfa-navy);}
+.checklist-item-elevated.checked{background:#EEF6F0;border-color:#BFDCC6;}
+.checklist-item-elevated span{font-family:var(--font-ui);font-size:14px;}
+.checklist-item-elevated input[type="checkbox"],.checklist-item input[type="checkbox"]{accent-color:var(--cfa-navy);width:20px;height:20px;}
+.checklist-cat{font-family:var(--font-ui);font-size:11px;font-weight:600;letter-spacing:0.12em;color:var(--text-secondary);}
+.zone-reset-scoreboard{margin-top:12px;}
+.scoreboard-day-label,.scoreboard-day-pct{font-family:var(--font-ui);}
+.scoreboard-day-bar-wrap{background:var(--cfa-soft);border-radius:6px;}
+.scoreboard-day-bar{background:var(--cfa-navy);border-radius:6px 6px 0 0;}
+.scoreboard-day.star .scoreboard-day-bar{background:var(--success);}
+.scoreboard-day.is-today .scoreboard-day-bar-wrap{outline-color:var(--cfa-red);}
+
+/* ===== Food Safety Walkthrough ===== */
+.fs-title{font-family:var(--font-display);font-size:24px;font-weight:600;}
+.fs-subtitle{font-family:var(--font-display);font-style:italic;font-size:13px;}
+.fs-count{font-family:var(--font-ui);} .fs-count b{font-family:var(--font-display);font-size:28px;font-weight:700;}
+.fs-progress{background:var(--cfa-soft);}
+.fs-progress-fill{background:var(--cfa-navy);}
+.fs-chip{border:1px solid var(--border);border-radius:12px;background:var(--cfa-white);min-height:48px;}
+.fs-chip:hover{border-color:var(--cfa-navy);}
+.fs-chip-name{font-family:var(--font-ui);font-size:13px;font-weight:600;}
+.fs-chip.active{background:var(--cfa-navy);border-color:var(--cfa-navy);}
+.fs-section-head h3{font-family:var(--font-display);font-size:20px;font-weight:600;text-transform:none;letter-spacing:0;}
+.fs-section-es{font-family:var(--font-display);font-style:italic;font-weight:400;}
+.fs-temps-head{font-family:var(--font-ui);font-size:11px;font-weight:600;letter-spacing:0.12em;}
+.fs-q,.fs-temp{border:1px solid var(--border);border-radius:14px;}
+.fs-q-en{font-family:var(--font-ui);font-size:14px;}
+.fs-q-es{font-family:var(--font-display);font-style:italic;font-size:13px;}
+.fs-btn{font-family:var(--font-ui);border-radius:12px;border:1px solid var(--border);font-size:13px;}
+.fs-btn span{font-family:var(--font-display);font-style:italic;font-size:11px;}
+.fs-temp-input input{font-family:var(--font-display);font-size:20px;font-weight:600;border-radius:12px;border:1px solid var(--border);}
+.fs-temp-input input:focus{border-color:var(--cfa-navy);}
+.fs-nav-btn{border-radius:999px;}
+.fs-history-title{font-family:var(--font-ui);font-size:11px;font-weight:600;letter-spacing:0.12em;}
+
+/* ===== Daily Safe Count ===== */
+.standup-card.fohoe-card{background:var(--cfa-white);border:1px solid var(--border);border-top:1px solid var(--border);box-shadow:none;}
+.fohoe-card:hover{transform:none;box-shadow:none;}
+.fohoe-card h3{font-family:var(--font-display);font-size:19px;font-weight:600;text-transform:none;letter-spacing:0;}
+.sc-type-grid .day-pill{border-radius:14px;min-height:64px;font-family:var(--font-ui);}
+.sc-type-grid .day-pill .sc-ic{display:inline-flex;width:32px;height:32px;border-radius:10px;background:var(--cfa-soft);align-items:center;justify-content:center;font-size:0;color:var(--text-primary);}
+.sc-type-grid .day-pill.active .sc-ic{background:rgba(255,255,255,0.18);color:#fff;}
+.safe-count-entry-title{font-family:var(--font-display);font-size:18px;font-weight:600;text-transform:none;letter-spacing:0;}
+.denom-row{background:var(--cfa-light);border:1px solid var(--border);border-radius:12px;}
+.denom-row label{font-family:var(--font-ui);}
+.denom-row input{font-family:var(--font-ui);border:1px solid var(--border);border-radius:10px;}
+.denom-row input:focus{border-color:var(--cfa-navy);}
+.safe-total-banner{background:var(--cfa-navy);border:0;border-radius:16px;color:#F6F1E8;}
+.safe-total-label{color:rgba(246,241,232,0.75);font-family:var(--font-ui);letter-spacing:0.12em;}
+.safe-total-value{font-family:var(--font-display);font-weight:700;font-size:40px;color:#F6F1E8;}
+.safe-total-target{color:rgba(246,241,232,0.8);}
+.safe-log-entry{background:var(--cfa-light);border-radius:14px;}
+.safe-log-shift{font-family:var(--font-ui);}
+.safe-log-total{font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--text-primary);}
+.safe-log-variance.balanced{background:#E3F1E6;color:#1F5B30;}
+.safe-log-variance.over{background:#DCEBF3;color:var(--cfa-navy);}
+.safe-log-variance.short{background:#FBE3E4;color:var(--cfa-dark-red);}
+.safe-log-private{border-radius:12px;font-family:var(--font-ui);}
+/* Fixes found in the pass: the two-column denomination grids overflowed the
+   card on a phone (number inputs kept their intrinsic width, so the right
+   column was clipped), and number fields weren't styled like text fields. */
+.denom-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
+.denom-row{min-width:0;}
+.denom-row input{flex:1 1 0px;min-width:0;width:0;}
+@media (max-width:480px){ .denom-grid{grid-template-columns:1fr;} }   /* one column on a phone: the label, input and subtotal need the room */
+.eoi-field input[type="number"]{width:100%;padding:10px 12px;border-radius:12px;border:2px solid var(--border);font-family:var(--font-ui);font-size:14px;background:var(--cfa-white);color:var(--text-primary);}
+.eoi-field input[type="number"]:focus{outline:none;border-color:var(--cfa-navy);}
+.eoi-field input[type="text"]:focus,.eoi-field select:focus,.eoi-field textarea:focus{border-color:var(--cfa-navy);}

@@ -452,11 +452,11 @@
 
   <!-- Zone Reset & Walkthroughs View -->
   <div class="view" id="zoneresetView">
-    <p class="section-intro">🧹 <b>Zone Reset</b> is for Team Members — restock and reset each zone between dayparts. 🧭 <b>Walkthroughs</b> are for Leaders — a quick scan to confirm the big things are handled.</p>
+    <p class="section-intro"><b>Zone Reset</b> is for Team Members — restock and reset each zone between dayparts. <b>Walkthroughs</b> are for Leaders — a quick scan to confirm the big things are handled.</p>
 
     <div class="standup-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <h3 style="margin:0;">🎯 Zone Reset</h3>
+        <h3 style="margin:0;">Zone Reset</h3>
         <span class="zone-overall-pct" id="zoneOverallPct">0%</span>
       </div>
       <div class="sub" style="margin-bottom:10px;">Tap a handoff, then a zone to open its reset list</div>
@@ -483,7 +483,7 @@
 
     <div class="standup-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-        <h3 style="margin:0;">🧭 Leader Transition List <span class="sub"><i>Lista de Transición — Líderes</i></span></h3>
+        <h3 style="margin:0;">Leader Transition List <span class="sub"><i>Lista de Transición — Líderes</i></span></h3>
         <span class="zone-overall-pct" id="leaderTransitionBadge">0%</span>
       </div>
       <div class="sub" style="margin-bottom:10px;">Complete a handoff's checklist before handing off to the next leader</div>
@@ -492,7 +492,7 @@
 
     <div class="standup-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-        <h3 style="margin:0;">🛡️ Food Safety Walkthrough</h3>
+        <h3 style="margin:0;">Food Safety Walkthrough</h3>
         <span class="zone-overall-pct" id="foodSafetyBadge">Not yet</span>
       </div>
       <p id="foodSafetySummaryLine" style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Not started today</p>
@@ -509,7 +509,7 @@
   <!-- Daily Safe Count View -->
   <div class="view" id="safecountView">
     <div class="standup-card fohoe-card fohoe-green">
-      <h3><span class="fohoe-icon">💵</span>Daily Safe Count <span class="sub"><i>Conteo Diario de Caja Fuerte</i></span></h3>
+      <h3>Daily Safe Count <span class="sub"><i>Conteo Diario de Caja Fuerte</i></span></h3>
       <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Pick which count you're doing</p>
       <div class="day-picker sc-type-grid" id="safeCountEntryPicker"></div>
 
@@ -534,11 +534,11 @@
         </div>
 
         <div class="eoi-field">
-          <label>🧾 Cashier Tills Total ($)</label>
+          <label>Cashier Tills Total ($)</label>
           <input type="number" min="0" step="0.01" id="safeCountTills" value="0" placeholder="Combined total from all cashier tills">
         </div>
 
-        <div class="gx-section-subtitle" style="margin:4px 0 10px;">🪙 Coin Rolls</div>
+        <div class="gx-section-subtitle" style="margin:4px 0 10px;">Coin Rolls</div>
         <div class="denom-grid" id="coinGrid">
           <div class="denom-row"><label>Quarters</label><input type="number" min="0" class="coin-input" data-value="10"><span class="denom-sub"></span></div>
           <div class="denom-row"><label>Dimes</label><input type="number" min="0" class="coin-input" data-value="5"><span class="denom-sub"></span></div>
@@ -551,7 +551,7 @@
           <input type="number" min="0" step="0.01" id="safeCountCoin" value="0">
         </div>
 
-        <div class="gx-section-subtitle" style="margin:16px 0 10px;">💵 Bills</div>
+        <div class="gx-section-subtitle" style="margin:16px 0 10px;">Bills</div>
         <div class="denom-grid" id="denomGrid">
           <div class="denom-row"><label>$100</label><input type="number" min="0" class="denom-input" data-value="100"><span class="denom-sub"></span></div>
           <div class="denom-row"><label>$50</label><input type="number" min="0" class="denom-input" data-value="50"><span class="denom-sub"></span></div>
@@ -578,7 +578,7 @@
     </div>
 
     <div class="standup-card fohoe-card fohoe-red">
-      <h3><span class="fohoe-icon">📋</span>Safe Count Log <span class="sub"><i>Registro de Conteos</i></span></h3>
+      <h3>Safe Count Log <span class="sub"><i>Registro de Conteos</i></span></h3>
       <div id="safeCountLogContainer"></div>
     </div>
   </div>
