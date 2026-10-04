@@ -407,6 +407,7 @@ function applyStateData(data){
   wasteLogLastClosedOut = data.wasteLogLastClosedOut || null;
   wasteMonthlyHistory = (data.wasteMonthlyHistory && typeof data.wasteMonthlyHistory === 'object' && !Array.isArray(data.wasteMonthlyHistory)) ? data.wasteMonthlyHistory : {};
   setupDayTypes = (data.setupDayTypes && typeof data.setupDayTypes === 'object') ? data.setupDayTypes : {};
+  if(typeof suMigrateDaypartNames === 'function') suMigrateDaypartNames();   // renamed FOH dayparts (zone-reset.js)
   // Daily sales and labor history and the Forecast page's settings
   // (manager sessions only — a page without one keeps them empty).
   salesHistory = (data.salesHistory && typeof data.salesHistory === 'object' && !Array.isArray(data.salesHistory)) ? data.salesHistory : {};

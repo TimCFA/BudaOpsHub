@@ -267,12 +267,14 @@ function renderZoneResetView(){
 
 products = wasteDefaultProducts();
 
+// FOH dayparts on Analytics Hub's hours (Tim, Oct 2026): Breakfast to 10:30,
+// Lunch to 1, Transition 1–2, Mid 2–5, Dinner 5–8, Close 8 to close.
 const fohDayparts = [
   {name: 'Early Breakfast (6:00-8:00)', time: '6:00'},
-  {name: 'Breakfast (8:00-11:00)', time: '8:00'},
-  {name: 'Lunch (11:00-2:00)', time: '11:00'},
+  {name: 'Breakfast (8:00-10:30)', time: '8:00'},
+  {name: 'Lunch (10:30-1:00)', time: '10:30'},
   {name: 'Transition (1:00-2:00)', time: '13:00'},
-  {name: 'Afternoon (2:00-5:00)', time: '14:00'},
+  {name: 'Mid (2:00-5:00)', time: '14:00'},
   {name: 'Dinner (5:00-8:00)', time: '17:00'},
   {name: 'Close (8:00-10:00)', time: '20:00'},
 ];
@@ -286,12 +288,50 @@ const bohDayparts = [
   {name: 'Close (8:00-10:00)', time: '20:00'},
 ];
 
+// FOH daypart names that changed (Oct 2026). Saved data keyed by the old
+// names — assignments, coverage flags, day types, the set-up history — moves
+// over when the state loads (storage.js). Keys read section||date||daypart||slot,
+// section||date||daypart, or section||daypart||slot; the section decides,
+// since BOH keeps an 'Afternoon (2:00-5:00)' of its own.
+const SU_DAYPART_RENAMES = {
+  foh: {'Breakfast (8:00-11:00)': 'Breakfast (8:00-10:30)', 'Lunch (11:00-2:00)': 'Lunch (10:30-1:00)', 'Afternoon (2:00-5:00)': 'Mid (2:00-5:00)'}
+};
+function suRenamedKey(key){
+  const parts = String(key).split('||');
+  const map = SU_DAYPART_RENAMES[parts[0]];
+  if(!map) return key;
+  const i = parts.findIndex((p, n) => n > 0 && map[p]);
+  if(i === -1) return key;
+  parts[i] = map[parts[i]];
+  return parts.join('||');
+}
+function suMigrateDaypartNames(){
+  let changed = false;
+  const remap = obj => {
+    if(!obj || typeof obj !== 'object') return;
+    Object.keys(obj).forEach(k => {
+      const nk = suRenamedKey(k);
+      if(nk === k) return;
+      if(obj[nk] === undefined) obj[nk] = obj[k];
+      delete obj[k];
+      changed = true;
+    });
+  };
+  if(typeof posAssignments !== 'undefined') remap(posAssignments);
+  if(typeof posVacancyFlags !== 'undefined') remap(posVacancyFlags);
+  if(typeof setupDayTypes !== 'undefined') remap(setupDayTypes);
+  if(typeof setupHistory !== 'undefined' && setupHistory && Array.isArray(setupHistory.slots)){
+    setupHistory.slots = setupHistory.slots.map(s => { const n = suRenamedKey(s); if(n !== s) changed = true; return n; });
+  }
+  return changed;
+}
+
 // leadFrom: the FOH Set Ups daypart whose Lead Captain owns this reset (the
 // leader handing off), shown on the handoff's banner.
 const zoneResetDayparts = [
   {name: 'Breakfast to Lunch (10:30am - 11:30am)', time: '10:30', leadFrom: 'Breakfast'},
   {name: 'Lunch to Mid (1:00pm - 2:00pm)', time: '13:00', leadFrom: 'Lunch'},
-  {name: 'Mid to Dinner (4:00pm - 5:00pm)', time: '16:00', leadFrom: 'Afternoon'},
+  {name: 'Mid to Dinner (4:00pm - 5:00pm)', time: '16:00', leadFrom: 'Mid'},
   {name: 'Dinner to Late Night (7:00pm - 8:00pm)', time: '19:00', leadFrom: 'Dinner'},
   {name: 'Close', time: '21:00', leadFrom: 'Close'},
 ];
@@ -301,10 +341,10 @@ const zoneResetDayparts = [
 // be skipped for one lower down.
 const fohPositions = {
   'Early Breakfast (6:00-8:00)': ['iPOS 1 LANE 1', 'iPOS 2 LANE 2', 'DT Bagger 1', 'Drinks 1', 'OMD 1', 'Drinks 3 / Runner', 'Host 1'],
-  'Breakfast (8:00-11:00)': ['iPOS 1 (Captain)', 'iPOS 2 LANE 2', 'DT Bagger 1', 'Drinks 1', 'OMD 1', 'Host 1', 'FC Bagger', 'Drinks 3', 'DT Bagger 2', 'iPOS 3 LANE 3', 'Runner', 'Host 2', 'Drinks 2', 'iPOS 4 LANE 1'],
-  'Lunch (11:00-2:00)': ['iPOS 1 (Captain)', 'iPOS 2 LANE 1', 'iPOS 3 LANE 2', 'iPOS 4 LANE 1', 'iPOS 5 LANE 2', 'DT Bagger 1 (Cockpit Cap)', 'DT Bagger 2', 'Drinks 1', 'Drinks 2/Sample Prep', 'OMD 1', 'OMD 2', 'FC Bagger', 'Drinks 3', 'Host 1 (Captain)', 'Host 2', 'Runner', 'Surfer', 'iPOS 6 LANE 1', 'OMD 3', 'Host 3', 'Host 4', 'iPOS 7 LANE 2', 'Traffic Lane 1', 'iPOS 8 LANE 2', 'DT Bagger 4'],
+  'Breakfast (8:00-10:30)': ['iPOS 1 (Captain)', 'iPOS 2 LANE 2', 'DT Bagger 1', 'Drinks 1', 'OMD 1', 'Host 1', 'FC Bagger', 'Drinks 3', 'DT Bagger 2', 'iPOS 3 LANE 3', 'Runner', 'Host 2', 'Drinks 2', 'iPOS 4 LANE 1'],
+  'Lunch (10:30-1:00)': ['iPOS 1 (Captain)', 'iPOS 2 LANE 1', 'iPOS 3 LANE 2', 'iPOS 4 LANE 1', 'iPOS 5 LANE 2', 'DT Bagger 1 (Cockpit Cap)', 'DT Bagger 2', 'Drinks 1', 'Drinks 2/Sample Prep', 'OMD 1', 'OMD 2', 'FC Bagger', 'Drinks 3', 'Host 1 (Captain)', 'Host 2', 'Runner', 'Surfer', 'iPOS 6 LANE 1', 'OMD 3', 'Host 3', 'Host 4', 'iPOS 7 LANE 2', 'Traffic Lane 1', 'iPOS 8 LANE 2', 'DT Bagger 4'],
   'Transition (1:00-2:00)': ['iPOS 1 (Captain)', 'iPOS 2 LANE 2', 'iPOS 3 LANE 1', 'DT Bagger 1 (Cockpit Cap)', 'FC Bagger', 'OMD 1', 'Host 1 (Captain)', 'Drinks 1', 'Drink 3', 'Runner', 'Drinks Zone', 'Bagging Zone', 'Front Counter Zone', 'Dinning Room', 'Restroom Zone', 'Lemonades', 'Pouches'],
-  'Afternoon (2:00-5:00)': ['iPOS 1 (Captain)', 'iPOS 2 LANE 2', 'iPOS 3 LANE 1', 'DT Bagger 1', 'Drinks 1', 'OMD 1', 'Host 1', 'FC Bagger', 'Drink 3', 'Host 2', 'Runner', 'iPOS 4 LANE 2', 'DT Bagger 2', 'Drinks 2', 'Shift Lead', 'Breaks', 'iPOS 5 LANE 1', 'DT Bagger 3', 'Host 3', 'iPOS 6 LANE 3', 'iPOS 7 LANE 1', 'Traffic Lane 1', 'Desserts'],
+  'Mid (2:00-5:00)': ['iPOS 1 (Captain)', 'iPOS 2 LANE 2', 'iPOS 3 LANE 1', 'DT Bagger 1', 'Drinks 1', 'OMD 1', 'Host 1', 'FC Bagger', 'Drink 3', 'Host 2', 'Runner', 'iPOS 4 LANE 2', 'DT Bagger 2', 'Drinks 2', 'Shift Lead', 'Breaks', 'iPOS 5 LANE 1', 'DT Bagger 3', 'Host 3', 'iPOS 6 LANE 3', 'iPOS 7 LANE 1', 'Traffic Lane 1', 'Desserts'],
   'Dinner (5:00-8:00)': ['iPOS 1 (Captain)', 'iPOS 2 LANE 2', 'iPOS 3 LANE 2', 'iPOS 4 LANE 1', 'iPOS 5 LANE 2', 'DT Bagger 1 (Captain)', 'DT Bagger 2', 'Drinks 1', 'Drinks 2', 'OMD 1', 'OMD 2', 'FC Bagger', 'Drinks 3', 'Host 1', 'Host 2', 'Runner', 'DT Bagger 3', 'Host 3', 'iPOS 6 LANE 3', 'OMD 3', 'iPOS 7 LANE 1', 'Traffic Lane 1', 'iPOS 8 LANE 2', 'DT Bagger 4'],
   'Close (8:00-10:00)': ['iPOS 1 LANE 1', 'iPOS 2 LANE 2', 'DT Bagger 1', 'Drinks 1', 'OMD', 'Host 1', 'FC Bagger', 'Drinks 3', 'Runner', 'Lemonades', 'Drinks Zone', 'Bagging Zone', 'Front Counter Zone', 'Outside Zone', 'Dinning Room', 'Restroom Zone', 'Floors'],
 };

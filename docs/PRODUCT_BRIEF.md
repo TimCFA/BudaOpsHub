@@ -61,8 +61,8 @@ for the full site. Managers turn launch mode off for everyone in Manage.
   on to the next open one so a daypart fills in one pass.
 Assign team members to positions for each daypart, FOH and BOH.
 
-- **Dayparts** — FOH: Early Breakfast 6–8, Breakfast 8–11, Lunch 11–2,
-  Transition 1–2, Afternoon 2–5, Dinner 5–8, Close 8–10. BOH: Early Breakfast
+- **Dayparts** — FOH (Analytics Hub's hours): Early Breakfast 6–8, Breakfast
+  8–10:30, Lunch 10:30–1, Transition 1–2, Mid 2–5, Dinner 5–8, Close 8–10. BOH: Early Breakfast
   6–8, Breakfast 8–10:30, Mid 10:30–2, Afternoon 2–5, Dinner 5–8, Close 8–10.
 - **Priority**: each daypart's position list is in priority order. With N people
   on shift, positions 1–N should be filled; an empty one in that range is

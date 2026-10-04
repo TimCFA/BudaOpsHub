@@ -304,6 +304,23 @@ class KnowTheNumbersFeedTest(unittest.TestCase):
         self.assertIsNone(res['tue'])                                 # no Tuesdays on file
         self.assertIsNone(res['two'])                                 # under three weeks: not used
 
+    def test_renamed_foh_dayparts_move_saved_data_over(self):
+        res, = run([{'op': '''c => {
+            posAssignments = {"foh||2026-10-06||Lunch (11:00-2:00)||iPOS 1 (Captain)": "Ava", "boh||2026-10-06||Afternoon (2:00-5:00)||Breader 1": "Mateo", "foh||2026-10-06||Afternoon (2:00-5:00)||Runner": "Noah", "foh||2026-10-06||Mid (2:00-5:00)||Host 1": "Grace"};
+            posVacancyFlags = {"foh||2026-10-06||Breakfast (8:00-11:00)||Drinks 1": true};
+            setupDayTypes = {"foh||2026-10-06||Lunch (11:00-2:00)": "rush"};
+            setupHistory = {slots: ["foh||Lunch (11:00-2:00)||iPOS 1 (Captain)", "boh||Mid (10:30-2:00)||Breader1"], names: [], days: {}};
+            const changed = suMigrateDaypartNames();
+            return {changed, a: posAssignments, f: posVacancyFlags, t: setupDayTypes, h: setupHistory.slots, again: suMigrateDaypartNames()};
+        }'''}])
+        self.assertTrue(res['changed'])
+        self.assertEqual(res['a'], {"foh||2026-10-06||Lunch (10:30-1:00)||iPOS 1 (Captain)": "Ava", "boh||2026-10-06||Afternoon (2:00-5:00)||Breader 1": "Mateo",
+                                    "foh||2026-10-06||Mid (2:00-5:00)||Runner": "Noah", "foh||2026-10-06||Mid (2:00-5:00)||Host 1": "Grace"})   # BOH's Afternoon stays
+        self.assertEqual(res['f'], {"foh||2026-10-06||Breakfast (8:00-10:30)||Drinks 1": True})
+        self.assertEqual(res['t'], {"foh||2026-10-06||Lunch (10:30-1:00)": "rush"})
+        self.assertEqual(res['h'], ["foh||Lunch (10:30-1:00)||iPOS 1 (Captain)", "boh||Mid (10:30-2:00)||Breader1"])
+        self.assertFalse(res['again'])                                     # nothing left to move
+
     def test_sales_export_carries_last_year(self):
         res, = run([{'op': 'c => { const hist = {}; fcMergeSalesExport(rpParseSales(c.text), hist); return hist; }', 'text': SALES_EXPORT}])
         d = res['2026-09-01']
@@ -312,9 +329,9 @@ class KnowTheNumbersFeedTest(unittest.TestCase):
 
     def test_setups_dayparts_read_the_four(self):
         res, = run([{'op': 'c => c.dps.map(dp => { const n = knDaypartOf(dp); return n ? n.name : null; })',
-                     'dps': DAYPARTS + [{'name': 'Breakfast (8:00-10:30)', 'time': '8:00'}, {'name': 'Mid (10:30-2:00)', 'time': '10:30'}]}])
+                     'dps': DAYPARTS + [{'name': 'Breakfast (8:00-10:30)', 'time': '8:00'}, {'name': 'Mid (10:30-2:00)', 'time': '10:30'}, {'name': 'Mid (2:00-5:00)', 'time': '14:00'}, {'name': 'Lunch (10:30-1:00)', 'time': '10:30'}]}])
         self.assertEqual(res, [None, 'Breakfast (6:00-10:30)', 'Lunch (10:30-2:00)', None, 'Afternoon (2:00-5:00)', 'Dinner (5:00-10:00)', None,
-                               'Breakfast (6:00-10:30)', 'Lunch (10:30-2:00)'])
+                               'Breakfast (6:00-10:30)', 'Lunch (10:30-2:00)', 'Afternoon (2:00-5:00)', 'Lunch (10:30-2:00)'])
 
     def test_numbers_typed_under_the_seven_dayparts_fold_into_the_four(self):
         day = {

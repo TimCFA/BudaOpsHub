@@ -183,10 +183,20 @@ function suDaypartFillText(section, date, dp, i){
 // left: the sun rises there at Early Breakfast, is overhead by Lunch, and
 // sinks to the right (west) through the Afternoon; then a moon and stars for
 // Dinner and Close.
+// A daypart's start hour on the 24-hour clock, from the hub's own lists
+// (Close's "8:00" is 20:00); null for a name that isn't one of them.
+function suDaypartStartHour(name){
+  const dp = [...fohDayparts, ...bohDayparts].find(d => d.name === name);
+  if(!dp) return null;
+  const [h, m] = String(dp.time).split(':').map(Number);
+  return h + (m || 0) / 60;
+}
 function suDaypartSky(name){
+  const h = suDaypartStartHour(name);
+  if(h !== null) return h < 8 ? 'dawn' : h < 10.5 ? 'morning' : h < 14 ? 'midday' : h < 17 ? 'afternoon' : h < 20 ? 'dusk' : 'night';
   const n = name.toLowerCase();
-  return /early/.test(n) ? 'dawn' : /breakfast/.test(n) ? 'morning' : /lunch|mid|transition/.test(n) ? 'midday'
-    : /afternoon/.test(n) ? 'afternoon' : /dinner/.test(n) ? 'dusk' : /clos|night/.test(n) ? 'night' : 'midday';
+  return /early/.test(n) ? 'dawn' : /breakfast/.test(n) ? 'morning' : /lunch|transition/.test(n) ? 'midday'
+    : /afternoon|mid/.test(n) ? 'afternoon' : /dinner/.test(n) ? 'dusk' : /clos|night/.test(n) ? 'night' : 'midday';
 }
 
 // A class per daypart on its banner (and on the Zone Reset handoff it hands

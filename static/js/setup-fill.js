@@ -10,7 +10,7 @@
 //     daypart before a late arrival or early leaver). The Lead Captain wears
 //     one hat, so never a zone captain slot.
 //  3. The Lead Captain's working spot: Runner if staffing reaches it, else
-//     Drinks 3 or FC Bagger — whichever zone needs a leader more (Afternoon:
+//     Drinks 3 or FC Bagger — whichever zone needs a leader more (Mid, 2–5:
 //     DT Bagger 2).
 //  4. Leader spread (FOH): one leader per zone in that same order before any
 //     zone gets a second.

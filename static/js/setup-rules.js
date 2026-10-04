@@ -158,8 +158,14 @@ function suOutsideRun(section, date, name, dpName, from, to){
 
 // ----- Lead Captain's working spot -----
 
+// The 2–5 daypart (FOH "Mid", once "Afternoon"), where the Lead Captain
+// works DT Bagger 2.
+function suIsAfternoon(dp){
+  return !!dp && /^(afternoon|mid)\b/i.test(dp.name) && String(dp.time) === '14:00';
+}
+
 function suLeadHomeCandidates(dp, slots){
-  if(/^afternoon/i.test(dp.name)){
+  if(suIsAfternoon(dp)){
     const bagger2 = slots.filter(s => SU_AFTERNOON_LEAD_HOME.test(s));
     if(bagger2.length) return bagger2;
   }
