@@ -32,3 +32,12 @@ The Leadership Playbook also uses: Win Every Day (Mark Miller), Working Genius
 Home screen quotes (`homeQuotes` in static/js/zone-reset.js) must be verbatim and
 checked against a published source; each carries its author and source. Never
 paraphrase or add an unsourced quote.
+
+## Theme
+
+`static/css/theme-cfa.css` loads after `main.css` and carries the look: Chick-fil-A
+red (#DD0031) for actions and limits, Chick-fil-A navy (#004F71) for dark "stats"
+cards, an ivory ground, slab-serif headings and hero numbers (Zilla Slab) with a
+grotesque body (Figtree); both fonts stand in for Caecilia and Apercu until the
+brand fonts are licensed (swap `--font-display` / `--font-ui`). Line icons (inline
+SVG), never emoji. New components go in the theme's conventions.

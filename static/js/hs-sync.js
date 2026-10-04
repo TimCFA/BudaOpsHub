@@ -240,7 +240,7 @@ else hsSyncStart();
 
 function hsSyncInstallHtml(){
   return `<div class="du-sync hs-sync-install">
-    <a class="du-sync-btn hs-sync-link" href="${escapeHtml(hsSyncBookmarkletHref())}" data-hs-sync-link draggable="true" title="Drag to your bookmarks bar">🗓️ Ops Hub Sync</a>
+    <a class="du-sync-btn hs-sync-link" href="${escapeHtml(hsSyncBookmarkletHref())}" data-hs-sync-link draggable="true" title="Drag to your bookmarks bar">Ops Hub Sync</a>
     <button type="button" class="hs-sync-copy" data-hs-sync-copy>Copy bookmark code</button>
     <span class="du-sync-note">On a computer, drag the red button to your bookmarks bar. Then open HotSchedules → Scheduling (week view) and click the bookmark: the week opens here to review. It reads names and shift times only — never phone numbers, hours or pay.</span>
   </div>`;
