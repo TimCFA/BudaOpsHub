@@ -56,14 +56,17 @@ MANAGER_ONLY_KEYS = {
     # People data (below): private, so only a manager session changes it.
     'eoiSubmissions', 'trainerTrainees', 'trainerProgress', 'teamLeadTrainees',
     'teamLeadProgress', 'scoreboardItems',
+    # Sales and labor history (below): private, so only a manager session changes it.
+    'salesHistory', 'forecastSettings',
 }
 
 # Sections sent only to a manager session: PEA ratings, people data
-# (Expression of Interest submissions, trial progress) and safe counts.
-# Anyone else gets every other section. The keys in pea and people are
-# manager-only above; safe counts are append-only below, since leaders log
-# them from any device.
-PRIVATE_SECTIONS = ('pea', 'people', 'safe')
+# (Expression of Interest submissions, trial progress), safe counts and the
+# daily sales and labor history behind the Forecast page. Anyone else gets
+# every other section. The keys in pea, people and forecast are manager-only
+# above; safe counts are append-only below, since leaders log them from any
+# device.
+PRIVATE_SECTIONS = ('pea', 'people', 'safe', 'forecast')
 
 # Keys a device without a manager session may add to but never change or
 # remove. It isn't sent these (they're private), so what it sends can only be
@@ -141,6 +144,7 @@ STATE_SECTIONS = {
     'prep': ['prepBuffers', 'prepSoldEntries', 'prepWasteEntries', 'prepStockoutEvents', 'prepHistorySeeded'],
     'prepTimes': ['prepTimes', 'prepTimers'],
     'cem': ['cemEntries'],
+    'forecast': ['salesHistory', 'forecastSettings'],
     'misc': [],
 }
 SECTION_OF_KEY = {key: name for name, keys in STATE_SECTIONS.items() for key in keys}

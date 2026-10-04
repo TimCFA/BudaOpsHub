@@ -50,7 +50,12 @@ const DU_SOURCES = [
   {
     key: 'sales', short: 'sales export', icon: '', name: 'Sales MTD / YTD (Analytics Hub)', freq: 'weekly', accept: '.csv,.txt',
     how: 'Analytics Hub → sales by day by destination, export as CSV (CSV_DOWNLOAD). Month to date for MTD; the same report from Jan 1 for YTD.',
-    feeds: 'Guest Obsession WIG — sales and % change vs last year'
+    feeds: 'Guest Obsession WIG — sales and % change vs last year · Forecast (sales history by day and destination)'
+  },
+  {
+    key: 'labor', short: 'labor export', icon: '', name: 'Labor by day', freq: 'weekly', accept: '.csv,.txt,.xlsx,.xls',
+    how: 'Any export with a date column and labor hours (timekeeping hours), labor cost, labor % or effective wage by day — e.g. the Analytics Hub labor report by day, or a DayTrack export. Columns are recognized by their headers; the Forecast page’s Data tab lets you check or change which column is which.',
+    feeds: 'Forecast — labor hours per day, $ per labor hour and labor % targets'
   },
   {
     key: 'dtRank', short: 'rankings', icon: '', name: 'Drive-thru rankings (Analytics Hub)', freq: 'monthly', accept: '.csv,.txt', multiple: true,
@@ -223,6 +228,7 @@ function duSourceState(src, now){
     const status = !d ? 'overdue' : d >= duAddDays(start, -1) ? 'fresh' : d >= duAddDays(prev, -1) ? 'due' : 'overdue';
     return {status, freq, cover: latest ? `Latest day: ${duShort(latest)} · ${dates.length} days saved` : 'No Sales Mix yet', note: '', last: logAt};
   }
+  if(src.key === 'labor' && typeof fcLaborSourceState === 'function') return fcLaborSourceState(freq, now, logAt);
   return {status: 'overdue', freq, cover: '', note: '', last: logAt};
 }
 
@@ -308,6 +314,7 @@ function duDetect(file, text, workbook){
   if(/Daypart\s*Hours\s*Swap/i.test(head.replace(/\u0000/g, ''))) return 'productivity';
   if(/sales[\s_-]*mix/i.test(file.name) || /Sold Count/i.test(firstLine)) return 'salesMix';
   if(/projected|forecast/i.test(head) && /productivity|goal|splh/i.test(head)) return 'numbers';
+  if(typeof fcLooksLikeLabor === 'function' && fcLooksLikeLabor(text || firstSheetText)) return 'labor';
   return null;
 }
 
@@ -474,7 +481,7 @@ async function duHandleFiles(fileList, hint){
   renderDataUploads();
   // CEM files first so the scoreboard ends on the newest month; the roster
   // last because it opens a review window.
-  const order = {cem: 0, pea: 1, salesMix: 2, numbers: 2, sales: 2, dtRank: 2, sos: 2, opsPdf: 2, productivity: 3, roster: 4};
+  const order = {cem: 0, pea: 1, salesMix: 2, numbers: 2, sales: 2, labor: 2, dtRank: 2, sos: 2, opsPdf: 2, productivity: 3, roster: 4};
   const jobs = [];
   for(let i = 0; i < files.length; i++){
     const file = files[i];
@@ -505,6 +512,7 @@ async function duHandleFiles(fileList, hint){
       else if(job.kind === 'roster') text = duImportRoster(job.file, job.text);
       else if(job.kind === 'numbers') text = await knImportFile(job.file);
       else if(job.kind === 'sales') text = await rpImportSales(job.file, job.text);
+      else if(job.kind === 'labor') text = await fcImportLaborFile(job.file, job.text, job.buffer);
       else if(job.kind === 'sos') text = await rpImportSos(job.file, job.text);
       else if(job.kind === 'dtRank'){
         const d = rpParseDtRank(job.text);
@@ -526,7 +534,7 @@ async function duHandleFiles(fileList, hint){
         if(!duProductivityDay(job.text)){ duWait(job, 'weekday'); continue; }
         text = await duImportProductivity(job.file, job.text);
       }
-      else throw new Error('Didn’t recognize this file. Expected a CEM Comparison Report, HotSchedules roster CSV, Levelset PEA PDF, Sales Mix report, productivity report, projected sales & productivity goals, an Analytics Hub sales, rankings or speed of service export, or an Ops Hub Smart Shop / food safety report.');
+      else throw new Error('Didn’t recognize this file. Expected a CEM Comparison Report, HotSchedules roster CSV, Levelset PEA PDF, Sales Mix report, productivity report, projected sales & productivity goals, an Analytics Hub sales, labor, rankings or speed of service export, or an Ops Hub Smart Shop / food safety report.');
       const filed = DU_SOURCES.find(s => s.key === job.kind) || (job.kind === 'opsPdf' ? {name: 'Ops Hub report'} : null);
       duResults[job.i] = {file: job.file.name, state: 'ok', kind: filed ? filed.name : job.kind, text};
     }catch(err){

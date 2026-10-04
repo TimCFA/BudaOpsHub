@@ -47,21 +47,32 @@ function rpDetect(text){
 
 // ----- Sales by day -----
 
-// → {from, to, total, change, channels: {name: {sales, change}}, days: [[iso, sales, change]]}
+// → {from, to, total, change, channels: {name: {sales, change}}, days: [[iso, sales, change]],
+//    channelDays: {iso: {name: sales}}}  (each day's sales by destination, for the Forecast page)
 function rpParseSales(text){
   const rows = duParseTsv(text);
   const channels = rows[0] || [];
   const totalRow = rows.find(r => (r[0] || '').trim() === 'Total');
   if(!totalRow) throw new Error('No Total row in this sales export.');
-  const days = [];
+  const channelCols = [];
+  for(let c = 4; c + 1 < channels.length; c += 2){
+    const name = String(channels[c] || '').trim();
+    if(name && name !== 'Total') channelCols.push([c, name]);
+  }
+  const days = [], channelDays = {};
   rows.forEach(r=>{
     const m = String(r[1] || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     const sales = rpNum(r[2]);
-    if(m && sales !== null) days.push([`${m[3]}-${m[1]}-${m[2]}`, sales, rpNum(r[3])]);
+    if(!m || sales === null) return;
+    const iso = `${m[3]}-${m[1]}-${m[2]}`;
+    days.push([iso, sales, rpNum(r[3])]);
+    const byName = {};
+    channelCols.forEach(([c, name]) => { const v = rpNum(r[c]); if(v !== null) byName[name] = v; });
+    if(Object.keys(byName).length) channelDays[iso] = byName;
   });
   if(!days.length) throw new Error('No days found in this sales export.');
   days.sort((a, b) => a[0].localeCompare(b[0]));
-  const out = {from: days[0][0], to: days[days.length - 1][0], total: rpNum(totalRow[2]), change: rpNum(totalRow[3]), channels: {}, days};
+  const out = {from: days[0][0], to: days[days.length - 1][0], total: rpNum(totalRow[2]), change: rpNum(totalRow[3]), channels: {}, days, channelDays};
   for(let c = 2; c + 1 < channels.length; c += 2){
     const name = String(channels[c] || '').trim();
     if(name && name !== 'Total') out.channels[name] = {sales: rpNum(totalRow[c]), change: rpNum(totalRow[c + 1])};
@@ -92,11 +103,14 @@ async function rpImportSales(file, text){
   const s = ytd ? parsed : rpMonthToDate(parsed);
   const sales = reportData.sales = reportData.sales || {};
   sales[which] = {...s, file: file.name, at: new Date().toISOString()};
+  // Only the MTD / YTD summary is kept here; every day in the export (not
+  // just the month) also joins the Forecast page's sales history.
+  const added = typeof fcMergeSalesExport === 'function' ? fcMergeSalesExport(parsed) : 0;
   rpApplyToScoreboard();
   duRecord('sales', {file: file.name, summary: `${which.toUpperCase()} ${rpRange(s.from, s.to)}`, periodEnd: s.to});
   await saveState();
   rpRerender();
-  return `${ytd ? 'Year' : 'Month'} to date ${rpRange(s.from, s.to)}: ${rpMoney(s.total)} (${s.change === null ? 'no change %' : rpPct(s.change) + ' vs last year'}${s.estimated ? `, estimated — the export started ${duShort(s.exportFrom)}; export from the 1st for the exact figure` : ''}) → Guest Obsession WIG`;
+  return `${ytd ? 'Year' : 'Month'} to date ${rpRange(s.from, s.to)}: ${rpMoney(s.total)} (${s.change === null ? 'no change %' : rpPct(s.change) + ' vs last year'}${s.estimated ? `, estimated — the export started ${duShort(s.exportFrom)}; export from the 1st for the exact figure` : ''}) → Guest Obsession WIG${added ? ` · ${added} day${added === 1 ? '' : 's'} → Forecast` : ''}`;
 }
 
 // ----- Drive-thru ranking -----

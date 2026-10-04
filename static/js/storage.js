@@ -28,6 +28,7 @@ const STATE_SECTIONS = {
   prep: ['prepBuffers', 'prepSoldEntries', 'prepWasteEntries', 'prepStockoutEvents', 'prepHistorySeeded'],
   prepTimes: ['prepTimes', 'prepTimers'],
   cem: ['cemEntries'],
+  forecast: ['salesHistory', 'forecastSettings'],
   misc: []
 };
 const STATE_SECTION_OF = {};
@@ -66,7 +67,8 @@ function stateSnapshot(){
     fohLeaderTransitionChecked, fohLeaderTransitionDate,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
-    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, launchMode, prepTimes, prepTimers
+    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, launchMode, prepTimes, prepTimers,
+    salesHistory, forecastSettings
   };
 }
 
@@ -404,6 +406,10 @@ function applyStateData(data){
   wasteLogLastClosedOut = data.wasteLogLastClosedOut || null;
   wasteMonthlyHistory = (data.wasteMonthlyHistory && typeof data.wasteMonthlyHistory === 'object' && !Array.isArray(data.wasteMonthlyHistory)) ? data.wasteMonthlyHistory : {};
   setupDayTypes = (data.setupDayTypes && typeof data.setupDayTypes === 'object') ? data.setupDayTypes : {};
+  // Daily sales and labor history and the Forecast page's settings
+  // (manager sessions only — a page without one keeps them empty).
+  salesHistory = (data.salesHistory && typeof data.salesHistory === 'object' && !Array.isArray(data.salesHistory)) ? data.salesHistory : {};
+  forecastSettings = (data.forecastSettings && typeof data.forecastSettings === 'object' && !Array.isArray(data.forecastSettings)) ? data.forecastSettings : {};
 }
 
 // ===== OTHER PEOPLE'S CHANGES =====
