@@ -556,11 +556,11 @@ button,input,select,textarea{font-family:inherit;}
 .fc-field input,.fc-field select{font-family:var(--font-ui);font-size:15px;min-height:42px;padding:8px 12px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-white);color:var(--text-primary);width:100%;box-sizing:border-box;min-width:0;}
 .fc-field input:focus,.fc-field select:focus{outline:none;border-color:var(--cfa-navy);}
 /* The navy summary card */
-.fc-summary{display:grid;grid-template-columns:1.2fr 1fr;gap:18px;background:var(--cfa-navy);color:#F6F1E8;border-radius:20px;padding:20px 22px;margin-bottom:14px;}
+.fc-summary{display:grid;grid-template-columns:1fr 1.3fr;gap:18px;background:var(--cfa-navy);color:#F6F1E8;border-radius:20px;padding:20px 22px;margin-bottom:14px;}
 .fc-sum-label{font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:rgba(246,241,232,0.72);}
 .fc-sum-hero{font-family:var(--font-display);font-weight:700;font-size:52px;line-height:1.05;letter-spacing:-0.02em;margin:6px 0 4px;}
 .fc-sum-foot{font-size:13px;color:rgba(246,241,232,0.85);}
-.fc-sum-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-content:center;}
+.fc-sum-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px;align-content:center;}
 .fc-sum-stat{background:rgba(246,241,232,0.08);border:1px solid rgba(246,241,232,0.14);border-radius:14px;padding:12px 14px;min-width:0;}
 .fc-sum-stat .label{font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:rgba(246,241,232,0.7);}
 .fc-sum-stat .value{font-family:var(--font-display);font-weight:600;font-size:26px;margin-top:4px;}
@@ -599,7 +599,9 @@ button,input,select,textarea{font-family:inherit;}
 .fc-pill.is-good{background:#E3F1E6;color:#1F5B30;} .fc-pill.is-warn{background:#FBEFD6;color:#7A4C00;} .fc-pill.is-bad{background:#FBE3E4;color:var(--cfa-dark-red);}
 .fc-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:4px 0 16px;}
 .fc-actions .btn{width:auto;margin:0;}
+.fc-note-wide{flex-basis:100%;color:#7A4C00;}
 .fc-danger{border-color:var(--cfa-dark-red);color:var(--cfa-dark-red);}
+.fc-compare{margin-bottom:14px;} .fc-compare h3 .sub{margin-left:6px;} .fc-compare .fc-muted{display:block;margin-top:8px;}
 /* KPI cards */
 .fc-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:14px;}
 .fc-kpis-3{grid-template-columns:repeat(3,1fr);}
@@ -648,7 +650,7 @@ button,input,select,textarea{font-family:inherit;}
 @media (max-width:720px){
   .fc-summary{grid-template-columns:1fr;gap:14px;padding:18px 16px;}
   .fc-sum-hero{font-size:42px;}
-  .fc-sum-stats{grid-template-columns:repeat(3,1fr);gap:8px;}
+  .fc-sum-stats{grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px;}
   .fc-sum-stat{padding:10px;} .fc-sum-stat .value{font-size:20px;}
   .fc-kpis{grid-template-columns:1fr 1fr;} .fc-kpis-3{grid-template-columns:1fr 1fr;}
   .fc-two{grid-template-columns:1fr;}
