@@ -1,5 +1,5 @@
 // Runs the Forecast page's model and file-reading code (static/js/forecast.js,
-// plus rpParseSales from report-uploads.js) on cases from tests/test_forecast.py:
+// plus the sales and speed-of-service readers from report-uploads.js) on cases from tests/test_forecast.py:
 // reads {cases: [{op, ...}]} on stdin, writes back one result per case.
 const fs = require('fs');
 const path = require('path');
@@ -9,13 +9,13 @@ const js = n => fs.readFileSync(path.join(__dirname, '..', 'static', 'js', n), '
 // Globals the modules expect from the page.
 const ctx = {console, today: '2026-10-04', escapeHtml: s => String(s), duParseTsv: null, dataUploadLog: {}};
 vm.createContext(ctx);
-// duParseTsv, from data-uploads.js, is all rpParseSales needs.
+// duParseTsv and the date helpers, from data-uploads.js, are all the
+// report readers need.
 const du = js('data-uploads.js');
-const start = du.indexOf('function duParseTsv');
-const end = du.indexOf('function duHourToMin');
-vm.runInContext(du.slice(start, end), ctx);
+vm.runInContext(du.slice(du.indexOf('function duStartOfDay'), du.indexOf('// The current period for a frequency')), ctx);
+vm.runInContext(du.slice(du.indexOf('function duParseTsv'), du.indexOf('function duHourToMin')), ctx);
 const rp = js('report-uploads.js');
-vm.runInContext(rp.slice(rp.indexOf('const rpNum'), rp.indexOf('// Month to date runs from the 1st')), ctx);
+vm.runInContext(rp.slice(rp.indexOf('const rpNum'), rp.indexOf('// ----- Ops Hub PDFs')), ctx);
 vm.runInContext(js('forecast.js'), ctx);
 
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));

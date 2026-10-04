@@ -14,7 +14,10 @@
 //   smartShop   Ops Hub Smart Shop PDFs (or the zip Ops Hub downloads):
 //               share of scored standards met per visit and every standard
 //               missed → a Smart Shop panel in Operational Excellence
-//   foodSafety  Ops Hub food safety "All Findings" PDF: the quarter's findings
+//   foodSafety  Ops Hub food safety PDF — the visit's SAFE report (findings
+//               by category with risk, response and note, plus the quarterly
+//               performance levels and visit date) or the "All Findings"
+//               list: the quarter's findings
 //   qiv         Ops Hub QIV Icon Report PDF: overall and touchpoint scores and
 //               what was missed → Most Recent QIV, and a QIV panel
 // PDFs are read on the server (/api/reports/parse). What's read is kept in
@@ -221,6 +224,11 @@ function rpParseSos(text, now){
       if(/^Trans Count Sos$/i.test(measure)) rec.cars = rpNum(cell);
     });
   });
+  // A mis-set export carries a "Trans Count Sos" in the millions per day
+  // (a real day is about a thousand cars) and its times are off too, so it
+  // isn't usable: ask for the export again rather than show a wrong number.
+  const worst = Math.max(0, ...Object.values(byDest).flatMap(perDay => Object.values(perDay).map(d => d.cars || 0)));
+  if(worst > RP_SOS_MAX_CARS) throw new Error(`This export counts ${Math.round(worst).toLocaleString('en-US')} transactions in one day; a real day is about a thousand. Its times are off too. Export Custom by Day again with the same settings as the upload that showed per-day counts (around 1,000–1,400) and upload that one.`);
   const destinations = {};
   const allDays = [];
   Object.entries(byDest).forEach(([dest, perDay])=>{
@@ -236,12 +244,15 @@ function rpParseSos(text, now){
   allDays.sort();
   return {from: allDays[0], to: allDays[allDays.length - 1], destinations};
 }
+const RP_SOS_MAX_CARS = 20000;   // more than this in one day for one destination isn't a car count: a mis-set export
 
-// Drive-thru, every car: regular and mobile-order lanes together.
+// Drive-thru, every car: regular and mobile-order lanes together, weighted
+// by cars.
 function rpSosDriveThru(sos){
   const lanes = Object.entries(sos.destinations).filter(([name]) => /^(M:\s*)?Drive Thru$/i.test(name)).map(([, d]) => d);
   const cars = lanes.reduce((s, d) => s + d.cars, 0);
-  return cars ? {cars, total: lanes.reduce((s, d) => s + d.total * d.cars, 0) / cars} : null;
+  if(!cars) return null;
+  return {cars, total: lanes.reduce((s, d) => s + d.total * d.cars, 0) / cars};
 }
 
 async function rpImportSos(file, text){
@@ -286,7 +297,15 @@ async function rpImportOpsPdf(file){
   }
   if(safety.length){
     const fs = reportData.foodSafety = reportData.foodSafety || {quarters: {}};
-    safety.forEach(r => { fs.quarters[r.quarter || 'unknown'] = {quarter: r.quarter, total: r.total, findings: r.findings, file: r.file, at: new Date().toISOString()}; });
+    safety.forEach(r => {
+      // The SAFE report doesn't mark repeats: a code found in an earlier
+      // quarter the hub holds is one.
+      const earlier = Object.values(fs.quarters).filter(q => q.quarter && r.quarter && q.quarter !== r.quarter && rpQuarterKey(q.quarter) < rpQuarterKey(r.quarter));
+      const seen = new Set(earlier.flatMap(q => (q.findings || []).map(f => f.code)));
+      const findings = r.layout === 'safe' ? r.findings.map(f => ({...f, repeat: seen.has(f.code)})) : r.findings;
+      fs.quarters[r.quarter || 'unknown'] = {quarter: r.quarter, total: r.total, findings, file: r.file, at: new Date().toISOString(),
+        ...(r.layout ? {layout: r.layout} : {}), ...(r.visit ? {visit: r.visit} : {}), ...(r.levels && r.levels.length ? {levels: r.levels} : {})};
+    });
     const r = safety[safety.length - 1];
     duRecord('foodSafety', {file: file.name, summary: `${r.quarter} · ${r.total} findings`});
     out.push(`${r.quarter}: ${r.total} findings (${rpFindingCounts(r.findings)}) → Food Safety`);
@@ -317,10 +336,10 @@ function rpFindingCounts(findings){
   return [['high', by('high')], ['medium', by('medium')], ['low', by('low')]].filter(([, n]) => n).map(([k, n]) => `${n} ${k}`).join(' · ') + (repeat ? ` · ${repeat} repeat` : '');
 }
 
+function rpQuarterKey(q){ const m = String(q || '').match(/Q(\d)-(\d{4})/); return m ? m[2] + m[1] : ''; }
 function rpLatestFoodSafety(){
   const qs = Object.values((reportData.foodSafety || {}).quarters || {});
-  const key = q => { const m = String(q.quarter || '').match(/Q(\d)-(\d{4})/); return m ? m[2] + m[1] : ''; };
-  return qs.sort((a, b) => key(a).localeCompare(key(b))).pop() || null;
+  return qs.sort((a, b) => rpQuarterKey(a.quarter).localeCompare(rpQuarterKey(b.quarter))).pop() || null;
 }
 
 // The latest month's Smart Shop visits, with the standards missed most often.
@@ -514,9 +533,13 @@ function rpFoodSafetyFindingsHtml(){
   if(!fs) return '';
   const order = {high: 0, medium: 1, low: 2};
   const findings = fs.findings.slice().sort((a, b) => order[a.risk] - order[b.risk] || (b.repeat - a.repeat));
+  const level = (fs.levels || []).find(l => l.quarter === fs.quarter);
+  const levelText = level ? ` · ${escapeHtml(level.label)} (level ${level.level})` : '';
+  const history = (fs.levels || []).filter(l => l.quarter !== fs.quarter).map(l => `${escapeHtml(l.quarter)} ${escapeHtml(l.label)} · ${l.total}`).join(' · ');
   return `<details class="rp-fs-card standup-card" open>
-    <summary><b>Last food safety assessment · ${escapeHtml(fs.quarter)}</b> <span class="rp-sub">${fs.total} findings · ${escapeHtml(rpFindingCounts(fs.findings))}</span></summary>
-    <ul class="rp-fs-list">${findings.map(f => `<li class="is-${f.risk}"><span class="rp-risk">${f.risk}</span><div><b>${escapeHtml(f.category)}${f.repeat ? ' · repeat' : ''}</b>${f.items.map(i => `<div>${escapeHtml(i)}</div>`).join('')}</div></li>`).join('')}</ul>
+    <summary><b>Last food safety assessment · ${escapeHtml(fs.quarter)}${fs.visit ? ` · ${escapeHtml(duShort(fs.visit))}` : ''}</b> <span class="rp-sub">${fs.total} findings · ${escapeHtml(rpFindingCounts(fs.findings))}${levelText}</span></summary>
+    ${history ? `<p class="rp-sub rp-fs-history">Earlier quarters: ${history} findings</p>` : ''}
+    <ul class="rp-fs-list">${findings.map(f => `<li class="is-${f.risk}"><span class="rp-risk">${f.risk}</span><div><b>${escapeHtml(f.category)}${f.code ? ` · ${escapeHtml(f.code)}` : ''}${f.repeat ? ' · repeat' : ''}</b>${f.items.map(i => `<div>${escapeHtml(i)}</div>`).join('')}</div></li>`).join('')}</ul>
   </details>`;
 }
 
@@ -584,7 +607,8 @@ function rpSourceState(src, now, freq, logAt){
   if(src.key === 'foodSafety'){
     // Assessments come per visit, not on a schedule: never "overdue".
     const fs = rpLatestFoodSafety();
-    return {status: fs ? 'fresh' : 'due', freq, cover: fs ? `${fs.quarter} · ${fs.total} findings` : 'No assessment yet', note: '', last: logAt};
+    const level = fs && (fs.levels || []).find(l => l.quarter === fs.quarter);
+    return {status: fs ? 'fresh' : 'due', freq, cover: fs ? `${fs.quarter}${fs.visit ? ` · visit ${duShort(fs.visit)}` : ''} · ${fs.total} findings${level ? ` · ${level.label}` : ''}` : 'No assessment yet', note: '', last: logAt};
   }
   return {status: 'overdue', freq, cover: '', note: '', last: logAt};
 }

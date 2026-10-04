@@ -123,6 +123,72 @@ Q3-2026 OPERATIONAL REQUIREMENTS LOW
 Rows per page: 10 1 - 3 of 3"""
 
 
+def safe_chars(lines):
+    """Characters for a SAFE-layout page: lines are (top, [(x0, text), ...]).
+    Each glyph is 5.3 wide; words in one band are separated by a space glyph."""
+    chars = []
+    for top, parts in lines:
+        for x0, text in parts:
+            x = x0
+            for ch in text:
+                chars.append({'text': ch, 'x0': x, 'x1': x + 5.3, 'top': top, 'size': 10.5})
+                x += 5.3
+    return chars
+
+
+SAFE_FIRST = """SAFE
+Restaurant: #04066 Visit: 09/22/2026
+Month/Year: 09/2026
+Show only Noncompliant Responses
+PERFORMANCE LEVEL
+Q3-2026 Q2-2026 Q1-2026 Q4-2025
+4 5 2 1
+Good Fair Good Elite
+8 Total Findings 18 Total Findings 9 Total Findings 4 Total Findings
+Time & Temperature
+ID STANDARD RESPONSE RISK LEVEL COMPLIANCE
+101.3 Walk-in: cold holding Lettuce: above 40 High Noncompliant"""
+
+SAFE_PAGE1 = safe_chars([
+    (470, [(38, 'Time & Temperature')]),
+    (501, [(38, 'ID'), (96, 'STANDARD'), (455, 'RESPONSE'), (814, 'RISK LEVEL'), (904, 'COMPLIANCE')]),
+    (537, [(38, '101.3'), (96, 'Walk-in: cold holding'), (455, 'Lettuce: above 40'), (820, 'High'), (911, 'Noncompliant')]),
+    (549, [(96, 'is kept'), (455, 'degrees')]),
+])
+SAFE_PAGE2 = safe_chars([
+    (12, [(40, 'Other information:')]),
+    (33, [(38, 'Spacer'), (40, 'Inside the cooler the lettuce was 52F.')]),   # the overprint shares the note's baseline
+    (88, [(38, '124.1'), (96, 'Mac pans temped'), (455, 'One not temped'), (820, 'Medium'), (911, 'Noncompliant')]),
+    (142, [(40, 'Other information:')]),
+    (153, [(38, 'Spacer')]),
+    (163, [(40, 'A pan went to the Merco untemped.')]),
+    (240, [(38, 'Pests')]),
+    (270, [(38, 'ID'), (96, 'STANDARD'), (455, 'RESPONSE'), (814, 'RISK LEVEL'), (904, 'COMPLIANCE')]),
+    (300, [(38, '514.1'), (96, 'Bait stations working'), (455, 'Bait station: missing'), (820, 'Low'), (911, 'Noncompliant')]),
+])
+SAFE_PAGE3 = safe_chars([(30, [(38, 'Appendix')]), (60, [(38, 'IMAGE(S)')]), (90, [(38, '514.1')])])
+
+
+class FoodSafetySafeReportTest(unittest.TestCase):
+    def test_safe_layout(self):
+        pages = [FakePage(SAFE_FIRST), FakePage('Other information:'), FakePage('Appendix')]
+        pages[0].chars, pages[1].chars, pages[2].chars = SAFE_PAGE1, SAFE_PAGE2, SAFE_PAGE3
+        r = rp.parse_food_safety(FakePdf(pages))
+        self.assertEqual((r['layout'], r['quarter'], r['total'], r['visit']), ('safe', 'Q3-2026', 8, '2026-09-22'))
+        self.assertEqual([(l['quarter'], l['level'], l['label'], l['total']) for l in r['levels']],
+                         [('Q3-2026', 4, 'Good', 8), ('Q2-2026', 5, 'Fair', 18), ('Q1-2026', 2, 'Good', 9), ('Q4-2025', 1, 'Elite', 4)])
+        f = r['findings']
+        self.assertEqual([(x['code'], x['risk'], x['category']) for x in f],
+                         [('101.3', 'high', 'Time & Temperature'), ('124.1', 'medium', 'Time & Temperature'), ('514.1', 'low', 'Pests')])
+        self.assertEqual(f[0]['standard'], 'Walk-in: cold holding is kept')        # wrapped standard
+        self.assertEqual(f[0]['response'], 'Lettuce: above 40 degrees')
+        self.assertEqual(f[0]['note'], 'Inside the cooler the lettuce was 52F.')     # ran onto page 2; Spacer stripped
+        self.assertEqual(f[1]['note'], 'A pan went to the Merco untemped.')
+        self.assertEqual(f[2]['note'], '')
+        self.assertEqual(f[0]['items'], ['Walk-in: cold holding is kept', 'Lettuce: above 40 degrees', 'Inside the cooler the lettuce was 52F.'])
+        self.assertEqual(rp.detect_kind(SAFE_FIRST), 'foodSafety')
+
+
 class FoodSafetyTest(unittest.TestCase):
     def test_findings(self):
         r = rp.parse_food_safety(FakePdf([FakePage(FS_TEXT)]))
