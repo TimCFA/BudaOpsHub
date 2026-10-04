@@ -386,3 +386,41 @@ class UnusualDaysTest(unittest.TestCase):
         res, = run([{'op': 'c => { numbersHistory = {}; numbersData = {}; const a = fcAnalysis(c.hist, 0); return [a.yoyRatio, a.yoyDays]; }', 'hist': hist}])
         self.assertAlmostEqual(res[0], 1.1, places=6)
         self.assertEqual(res[1], 47)
+
+
+class LookbackPickTest(unittest.TestCase):
+    def test_short_window_wins_after_a_level_shift(self):
+        # 14 weeks; the last 5 run 20% higher (below the outlier line), so a
+        # 4-week window should score best on the recent days.
+        hist = history(weeks=14, start='2026-06-21')
+        for iso in hist:
+            if iso >= '2026-08-23':
+                hist[iso]['sales'] = round(hist[iso]['sales'] * 1.2, 2)
+        res, = run([{'op': 'c => { numbersHistory = {}; numbersData = {}; forecastSettings = {}; const p = fcLookbackPick(c.hist, 28); return {overall: p.overall, perDow: p.perDow, days: p.days, by: p.byWindow, text: fcLookbackText(p, fcAnalysis(c.hist, 0))}; }', 'hist': hist}])
+        self.assertEqual(res['overall'], 4)
+        self.assertEqual(res['perDow'][1:], [4] * 6)             # every open weekday has 4+ scored days
+        self.assertGreater(res['by']['4'], res['by']['26'] + 3)
+        self.assertEqual(res['days'], 28)
+        self.assertNotIn('Sun', res['text'])
+
+    def test_weekday_without_enough_days_uses_the_overall_window(self):
+        hist = history(weeks=14, start='2026-06-21')
+        for iso in list(hist):
+            d = datetime.date.fromisoformat(iso)
+            if d.weekday() == 0 and iso >= '2026-08-01':             # drop recent Mondays: fewer than 3 scored
+                del hist[iso]
+        res, = run([{'op': 'c => { numbersHistory = {}; numbersData = {}; forecastSettings = {}; const p = fcLookbackPick(c.hist, 28); return [p.perDow[1], p.overall, p.perDowAcc[1]]; }', 'hist': hist}])
+        self.assertEqual(res[0], res[1])
+        self.assertIsNone(res[2])
+
+    def test_baseline_reads_each_weekdays_own_window(self):
+        hist = history(weeks=14, start='2026-06-21')
+        for iso in hist:
+            if iso >= '2026-08-23' and datetime.date.fromisoformat(iso).weekday() == 4:   # Fridays up 20% lately
+                hist[iso]['sales'] = round(hist[iso]['sales'] * 1.2, 2)
+        res, = run([{'op': '''c => { numbersHistory = {}; numbersData = {}; forecastSettings = {lookback: "auto"}; salesHistory = c.hist;
+            const a = fcAnalysisFor(fcSettings()); return {fri: a.lookbackPick.perDow[5], mon: a.lookbackPick.perDow[1], friBase: fcBaseline("2026-10-02", a, 0).sales, monBase: fcBaseline("2026-09-28", a, 0).sales, hasPer: !!a.perDow}; }''', 'hist': hist}])
+        self.assertEqual(res['fri'], 4)
+        self.assertTrue(res['hasPer'])
+        self.assertGreater(res['friBase'], 8500 * 1.15)           # from the recent, higher Fridays
+        self.assertLess(abs(res['monBase'] - 6000), 300)           # Mondays unchanged

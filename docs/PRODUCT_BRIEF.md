@@ -93,7 +93,9 @@ own data, never guessed or narrated.
 ### Forecast (managers)
 Sales & Labor Forecast tab (full site only; the history is manager-only, so a
 device without the PIN sees a gate). Baseline = a blend of two models: that
-weekday's average over the look-back window, carried forward by a
+weekday's average over the look-back window (default "Best fit": the
+backtest over the last 28 open days gives each weekday the window, 4/8/12/26
+weeks, that was closest for it, or the leader fixes one), carried forward by a
 straight-line weekly trend (full weeks only, capped at ±5%/week), and the
 same weekday a year ago (364 days back, from the DayTrack export) × this
 year's run-rate against last year over the window. The blend weight comes
