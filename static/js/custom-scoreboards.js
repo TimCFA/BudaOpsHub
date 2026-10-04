@@ -15,7 +15,7 @@ function renderCustomScoreboards(){
   }
   container.innerHTML = scoreboardItems.map(item => `
     <div class="standup-card">
-      <h3>${escapeHtml(item.icon || '📊')} ${escapeHtml(item.title || 'Untitled')}</h3>
+      <h3>${item.icon ? escapeHtml(item.icon) + ' ' : ''}${escapeHtml(item.title || 'Untitled')}</h3>
       ${(item.metrics && item.metrics.length) ? `
         <div class="gx-metrics-grid">
           ${item.metrics.map(m => `
@@ -114,7 +114,7 @@ document.getElementById('scoreboardManageList').addEventListener('click', (e)=>{
 });
 
 document.getElementById('btnAddScoreboardItem').addEventListener('click', ()=>{
-  sbDraft.push({icon: '📊', title: 'New Scoreboard', notes: '', metrics: []});
+  sbDraft.push({icon: '', title: 'New Scoreboard', notes: '', metrics: []});
   sbDraftDirty = true;
   renderScoreboardManage();
 });

@@ -269,7 +269,7 @@ function renderTrainerTrial(){
       <div class="trial-root" data-theme="trainer">
         <div class="trial-masthead">
           <p class="trial-masthead-eyebrow">Trial Tracker</p>
-          <h2 class="trial-masthead-title">🧭 Trainer Trial</h2>
+          <h2 class="trial-masthead-title">Trainer Trial</h2>
           <p class="trial-masthead-subtitle">30-day path from Certified Team Member to certified Trainer</p>
         </div>
         <div class="trial-empty-state">
@@ -289,7 +289,7 @@ function renderTrainerTrial(){
     <div class="trial-root" data-theme="trainer">
       <div class="trial-masthead">
         <p class="trial-masthead-eyebrow">Trial Tracker</p>
-        <h2 class="trial-masthead-title">🧭 Trainer Trial</h2>
+        <h2 class="trial-masthead-title">Trainer Trial</h2>
         <p class="trial-masthead-subtitle">30-day path from Certified Team Member to certified Trainer</p>
       </div>
 
