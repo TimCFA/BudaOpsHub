@@ -241,9 +241,34 @@ class KnowTheNumbersFeedTest(unittest.TestCase):
         self.assertEqual([(w['name'], w['start'], w['end']) for w in wins], [
             ('Breakfast (6:00-11:00)', 360, 660), ('Lunch (11:00-2:00)', 660, 840),
             ('Afternoon (2:00-5:00)', 840, 1020), ('Dinner (5:00-10:00)', 1020, 1320)])
+        # Without a report the split follows Buda's typical mix, not the clock.
         split, = run([{'op': 'c => fcSplitDay(1600, null)'}])
         self.assertAlmostEqual(sum(split.values()), 1600)
-        self.assertAlmostEqual(split['Breakfast (6:00-11:00)'], 500)     # 5 of 16 open hours
+        self.assertAlmostEqual(split['Breakfast (6:00-11:00)'], 296)     # 18.5%
+        self.assertAlmostEqual(split['Dinner (5:00-10:00)'], 568)        # 35.5%
+        self.assertGreater(split['Lunch (11:00-2:00)'], split['Afternoon (2:00-5:00)'])
+
+    def test_a_mix_set_by_hand_wins_over_the_report(self):
+        hours = {str(h * 60): {'salesPerDay': 100} for h in range(6, 22)}
+        res, = run([{'op': 'c => { const w = fcHourWeights(c.hours); return {report: fcSplitDay(1000, w), mix: fcSplitDay(1000, w, null, c.mix), bad: fcMixShares(c.bad, fcDaypartWindows())}; }',
+                     'hours': hours, 'mix': {'Breakfast': 10, 'Lunch': 30, 'Afternoon': 20, 'Dinner': 40}, 'bad': {'Breakfast': 50, 'Lunch': 50}}])
+        self.assertAlmostEqual(res['report']['Breakfast (6:00-11:00)'], 1000 * 5 / 16)   # the flat report: by the clock
+        self.assertAlmostEqual(res['mix']['Breakfast (6:00-11:00)'], 100)
+        self.assertAlmostEqual(res['mix']['Dinner (5:00-10:00)'], 400)
+        self.assertIsNone(res['bad'])                                              # a mix missing dayparts is ignored
+
+    def test_daypart_productivity_ratios(self):
+        # Breakfast at $60/hr on 10 hours, lunch $120 on 10, afternoon $90 on 10, dinner $100 on 20: the day runs $94/hr.
+        hours = {}
+        for h, (prod, labor) in {7: (60, 5), 9: (60, 5), 12: (120, 5), 13: (120, 5), 15: (90, 10), 18: (100, 10), 20: (100, 10)}.items():
+            hours[str(h * 60)] = {'prod': prod, 'labor': labor}
+        res, = run([{'op': 'c => ({r: fcDaypartRatios(c.hours), none: fcDaypartRatios({"420": {prod: 60}}), d: fcDefaultRatios()})', 'hours': hours}])
+        day = (60 * 10 + 120 * 10 + 90 * 10 + 100 * 20) / 50
+        self.assertAlmostEqual(res['r']['Breakfast (6:00-11:00)'], 60 / day, places=6)
+        self.assertAlmostEqual(res['r']['Lunch (11:00-2:00)'], 120 / day, places=6)
+        self.assertAlmostEqual(res['r']['Dinner (5:00-10:00)'], 100 / day, places=6)
+        self.assertIsNone(res['none'])                                             # hours without labor give no ratios
+        self.assertEqual(res['d'], {'Breakfast (6:00-11:00)': 0.75, 'Lunch (11:00-2:00)': 1.16, 'Afternoon (2:00-5:00)': 1.03, 'Dinner (5:00-10:00)': 1.06})
 
     def test_setups_dayparts_read_the_four(self):
         res, = run([{'op': 'c => c.dps.map(dp => { const n = knDaypartOf(dp); return n ? n.name : null; })',

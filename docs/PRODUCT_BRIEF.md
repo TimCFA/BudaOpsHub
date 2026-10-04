@@ -145,10 +145,16 @@ Accuracy (backtest of the model on days already lived), Channels (sales by
 destination), Data (what's loaded, add a file, remove all). Settings and
 adjustments are shared across devices; adjustments for past days fall away.
 **Send to Know the Numbers** previews each open day split into the four
-Know the Numbers dayparts (by the weekday's hourly sales shape from the
-productivity-by-hour report, evenly by hour without one) with the
-$/labor-hour target as the productivity goal, then writes projected sales
-and goals — special events are never touched. Manage → Know the Numbers has
+Know the Numbers dayparts. The split follows a **daypart mix** Tim can set by
+hand (four percentages); otherwise the weekday's hourly sales shape from the
+productivity-by-hour report; otherwise **Buda's typical mix** measured from
+its own exports (Breakfast 18.5%, Lunch 27%, Afternoon 19%, Dinner 35.5%:
+breakfast and the afternoon quiet, dinner the biggest). Each daypart's
+**productivity goal follows its usual productivity** around the day's
+$/labor-hour target (breakfast about 0.75×, lunch 1.16×, afternoon 1.03×,
+dinner 1.06×, or the weekday's own ratios from the report), unless the flat
+"one goal all day" option is chosen. Then it writes projected sales and
+goals — special events are never touched. Manage → Know the Numbers has
 a "Fill from the Forecast" button that opens that preview. Every day sent is
 kept in a forecast log (private, 120 days) and scored on the Accuracy tab's
 "Your track record" once its actual lands: sent vs model-alone accuracy,
