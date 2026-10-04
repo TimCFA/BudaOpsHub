@@ -368,6 +368,7 @@ button,input,select,textarea{font-family:inherit;}
 .denom-row label{font-family:var(--font-ui);}
 .denom-row input{font-family:var(--font-ui);border:1px solid var(--border);border-radius:10px;}
 .denom-row input:focus{border-color:var(--cfa-navy);}
+.denom-sub.is-warn{color:var(--cfa-red);}
 .safe-total-banner{background:var(--cfa-navy);border:0;border-radius:16px;color:#F6F1E8;}
 .safe-total-label{color:rgba(246,241,232,0.75);font-family:var(--font-ui);letter-spacing:0.12em;}
 .safe-total-value{font-family:var(--font-display);font-weight:700;font-size:40px;color:#F6F1E8;}

@@ -271,17 +271,27 @@ async function scLoadToday(){
   }catch(err){ /* offline: show what this device logged */ }
 }
 
+// Bills are entered as the dollar amount in each denomination (seventeen
+// $20s → 340); the row shows the bill count that makes, or a flag when the
+// amount isn't a multiple of the bill. Coin rolls are still counted in rolls.
+function scBillRow(inp){
+  const amount = parseFloat(inp.value) || 0;
+  const val = parseFloat(inp.dataset.value);
+  const bills = amount / val;
+  const whole = Math.abs(bills - Math.round(bills)) < 1e-9;
+  return {amount, val, bills: whole ? Math.round(bills) : null, whole};
+}
+
 function calcSafeCountTotal(){
   let total = 0;
   const tills = parseFloat(document.getElementById('safeCountTills').value) || 0;
   total += tills;
   document.querySelectorAll('.denom-input').forEach(inp=>{
-    const qty = parseInt(inp.value) || 0;
-    const val = parseFloat(inp.dataset.value);
-    const sub = qty * val;
-    total += sub;
+    const row = scBillRow(inp);
+    total += row.amount;
     const subEl = inp.parentElement.querySelector('.denom-sub');
-    subEl.textContent = qty > 0 ? '$' + sub.toFixed(2) : '';
+    subEl.classList.toggle('is-warn', row.amount > 0 && !row.whole);
+    subEl.textContent = row.amount <= 0 ? '' : row.whole ? `${row.bills} bill${row.bills === 1 ? '' : 's'}` : `not a multiple of $${row.val}`;
   });
   document.querySelectorAll('.coin-input').forEach(inp=>{
     const qty = parseInt(inp.value) || 0;
@@ -311,10 +321,14 @@ document.getElementById('safeCountForm').addEventListener('input', calcSafeCount
 document.getElementById('safeCountForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const total = calcSafeCountTotal();
-  const denoms = {};
+  // bills: the dollar amount in each denomination; denoms: the bill counts
+  // that makes (the older shape), where the amount is a whole number of bills.
+  const denoms = {}, bills = {};
   document.querySelectorAll('.denom-input').forEach(inp=>{
-    const qty = parseInt(inp.value) || 0;
-    if(qty > 0) denoms[inp.dataset.value] = qty;
+    const row = scBillRow(inp);
+    if(row.amount <= 0) return;
+    bills[inp.dataset.value] = row.amount;
+    if(row.whole) denoms[inp.dataset.value] = row.bills;
   });
   const coinRollLabels = {10:'Quarters', 5:'Dimes', 2:'Nickels'};
   const coinRolls = {};
@@ -331,6 +345,7 @@ document.getElementById('safeCountForm').addEventListener('submit', async (e)=>{
     witness: document.getElementById('safeCountWitness').value,
     tills: parseFloat(document.getElementById('safeCountTills').value) || 0,
     denoms,
+    bills,
     coinRolls,
     coin: parseFloat(document.getElementById('safeCountCoin').value) || 0,
     total,
@@ -386,6 +401,7 @@ function renderSafeCountLog(){
         <div class="safe-log-variance ${varClass}">${varText}</div>
         <div class="safe-log-meta">Counted by ${escapeHtml(entry.countedBy)}${entry.witness ? ' · Witnessed by ' + escapeHtml(entry.witness) : ''}</div>
         ${entry.tills ? `<div class="safe-log-meta"><b>Cashier tills:</b> $${(Number(entry.tills) || 0).toFixed(2)}</div>` : ''}
+        ${entry.bills && Object.keys(entry.bills).length ? `<div class="safe-log-meta"><b>Bills:</b> ${Object.entries(entry.bills).sort((a, b) => b[0] - a[0]).map(([k,v])=>`$${escapeHtml(String(v))} in $${escapeHtml(k)}s`).join(', ')}</div>` : ''}
         ${entry.coinRolls && Object.keys(entry.coinRolls).length ? `<div class="safe-log-meta"><b>Coin rolls:</b> ${Object.entries(entry.coinRolls).map(([k,v])=>`${escapeHtml(v)} ${escapeHtml(k)}`).join(', ')}</div>` : ''}
         ${entry.notes ? `<div class="safe-log-meta"><b>Notes:</b> ${escapeHtml(entry.notes)}</div>` : ''}
       </div>

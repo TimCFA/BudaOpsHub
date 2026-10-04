@@ -109,7 +109,10 @@ Two lists, each a set of handoff drop-downs that all start closed (the
 current handoff is marked "now"): Zone Reset (open a handoff, then a zone,
 for its reset list) and the Leader Transition List. The OE walkthrough is
 kept but hidden; the Food Safety Walkthrough has its own page and no longer
-appears here. A daily safe count is its own page too.
+appears here. A daily safe count is its own page too: cashier tills, coin
+rolls (entered as rolls: quarters $10, dimes $5, nickels $2), loose coin, and
+bills entered as the **dollar amount in each denomination** (seventeen $20s is
+340; the row shows the bill count, or flags an amount that isn't a multiple).
 
 ### Scoreboards
 Waste (above), Guest Obsession (CEM survey scores from the monthly upload), TX
