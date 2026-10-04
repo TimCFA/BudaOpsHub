@@ -29,8 +29,8 @@ function pruneSetupDayTypes(){
 }
 
 // Numbers for a daypart on any date: live (last two weeks) or from history.
-// BOH dayparts don't line up with the FOH ones numbers are entered under, so
-// they take the FOH daypart their start time falls in.
+// Numbers are kept for the four major dayparts (know-numbers.js); a Set Ups
+// daypart reads the one its middle falls in.
 function suNumbersFor(date, dp){
   const live = numbersData[date];
   if(live && Object.keys(live).length){
@@ -39,9 +39,13 @@ function suNumbersFor(date, dp){
   }
   const hist = numbersHistory[date];
   if(!hist) return null;
-  if(hist[dp.name]) return hist[dp.name];
-  const target = parseDaypartTimeToMinutes(dp.time);
-  const idx = fohDayparts.findIndex((f, i) => { const w = daypartTimeWindow(fohDayparts, i); return target >= w.startMin && target < w.endMin; });
+  const n = knDaypartOf(dp);
+  if(!n) return null;
+  if(hist[n.name]) return hist[n.name];
+  // Older records are keyed by the seven FOH dayparts: the one the numbers
+  // daypart's middle falls in.
+  const w = knWindowOf(n), mid = Math.floor((w.start + w.end) / 2);
+  const idx = fohDayparts.findIndex((f, i) => { const x = daypartTimeWindow(fohDayparts, i); return mid >= x.startMin && mid < x.endMin; });
   return idx >= 0 ? (hist[fohDayparts[idx].name] || null) : null;
 }
 

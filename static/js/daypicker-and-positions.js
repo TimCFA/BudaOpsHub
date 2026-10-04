@@ -804,8 +804,9 @@ function renderNumbersContent(){
     return;
   }
   if(!numbersData[dayName]) numbersData[dayName] = {};
-  
-  container.innerHTML = fohDayparts.map(dp=>{
+  knNormalizeDay(numbersData[dayName]);
+
+  container.innerHTML = numbersDayparts.map(dp=>{
     const entry = numbersData[dayName][dp.name] || {};
     const dayArg = jsArg(dayName), dpArg = jsArg(dp.name);
     return `
@@ -854,16 +855,3 @@ window.formatAndUpdateCurrency = async function(inputEl, dayName, dpName, field)
   await updateNumbersField(dayName, dpName, field, formatted);
 };
 
-function getNumbersForDaypart(dayName, dp){
-  const dayNums = numbersData[dayName];
-  if(!dayNums) return null;
-  if(dayNums[dp.name]) return dayNums[dp.name];
-  
-  const targetMin = parseDaypartTimeToMinutes(dp.time);
-  let match = null;
-  fohDayparts.forEach((ndp, i)=>{
-    const {startMin, endMin} = daypartTimeWindow(fohDayparts, i);
-    if(targetMin >= startMin && targetMin < endMin) match = ndp.name;
-  });
-  return match ? (dayNums[match] || null) : null;
-}
