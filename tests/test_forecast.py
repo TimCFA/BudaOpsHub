@@ -457,3 +457,55 @@ class TrackRecordTest(unittest.TestCase):
         self.assertGreater(t['rows'][2]['accuracy'], t['rows'][2]['baselineAccuracy'])
         self.assertLess(t['rows'][1]['accuracy'], t['rows'][1]['baselineAccuracy'])
         self.assertAlmostEqual(t['bias'], ((30000 / 29500 - 1) + (24000 / 26500 - 1) + 0) * 100 / 3)
+
+
+class WigFromDayTrackTest(unittest.TestCase):
+    def test_month_to_date_from_daytrack_rows(self):
+        hist = {}
+        for d in range(1, 11):                        # Oct 1–10, 2026; Oct 4 is a Sunday
+            day = datetime.date(2026, 10, d)
+            if day.weekday() == 6:
+                continue
+            hist[day.isoformat()] = {'sales': 1000 * d, 'lastYearSales': 900 * d}
+        hist['2026-09-30'] = {'sales': 5000, 'lastYearSales': 5000}
+        res, = run([{'op': 'c => fcWigFromHistory(c.hist, "2026-10-12")', 'hist': hist}])
+        m = res['mtd']
+        self.assertEqual((m['from'], m['to']), ('2026-10-01', '2026-10-10'))
+        self.assertEqual(m['total'], sum(1000 * d for d in range(1, 11) if d != 4))
+        self.assertAlmostEqual(m['change'], 1000 / 900 - 1)
+        self.assertEqual(m['gaps'], 0)
+        self.assertFalse(m['estimated'])
+        self.assertIsNone(res['ytd'])                 # history doesn't reach back to January
+
+    def test_gaps_and_missing_last_year_mark_the_period_estimated(self):
+        hist = {'2026-10-01': {'sales': 1000, 'lastYearSales': 800}, '2026-10-02': {'sales': 1200},      # no last-year figure
+                '2026-10-06': {'sales': 1100, 'lastYearSales': 1000}}                                     # Oct 3 and 5 missing (Oct 4 is Sunday)
+        res, = run([{'op': 'c => fcWigFromHistory(c.hist, "2026-10-07").mtd', 'hist': hist}])
+        self.assertEqual(res['gaps'], 2)
+        self.assertTrue(res['estimated'])
+        self.assertAlmostEqual(res['change'], (1000 + 1100) / (800 + 1000) - 1)   # from the days that have both years
+
+    def test_year_to_date_when_history_reaches_january(self):
+        hist = {}
+        d = datetime.date(2026, 1, 2)
+        while d <= datetime.date(2026, 3, 15):
+            if d.weekday() != 6:
+                hist[d.isoformat()] = {'sales': 100, 'lastYearSales': 80}
+            d += datetime.timedelta(days=1)
+        res, = run([{'op': 'c => fcWigFromHistory(c.hist, "2026-03-16")', 'hist': hist}])
+        self.assertEqual(res['ytd']['from'], '2026-01-01')
+        self.assertEqual(res['ytd']['to'], '2026-03-14')   # the 15th is a Sunday
+        self.assertAlmostEqual(res['ytd']['change'], 0.25)
+        self.assertEqual(res['ytd']['gaps'], 1)       # Jan 1 itself, a holiday
+        self.assertEqual(res['mtd']['from'], '2026-03-01')
+
+    def test_no_year_to_date_across_a_gap(self):
+        # Last year's rows (a year-back export) plus this autumn: the year isn't covered.
+        hist = {'2025-10-06': {'sales': 100}, '2026-01-02': {'sales': 100}, '2026-09-28': {'sales': 100}, '2026-09-29': {'sales': 100}}
+        res, = run([{'op': 'c => fcWigFromHistory(c.hist, "2026-10-01")', 'hist': hist}])
+        self.assertIsNone(res['ytd'])
+        self.assertIsNone(res['mtd'])                 # nothing in October yet
+
+    def test_nothing_without_rows(self):
+        res, = run([{'op': 'c => fcWigFromHistory({}, "2026-10-07")'}])
+        self.assertIsNone(res)

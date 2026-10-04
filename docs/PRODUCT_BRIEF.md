@@ -220,12 +220,13 @@ overdue) and an upload button per report.
 | Source | From | Feeds |
 |---|---|---|
 | Weekly roster (CSV) | HotSchedules | Who works when, FOH/BOH, Team Leader shifts |
+| Projected sales & goals | The Forecast tab (Send to Know the Numbers), or a spreadsheet | Know the Numbers, Set Ups game plan; no file needed with the forecast |
 | PEA ratings (PDF) | Levelset | Position strength, all green, Set Ups tools |
 | CEM (xlsx) | Guest survey reports | Guest Obsession scoreboard, CEM trends |
 | Productivity (CSV) | Daypart productivity report | Busy hours for breaks |
 | Sales Mix (CSV) | Daily items sold | Prep Board build-to |
-| Sales by day (CSV) | Analytics Hub sales by destination | Guest Obsession WIG; every day → Forecast history |
-| DayTrack Table (CSV) | Analytics Hub → DayTrack → Table, a row per business date | Forecast: sales this year and last, labor hours, wage, labor %, check average |
+| Sales by destination (CSV) | Analytics Hub sales by day by destination | Forecast channel mix; the WIG only when it reaches a later day than DayTrack (monthly is enough once DayTrack is weekly) |
+| DayTrack Table (CSV) | Analytics Hub → DayTrack → Table, a row per business date | Forecast: sales this year and last, labor hours, wage, labor %, check average · Guest Obsession WIG (MTD / YTD sales and % vs last year, from the rows; YTD once the history reaches Jan 1) |
 
 - Sales Mix needs a date (picked if the file doesn't say), and a **duplicate
   guard**: flag a file identical to another day's within the last 2 weeks.

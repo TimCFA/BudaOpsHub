@@ -34,7 +34,7 @@ const DU_SOURCES = [
   },
   {
     key: 'numbers', short: 'numbers file', icon: '', name: 'Projected sales & productivity goals', freq: 'weekly', accept: '.csv,.xlsx,.xls,.txt',
-    how: 'A spreadsheet (Excel or CSV) with a Date column, a Daypart column, and Projected Sales / Productivity Goal columns — or one row per day with a column per daypart. Download the template in Know the Numbers. Special events stay typed in there.',
+    how: 'Easiest: the Forecast tab → Send to Know the Numbers fills the days ahead from the forecast — no file needed. Or a spreadsheet (Excel or CSV) with a Date column, a Daypart column, and Projected Sales / Productivity Goal columns, or one row per day with a column per daypart; the template is in Know the Numbers. Special events stay typed in there.',
     feeds: 'Know the Numbers · Set Ups game plan · Game Day / Practice Day'
   },
   {
@@ -48,14 +48,14 @@ const DU_SOURCES = [
     feeds: 'Prep Board build-to and sold history'
   },
   {
-    key: 'sales', short: 'sales export', icon: '', name: 'Sales MTD / YTD (Analytics Hub)', freq: 'weekly', accept: '.csv,.txt',
-    how: 'Analytics Hub → sales by day by destination, export as CSV (CSV_DOWNLOAD). Month to date for MTD; the same report from Jan 1 for YTD.',
-    feeds: 'Guest Obsession WIG — sales and % change vs last year · Forecast (sales history by day and destination)'
+    key: 'sales', short: 'sales export', icon: '', name: 'Sales by destination (Analytics Hub)', freq: 'monthly', accept: '.csv,.txt',
+    how: 'Analytics Hub → sales by day by destination, export as CSV (CSV_DOWNLOAD). With a weekly DayTrack upload the WIG stays current on its own, and this export only feeds the channel mix — monthly is enough. Without DayTrack it carries the WIG: month to date for MTD, the same report from Jan 1 for YTD.',
+    feeds: 'Forecast channel mix (sales by destination) · Guest Obsession WIG when it reaches a later day than DayTrack'
   },
   {
     key: 'labor', short: 'DayTrack export', icon: '', name: 'DayTrack Table (sales & labor by day)', freq: 'weekly', accept: '.csv,.txt,.xlsx,.xls',
     how: 'Analytics Hub → DayTrack → Table, export as CSV, with a row per business date. Carries this year’s and last year’s sales, timekeeping and benchmark hours, effective wage, labor cost % and check average. Export a range that reaches back a year once, so the forecast has last year’s figure for every day ahead; after that a few weeks at a time keeps it current. Any other export with a date column and labor columns works too; the Forecast page’s Data tab shows which column was taken for what.',
-    feeds: 'Forecast — sales history, last year’s sales, labor hours, $ per labor hour and labor % targets'
+    feeds: 'Forecast — sales history, last year’s sales, labor hours, $ per labor hour and labor % targets · Guest Obsession WIG (sales MTD / YTD and % vs last year)'
   },
   {
     key: 'dtRank', short: 'rankings', icon: '', name: 'Drive-thru rankings (Analytics Hub)', freq: 'monthly', accept: '.csv,.txt', multiple: true,
@@ -215,7 +215,10 @@ function duSourceState(src, now){
     const latest = ahead[ahead.length - 1] || null;
     const lateInWeek = ((now.getDay() + 6) % 7) >= 3;
     const status = !latest || latest < duISO(now) ? 'overdue' : latest < saturday ? 'due' : lateInWeek && latest < nextSaturday ? 'due' : 'fresh';
-    return {status, freq, cover: latest ? `Projected sales through ${duShort(latest)}` : 'No projected sales ahead of today', note: status === 'fresh' ? '' : lateInWeek ? 'Upload next week’s numbers before Monday.' : 'Upload this week’s numbers.', last: logAt};
+    const viaForecast = typeof salesHistory !== 'undefined' && Object.keys(salesHistory || {}).length > 0;
+    const ask = lateInWeek ? 'next week’s numbers before Monday' : 'this week’s numbers';
+    const note = status === 'fresh' ? '' : viaForecast ? `Fill ${ask} from the Forecast tab (Send to Know the Numbers) — no file needed.` : `Upload ${ask}.`;
+    return {status, freq, cover: latest ? `Projected sales through ${duShort(latest)}` : 'No projected sales ahead of today', note, last: logAt};
   }
 
   if(src.key === 'salesMix'){
@@ -1046,6 +1049,7 @@ function renderDataUploads(){
           ${duPending.filter(p => p.kind === src.key).map(duPendingHtml).join('')}
           ${src.key === 'pea' ? duLevelsetHtml() : ''}
           ${src.key === 'roster' && typeof hsSyncInstallHtml === 'function' ? hsSyncInstallHtml() : ''}
+          ${src.key === 'numbers' && typeof salesHistory !== 'undefined' && Object.keys(salesHistory || {}).length ? '<button type="button" class="du-sync-btn full-only" data-du-forecast="1">Fill from the Forecast</button>' : ''}
           <label class="du-row-upload"><input type="file" accept="${src.accept}" ${src.multiple ? 'multiple' : ''} data-du-row-input="${src.key}"><span>⬆ Upload ${escapeHtml(src.short || src.name.split(' (')[0])}${src.key === 'pea' ? ' (backup)' : ''}</span></label>
           <details class="du-more">
             <summary>How to get it · ${src.fixedFreq ? DU_FREQUENCIES[st.freq] : `<span>${DU_FREQUENCIES[st.freq]}</span>`}</summary>
@@ -1061,6 +1065,7 @@ function renderDataUploads(){
 
 document.getElementById('dataUploadsRoot').addEventListener('click', e=>{
   if(e.target.closest('[data-du-levelset]')) peaLevelsetSync(false);
+  if(e.target.closest('[data-du-forecast]')){ fcTab = 'forecast'; fcNumbersOpen = true; launchShowTab('forecast'); const c = document.getElementById('fcNumbersCard'); if(c && c.scrollIntoView) c.scrollIntoView({block: 'start'}); }
   if(e.target.closest('[data-du-restore]')) duRestoreBackup();
 });
 
