@@ -35,15 +35,8 @@
 
       <!-- Launch mode (launch-mode.js): Home plus the team's essentials. -->
       <button type="button" class="tab launch-only" role="tab" aria-selected="false" aria-controls="wastelogView" data-view="wastelog">Waste <span class="sub"><i>Desperdicio</i></span></button>
-      <div class="tab-group launch-only" data-group="lists">
-        <button type="button" class="tab-group-label" aria-haspopup="true" aria-expanded="false">Lists <span class="chevron-mini">▾</span></button>
-        <div class="tab-dropdown" role="menu">
-          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="zoneresetView" data-view="zonereset">Zone Reset & Walkthroughs <span class="sub-inline">Reinicio y Recorridos</span></button>
-          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="foodsafetyView" data-view="foodsafety">Food Safety Walkthrough <span class="sub-inline">Seguridad Alimentaria</span></button>
-          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="safecountView" data-view="safecount">Daily Safe Count <span class="sub-inline">Caja Fuerte</span></button>
-          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="prepboardView" data-view="prepboard">Prep Board <span class="sub-inline">Tablero de Preparación</span></button>
-        </div>
-      </div>
+      <!-- One tap opens Zone Resets; the other lists are pills at the top of the page (launch-mode.js). -->
+      <button type="button" class="tab launch-only" role="tab" aria-selected="false" aria-controls="zoneresetView" data-view="zonereset" data-views="zonereset foodsafety safecount prepboard">Lists <span class="sub"><i>Listas</i></span></button>
 
       <div class="tab-group full-only" data-group="oe">
         <button type="button" class="tab-group-label" aria-haspopup="true" aria-expanded="false">OE <span class="chevron-mini">▾</span></button>
@@ -425,6 +418,7 @@
 
   <!-- Zone Reset & Walkthroughs View -->
   <div class="view" id="zoneresetView">
+    <nav class="launch-subnav launch-only" aria-label="Lists" data-launch-subnav></nav>
     <p class="section-intro"><b>Zone Reset</b> is for Team Members — restock and reset each zone between dayparts. <b>Walkthroughs</b> are for Leaders — a quick scan to confirm the big things are handled.</p>
 
     <div class="standup-card">
@@ -466,12 +460,14 @@
 
   <!-- Food Safety Walkthrough View (replaces the Google Form — see food-safety.js, TIM-5) -->
   <div class="view" id="foodsafetyView">
+    <nav class="launch-subnav launch-only" aria-label="Lists" data-launch-subnav></nav>
     <div id="rpFoodSafetyFindings"></div>
     <div class="standup-card" id="foodSafetyRoot"></div>
   </div>
 
   <!-- Daily Safe Count View -->
   <div class="view" id="safecountView">
+    <nav class="launch-subnav launch-only" aria-label="Lists" data-launch-subnav></nav>
     <div class="standup-card fohoe-card fohoe-green">
       <h3>Daily Safe Count <span class="sub"><i>Conteo Diario de Caja Fuerte</i></span></h3>
       <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Pick which count you're doing</p>
@@ -549,6 +545,7 @@
 
   <!-- Prep Board View -->
   <div class="view" id="prepboardView">
+    <nav class="launch-subnav launch-only" aria-label="Lists" data-launch-subnav></nav>
     <div class="standup-card">
       <div id="prepBoardRoot"></div>
     </div>
@@ -808,7 +805,7 @@
 
       <label class="launch-setting">
         <input type="checkbox" id="launchModeToggle" checked>
-        <span><b>Launch mode</b> — the team sees only Home, Set Ups, Waste and Lists (Zone Reset, Food Safety, Safe Count, Prep Board). Devices signed in here see everything.</span>
+        <span><b>Launch mode</b> — the team sees only Home, Set Ups, Waste and Lists (Zone Resets first, then Food Safety, Safe Count and the Prep Board as pills). Devices signed in here see everything.</span>
       </label>
 
 

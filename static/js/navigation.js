@@ -16,6 +16,7 @@ function activateView(view){
   if(view === 'home') renderHomeScoreboard();
   if(view === 'forecast') renderForecastView();
   if(view === 'manage' && typeof refreshManage === 'function') refreshManage();
+  if(typeof launchSubnavRender === 'function') launchSubnavRender(view);
 }
 
 document.querySelector('.sb-subtabs').addEventListener('click', function(e){

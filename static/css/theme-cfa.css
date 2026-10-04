@@ -69,6 +69,13 @@ button,input,select,textarea{font-family:inherit;}
 /* Week and day */
 .setups-week-nav{margin-bottom:10px;}
 .setups-week-nav .week-toggle{margin-bottom:0;}
+/* Launch mode: the Lists pages share a pill row (launch-mode.js launchSubnavRender) */
+.launch-subnav{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;padding:2px 0 14px;}
+.launch-pill{display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-height:44px;padding:7px 14px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-white);color:var(--text-primary);font-family:var(--font-ui);font-size:13px;font-weight:700;line-height:1.2;cursor:pointer;}
+.launch-pill span{font-family:var(--font-display);font-style:italic;font-weight:400;font-size:11px;color:var(--text-tertiary);}
+.launch-pill.active{background:var(--cfa-navy);border-color:var(--cfa-navy);color:#F6F1E8;}
+.launch-pill.active span{color:rgba(246,241,232,0.75);}
+.launch-pill:hover:not(.active){border-color:var(--cfa-navy);}
 .week-toggle{background:var(--cfa-soft);border-radius:999px;}
 .su-week-toggle-btn,.week-toggle-btn{font-family:var(--font-ui);font-size:13px;text-transform:none;letter-spacing:0;color:var(--text-secondary);border-radius:999px;}
 .su-week-toggle-btn.active,.week-toggle-btn.active{background:var(--cfa-white);color:var(--cfa-dark-red);}
