@@ -281,6 +281,7 @@ async function fcImportLaborFile(file, text, buffer){
   const range = dates[0] === dates[dates.length - 1] ? fcShort(dates[0]) : `${fcShort(dates[0])} – ${fcShort(dates[dates.length - 1])}`;
   const fields = ['sales', 'lastYearSales', 'laborHours', 'laborCost', 'laborPct', 'wage', 'checkAverage', 'transactions'].filter(k => records.some(r => r[k] != null));
   duRecord('labor', {file: file.name, summary: `${range} · ${n} day${n === 1 ? '' : 's'}`, periodEnd: dates[dates.length - 1]});
+  if(typeof rpApplyToScoreboard === 'function') rpApplyToScoreboard();
   await saveState();
   fcRerender();
   const names = {laborHours: 'labor hours', laborCost: 'labor cost', laborPct: 'labor %', wage: 'wage', sales: 'sales', lastYearSales: "last year's sales", checkAverage: 'check average', transactions: 'transactions'};
@@ -652,6 +653,39 @@ function fcChannelColor(name){
   let idx = FC_CHANNEL_ORDER.indexOf(name);
   if(idx === -1){ let h = 0; for(let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0; idx = h % 6; }
   return `var(--fc-chan-${(idx % 6) + 1})`;
+}
+
+// ----- The WIG from DayTrack -----
+// Month-to-date and year-to-date sales with the change against last year,
+// from the DayTrack rows, so the Guest Obsession WIG keeps up with the
+// weekly DayTrack upload and the sales-by-destination export only has to
+// serve the channel mix. A period is exact when every open weekday from
+// its start is there and every day has last year's figure; otherwise the
+// change is estimated from the days that have one and marked so. Year to
+// date needs history reaching back to the start of the year.
+function fcWigFromHistory(hist, nowIso){
+  const h = hist || salesHistory;
+  const rows = fcHistoryRows(h, 0).filter(r => r.date <= nowIso);
+  if(!rows.length) return null;
+  const period = from => {
+    const inP = rows.filter(r => r.date >= from);
+    if(!inP.length) return null;
+    const to = inP[inP.length - 1].date;
+    let total = 0, open = 0, withLy = 0, lyTotal = 0, tyWithLy = 0;
+    inP.forEach(r => { total += r.sales; if(r.sales > 0){ open++; if(r.lastYearSales > 0){ withLy++; lyTotal += r.lastYearSales; tyWithLy += r.sales; } } });
+    let gaps = 0;
+    for(let d = from; d <= to; d = fcAddDays(d, 1)) if(fcDow(d) !== 0 && !h[d]) gaps++;
+    const change = withLy && lyTotal > 0 ? tyWithLy / lyTotal - 1 : null;
+    return {from, to, total, change, days: inP.length, gaps, estimated: gaps > 0 || withLy < open, source: 'daytrack'};
+  };
+  const month = nowIso.slice(0, 8) + '01', jan1 = nowIso.slice(0, 4) + '-01-01';
+  const mtd = period(month);
+  // Year to date only when the year is really covered: a row in its first
+  // days and no more than a handful of missing weekdays (holiday closures).
+  const startsAtJan = rows.some(r => r.date >= jan1 && r.date <= fcAddDays(jan1, 3));
+  let ytd = startsAtJan ? period(jan1) : null;
+  if(ytd && ytd.gaps > 4) ytd = null;
+  return {mtd, ytd};
 }
 
 // ----- Know the Numbers feed -----
@@ -1331,6 +1365,7 @@ function fcRenderMap(){
     const n = fcMergeRecords(fcRecordsFromTable(p.table, p.map));
     duRecord('labor', {file: p.name, summary: `${fcShort(dates[0])} – ${fcShort(dates[dates.length - 1])} · ${n} day${n === 1 ? '' : 's'}`, periodEnd: dates[dates.length - 1]});
     fcPendingFile = null;
+    if(typeof rpApplyToScoreboard === 'function') rpApplyToScoreboard();
     await saveState();
     if(typeof showToast === 'function') showToast(`${n} day${n === 1 ? '' : 's'} saved to the sales history`);
     renderForecastView();

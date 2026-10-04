@@ -343,11 +343,24 @@ function rpSmartShopMonth(){
 // ----- Scoreboard -----
 
 // Fills the Guest Obsession fields these reports cover.
+// The WIG's sales: the sales-by-destination export or the DayTrack rows,
+// whichever reaches the later day (the export wins a tie — its change is
+// exact). {mtd, ytd}, each {from, to, total, change, estimated, source}.
+function rpWigPeriods(){
+  const s = reportData.sales || {};
+  const dt = typeof fcWigFromHistory === 'function' && typeof salesHistory !== 'undefined' ? fcWigFromHistory(salesHistory, today) : null;
+  const pick = p => { const e = s[p] ? {...s[p], source: 'export'} : null, d = dt && dt[p]; return d && (!e || d.to > e.to) ? d : e; };
+  return {mtd: pick('mtd'), ytd: pick('ytd')};
+}
+function rpWigSourceText(p){
+  return p.source === 'daytrack' ? `From the DayTrack upload (${rpRange(p.from, p.to)})${p.estimated ? ', estimated' : ''}` : `From the sales upload (${rpRange(p.from, p.to)})`;
+}
+
 function rpApplyToScoreboard(){
   const set = (group, key, v) => { if(v != null && gxData[group] && gxData[group][key]) gxData[group][key].value = v; };
-  const s = reportData.sales || {};
-  if(s.mtd){ set('wig', 'mtdSales', rpMoney(s.mtd.total)); if(s.mtd.change != null) set('wig', 'mtdSalesChange', rpPct(s.mtd.change, s.mtd.estimated ? 1 : 2, false)); }
-  if(s.ytd){ set('wig', 'ytdSales', rpMoney(s.ytd.total)); if(s.ytd.change != null) set('wig', 'ytdSalesChange', rpPct(s.ytd.change, 2, false)); }
+  const {mtd, ytd} = rpWigPeriods();
+  if(mtd){ set('wig', 'mtdSales', rpMoney(mtd.total)); if(mtd.change != null) set('wig', 'mtdSalesChange', rpPct(mtd.change, mtd.estimated ? 1 : 2, false)); }
+  if(ytd){ set('wig', 'ytdSales', rpMoney(ytd.total)); if(ytd.change != null) set('wig', 'ytdSalesChange', rpPct(ytd.change, ytd.estimated ? 1 : 2, false)); }
   Object.entries(reportData.dtRank || {}).forEach(([group, d])=>{
     // Region isn't one of the original three cards: add it, first.
     if(!gxData.dt[group]) gxData.dt = {[group]: {value: '', label: RP_DT_GROUPS[group] || group}, ...gxData.dt};
@@ -411,9 +424,9 @@ function rpSyncLx(){
 // Guest Obsession Manage: which inputs these reports fill ({id: title}).
 function rpGxAutoFields(){
   const ids = {};
-  const s = reportData.sales || {};
-  if(s.mtd) ['gx-mtd-sales', 'gx-mtd-change'].forEach(id => { ids[id] = `From the sales upload (${rpRange(s.mtd.from, s.mtd.to)})`; });
-  if(s.ytd) ['gx-ytd-sales', 'gx-ytd-change'].forEach(id => { ids[id] = `From the sales upload (${rpRange(s.ytd.from, s.ytd.to)})`; });
+  const {mtd, ytd} = rpWigPeriods();
+  if(mtd) ['gx-mtd-sales', 'gx-mtd-change'].forEach(id => { ids[id] = rpWigSourceText(mtd); });
+  if(ytd) ['gx-ytd-sales', 'gx-ytd-change'].forEach(id => { ids[id] = rpWigSourceText(ytd); });
   Object.keys(reportData.dtRank || {}).forEach(g => { ids[`gx-dt-${g}`] = 'From the Detailed Rankings upload'; });
   if(reportData.sos && rpSosDriveThru(reportData.sos)) ids['gx-service-speedOfService'] = `From the speed of service upload (${rpRange(reportData.sos.from, reportData.sos.to)})`;
   const qiv = rpLatestQiv();
@@ -533,9 +546,18 @@ function rpSourceState(src, now, freq, logAt){
   };
   if(src.key === 'sales'){
     const s = reportData.sales || {};
-    const cover = [s.mtd ? `MTD ${rpRange(s.mtd.from, s.mtd.to)}` : 'No MTD yet', s.ytd ? `YTD ${rpRange(s.ytd.from, s.ytd.to)}` : 'no YTD yet'].join(' · ');
-    const status = s.mtd ? byEnd(s.mtd.to) : 'overdue';
-    return {status, freq, cover, note: s.mtd && !s.ytd ? 'For YTD, export the same report from Jan 1 and upload it too.' : '', last: logAt};
+    const {mtd, ytd} = rpWigPeriods();
+    const fromDt = mtd && mtd.source === 'daytrack';
+    const cover = [mtd ? `WIG MTD ${rpRange(mtd.from, mtd.to)}${fromDt ? ' from DayTrack' : ''}` : 'No MTD yet', ytd ? `YTD ${rpRange(ytd.from, ytd.to)}${ytd.source === 'daytrack' ? ' from DayTrack' : ''}` : 'no YTD yet', s.mtd ? `channels through ${duShort(s.mtd.to)}` : 'no channel mix yet'].join(' · ');
+    // Current while the WIG is current from either source; the export's
+    // own age only matters for the channel mix (its due setting).
+    const wigStatus = mtd ? byEnd(mtd.to) : 'overdue';
+    const exportStatus = s.mtd ? byEnd(s.mtd.to) : 'overdue';
+    const status = wigStatus === 'fresh' && exportStatus !== 'overdue' ? 'fresh' : wigStatus === 'fresh' ? 'due' : wigStatus;
+    const note = fromDt && status !== 'fresh' ? 'The WIG is current from DayTrack; this export now only feeds the channel mix on the Forecast tab.'
+      : !fromDt && typeof salesHistory !== 'undefined' && Object.keys(salesHistory).length ? 'A weekly DayTrack upload keeps the WIG current on its own; then this export is only needed for the channel mix.'
+      : mtd && !ytd ? 'For YTD, export the same report from Jan 1 and upload it too — or a DayTrack export that reaches back to Jan 1.' : '';
+    return {status, freq, cover, note, last: logAt};
   }
   if(src.key === 'dtRank'){
     const r = reportData.dtRank || {};
