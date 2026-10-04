@@ -18,62 +18,62 @@ const DU_FREQUENCIES = {
 
 const DU_SOURCES = [
   {
-    key: 'cem', short: 'CEM reports', icon: '⭐', name: 'CEM guest scores', freq: 'weekly', accept: '.csv,.xlsx,.xls', multiple: true,
+    key: 'cem', short: 'CEM reports', icon: '', name: 'CEM guest scores', freq: 'weekly', accept: '.csv,.xlsx,.xls', multiple: true,
     how: 'CEM → Comparison Report for this month to date (the 1st through yesterday). Export it twice — Time of Day, and Day of Visit — as CSV or Excel.',
     feeds: 'Guest Obsession scoreboard · CEM Trends · CEM insights'
   },
   {
-    key: 'roster', short: 'roster CSV', icon: '🗓️', name: 'HotSchedules weekly roster', freq: 'weekly', fixedFreq: true, accept: '.csv',
+    key: 'roster', short: 'roster CSV', icon: '', name: 'HotSchedules weekly roster', freq: 'weekly', fixedFreq: true, accept: '.csv',
     how: 'Easiest: the Ops Hub Sync bookmark above — click it on HotSchedules → Scheduling (week view). Or HotSchedules → Weekly Roster CSV for next week; keep the file name — it carries the dates.',
     feeds: 'Set Ups · Fill · Evaluate · Lead Captain · shift changes'
   },
   {
-    key: 'pea', short: 'PEA PDFs', icon: '📊', name: 'PEA ratings (Levelset)', freq: 'weekly', accept: '.pdf', multiple: true,
+    key: 'pea', short: 'PEA PDFs', icon: '', name: 'PEA ratings (Levelset)', freq: 'weekly', accept: '.pdf', multiple: true,
     how: 'Sync from Levelset pulls the last 90 days on its own. Backup: Levelset → Positional Excellence Ratings PDF, FOH and BOH. Overlapping dates are fine — ratings already saved are skipped.',
     feeds: 'Strength map · Coverage Check · Set Ups Fill, Evaluate, Plan B, Develop'
   },
   {
-    key: 'numbers', short: 'numbers file', icon: '📈', name: 'Projected sales & productivity goals', freq: 'weekly', accept: '.csv,.xlsx,.xls,.txt',
+    key: 'numbers', short: 'numbers file', icon: '', name: 'Projected sales & productivity goals', freq: 'weekly', accept: '.csv,.xlsx,.xls,.txt',
     how: 'A spreadsheet (Excel or CSV) with a Date column, a Daypart column, and Projected Sales / Productivity Goal columns — or one row per day with a column per daypart. Download the template in Know the Numbers. Special events stay typed in there.',
     feeds: 'Know the Numbers · Set Ups game plan · Game Day / Practice Day'
   },
   {
-    key: 'productivity', short: 'productivity reports', icon: '⏱️', name: 'Productivity by hour', freq: 'monthly', accept: '.csv,.txt', multiple: true,
+    key: 'productivity', short: 'productivity reports', icon: '', name: 'Productivity by hour', freq: 'monthly', accept: '.csv,.txt', multiple: true,
     how: 'Productivity dashboard → Total | Daypart | Productivity, export as CSV, one per weekday (it says “for Tuesday” etc.). Month to date or longer.',
     feeds: 'Break planner — keeps breaks out of each day’s busiest hours'
   },
   {
-    key: 'salesMix', short: 'Sales Mix', icon: '🧾', name: 'Sales Mix (items sold)', freq: 'weekly', accept: '.csv,.xlsx,.xls,.txt', multiple: true,
+    key: 'salesMix', short: 'Sales Mix', icon: '', name: 'Sales Mix (items sold)', freq: 'weekly', accept: '.csv,.xlsx,.xls,.txt', multiple: true,
     how: 'Sales Mix Items Totals report, one file per day (the date in the file name is used). Drop several days at once.',
     feeds: 'Prep Board build-to and sold history'
   },
   {
-    key: 'sales', short: 'sales export', icon: '💵', name: 'Sales MTD / YTD (Analytics Hub)', freq: 'weekly', accept: '.csv,.txt',
+    key: 'sales', short: 'sales export', icon: '', name: 'Sales MTD / YTD (Analytics Hub)', freq: 'weekly', accept: '.csv,.txt',
     how: 'Analytics Hub → sales by day by destination, export as CSV (CSV_DOWNLOAD). Month to date for MTD; the same report from Jan 1 for YTD.',
     feeds: 'Guest Obsession WIG — sales and % change vs last year'
   },
   {
-    key: 'dtRank', short: 'rankings', icon: '🚗', name: 'Drive-thru rankings (Analytics Hub)', freq: 'monthly', accept: '.csv,.txt', multiple: true,
+    key: 'dtRank', short: 'rankings', icon: '', name: 'Drive-thru rankings (Analytics Hub)', freq: 'monthly', accept: '.csv,.txt', multiple: true,
     how: 'Analytics Hub → DT rankings → Detailed Rankings (or Composite Rank), export as CSV — once per comparison group. A chain-wide ranking is recognized on its own; for the others the upload asks Region, Market or State.',
     feeds: 'Guest Obsession DT ranking'
   },
   {
-    key: 'sos', short: 'speed of service export', icon: '⏱', name: 'Speed of service (Analytics Hub)', freq: 'monthly', accept: '.csv,.txt',
+    key: 'sos', short: 'speed of service export', icon: '', name: 'Speed of service (Analytics Hub)', freq: 'monthly', accept: '.csv,.txt',
     how: 'Analytics Hub → speed of service, Custom by Day, export as CSV (month to date).',
     feeds: 'Guest Obsession Speed of Service (drive-thru, every car)'
   },
   {
-    key: 'smartShop', short: 'Smart Shop PDFs', icon: '🕵️', name: 'Smart Shop visits (Ops Hub)', freq: 'monthly', accept: '.pdf,.zip', multiple: true,
+    key: 'smartShop', short: 'Smart Shop PDFs', icon: '', name: 'Smart Shop visits (Ops Hub)', freq: 'monthly', accept: '.pdf,.zip', multiple: true,
     how: 'Ops Hub → Assessments → Smart Shop → download the report (a PDF, or the zip Ops Hub gives you). Upload every visit for the month.',
     feeds: 'Guest Obsession Manage — Smart Shop results and the standards missed most'
   },
   {
-    key: 'foodSafety', short: 'food safety PDF', icon: '🧪', name: 'Food safety assessment (Ops Hub)', freq: 'monthly', fixedFreq: true, accept: '.pdf',
+    key: 'foodSafety', short: 'food safety PDF', icon: '', name: 'Food safety assessment (Ops Hub)', freq: 'monthly', fixedFreq: true, accept: '.pdf',
     how: 'Ops Hub → Food Safety → All Findings, print or save as PDF after each assessment.',
     feeds: 'Food Safety Walkthrough — the findings to check first'
   },
   {
-    key: 'qiv', short: 'QIV PDF', icon: '🔬', name: 'QIV visit (Ops Hub)', freq: 'monthly', fixedFreq: true, accept: '.pdf',
+    key: 'qiv', short: 'QIV PDF', icon: '', name: 'QIV visit (Ops Hub)', freq: 'monthly', fixedFreq: true, accept: '.pdf',
     how: 'Ops Hub → QIV → the quarter’s Icon Report (QIV_QTR_…pdf), after each scored visit.',
     feeds: 'Guest Obsession Most Recent QIV · QIV panel under Operational Excellence'
   }
@@ -591,7 +591,7 @@ async function duResolvePending(id, value){
 // The day picker for a waiting Sales Mix file: the last week's open days as
 // one-tap chips (yesterday first), plus a calendar for anything older.
 function duPendingHtml(item){
-  const name = `<div class="du-pending-file">📄 ${escapeHtml(item.file.name)}</div>`;
+  const name = `<div class="du-pending-file">${escapeHtml(item.file.name)}</div>`;
   if(item.need === 'twin'){
     return `<div class="du-pending is-twin">${name}
       <div class="du-pending-q">⚠ Identical to ${escapeHtml(duLongDay(item.twin.date))}${item.twin.file ? ` (${escapeHtml(item.twin.file)})` : ''}</div>

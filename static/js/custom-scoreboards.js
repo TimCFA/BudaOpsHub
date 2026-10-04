@@ -48,7 +48,7 @@ function renderScoreboardManage(opening){
   list.innerHTML = sbDraft.map((item, i) => `
     <div style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;">
       <div style="display:flex;gap:8px;margin-bottom:8px;">
-        <input type="text" value="${escapeHtml(item.icon || '')}" placeholder="🔤" style="width:50px;padding:8px;border:1px solid var(--border);border-radius:6px;text-align:center;font-family:'Inter';" data-sb-field="icon" data-idx="${i}">
+        <input type="text" value="${escapeHtml(item.icon || '')}" placeholder="Icon" style="width:50px;padding:8px;border:1px solid var(--border);border-radius:6px;text-align:center;font-family:'Inter';" data-sb-field="icon" data-idx="${i}">
         <input type="text" value="${escapeHtml(item.title || '')}" placeholder="Title" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:'Inter';font-size:12px;" data-sb-field="title" data-idx="${i}">
         <button data-sb-delete-item="${i}" style="background:none;border:none;color:var(--cfa-red);cursor:pointer;font-weight:bold;">✕</button>
       </div>

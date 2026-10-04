@@ -264,12 +264,12 @@ function showWeeklyImportPreview(){
     : list.map(p => `<div style="font-size:11px;padding:4px 0;">${escapeHtml(p.name)}${p.leader ? ' <b style="color:#1C1B19;">· Team Leader</b>' : ''} — ${escapeHtml(rosterTimeText(p))}</div>`).join('');
 
   document.getElementById('weeklyImportDayContent').innerHTML = `
-    <div style="font-weight:700;font-size:12px;color:var(--cfa-red);margin-bottom:6px;">🔴 FOH (${dayData.foh.length} from file)</div>
+    <div style="font-weight:700;font-size:12px;color:var(--cfa-red);margin-bottom:6px;">FOH (${dayData.foh.length} from file)</div>
     ${renderList(dayData.foh)}
-    ${existingFoh.length ? `<div style="margin-top:8px;font-size:10px;color:#1565C0;font-weight:600;">✏️ Preserved (manually added, not overwritten):</div>${renderList(existingFoh)}` : ''}
-    <div style="font-weight:700;font-size:12px;color:#FF6600;margin:14px 0 6px;">🟠 BOH (${dayData.boh.length} from file)</div>
+    ${existingFoh.length ? `<div style="margin-top:8px;font-size:10px;color:#1565C0;font-weight:600;">Preserved (manually added, not overwritten):</div>${renderList(existingFoh)}` : ''}
+    <div style="font-weight:700;font-size:12px;color:#FF6600;margin:14px 0 6px;">BOH (${dayData.boh.length} from file)</div>
     ${renderList(dayData.boh)}
-    ${existingBoh.length ? `<div style="margin-top:8px;font-size:10px;color:#1565C0;font-weight:600;">✏️ Preserved (manually added, not overwritten):</div>${renderList(existingBoh)}` : ''}
+    ${existingBoh.length ? `<div style="margin-top:8px;font-size:10px;color:#1565C0;font-weight:600;">Preserved (manually added, not overwritten):</div>${renderList(existingBoh)}` : ''}
   `;
 
   document.getElementById('weeklyImportPreviewModal').classList.add('active');

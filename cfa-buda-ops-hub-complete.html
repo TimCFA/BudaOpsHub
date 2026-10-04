@@ -788,7 +788,7 @@
     </div>
     <div id="manageContent" style="display:none;">
       <div style="margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;">
-        <h2 style="margin:0;font-family:'Outfit';text-transform:uppercase;font-size:18px;font-weight:700;">Settings <span style="display:block;font-size:11px;font-style:italic;font-weight:400;color:var(--text-secondary);">Configuracion</span></h2>
+        <h2 class="sb-h2" style="margin:0;">Settings <span style="display:block;font-size:11px;font-style:italic;font-weight:400;color:var(--text-secondary);">Configuracion</span></h2>
         <button id="btnLock" class="btn btn-ghost" style="width:auto;padding:8px 16px;margin:0;font-size:11px;">Lock <span class="sub"><i>Bloquear</i></span></button>
       </div>
 
@@ -801,7 +801,7 @@
       <!-- GROUP: Data Uploads (TIM-46) -->
       <div class="manage-group open">
         <div class="manage-group-header" onclick="toggleManageGroup(this)">
-          <span class="manage-group-title">📥 Data Uploads</span>
+          <span class="manage-group-title">Data Uploads</span>
           <span class="manage-group-chevron">▾</span>
         </div>
         <div class="manage-group-body">
@@ -816,7 +816,7 @@
       <!-- GROUP: Know the Numbers -->
       <div class="manage-group">
         <div class="manage-group-header" onclick="toggleManageGroup(this)">
-          <span class="manage-group-title">📊 Know the Numbers</span>
+          <span class="manage-group-title">Know the Numbers</span>
           <span class="manage-group-chevron">▾</span>
         </div>
         <div class="manage-group-body">
@@ -844,7 +844,7 @@
       <!-- GROUP: Talent Development -->
       <div class="manage-group">
         <div class="manage-group-header" onclick="toggleManageGroup(this)">
-          <span class="manage-group-title">🎓 Talent Development</span>
+          <span class="manage-group-title">Talent Development</span>
           <span class="manage-group-chevron">▾</span>
         </div>
         <div class="manage-group-body">
@@ -866,7 +866,7 @@
       <!-- GROUP: Scoreboards -->
       <div class="manage-group">
         <div class="manage-group-header" onclick="toggleManageGroup(this)">
-          <span class="manage-group-title">📈 Scoreboards</span>
+          <span class="manage-group-title">Scoreboards</span>
           <span class="manage-group-chevron">▾</span>
         </div>
         <div class="manage-group-body">
@@ -890,7 +890,7 @@
           </div>
 
           <div class="standup-card">
-            <h3>📊 Custom Scoreboards & Trackers</h3>
+            <h3>Custom Scoreboards & Trackers</h3>
             <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Add scoreboards, dashboards, or trackers to show under Scoreboard</p>
             <div id="scoreboardManageList" style="margin-bottom:16px;"></div>
             <button id="btnAddScoreboardItem" class="btn btn-secondary" style="margin-bottom:12px;">+ Add Scoreboard</button>
@@ -902,7 +902,7 @@
       <!-- GROUP: Home Page -->
       <div class="manage-group">
         <div class="manage-group-header" onclick="toggleManageGroup(this)">
-          <span class="manage-group-title">🏠 Home Page</span>
+          <span class="manage-group-title">Home Page</span>
           <span class="manage-group-chevron">▾</span>
         </div>
         <div class="manage-group-body">
@@ -918,7 +918,7 @@
       <!-- GROUP: Waste Tracking -->
       <div class="manage-group">
         <div class="manage-group-header" onclick="toggleManageGroup(this)">
-          <span class="manage-group-title">🍗 Waste Tracking</span>
+          <span class="manage-group-title">Waste Tracking</span>
           <span class="manage-group-chevron">▾</span>
         </div>
         <div class="manage-group-body">
@@ -941,7 +941,7 @@
       <!-- GROUP: PEA Ratings -->
       <div class="manage-group">
         <div class="manage-group-header" onclick="toggleManageGroup(this)">
-          <span class="manage-group-title">📊 PEA Ratings (Levelset)</span>
+          <span class="manage-group-title">PEA Ratings (Levelset)</span>
           <span class="manage-group-chevron">▾</span>
         </div>
         <div class="manage-group-body">
@@ -980,12 +980,12 @@
       <!-- GROUP: Backup & Data -->
       <div class="manage-group">
         <div class="manage-group-header" onclick="toggleManageGroup(this)">
-          <span class="manage-group-title">💾 Backup & Data</span>
+          <span class="manage-group-title">Backup & Data</span>
           <span class="manage-group-chevron">▾</span>
         </div>
         <div class="manage-group-body">
           <div class="standup-card">
-            <h3>📦 Monthly Waste Export</h3>
+            <h3>Monthly Waste Export</h3>
             <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Downloads a CSV and a PDF of one month's waste entries. Nothing is cleared: the log keeps the last 90 days on its own, and the Waste Dashboard on the Scoreboard tab covers any date range.</p>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
               <select id="wasteExportMonth" aria-label="Month" style="flex:1;min-width:160px;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font:inherit;"></select>
@@ -995,7 +995,7 @@
           </div>
 
           <div class="standup-card">
-            <h3>💾 Backup</h3>
+            <h3>Backup</h3>
             <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Download a snapshot of everything — rosters, set ups, numbers, checklists — as a file you keep, independent of this app.</p>
             <button id="btnExportBackup" class="btn btn-primary">Download Backup</button>
             <div id="setupHistoryStatus" style="font-size:11px;color:var(--text-secondary);margin-top:8px;"></div>

@@ -287,25 +287,25 @@ function renderTXManage(){
   const txManageList = document.getElementById('txManageList');
   txManageList.innerHTML = `
     <div style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;">
-      <div style="font-weight:600;font-size:12px;color:var(--text-primary);margin-bottom:10px;">📅 Upcoming Talent Events</div>
+      <div style="font-weight:600;font-size:12px;color:var(--text-primary);margin-bottom:10px;">Upcoming Talent Events</div>
       <div id="txEventsManageList" style="display:grid;gap:8px;margin-bottom:12px;"></div>
       <button id="btnAddTXEvent" class="btn btn-secondary" style="width:auto;padding:8px 12px;font-size:11px;">+ Add Event</button>
     </div>
 
     <div style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;">
-      <div style="font-weight:600;font-size:12px;color:var(--text-primary);margin-bottom:10px;">🎓 Trainers in Trial</div>
+      <div style="font-weight:600;font-size:12px;color:var(--text-primary);margin-bottom:10px;">Trainers in Trial</div>
       <div id="txTrialManageList" style="display:grid;gap:8px;margin-bottom:12px;"></div>
       <button id="btnAddTXTrial" class="btn btn-secondary" style="width:auto;padding:8px 12px;font-size:11px;">+ Add Trainer</button>
     </div>
 
     <div style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;">
-      <div style="font-weight:600;font-size:12px;color:var(--text-primary);margin-bottom:10px;">✨ Competitive for Certification</div>
+      <div style="font-weight:600;font-size:12px;color:var(--text-primary);margin-bottom:10px;">Competitive for Certification</div>
       <div id="txCertManageList" style="display:grid;gap:8px;margin-bottom:12px;"></div>
       <button id="btnAddTXCert" class="btn btn-secondary" style="width:auto;padding:8px 12px;font-size:11px;">+ Add Person</button>
     </div>
 
     <div style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
-      <div style="font-weight:600;font-size:12px;color:var(--text-primary);margin-bottom:10px;">🎉 Celebrations This Month</div>
+      <div style="font-weight:600;font-size:12px;color:var(--text-primary);margin-bottom:10px;">Celebrations This Month</div>
       <div id="txCelebManageList" style="display:grid;gap:8px;margin-bottom:12px;"></div>
       <button id="btnAddTXCeleb" class="btn btn-secondary" style="width:auto;padding:8px 12px;font-size:11px;">+ Add Celebration</button>
     </div>
