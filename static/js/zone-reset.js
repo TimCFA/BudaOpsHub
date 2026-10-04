@@ -74,7 +74,7 @@ function pruneZoneChecklistData(){
 
 let currentChecklistZone = '';
 let currentZoneDaypart = '';
-let zoneHandoffChosen = false;
+let zoneHandoffChosen = false;   // a handoff tapped this visit (they all start closed; the current one is marked "now")
 
 // Handoffs as sky banners, the same look as the Set Ups dayparts: every
 // handoff down the page (Close included, no sideways scrolling), its progress
@@ -103,19 +103,21 @@ function zrHandoffLead(handoff){
 }
 
 function zrHandoffBannersHtml(kind, current, progressFor, bodyHtml){
+  const nowName = zrCurrentHandoff();
   return `<div class="su-dp-list zr-dp-list">${zoneResetDayparts.map((dp, i)=>{
     const open = dp.name === current;
+    const isNow = dp.name === nowName;
     const {title, time} = zrHandoffParts(dp.name);
     const {checked, total} = progressFor(dp.name);
     const done = total > 0 && checked === total;
     const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
     const sky = ZR_HANDOFF_SKIES[i] || 'midday';
     const lead = zrHandoffLead(dp);
-    return `<section class="su-dp su-col-${suDaypartColor(dp.leadFrom)} ${open ? 'is-open' : ''} ${done ? 'is-done' : ''}">
+    return `<section class="su-dp su-col-${suDaypartColor(dp.leadFrom)} ${open ? 'is-open' : ''} ${done ? 'is-done' : ''} ${isNow ? 'is-now' : ''}">
       <div class="su-dp-banner">
         <button type="button" class="su-dp-head" data-zr-handoff="${escapeHtml(dp.name)}" aria-expanded="${open}">
           <span class="su-dp-art">${suSkyArt(sky)}</span>
-          <span class="su-dp-name">${escapeHtml(title)}${time ? ` <span class="su-dp-time">${escapeHtml(time)}</span>` : ''}${lead ? `<span class="zr-dp-lead"><span class="su-dp-k">Lead</span> ${escapeHtml(suDisplayName(lead))}</span>` : `<span class="zr-dp-lead is-none">No Lead Captain set</span>`}</span>
+          <span class="su-dp-name">${escapeHtml(title)}${time ? ` <span class="su-dp-time">${escapeHtml(time)}</span>` : ''}${isNow && !done ? '<span class="zr-dp-now">now</span>' : ''}${lead ? `<span class="zr-dp-lead"><span class="su-dp-k">Lead</span> ${escapeHtml(suDisplayName(lead))}</span>` : `<span class="zr-dp-lead is-none">No Lead Captain set</span>`}</span>
           <span class="zr-dp-progress"><span class="zr-dp-track"><span class="zr-dp-bar" style="width:${pct}%"></span></span><span class="su-dp-fill">${done ? '✓ ' : ''}${checked}/${total}</span></span>
           <span class="su-dp-chev" aria-hidden="true">▾</span>
         </button>
@@ -255,7 +257,8 @@ function renderZoneResetScoreboard(){
 }
 
 function renderZoneResetView(){
-  if(!zoneHandoffChosen) currentZoneDaypart = zrCurrentHandoff();
+  // Every handoff starts closed; the team opens the one they're resetting.
+  if(!zoneHandoffChosen) currentZoneDaypart = '';
   renderZoneResetCard();
   renderZoneResetScoreboard();
 }

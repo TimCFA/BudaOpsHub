@@ -274,6 +274,8 @@ button,input,select,textarea{font-family:inherit;}
 .zr-dp-bar,.su-dp .zr-dp-bar{background:var(--cfa-navy);}
 .su-dp.is-done .zr-dp-bar{background:var(--success);}
 .zr-dp-lead{font-family:var(--font-ui);}
+.zr-dp-now{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;background:var(--cfa-red);color:#fff;font-family:var(--font-ui);font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;vertical-align:2px;}
+.su-dp.is-now:not(.is-open) .su-dp-banner{border-color:var(--cfa-red);}
 .zone-acc-item{border:1px solid var(--border);border-radius:14px;background:var(--cfa-white);}
 .zone-acc-item.open{border-color:var(--cfa-navy);box-shadow:none;}
 .zone-acc-item.done{border-color:var(--success);}

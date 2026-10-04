@@ -251,20 +251,6 @@ function fsSummaryText(rec){
   return { badge: `${t.done}/${t.total}`, line: `In progress · ${t.done} of ${t.total} answered · ${t.coached} coached`, t };
 }
 
-// Compact card on Zone Reset & Walkthroughs linking to the full page.
-function fsRenderSummaryCard(){
-  const badge = document.getElementById('foodSafetyBadge');
-  const line = document.getElementById('foodSafetySummaryLine');
-  const btn = document.getElementById('btnOpenFoodSafety');
-  if(!badge || !line || !btn) return;
-  const rec = fsRecord(today);
-  const s = fsSummaryText(rec);
-  badge.textContent = s.badge;
-  badge.classList.toggle('high', s.t.complete);
-  line.textContent = s.line;
-  btn.textContent = s.t.done === 0 ? 'Start Walkthrough →' : (s.t.complete ? 'View Walkthrough →' : 'Continue Walkthrough →');
-}
-
 function renderFoodSafety(){
   const root = document.getElementById('foodSafetyRoot');
   if(!root) return;
@@ -357,7 +343,6 @@ function fsRequireInitials(){
 async function fsAfterChange(){
   const change = fsSyncCompletion();
   renderFoodSafety();
-  fsRenderSummaryCard();
   await saveState();
   if(change === 'completed') showToast('✓ Food Safety Walkthrough complete!');
 }
@@ -400,11 +385,3 @@ document.getElementById('foodSafetyRoot').addEventListener('change', (e) => {
   fsAfterChange();
 });
 
-document.getElementById('btnOpenFoodSafety').addEventListener('click', () => {
-  const item = document.querySelector('.tab-dropdown-item[data-view="foodsafety"]');
-  clearActiveTabs();
-  closeAllTabDropdowns();
-  if(item) item.closest('.tab-group').classList.add('active');
-  activateView('foodsafety');
-  window.scrollTo(0, 0);
-});

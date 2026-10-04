@@ -86,8 +86,11 @@ is good). Bilingual. **Temperature targets are still waiting on Tim (TIM-5) —
 never invent them.**
 
 ### Zone Reset & Walkthroughs (OE)
-Checklist tiles per zone/category and daypart, the OE walkthrough, the leader
-transition list, and a daily safe count.
+Two lists, each a set of handoff drop-downs that all start closed (the
+current handoff is marked "now"): Zone Reset (open a handoff, then a zone,
+for its reset list) and the Leader Transition List. The OE walkthrough is
+kept but hidden; the Food Safety Walkthrough has its own page and no longer
+appears here. A daily safe count is its own page too.
 
 ### Scoreboards
 Waste (above), Guest Obsession (CEM survey scores from the monthly upload), TX
