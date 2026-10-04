@@ -540,16 +540,30 @@ document.getElementById('btnResolveNoSplit').addEventListener('click', async ()=
   saveState();
 });
 
+// The roster for the day: who's in, their shift, and each person's break
+// timer (Start break → a 30-minute countdown → Break done). The planned
+// break time (break-planner.js) shows only on the full site; the simplified
+// site gets the timer alone until the plan is ready for the team.
+const SU_ICON_CUP = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 8h1a4 4 0 0 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z"/><path d="M6 2v2M10 2v2M14 2v2"/></svg>';
+const SU_ICON_CHECK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>';
+const SU_ICON_X = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+
+function breakKeyFor(name){ return name + today; }
+function breakClockText(secs){ return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`; }
+function breakBackAt(endMs){ return new Date(endMs).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'}); }
+
 function renderRoster(){
   const dayName = document.getElementById('daySelect').value;
   breakPlanReset();
+  const panel = document.getElementById('rosterPanel');
   if(!dayName){
-    document.getElementById('rosterPanel').innerHTML = '<div style="text-align:center;color:var(--text-secondary);">Select a day to view roster</div>';
+    panel.innerHTML = '<div class="su-roster-empty">Select a day to view roster</div>';
     return;
   }
-  
+
   const roster = currentPosSection === 'foh' ? (fohRoster[dayName] || []) : (bohRoster[dayName] || []);
   let expiredSomething = false;
+  const simplified = typeof launchIsOn === 'function' && launchIsOn();
 
   const sortedRoster = [...roster].sort((a, b)=>{
     const aStart = parseShiftTimeToMinutes(a.start);
@@ -561,8 +575,7 @@ function renderRoster(){
   });
 
   const html = sortedRoster.map(person=>{
-    const key = person.name + today;
-    const nameArg = jsArg(person.name);
+    const key = breakKeyFor(person.name);
     let remaining = 0;
     if(breakCountdowns[key]){
       remaining = Math.round((breakCountdowns[key] - Date.now()) / 1000);
@@ -574,41 +587,85 @@ function renderRoster(){
       }
     }
     const onBreak = remaining > 0;
-    const mins = Math.floor(remaining / 60);
-    const secs = remaining % 60;
-    const isCompleted = !!completedBreaks[key];
-    const customBadge = person.source === 'manual' ? `<span class="roster-custom-badge">✏️ Custom${person.addedBy ? ' · ' + escapeHtml(person.addedBy) : ''}</span>` : '';
+    const isCompleted = !!completedBreaks[key] && !onBreak;
+    const name = escapeHtml(person.name);
+    const tags = [
+      person.leader ? '<span class="roster-leader-badge">Team Leader</span>' : '',
+      person.source === 'manual' ? `<span class="su-roster-tag" title="Added by hand">Added${person.addedBy ? ` · ${escapeHtml(person.addedBy)}` : ''}</span>` : ''
+    ].join('');
+    const plan = !simplified && !isCompleted && !onBreak ? breakFor(currentPosSection, dayName, person.name) : null;
+    const planNote = plan && plan.start !== null ? ` <span class="roster-break-plan">· break ${suClock(plan.start)}–${suClock(plan.end)}</span>` : '';
+    const control = onBreak ? `
+          <div class="su-break-live" role="timer" aria-live="off">
+            <span class="su-break-k">On break</span>
+            <b class="su-break-clock" data-break-timer="${name}">${breakClockText(remaining)}</b>
+            <span class="su-break-back">back at ${escapeHtml(breakBackAt(breakCountdowns[key]))}</span>
+            <button type="button" class="su-break-done" data-break-done="${name}">Done</button>
+          </div>`
+      : isCompleted ? `
+          <button type="button" class="su-break-complete" data-break-undo="${name}" title="Tap to undo">${SU_ICON_CHECK}<span>Break done</span><em>undo</em></button>`
+      : `
+          <button type="button" class="su-break-start" data-break-start="${name}">${SU_ICON_CUP}<span>Start break</span></button>`;
     return `
-      <div class="roster-item">
-        <button class="roster-remove" onclick="removeFromRoster(${nameArg})" title="Remove from today's roster">✕</button>
-        <div class="roster-name">${escapeHtml(person.name)}${person.leader ? '<span class="roster-leader-badge">Team Leader</span>' : ''}${customBadge}${(isCompleted && !onBreak) ? `<button class="break-complete-badge" onclick="undoBreakComplete(${nameArg})" title="Tap to undo">✓ Break Complete ↺</button>` : ''}</div>
-        <div class="roster-time">${escapeHtml(rosterTimeText(person))}${(()=>{ const b = !isCompleted && !onBreak ? breakFor(currentPosSection, dayName, person.name) : null; return b && b.start !== null ? ` <span class="roster-break-plan">· ☕ break ${suClock(b.start)}–${suClock(b.end)}</span>` : ''; })()}</div>
-        ${onBreak ? `
-          <div class="countdown" id="timer-${escapeHtml(person.name)}">${mins}:${secs<10?'0':''}${secs}</div>
-          <button class="break-btn onbreak" disabled>On Break</button>
-          <button class="btn-complete-break" onclick="completeBreakNow(${nameArg})">Mark Break Complete</button>
-        ` : `
-          <button class="break-btn" onclick="toggleBreak(${nameArg})">Start Break</button>
-        `}
-      </div>
-    `;
+      <div class="su-roster-row ${onBreak ? 'is-break' : ''} ${isCompleted ? 'is-done' : ''}">
+        <div class="su-roster-main">
+          <div class="su-roster-name">${name}${tags}</div>
+          <div class="su-roster-time">${escapeHtml(rosterTimeText(person))}${planNote}</div>
+        </div>
+        <button type="button" class="su-roster-remove" data-roster-remove="${name}" aria-label="Remove ${name} from today's roster" title="Remove from today's roster">${SU_ICON_X}</button>
+        <div class="su-roster-break">${control}</div>
+      </div>`;
   }).join('');
-  
+
   if(roster.length === 0){
-    document.getElementById('rosterPanel').innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:20px;">No roster for ' + formatVerboseDate(dayName) + ' yet. Import the weekly HotSchedules CSV in Manage to populate.</div>';
+    panel.innerHTML = '<div class="su-roster-empty">No roster for ' + escapeHtml(formatVerboseDate(dayName)) + ' yet. Import the weekly HotSchedules CSV in Manage to populate.</div>';
   } else {
-    document.getElementById('rosterPanel').innerHTML = html;
-    
-    roster.forEach(person=>{
-      const key = person.name + today;
-      if(breakCountdowns[key]){
-        startCountdown(person.name);
-      }
-    });
+    panel.innerHTML = html;
+    breakTickStart();
   }
-  
+
   if(expiredSomething) saveState();
 }
+
+// One tick a second for every running break timer on the page.
+let breakTicker = null;
+function breakTickStart(){
+  if(breakTicker) return;
+  breakTicker = setInterval(breakTick, 1000);
+}
+async function breakTick(){
+  const clocks = [...document.querySelectorAll('[data-break-timer]')];
+  if(!clocks.length){ clearInterval(breakTicker); breakTicker = null; return; }
+  let expired = false;
+  clocks.forEach(el=>{
+    const key = breakKeyFor(el.dataset.breakTimer);
+    if(!breakCountdowns[key]){ expired = true; return; }
+    const remaining = Math.round((breakCountdowns[key] - Date.now()) / 1000);
+    if(remaining <= 0){
+      delete breakCountdowns[key];
+      completedBreaks[key] = true;
+      expired = true;
+      return;
+    }
+    el.textContent = breakClockText(remaining);
+  });
+  if(expired){
+    await saveState();
+    renderRoster();
+    showToast('Break time is up');
+  }
+}
+
+document.getElementById('rosterPanel').addEventListener('click', e=>{
+  const start = e.target.closest('[data-break-start]');
+  if(start) return toggleBreak(start.dataset.breakStart);
+  const done = e.target.closest('[data-break-done]');
+  if(done) return completeBreakNow(done.dataset.breakDone);
+  const undo = e.target.closest('[data-break-undo]');
+  if(undo) return undoBreakComplete(undo.dataset.breakUndo);
+  const remove = e.target.closest('[data-roster-remove]');
+  if(remove) return removeFromRoster(remove.dataset.rosterRemove);
+});
 
 window.removeFromRoster = async function(name){
   const dayName = document.getElementById('daySelect').value;
@@ -619,14 +676,8 @@ window.removeFromRoster = async function(name){
   if(roster[dayName]){
     roster[dayName] = roster[dayName].filter(p => p.name !== name);
   }
-  const breakKey = name + today;
-  if(breakCountdowns[breakKey]){
-    delete breakCountdowns[breakKey];
-    if(activeCountdownTimers[name]){
-      clearInterval(activeCountdownTimers[name]);
-      delete activeCountdownTimers[name];
-    }
-  }
+  const breakKey = breakKeyFor(name);
+  delete breakCountdowns[breakKey];
   delete completedBreaks[breakKey];
   Object.keys(posAssignments).forEach(k=>{
     if(k.startsWith(currentPosSection + '||' + dayName + '||')){
@@ -648,7 +699,7 @@ window.removeFromRoster = async function(name){
   renderRoster();
   renderAllDayparts();
   updateSelectedDayInfo('daySelect', 'daySelectedInfo');
-  showToast(`✓ ${name} removed from roster`);
+  showToast(`${name} removed from roster`);
 };
 
 document.getElementById('btnAddTeamMember').addEventListener('click', ()=>{
@@ -715,73 +766,27 @@ document.getElementById('btnConfirmAddTM').addEventListener('click', async ()=>{
 });
 
 window.toggleBreak = async function(name){
-  const key = name + today;
-  if(breakCountdowns[key]){
-    delete breakCountdowns[key];
-    if(activeCountdownTimers[name]){
-      clearInterval(activeCountdownTimers[name]);
-      delete activeCountdownTimers[name];
-    }
-  } else {
-    breakCountdowns[key] = Date.now() + (30 * 60 * 1000);
-  }
+  const key = breakKeyFor(name);
+  if(breakCountdowns[key]) delete breakCountdowns[key];
+  else breakCountdowns[key] = Date.now() + BREAK_LEN * 60 * 1000;
   await saveState();
   renderRoster();
 };
 
 window.completeBreakNow = async function(name){
-  const key = name + today;
+  const key = breakKeyFor(name);
   delete breakCountdowns[key];
   completedBreaks[key] = true;
-  if(activeCountdownTimers[name]){
-    clearInterval(activeCountdownTimers[name]);
-    delete activeCountdownTimers[name];
-  }
   await saveState();
   renderRoster();
-  showToast('✓ Break marked complete');
+  showToast('Break marked done');
 };
 
 window.undoBreakComplete = async function(name){
-  const key = name + today;
-  delete completedBreaks[key];
+  delete completedBreaks[breakKeyFor(name)];
   await saveState();
   renderRoster();
-  showToast('✓ Break status reset');
-};
-
-function startCountdown(name){
-  if(activeCountdownTimers[name]){
-    clearInterval(activeCountdownTimers[name]);
-  }
-  
-  const timer = setInterval(async ()=>{
-    const key = name + today;
-    if(!breakCountdowns[key]){
-      clearInterval(timer);
-      delete activeCountdownTimers[name];
-      return;
-    }
-    const remaining = Math.round((breakCountdowns[key] - Date.now()) / 1000);
-    const el = document.getElementById('timer-'+name);
-    if(remaining <= 0){
-      delete breakCountdowns[key];
-      completedBreaks[key] = true;
-      clearInterval(timer);
-      delete activeCountdownTimers[name];
-      await saveState();
-      renderRoster();
-      showToast('✓ Break time expired!');
-      return;
-    }
-    if(el){
-      const mins = Math.floor(remaining / 60);
-      const secs = remaining % 60;
-      el.textContent = `${mins}:${secs<10?'0':''}${secs}`;
-    }
-  }, 1000);
-  
-  activeCountdownTimers[name] = timer;
+  showToast('Break status reset');
 };
 
 // KNOW THE NUMBERS

@@ -134,13 +134,35 @@ button,input,select,textarea{font-family:inherit;}
 .su-zone-more{font-family:var(--font-ui);color:var(--text-secondary);}
 .su-tier-key{font-family:var(--font-ui);}
 
-/* Roster */
+/* Roster: one row a person, with their break timer (daypicker-and-positions.js renderRoster) */
 #positionsView .standup-card{background:var(--cfa-white);border:1px solid var(--border);border-radius:16px;box-shadow:none;}
 #positionsView .standup-card h3{font-family:var(--font-display);font-size:19px;font-weight:600;text-transform:none;letter-spacing:0;}
-.roster-item{background:var(--cfa-light);border-color:var(--border);border-radius:12px;}
-.roster-name{font-size:14px;}
 .roster-leader-badge{background:var(--cfa-navy);}
 .btn-add-tm{border-radius:999px;font-family:var(--font-ui);}
+.su-roster-empty{text-align:center;color:var(--text-secondary);font-family:var(--font-ui);font-size:13px;padding:20px 8px;line-height:1.5;}
+.su-roster-row{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"main remove" "break break";gap:8px 10px;align-items:start;padding:12px 0 12px;border-top:1px solid var(--border);font-family:var(--font-ui);}
+.su-roster-row:first-child{border-top:0;padding-top:4px;}
+.su-roster-main{grid-area:main;min-width:0;}
+.su-roster-name{font-size:15px;font-weight:600;color:var(--text-primary);display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;}
+.su-roster-name .roster-leader-badge{margin-left:0;vertical-align:0;}
+.su-roster-tag{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--cfa-soft);color:var(--text-secondary);font-size:10px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;}
+.su-roster-time{margin-top:3px;font-size:13px;color:var(--text-secondary);font-variant-numeric:tabular-nums;}
+.su-roster-time .roster-break-plan{color:var(--text-secondary);font-weight:600;}
+.su-roster-remove{grid-area:remove;width:36px;height:36px;margin:-6px -6px 0 0;border:0;border-radius:999px;background:transparent;color:var(--text-tertiary);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.su-roster-remove:hover{background:var(--cfa-soft);color:var(--cfa-red);}
+.su-roster-break{grid-area:break;min-width:0;}
+.su-break-start,.su-break-complete{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 16px 0 14px;border-radius:999px;font-family:var(--font-ui);font-size:13px;font-weight:700;cursor:pointer;}
+.su-break-start{border:1px solid var(--border);background:var(--cfa-white);color:var(--text-primary);}
+.su-break-start:hover{border-color:var(--cfa-red);color:var(--cfa-red);}
+.su-break-complete{border:1px solid transparent;background:#E6F2EA;color:#1E7B34;}
+.su-break-complete em{font-style:normal;font-weight:600;color:#1E7B34;opacity:0.7;}
+.su-break-complete:hover{background:#D4E9DB;}
+.su-break-live{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"k done" "clock done" "back done";column-gap:14px;align-items:center;background:var(--cfa-navy);color:#F6F1E8;border-radius:16px;padding:12px 14px 12px 16px;}
+.su-break-k{grid-area:k;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(246,241,232,0.78);}
+.su-break-clock{grid-area:clock;font-family:var(--font-display);font-weight:700;font-size:36px;line-height:1.05;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;margin:2px 0;}
+.su-break-back{grid-area:back;font-size:12.5px;color:rgba(246,241,232,0.78);}
+.su-break-done{grid-area:done;min-height:40px;padding:0 18px;border-radius:999px;border:1px solid rgba(246,241,232,0.55);background:transparent;color:#F6F1E8;font-family:var(--font-ui);font-size:13px;font-weight:700;cursor:pointer;}
+.su-break-done:hover{background:#F6F1E8;color:var(--cfa-navy);}
 
 /* Coach view: the game plan and the tool bar in Chick-fil-A navy */
 #positionsView .su-plan{background:var(--cfa-navy);}
