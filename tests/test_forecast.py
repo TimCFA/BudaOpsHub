@@ -237,23 +237,35 @@ class KnowTheNumbersFeedTest(unittest.TestCase):
 
     def test_default_windows_are_the_four_dayparts(self):
         # Breakfast takes in Early Breakfast, Dinner takes in Close; Transition sits inside Lunch.
+        # Analytics Hub's hours: Breakfast to 10:30, Lunch 10:30–2, Afternoon 2–5, Dinner 5–close.
         wins, = run([{'op': 'c => fcDaypartWindows()'}])
         self.assertEqual([(w['name'], w['start'], w['end']) for w in wins], [
-            ('Breakfast (6:00-11:00)', 360, 660), ('Lunch (11:00-2:00)', 660, 840),
+            ('Breakfast (6:00-10:30)', 360, 630), ('Lunch (10:30-2:00)', 630, 840),
             ('Afternoon (2:00-5:00)', 840, 1020), ('Dinner (5:00-10:00)', 1020, 1320)])
         # Without a report the split follows Buda's typical mix, not the clock.
         split, = run([{'op': 'c => fcSplitDay(1600, null)'}])
         self.assertAlmostEqual(sum(split.values()), 1600)
-        self.assertAlmostEqual(split['Breakfast (6:00-11:00)'], 296)     # 18.5%
-        self.assertAlmostEqual(split['Dinner (5:00-10:00)'], 568)        # 35.5%
-        self.assertGreater(split['Lunch (11:00-2:00)'], split['Afternoon (2:00-5:00)'])
+        self.assertAlmostEqual(split['Breakfast (6:00-10:30)'], 256)     # 16%
+        self.assertAlmostEqual(split['Dinner (5:00-10:00)'], 560)        # 35%
+        self.assertGreater(split['Lunch (10:30-2:00)'], split['Afternoon (2:00-5:00)'])
+
+    def test_an_hour_straddling_a_window_edge_is_shared(self):
+        # The 10 o'clock hour: half to Breakfast (ends 10:30), half to Lunch.
+        res, = run([{'op': 'c => { const w = fcHourWeights(c.hours); return {split: fcSplitDay(300, w), ratios: fcDaypartRatios(c.prod)}; }',
+                     'hours': {'540': {'salesPerDay': 100}, '600': {'salesPerDay': 100}, '720': {'salesPerDay': 100}},
+                     'prod': {'540': {'prod': 60, 'labor': 10}, '600': {'prod': 100, 'labor': 10}, '720': {'prod': 140, 'labor': 10}}}])
+        self.assertAlmostEqual(res['split']['Breakfast (6:00-10:30)'], 150)
+        self.assertAlmostEqual(res['split']['Lunch (10:30-2:00)'], 150)
+        day = (60 * 10 + 100 * 10 + 140 * 10) / 30
+        self.assertAlmostEqual(res['ratios']['Breakfast (6:00-10:30)'], ((60 * 10 + 100 * 5) / 15) / day, places=6)
+        self.assertAlmostEqual(res['ratios']['Lunch (10:30-2:00)'], ((100 * 5 + 140 * 10) / 15) / day, places=6)
 
     def test_a_mix_set_by_hand_wins_over_the_report(self):
         hours = {str(h * 60): {'salesPerDay': 100} for h in range(6, 22)}
         res, = run([{'op': 'c => { const w = fcHourWeights(c.hours); return {report: fcSplitDay(1000, w), mix: fcSplitDay(1000, w, null, c.mix), bad: fcMixShares(c.bad, fcDaypartWindows())}; }',
                      'hours': hours, 'mix': {'Breakfast': 10, 'Lunch': 30, 'Afternoon': 20, 'Dinner': 40}, 'bad': {'Breakfast': 50, 'Lunch': 50}}])
-        self.assertAlmostEqual(res['report']['Breakfast (6:00-11:00)'], 1000 * 5 / 16)   # the flat report: by the clock
-        self.assertAlmostEqual(res['mix']['Breakfast (6:00-11:00)'], 100)
+        self.assertAlmostEqual(res['report']['Breakfast (6:00-10:30)'], 1000 * 4.5 / 16)   # the flat report: by the clock
+        self.assertAlmostEqual(res['mix']['Breakfast (6:00-10:30)'], 100)
         self.assertAlmostEqual(res['mix']['Dinner (5:00-10:00)'], 400)
         self.assertIsNone(res['bad'])                                              # a mix missing dayparts is ignored
 
@@ -264,17 +276,45 @@ class KnowTheNumbersFeedTest(unittest.TestCase):
             hours[str(h * 60)] = {'prod': prod, 'labor': labor}
         res, = run([{'op': 'c => ({r: fcDaypartRatios(c.hours), none: fcDaypartRatios({"420": {prod: 60}}), d: fcDefaultRatios()})', 'hours': hours}])
         day = (60 * 10 + 120 * 10 + 90 * 10 + 100 * 20) / 50
-        self.assertAlmostEqual(res['r']['Breakfast (6:00-11:00)'], 60 / day, places=6)
-        self.assertAlmostEqual(res['r']['Lunch (11:00-2:00)'], 120 / day, places=6)
+        self.assertAlmostEqual(res['r']['Breakfast (6:00-10:30)'], 60 / day, places=6)
+        self.assertAlmostEqual(res['r']['Lunch (10:30-2:00)'], 120 / day, places=6)
         self.assertAlmostEqual(res['r']['Dinner (5:00-10:00)'], 100 / day, places=6)
         self.assertIsNone(res['none'])                                             # hours without labor give no ratios
-        self.assertEqual(res['d'], {'Breakfast (6:00-11:00)': 0.75, 'Lunch (11:00-2:00)': 1.16, 'Afternoon (2:00-5:00)': 1.03, 'Dinner (5:00-10:00)': 1.06})
+        self.assertEqual(res['d'], {'Breakfast (6:00-10:30)': 0.75, 'Lunch (10:30-2:00)': 1.16, 'Afternoon (2:00-5:00)': 1.03, 'Dinner (5:00-10:00)': 1.06})
+
+    def test_weekly_daypart_file_learns_each_weekdays_mix(self):
+        def week(mon_dinner):
+            rows = ['\t\tTotal\tTotal\tDine In\tDine In', '\t\tSales Metric (Export)\tSecondary Metric\tSales Metric (Export)\tSecondary Metric', 'Total\tTotal\t60,000.00\t-0.1\t6,000.00\t-0.1']
+            for dow, (b, l, a, d) in {'Mon': (1000, 3000, 2000, mon_dinner), 'Sat': (2000, 4000, 2000, 2000)}.items():
+                for dp, v in zip(['Breakfast', 'Lunch', 'Afternoon', 'Dinner'], (b, l, a, d)):
+                    rows.append(f'201\t{dow}, {dp}\t{v:,.2f}\t-0.05\t100.00\t0.1')
+            return '\n'.join(rows) + '\n'
+        res, = run([{'op': '''c => {
+            const looks = c.weeks.map(fcLooksLikeDaypartWeek);
+            const parsed = c.weeks.map(fcParseDaypartWeek);
+            const store = {}; parsed.forEach((w, i) => { store[w.key] = {at: String(i), file: 'w' + i, total: w.total, days: w.days}; });
+            return {looks, keys: parsed.map(p => p.key), total: parsed[0].total, mon: fcWeekdayMix(1, store), sat: fcWeekdayMix(6, store), tue: fcWeekdayMix(2, store), two: fcWeekdayMix(1, {a: store[parsed[0].key], b: store[parsed[1].key]})};
+        }''', 'weeks': [week(4000), week(6000), week(8000)]}])
+        self.assertEqual(res['looks'], [True, True, True])
+        self.assertEqual(len(set(res['keys'])), 3)                   # a week is known by its day totals
+        self.assertEqual(res['total'], 60000)
+        self.assertEqual(res['mon']['weeks'], 3)
+        self.assertAlmostEqual(res['mon']['mix']['Breakfast'], (10 + 1000 / 120 + 1000 / 140) / 3 * 1, places=6)   # mean of each week's share
+        self.assertAlmostEqual(res['sat']['mix']['Lunch'], 40)
+        self.assertIsNone(res['tue'])                                 # no Tuesdays on file
+        self.assertIsNone(res['two'])                                 # under three weeks: not used
+
+    def test_sales_export_carries_last_year(self):
+        res, = run([{'op': 'c => { const hist = {}; fcMergeSalesExport(rpParseSales(c.text), hist); return hist; }', 'text': SALES_EXPORT}])
+        d = res['2026-09-01']
+        self.assertAlmostEqual(d['lastYearSales'], 10000 / (1 - 0.063), places=2)
+        self.assertEqual(d['lastYearDate'], '2025-09-02')             # the same weekday a year back
 
     def test_setups_dayparts_read_the_four(self):
         res, = run([{'op': 'c => c.dps.map(dp => { const n = knDaypartOf(dp); return n ? n.name : null; })',
                      'dps': DAYPARTS + [{'name': 'Breakfast (8:00-10:30)', 'time': '8:00'}, {'name': 'Mid (10:30-2:00)', 'time': '10:30'}]}])
-        self.assertEqual(res, [None, 'Breakfast (6:00-11:00)', 'Lunch (11:00-2:00)', None, 'Afternoon (2:00-5:00)', 'Dinner (5:00-10:00)', None,
-                               'Breakfast (6:00-11:00)', 'Lunch (11:00-2:00)'])
+        self.assertEqual(res, [None, 'Breakfast (6:00-10:30)', 'Lunch (10:30-2:00)', None, 'Afternoon (2:00-5:00)', 'Dinner (5:00-10:00)', None,
+                               'Breakfast (6:00-10:30)', 'Lunch (10:30-2:00)'])
 
     def test_numbers_typed_under_the_seven_dayparts_fold_into_the_four(self):
         day = {
@@ -286,13 +326,17 @@ class KnowTheNumbersFeedTest(unittest.TestCase):
             'Close (8:00-10:00)': {'projectedSales': '$1,500.00', 'productivityGoal': '$90.00'},
         }
         res, = run([{'op': 'c => knNormalizeDay(c.day)', 'day': day}])
-        self.assertEqual(sorted(res), ['Breakfast (6:00-11:00)', 'Dinner (5:00-10:00)', 'Lunch (11:00-2:00)'])
-        self.assertEqual(res['Breakfast (6:00-11:00)'], {'projectedSales': '$4,000.00', 'productivityGoal': '$120.00', 'specialEvents': 'Bus group'})
-        self.assertEqual(res['Lunch (11:00-2:00)'], {'projectedSales': '$8,000.00', 'productivityGoal': '$150.00', 'specialEvents': 'Catering pickup 2pm'})
+        self.assertEqual(sorted(res), ['Breakfast (6:00-10:30)', 'Dinner (5:00-10:00)', 'Lunch (10:30-2:00)'])
+        self.assertEqual(res['Breakfast (6:00-10:30)'], {'projectedSales': '$4,000.00', 'productivityGoal': '$120.00', 'specialEvents': 'Bus group'})
+        self.assertEqual(res['Lunch (10:30-2:00)'], {'projectedSales': '$8,000.00', 'productivityGoal': '$150.00', 'specialEvents': 'Catering pickup 2pm'})
         self.assertEqual(res['Dinner (5:00-10:00)'], {'projectedSales': '$10,500.00', 'productivityGoal': '$90.00'})
         # Already in the four: untouched.
         again, = run([{'op': 'c => knNormalizeDay(c.day)', 'day': res}])
         self.assertEqual(again, res)
+        # The earlier four on 11:00 hours move over too.
+        old4 = {'Breakfast (6:00-11:00)': {'projectedSales': '$5,000.00'}, 'Lunch (11:00-2:00)': {'projectedSales': '$9,000.00', 'productivityGoal': '$150.00'}}
+        moved, = run([{'op': 'c => knNormalizeDay(c.day)', 'day': old4}])
+        self.assertEqual(moved, {'Breakfast (6:00-10:30)': {'projectedSales': '$5,000.00'}, 'Lunch (10:30-2:00)': {'projectedSales': '$9,000.00', 'productivityGoal': '$150.00'}})
 
     def test_no_usable_weights_means_even(self):
         res, = run([{'op': 'c => fcHourWeights({"420": {prod: 150}, "480": {}})'}])

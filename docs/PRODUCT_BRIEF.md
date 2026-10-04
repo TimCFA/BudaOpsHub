@@ -51,9 +51,10 @@ for the full site. Managers turn launch mode off for everyone in Manage.
 ### Set Ups (positioning) — the most-used, most rule-heavy area
 - Daypart cards show their Know the Numbers line (projected sales, $/labor
   hour goal, special event) in both the Set up and Coach views. Numbers are
-  kept for the **four major dayparts only** (Breakfast 6–11, Lunch 11–2,
-  Afternoon 2–5, Dinner 5–10); the Early Breakfast, Transition and Close
-  cards show none, and BOH's Mid reads Lunch.
+  kept for the **four major dayparts only, on Analytics Hub's hours**
+  (Breakfast 6–10:30, Lunch 10:30–2, Afternoon 2–5, Dinner 5–close), so
+  projections line up with the actuals; the Early Breakfast, Transition and
+  Close cards show none, and BOH's Mid reads Lunch.
 - The person picker is a bottom sheet: names best fit first for the spot's
   position with the PEA tier dot and average, the current holder marked,
   a Clear option, and "Next open spot"; picking an open spot moves straight
@@ -146,10 +147,14 @@ destination), Data (what's loaded, add a file, remove all). Settings and
 adjustments are shared across devices; adjustments for past days fall away.
 **Send to Know the Numbers** previews each open day split into the four
 Know the Numbers dayparts. The split follows a **daypart mix** Tim can set by
-hand (four percentages); otherwise the weekday's hourly sales shape from the
-productivity-by-hour report; otherwise **Buda's typical mix** measured from
-its own exports (Breakfast 18.5%, Lunch 27%, Afternoon 19%, Dinner 35.5%:
-breakfast and the afternoon quiet, dinner the biggest). Each daypart's
+hand (four percentages); otherwise **the weekday's own mix learned from the
+weekly "sales by weekday and daypart" export** (Data Uploads; the last 12
+weeks kept, a weekday needs 3); otherwise the weekday's hourly sales shape
+from the productivity-by-hour report; otherwise **Buda's typical mix**
+measured from four weeks of those exports (Breakfast 16%, Lunch 30%,
+Afternoon 19%, Dinner 35%: breakfast and the afternoon quiet, dinner the
+biggest). The daily sales-by-destination export also hands the forecast
+each day's last-year figure (same weekday a year back) from its change %. Each daypart's
 **productivity goal follows its usual productivity** around the day's
 $/labor-hour target (breakfast about 0.75×, lunch 1.16×, afternoon 1.03×,
 dinner 1.06×, or the weekday's own ratios from the report), unless the flat

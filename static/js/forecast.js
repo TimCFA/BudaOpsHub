@@ -29,17 +29,23 @@
 let salesHistory = {};      // {iso: {sales, transactions, laborHours, laborCost, laborPct, wage, channels: {name: $}}}
 let forecastSettings = {};  // {method, splh, pct, wage, lookback, days, model, unusual, adjustments: {iso: pct}}
 let forecastLog = {};       // {iso: {sales, baseline, adj, model, at}} — what was sent to Know the Numbers, scored once the day's actual lands
+let daypartWeeks = {};      // {key: {at, file, total, days: {Mon: {Breakfast: $, …}}}} — Analytics Hub sales by weekday and daypart, a week a file
 
 const FC_DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const FC_DOW_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const FC_DEFAULTS = {method: 'splh', splh: null, pct: null, wage: null, lookback: 'auto', days: 7, model: 'auto', adjustments: {}, daypartMix: null, goalByDaypart: true};
-// How a day's sales fall across the four Know the Numbers dayparts, and how
-// each daypart's productivity compares with the day's ($/labor hour, 1 =
-// the day's), when the weekday has no productivity-by-hour report. From
-// Buda's own Tuesday and Saturday hourly exports (Sept 2026): breakfast and
-// the afternoon are the quiet dayparts, dinner the biggest.
-const FC_DEFAULT_MIX = {Breakfast: 18.5, Lunch: 27, Afternoon: 19, Dinner: 35.5};
+// How a day's sales fall across the four Know the Numbers dayparts when
+// nothing better is on file: Buda's typical mix on Analytics Hub's hours,
+// from four weeks of its sales-by-weekday-and-daypart exports (Sept 2026).
+// Breakfast and the afternoon are the quiet dayparts, dinner the biggest.
+const FC_DEFAULT_MIX = {Breakfast: 16, Lunch: 30, Afternoon: 19, Dinner: 35};
+// How each daypart's productivity compares with the day's ($/labor hour,
+// 1 = the day's), from Buda's Tuesday and Saturday hourly exports.
 const FC_DEFAULT_PROD_RATIO = {Breakfast: 0.75, Lunch: 1.16, Afternoon: 1.03, Dinner: 1.06};
+// The weekly daypart file: weeks kept, and weeks of a weekday needed
+// before its own learned mix is used.
+const FC_WEEKS_KEEP = 12;
+const FC_MIX_MIN_WEEKS = 3;
 const FC_LOOKBACKS = [4, 8, 12, 26];           // the windows Best fit chooses between, per weekday
 const FC_LOOKBACK_MIN_DAYS = 3;                // scored days of a weekday before it gets its own window
 const FC_LOG_KEEP_DAYS = 120;                  // how long a sent forecast is kept
@@ -257,7 +263,13 @@ function fcMergeRecords(records, hist){
 // day's total and its sales by destination.
 function fcMergeSalesExport(parsed, hist){
   if(!parsed || !Array.isArray(parsed.days)) return 0;
-  const records = parsed.days.map(([iso, sales]) => ({date: iso, sales, channels: (parsed.channelDays || {})[iso] || null}));
+  const records = parsed.days.map(([iso, sales, change]) => {
+    const rec = {date: iso, sales, channels: (parsed.channelDays || {})[iso] || null};
+    // The export's change vs last year gives last year's figure for the
+    // same weekday a year back (the comparison Analytics Hub makes).
+    if(sales != null && change != null && change > -1 && fcValidIso(iso)){ rec.lastYearSales = sales / (1 + change); rec.lastYearDate = fcAddDays(iso, -FC_YEAR_DAYS); }
+    return rec;
+  });
   const n = fcMergeRecords(records, hist);
   if(n && typeof fcRerender === 'function') fcRerender();
   return n;
@@ -271,6 +283,7 @@ function fcLooksLikeLabor(text){
   return /(timekeeping|labor\s*(hours|cost|%|pct|percent|dollars)|effective wage|worked hours)/i.test(head);
 }
 
+// A record's last-year figure only counts when the day lacks one.
 // Data Uploads handler for a labor (or any sales/labor) file.
 async function fcImportLaborFile(file, text, buffer){
   let table;
@@ -755,19 +768,20 @@ function fcSplitDay(sales, weights, windows, mix){
     wins.forEach(w => { out[w.name] = sales * fixed[w.name]; });
     return out;
   }
+  // Hour weights sit on the hour; a window ending at 10:30 takes half of
+  // the 10 o'clock hour.
   const lo = Math.min(...wins.map(w => w.start)), hi = Math.max(...wins.map(w => w.end));
-  const weightAt = h => weights ? (weights[h] || 0) : 1;
-  let total = 0;
-  for(let h = lo; h < hi; h += 60) total += weightAt(h);
+  const hours = Object.keys(weights || {}).map(Number);
+  const weighed = (a, b) => hours.reduce((t, h) => t + fcHourOverlap(h, a, b) * (weights[h] || 0), 0);
+  const total = weights ? weighed(lo, hi) : 0;
   const even = !weights || total <= 0;
-  if(even) total = (hi - lo) / 60;
   wins.forEach(w => {
-    let part = 0;
-    for(let h = w.start; h < w.end; h += 60) part += even ? 1 : weightAt(h);
-    out[w.name] = sales * part / total;
+    out[w.name] = even ? sales * (w.end - w.start) / (hi - lo) : sales * weighed(w.start, w.end) / total;
   });
   return out;
 }
+// How much of the hour starting at `h` (minutes) falls inside [a, b): 0–1.
+function fcHourOverlap(h, a, b){ return Math.max(0, Math.min(b, h + 60) - Math.max(a, h)) / 60; }
 
 // Each daypart's productivity against the day's (1 = the day's $/labor
 // hour) from a profile's hours ({hourMin: {prod, labor}}); null without
@@ -778,10 +792,12 @@ function fcDaypartRatios(hours, windows){
   let S = 0, L = 0;
   Object.entries(hours || {}).forEach(([h, v]) => {
     if(!v || v.prod == null || v.labor == null || !(v.labor > 0)) return;
-    const win = wins.find(w => +h >= w.start && +h < w.end);
-    if(!win) return;
-    const a = acc[win.name] = acc[win.name] || {s: 0, l: 0};
-    a.s += v.prod * v.labor; a.l += v.labor; S += v.prod * v.labor; L += v.labor;
+    wins.forEach(w => {
+      const f = fcHourOverlap(+h, w.start, w.end);
+      if(f <= 0) return;
+      const a = acc[w.name] = acc[w.name] || {s: 0, l: 0};
+      a.s += v.prod * v.labor * f; a.l += v.labor * f; S += v.prod * v.labor * f; L += v.labor * f;
+    });
   });
   if(!(S > 0) || !(L > 0)) return null;
   const day = S / L, out = {};
@@ -792,6 +808,79 @@ function fcDefaultRatios(windows){
   const out = {};
   (windows || fcDaypartWindows()).forEach(w => { const r = FC_DEFAULT_PROD_RATIO[fcDaypartKey(w.name)]; out[w.name] = r > 0 ? r : 1; });
   return out;
+}
+
+// ----- Sales by weekday and daypart (Analytics Hub, a week a file) -----
+// Rows read "Mon, Breakfast" with the week's sales by destination; no
+// dates, so a week is known by its day totals and kept by upload time.
+
+function fcLooksLikeDaypartWeek(text){
+  const head = String(text || '').replace(/\u0000/g, '').slice(0, 8000);
+  return /Sales Metric \(Export\)/.test(head) && /\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s*(Breakfast|Lunch|Afternoon|Dinner)\b/i.test(head);
+}
+
+// → {key, total, days: {Mon: {Breakfast: $, Lunch: $, …}, …}}
+function fcParseDaypartWeek(text){
+  const rows = duParseTsv(text);
+  const days = {};
+  let total = null;
+  rows.forEach(r => {
+    if(String(r[0] || '').trim() === 'Total'){ total = fcNum(r[2]); return; }
+    const m = String(r[1] || '').trim().match(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun),\s*(Breakfast|Lunch|Afternoon|Dinner)$/i);
+    const v = m ? fcNum(r[2]) : null;
+    if(!m || v == null) return;
+    const dow = m[1][0].toUpperCase() + m[1].slice(1, 3).toLowerCase();
+    const dp = m[2][0].toUpperCase() + m[2].slice(1).toLowerCase();
+    (days[dow] = days[dow] || {})[dp] = v;
+  });
+  if(!Object.keys(days).length) throw new Error('No weekday-by-daypart rows ("Mon, Breakfast" …) in this export.');
+  const dayTotal = d => Object.values(d).reduce((a, b) => a + b, 0);
+  const key = Object.keys(days).sort().map(d => `${d}:${Math.round(dayTotal(days[d]))}`).join('|');
+  return {key, days, total: total != null ? total : Object.values(days).reduce((t, d) => t + dayTotal(d), 0)};
+}
+
+async function fcImportDaypartWeek(file, text){
+  const w = fcParseDaypartWeek(text);
+  daypartWeeks[w.key] = {at: new Date().toISOString(), file: file.name, total: w.total, days: w.days};
+  const keys = Object.keys(daypartWeeks).sort((a, b) => String(daypartWeeks[a].at).localeCompare(String(daypartWeeks[b].at)));
+  keys.slice(0, Math.max(0, keys.length - FC_WEEKS_KEEP)).forEach(k => { delete daypartWeeks[k]; });
+  const n = Object.keys(daypartWeeks).length;
+  duRecord('dayparts', {file: file.name, summary: `${fcMoney(w.total)} week · ${n} week${n === 1 ? '' : 's'} on file`});
+  await saveState();
+  fcRerender();
+  const fri = fcWeekdayMix(5);
+  return `${fcMoney(w.total)} for the week · ${n} week${n === 1 ? '' : 's'} on file${n < FC_MIX_MIN_WEEKS ? ` (${FC_MIX_MIN_WEEKS} needed before each weekday's own mix is used)` : fri ? ` · Fridays run ${fcMixText(fri.mix)}` : ''} → Forecast`;
+}
+function fcMixText(mix){ return Object.keys(FC_DEFAULT_MIX).map(k => `${k.toLowerCase()} ${Math.round(mix[k] || 0)}%`).join(', '); }
+
+// A weekday's daypart shares across the weeks on file (each week weighs
+// the same), as a mix in % → {mix, weeks}; null under FC_MIX_MIN_WEEKS.
+function fcWeekdayMix(dow, weeks){
+  const name = FC_DOW[dow];
+  const sums = {};
+  let n = 0;
+  Object.values(weeks || daypartWeeks || {}).forEach(w => {
+    const d = w && w.days && w.days[name];
+    if(!d) return;
+    const t = Object.values(d).reduce((a, b) => a + b, 0);
+    if(!(t > 0)) return;
+    n++;
+    Object.entries(d).forEach(([k, v]) => { sums[k] = (sums[k] || 0) + 100 * v / t; });
+  });
+  if(n < FC_MIX_MIN_WEEKS) return null;
+  const mix = {};
+  Object.entries(sums).forEach(([k, v]) => { mix[k] = v / n; });
+  return {mix, weeks: n};
+}
+
+// Data Uploads row state for the weekly daypart file.
+function fcDaypartWeeksState(freq, now, logAt){
+  const list = Object.values(daypartWeeks || {});
+  if(!list.length) return {status: 'overdue', freq, cover: 'No weeks on file — the split uses Buda\'s typical mix', note: `Upload a week at a time; after ${FC_MIX_MIN_WEEKS} each weekday takes its own shape.`, last: logAt};
+  const latest = list.slice().sort((a, b) => String(b.at).localeCompare(String(a.at)))[0];
+  const learned = [1, 2, 3, 4, 5, 6].filter(d => fcWeekdayMix(d)).length;
+  return {status: duStatusFromTime(logAt, freq, now), freq, cover: `${list.length} week${list.length === 1 ? '' : 's'} on file · latest ${fcMoney(latest.total)}${learned ? ` · ${learned} weekday${learned === 1 ? '' : 's'} with their own mix` : ''}`,
+    note: list.length < FC_MIX_MIN_WEEKS ? `${FC_MIX_MIN_WEEKS - list.length} more week${FC_MIX_MIN_WEEKS - list.length === 1 ? '' : 's'} before each weekday's own mix is used.` : '', last: logAt};
 }
 
 // The productivity goal Know the Numbers gets: the $ per labor hour target,
@@ -823,12 +912,17 @@ function fcNumbersPlan(){
     const sales = base.sales * (1 + adj / 100);
     const prof = typeof breakProfileFor === 'function' ? breakProfileFor(iso) : null;
     const weights = prof ? fcHourWeights(prof.hours) : null;
+    // The split: a mix set by hand, else the weekday's own mix learned from
+    // the weekly daypart files, else the weekday's hourly report, else
+    // Buda's typical mix.
+    const learned = mix ? null : fcWeekdayMix(base.dow);
+    const useMix = mix || (learned && fcMixShares(learned.mix, windows) ? learned.mix : null);
     const profRatios = byDaypart && prof ? fcDaypartRatios(prof.hours, windows) : null;
     const ratios = byDaypart ? (profRatios || fcDefaultRatios(windows)) : null;
     const goals = {};
     windows.forEach(w => { goals[w.name] = goal == null ? null : goal * (ratios ? ratios[w.name] : 1); });
     return {date: iso, dow: base.dow, sales, baseline: base.sales, adj, model: fcModelLabel(s.model, base.yoyWeight), goal, goals,
-      split: fcSplitDay(sales, weights, windows, mix), source: mix ? 'mix' : weights ? prof.day : 'default',
+      split: fcSplitDay(sales, useMix ? null : weights, windows, useMix), source: mix ? 'mix' : useMix ? `${learned.weeks} weeks` : weights ? prof.day : 'default',
       goalSource: !byDaypart ? 'flat' : profRatios ? prof.day : 'default'};
   }).filter(Boolean);
 }
@@ -1139,9 +1233,12 @@ function fcRenderForecast(){
   wire('fcNumbersCancel', 'click', () => { fcNumbersOpen = false; fcRenderForecast(); });
   // The daypart mix: saved once the four add up to 100 (give or take one).
   const mixInputs = [...panel.querySelectorAll('[data-fc-mix]')];
+  let mixTouched = false;
   const mixSum = () => {
     const el = document.getElementById('fcMixSum');
     if(!el) return;
+    // Automatic values are shown rounded, so their sum is only read once edited.
+    if(!mixTouched && !fcSettings().daypartMix){ el.textContent = 'Change a figure to set your own mix'; el.classList.remove('is-warn'); return true; }
     const t = mixInputs.reduce((a, i) => a + (fcNum(i.value) || 0), 0);
     const ok = Math.abs(t - 100) <= 1;
     el.textContent = `${Math.round(t * 10) / 10}% of the day${ok ? '' : ' — make it 100%'}`;
@@ -1150,7 +1247,7 @@ function fcRenderForecast(){
   };
   mixSum();
   mixInputs.forEach(i => {
-    i.addEventListener('input', mixSum);
+    i.addEventListener('input', () => { mixTouched = true; mixSum(); });
     i.addEventListener('change', () => {
       if(!mixSum()) return;
       const mix = {};
@@ -1170,12 +1267,17 @@ function fcNumbersPreviewHtml(){
   if(!plan.length) return `<div class="standup-card fc-numbers"><h3>Know the Numbers</h3><p class="fc-empty">No open days with a forecast in this window.</p></div>`;
   const windows = fcDaypartWindows();
   const s = fcSettings();
-  const weekdays = [...new Set(plan.map(p => p.source).filter(x => x !== 'mix' && x !== 'default'))];
+  const isWeeks = x => /\d+ weeks$/.test(x);
+  const weekdays = [...new Set(plan.map(p => p.source).filter(x => x !== 'mix' && x !== 'default' && !isWeeks(x)))];
+  const learnedDays = plan.filter(p => isWeeks(p.source)).length;
+  const rest = plan.some(p => p.source === 'default') ? ', and by Buda\'s typical mix where a weekday has too few' : '';
   const shapeNote = plan[0].source === 'mix'
     ? 'Split by your daypart mix below, the same every day.'
-    : weekdays.length
-      ? `Split by each weekday's hourly sales shape from the productivity report (${weekdays.join(', ')})${plan.some(p => p.source === 'default') ? ', and by Buda\'s typical mix where a weekday has none' : ''}.`
-      : 'Split by Buda\'s typical mix (breakfast and the afternoon quiet, dinner the biggest) — upload the productivity by hour report (Data Uploads) and each weekday takes its own shape.';
+    : learnedDays
+      ? `Split by each weekday's own shape, learned from the weeks of sales by weekday and daypart on file${learnedDays < plan.length ? ` where a weekday has ${FC_MIX_MIN_WEEKS} or more` : ''}${weekdays.length ? `, by the hourly report for ${weekdays.join(', ')}` : ''}${rest}.`
+      : weekdays.length
+        ? `Split by each weekday's hourly sales shape from the productivity report (${weekdays.join(', ')})${rest}.`
+        : 'Split by Buda\'s typical mix (breakfast and the afternoon quiet, dinner the biggest) — upload the weekly sales by weekday and daypart export (Data Uploads) and each weekday takes its own shape.';
   const goalNote = s.goalByDaypart === false
     ? 'The same productivity goal every daypart.'
     : 'Each daypart\'s goal follows its usual productivity: breakfast below the day\'s target, lunch above.';
@@ -1190,7 +1292,7 @@ function fcNumbersPreviewHtml(){
     <h3>Know the Numbers <span class="sub">what each daypart will show</span></h3>
     <p class="fc-muted">${shapeNote} ${goalNote} Projected sales and goals already there for these days are replaced; special events stay.</p>
     <div class="fc-mix">
-      <div class="fc-mix-head"><span>Daypart mix</span><em>${s.daypartMix ? 'Set by hand' : 'Automatic'}</em></div>
+      <div class="fc-mix-head"><span>Daypart mix</span><em>${s.daypartMix ? 'Set by hand' : `Automatic · ${first.source === 'default' ? 'Buda\'s typical mix' : isWeeks(first.source) ? `${FC_DOW_LONG[first.dow]}s, learned from ${first.source}` : `the ${first.source} hourly report`}`}</em></div>
       <div class="fc-mix-grid">${mixFields}</div>
       <div class="fc-mix-foot"><span id="fcMixSum"></span>${s.daypartMix ? '<button type="button" class="fc-link" id="fcMixReset">Back to automatic</button>' : ''}</div>
       <label class="fc-check"><input type="checkbox" id="fcGoalByDaypart" ${s.goalByDaypart === false ? '' : 'checked'}> Goal follows each daypart's usual productivity (breakfast lower, lunch higher) instead of one goal for the whole day</label>

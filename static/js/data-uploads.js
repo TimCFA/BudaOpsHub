@@ -50,7 +50,12 @@ const DU_SOURCES = [
   {
     key: 'sales', short: 'sales export', icon: '', name: 'Sales by destination (Analytics Hub)', freq: 'monthly', accept: '.csv,.txt',
     how: 'Analytics Hub → sales by day by destination, export as CSV (CSV_DOWNLOAD). With a weekly DayTrack upload the WIG stays current on its own, and this export only feeds the channel mix — monthly is enough. Without DayTrack it carries the WIG: month to date for MTD, the same report from Jan 1 for YTD.',
-    feeds: 'Forecast channel mix (sales by destination) · Guest Obsession WIG when it reaches a later day than DayTrack'
+    feeds: 'Forecast channel mix (sales by destination) and last year’s sales for every day it covers · Guest Obsession WIG when it reaches a later day than DayTrack'
+  },
+  {
+    key: 'dayparts', short: 'weekly daypart export', icon: '', name: 'Sales by weekday and daypart (Analytics Hub)', freq: 'weekly', accept: '.csv,.txt', multiple: true,
+    how: 'Analytics Hub → sales by destination, broken out by weekday and daypart (rows read “Mon, Breakfast”), one week an export. Upload each week as it lands; the hub keeps the last 12 and, once a weekday has 3, splits that weekday’s projected sales by its own usual shape (Saturday lunch-heavy, Wednesday dinner-heavy).',
+    feeds: 'Forecast → Know the Numbers: each weekday’s daypart mix'
   },
   {
     key: 'labor', short: 'DayTrack export', icon: '', name: 'DayTrack Table (sales & labor by day)', freq: 'weekly', accept: '.csv,.txt,.xlsx,.xls',
@@ -232,6 +237,7 @@ function duSourceState(src, now){
     return {status, freq, cover: latest ? `Latest day: ${duShort(latest)} · ${dates.length} days saved` : 'No Sales Mix yet', note: '', last: logAt};
   }
   if(src.key === 'labor' && typeof fcLaborSourceState === 'function') return fcLaborSourceState(freq, now, logAt);
+  if(src.key === 'dayparts' && typeof fcDaypartWeeksState === 'function') return fcDaypartWeeksState(freq, now, logAt);
   return {status: 'overdue', freq, cover: '', note: '', last: logAt};
 }
 
@@ -306,6 +312,8 @@ function duDetect(file, text, workbook){
   // Levelset exports are named positional-ratings-…; any other PDF (or zip)
   // is asked of the server first, and tried as PEA if it isn't Ops Hub's.
   if(/\.(pdf|zip)$/i.test(file.name)) return /positional|rating|levelset/i.test(file.name) ? 'pea' : 'opsPdf';
+  // The weekly daypart file shares the sales export's header; its rows tell them apart.
+  if(typeof fcLooksLikeDaypartWeek === 'function' && fcLooksLikeDaypartWeek(text)) return 'dayparts';
   const report = rpDetect(text);
   if(report) return report;
   const firstSheetText = workbook ? workbook.SheetNames.map(n => XLSX.utils.sheet_to_csv(workbook.Sheets[n])).join('\n').slice(0, 4000) : '';
@@ -484,7 +492,7 @@ async function duHandleFiles(fileList, hint){
   renderDataUploads();
   // CEM files first so the scoreboard ends on the newest month; the roster
   // last because it opens a review window.
-  const order = {cem: 0, pea: 1, salesMix: 2, numbers: 2, sales: 2, labor: 2, dtRank: 2, sos: 2, opsPdf: 2, productivity: 3, roster: 4};
+  const order = {cem: 0, pea: 1, salesMix: 2, numbers: 2, sales: 2, labor: 2, dtRank: 2, sos: 2, dayparts: 2, opsPdf: 2, productivity: 3, roster: 4};
   const jobs = [];
   for(let i = 0; i < files.length; i++){
     const file = files[i];
@@ -515,6 +523,7 @@ async function duHandleFiles(fileList, hint){
       else if(job.kind === 'roster') text = duImportRoster(job.file, job.text);
       else if(job.kind === 'numbers') text = await knImportFile(job.file);
       else if(job.kind === 'sales') text = await rpImportSales(job.file, job.text);
+      else if(job.kind === 'dayparts') text = await fcImportDaypartWeek(job.file, job.text);
       else if(job.kind === 'labor') text = await fcImportLaborFile(job.file, job.text, job.buffer);
       else if(job.kind === 'sos') text = await rpImportSos(job.file, job.text);
       else if(job.kind === 'dtRank'){
