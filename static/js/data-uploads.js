@@ -74,7 +74,7 @@ const DU_SOURCES = [
   },
   {
     key: 'foodSafety', short: 'food safety PDF', icon: '', name: 'Food safety assessment (Ops Hub)', freq: 'monthly', fixedFreq: true, accept: '.pdf',
-    how: 'Ops Hub → Food Safety → All Findings, print or save as PDF after each assessment.',
+    how: 'After each assessment, the visit’s SAFE report PDF from Ops Hub (the one headed SAFE with the performance levels; "Show only Noncompliant Responses" is fine), or Food Safety → All Findings saved as PDF. Either files the quarter’s findings; the SAFE report also carries the visit date and the quarterly performance levels.',
     feeds: 'Food Safety Walkthrough — the findings to check first'
   },
   {

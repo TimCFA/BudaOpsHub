@@ -80,6 +80,13 @@ and **Prep Times**: time how long each item takes to make, per person, with
 leaderboards (fastest overall and per item). Guardrail: a time must be 5 s–3 h.
 
 ### Food Safety Walkthrough
+The findings card at the top comes from the assessment PDF upload: the
+visit's SAFE report (findings by category with risk, response and the
+advisor's note, the visit date, and the last four quarters' performance
+levels; a code seen in an earlier quarter the hub holds is marked repeat)
+or the "All Findings" list. The speed-of-service export's "Trans Count Sos"
+is only trusted as a car count when it looks like one (under 20,000 a day);
+otherwise days weigh alike and no car count is shown.
 Replaces the store's Google Form. The questions are the store's real ones
 (transcribed and corrected with Tim's approval; every question phrased so "Yes"
 is good). Bilingual. **Temperature targets are still waiting on Tim (TIM-5) —

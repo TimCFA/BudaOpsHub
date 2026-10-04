@@ -14,7 +14,10 @@
 //   smartShop   Ops Hub Smart Shop PDFs (or the zip Ops Hub downloads):
 //               share of scored standards met per visit and every standard
 //               missed → a Smart Shop panel in Operational Excellence
-//   foodSafety  Ops Hub food safety "All Findings" PDF: the quarter's findings
+//   foodSafety  Ops Hub food safety PDF — the visit's SAFE report (findings
+//               by category with risk, response and note, plus the quarterly
+//               performance levels and visit date) or the "All Findings"
+//               list: the quarter's findings
 //   qiv         Ops Hub QIV Icon Report PDF: overall and touchpoint scores and
 //               what was missed → Most Recent QIV, and a QIV panel
 // PDFs are read on the server (/api/reports/parse). What's read is kept in
@@ -221,27 +224,37 @@ function rpParseSos(text, now){
       if(/^Trans Count Sos$/i.test(measure)) rec.cars = rpNum(cell);
     });
   });
+  // Some month-long exports carry a "Trans Count Sos" in the millions per
+  // day — not cars, and not in a fixed ratio to them. Then each day counts
+  // once and no car count is shown.
+  const countsOk = !Object.values(byDest).some(perDay => Object.values(perDay).some(d => d.cars > RP_SOS_MAX_CARS));
   const destinations = {};
   const allDays = [];
   Object.entries(byDest).forEach(([dest, perDay])=>{
-    let cars = 0, total = 0, order = 0, fulfill = 0;
+    let cars = 0, total = 0, order = 0, fulfill = 0, n = 0;
     Object.entries(perDay).forEach(([iso, d])=>{
       if(!d.cars || d.total === null) return;
+      const w = countsOk ? d.cars : 1;
       allDays.push(iso);
-      cars += d.cars; total += d.total * d.cars; order += (d.order || 0) * d.cars; fulfill += (d.fulfill || 0) * d.cars;
+      n++; cars += w; total += d.total * w; order += (d.order || 0) * w; fulfill += (d.fulfill || 0) * w;
     });
-    if(cars) destinations[dest] = {cars, total: total / cars, order: order / cars, fulfill: fulfill / cars};
+    if(cars) destinations[dest] = {cars: countsOk ? cars : null, days: n, total: total / cars, order: order / cars, fulfill: fulfill / cars};
   });
   if(!Object.keys(destinations).length) throw new Error('No speed of service numbers in this export.');
   allDays.sort();
-  return {from: allDays[0], to: allDays[allDays.length - 1], destinations};
+  return {from: allDays[0], to: allDays[allDays.length - 1], destinations, countsOk};
 }
+const RP_SOS_MAX_CARS = 20000;   // more than this in one day for one destination isn't a car count
 
-// Drive-thru, every car: regular and mobile-order lanes together.
+// Drive-thru, every car: regular and mobile-order lanes together. Lanes are
+// weighted by cars, or by days when the export's counts aren't cars.
 function rpSosDriveThru(sos){
   const lanes = Object.entries(sos.destinations).filter(([name]) => /^(M:\s*)?Drive Thru$/i.test(name)).map(([, d]) => d);
-  const cars = lanes.reduce((s, d) => s + d.cars, 0);
-  return cars ? {cars, total: lanes.reduce((s, d) => s + d.total * d.cars, 0) / cars} : null;
+  const weight = d => d.cars != null ? d.cars : (d.days || 1);
+  const w = lanes.reduce((s, d) => s + weight(d), 0);
+  if(!w) return null;
+  const cars = lanes.every(d => d.cars != null) ? lanes.reduce((s, d) => s + d.cars, 0) : null;
+  return {cars, total: lanes.reduce((s, d) => s + d.total * weight(d), 0) / w};
 }
 
 async function rpImportSos(file, text){
@@ -252,7 +265,7 @@ async function rpImportSos(file, text){
   duRecord('sos', {file: file.name, summary: rpRange(s.from, s.to), periodEnd: s.to});
   await saveState();
   rpRerender();
-  return `${rpRange(s.from, s.to)} · drive-thru ${dt ? `${rpClock(dt.total)} average (${dt.cars.toLocaleString('en-US')} cars)` : 'not in this export'} → Speed of Service`;
+  return `${rpRange(s.from, s.to)} · drive-thru ${dt ? `${rpClock(dt.total)} average${dt.cars ? ` (${dt.cars.toLocaleString('en-US')} cars)` : ' (days weighted alike — this export’s counts aren’t cars)'}` : 'not in this export'} → Speed of Service`;
 }
 
 // ----- Ops Hub PDFs (Smart Shop, food safety) -----
@@ -286,7 +299,15 @@ async function rpImportOpsPdf(file){
   }
   if(safety.length){
     const fs = reportData.foodSafety = reportData.foodSafety || {quarters: {}};
-    safety.forEach(r => { fs.quarters[r.quarter || 'unknown'] = {quarter: r.quarter, total: r.total, findings: r.findings, file: r.file, at: new Date().toISOString()}; });
+    safety.forEach(r => {
+      // The SAFE report doesn't mark repeats: a code found in an earlier
+      // quarter the hub holds is one.
+      const earlier = Object.values(fs.quarters).filter(q => q.quarter && r.quarter && q.quarter !== r.quarter && rpQuarterKey(q.quarter) < rpQuarterKey(r.quarter));
+      const seen = new Set(earlier.flatMap(q => (q.findings || []).map(f => f.code)));
+      const findings = r.layout === 'safe' ? r.findings.map(f => ({...f, repeat: seen.has(f.code)})) : r.findings;
+      fs.quarters[r.quarter || 'unknown'] = {quarter: r.quarter, total: r.total, findings, file: r.file, at: new Date().toISOString(),
+        ...(r.layout ? {layout: r.layout} : {}), ...(r.visit ? {visit: r.visit} : {}), ...(r.levels && r.levels.length ? {levels: r.levels} : {})};
+    });
     const r = safety[safety.length - 1];
     duRecord('foodSafety', {file: file.name, summary: `${r.quarter} · ${r.total} findings`});
     out.push(`${r.quarter}: ${r.total} findings (${rpFindingCounts(r.findings)}) → Food Safety`);
@@ -317,10 +338,10 @@ function rpFindingCounts(findings){
   return [['high', by('high')], ['medium', by('medium')], ['low', by('low')]].filter(([, n]) => n).map(([k, n]) => `${n} ${k}`).join(' · ') + (repeat ? ` · ${repeat} repeat` : '');
 }
 
+function rpQuarterKey(q){ const m = String(q || '').match(/Q(\d)-(\d{4})/); return m ? m[2] + m[1] : ''; }
 function rpLatestFoodSafety(){
   const qs = Object.values((reportData.foodSafety || {}).quarters || {});
-  const key = q => { const m = String(q.quarter || '').match(/Q(\d)-(\d{4})/); return m ? m[2] + m[1] : ''; };
-  return qs.sort((a, b) => key(a).localeCompare(key(b))).pop() || null;
+  return qs.sort((a, b) => rpQuarterKey(a.quarter).localeCompare(rpQuarterKey(b.quarter))).pop() || null;
 }
 
 // The latest month's Smart Shop visits, with the standards missed most often.
@@ -514,9 +535,13 @@ function rpFoodSafetyFindingsHtml(){
   if(!fs) return '';
   const order = {high: 0, medium: 1, low: 2};
   const findings = fs.findings.slice().sort((a, b) => order[a.risk] - order[b.risk] || (b.repeat - a.repeat));
+  const level = (fs.levels || []).find(l => l.quarter === fs.quarter);
+  const levelText = level ? ` · ${escapeHtml(level.label)} (level ${level.level})` : '';
+  const history = (fs.levels || []).filter(l => l.quarter !== fs.quarter).map(l => `${escapeHtml(l.quarter)} ${escapeHtml(l.label)} · ${l.total}`).join(' · ');
   return `<details class="rp-fs-card standup-card" open>
-    <summary><b>Last food safety assessment · ${escapeHtml(fs.quarter)}</b> <span class="rp-sub">${fs.total} findings · ${escapeHtml(rpFindingCounts(fs.findings))}</span></summary>
-    <ul class="rp-fs-list">${findings.map(f => `<li class="is-${f.risk}"><span class="rp-risk">${f.risk}</span><div><b>${escapeHtml(f.category)}${f.repeat ? ' · repeat' : ''}</b>${f.items.map(i => `<div>${escapeHtml(i)}</div>`).join('')}</div></li>`).join('')}</ul>
+    <summary><b>Last food safety assessment · ${escapeHtml(fs.quarter)}${fs.visit ? ` · ${escapeHtml(duShort(fs.visit))}` : ''}</b> <span class="rp-sub">${fs.total} findings · ${escapeHtml(rpFindingCounts(fs.findings))}${levelText}</span></summary>
+    ${history ? `<p class="rp-sub rp-fs-history">Earlier quarters: ${history} findings</p>` : ''}
+    <ul class="rp-fs-list">${findings.map(f => `<li class="is-${f.risk}"><span class="rp-risk">${f.risk}</span><div><b>${escapeHtml(f.category)}${f.code ? ` · ${escapeHtml(f.code)}` : ''}${f.repeat ? ' · repeat' : ''}</b>${f.items.map(i => `<div>${escapeHtml(i)}</div>`).join('')}</div></li>`).join('')}</ul>
   </details>`;
 }
 
@@ -584,7 +609,8 @@ function rpSourceState(src, now, freq, logAt){
   if(src.key === 'foodSafety'){
     // Assessments come per visit, not on a schedule: never "overdue".
     const fs = rpLatestFoodSafety();
-    return {status: fs ? 'fresh' : 'due', freq, cover: fs ? `${fs.quarter} · ${fs.total} findings` : 'No assessment yet', note: '', last: logAt};
+    const level = fs && (fs.levels || []).find(l => l.quarter === fs.quarter);
+    return {status: fs ? 'fresh' : 'due', freq, cover: fs ? `${fs.quarter}${fs.visit ? ` · visit ${duShort(fs.visit)}` : ''} · ${fs.total} findings${level ? ` · ${level.label}` : ''}` : 'No assessment yet', note: '', last: logAt};
   }
   return {status: 'overdue', freq, cover: '', note: '', last: logAt};
 }

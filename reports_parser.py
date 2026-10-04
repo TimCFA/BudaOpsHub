@@ -180,8 +180,140 @@ _MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct',
 
 # ----- Food safety findings -----
 
+# The "SAFE" assessment report (Ops Hub → the visit's PDF, "Show only
+# Noncompliant Responses"): a performance-level strip for the last four
+# quarters, then one table per category (Time & Temperature, Cross
+# Contamination, Pests, ...) with ID | STANDARD | RESPONSE | RISK LEVEL |
+# COMPLIANCE columns and an "Other information:" note under each row. Read
+# from character positions: the columns are x bands, a note can run onto
+# the next page, and a "Spacer" word is printed over the notes' lines.
+SAFE_ID_RE = re.compile(r'^\d{3}(?:\.\d+)?$')
+SAFE_COLS = {'standard': (90, 450), 'response': (450, 810), 'risk': (810, 900), 'compliance': (900, 10000)}
+
+
+def _safe_lines(page):
+    """Text lines from the page's characters: [(top, x0, text, chars)],
+    top to bottom, with the 'Spacer' overprint left out."""
+    chars = sorted((c for c in getattr(page, 'chars', []) if c['text'].strip() or c['text'] == ' '), key=lambda c: (round(c['top']), c['x0']))
+    lines = []
+    for c in chars:
+        if lines and abs(lines[-1][0] - c['top']) <= 2.5:
+            lines[-1][1].append(c)
+        else:
+            lines.append([c['top'], [c]])
+    out = []
+    for top, cs in lines:
+        cs.sort(key=lambda c: c['x0'])
+        # The overprinted "Spacer" (at the left margin) interleaves with a
+        # note's first line when they share a baseline: drop its six glyphs
+        # by letter and position.
+        drop = set()
+        for c in cs:
+            if c['text'] == 'S' and c['x0'] < 90:
+                found = [c]
+                for letter, dx in zip('pacer', (5.3, 10.8, 16.0, 21.3, 26.5)):
+                    hit = next((d for d in cs if d['text'] == letter and abs(d['x0'] - c['x0'] - dx) <= 1.6 and id(d) not in drop), None)
+                    if not hit:
+                        break
+                    found.append(hit)
+                if len(found) == 6:
+                    drop.update(id(d) for d in found)
+        kept = [c for c in cs if id(c) not in drop]
+        if not kept:
+            continue
+        text, last = '', None
+        for c in kept:
+            if last is not None and c['x0'] - last['x1'] > max(1.5, last['size'] * 0.25):
+                text += ' '
+            text += c['text']; last = c
+        out.append((top, kept[0]['x0'], text.strip(), kept))
+    return out
+
+
+def _safe_band(chars, lo, hi):
+    cs = sorted((c for c in chars if lo <= c['x0'] < hi), key=lambda c: (round(c['top']), c['x0']))
+    text, last = '', None
+    for c in cs:
+        if last is not None and (abs(c['top'] - last['top']) > 2.5 or c['x0'] - last['x1'] > max(1.5, last['size'] * 0.25)):
+            text += ' '
+        text += c['text']; last = c
+    return re.sub(r'\s+', ' ', text).strip()
+
+
+def parse_food_safety_safe(pdf):
+    first = _page_text(pdf.pages[0])
+    levels = []
+    lines = [l.strip() for l in first.splitlines()]
+    for i, l in enumerate(lines):
+        if l == 'PERFORMANCE LEVEL' and i + 4 <= len(lines) - 1:
+            quarters = re.findall(r'Q\d-\d{4}', lines[i + 1])
+            nums = re.findall(r'\d+', lines[i + 2])
+            labels = lines[i + 3].split()
+            totals = re.findall(r'(\d+)\s+Total Findings', lines[i + 4])
+            if quarters and len(nums) == len(quarters) == len(totals) and len(labels) == len(quarters):
+                levels = [{'quarter': q, 'level': int(n), 'label': lab, 'total': int(t)} for q, n, lab, t in zip(quarters, nums, labels, totals)]
+            break
+    visit = re.search(r'Visit:\s*(\d{1,2})/(\d{1,2})/(\d{4})', first)
+    month = re.search(r'Month/Year:\s*(\d{1,2})/(\d{4})', first)
+    quarter = levels[0]['quarter'] if levels else (f'Q{(int(month.group(1)) - 1) // 3 + 1}-{month.group(2)}' if month else None)
+
+    findings, category = [], None
+    for page in pdf.pages:
+        lines = _safe_lines(page)
+        if any(l[2] in ('Appendix', 'IMAGE(S)') for l in lines):
+            break
+        headers = [i for i, l in enumerate(lines) if l[2].startswith('ID ') and 'STANDARD' in l[2]]
+        ids = [i for i, l in enumerate(lines) if l[1] < 90 and SAFE_ID_RE.match(l[2].split(' ')[0]) and len(l[2]) > 6]
+        # The category heading sits just above each header row; it ends the
+        # note before it as well as naming what follows.
+        headings = {}
+        for h in headers:
+            above = [j for j in range(h) if lines[h][0] - 45 <= lines[j][0] < lines[h][0] - 5 and lines[j][2]]
+            if above:
+                headings[above[-1]] = h
+        stops = sorted(set(headers + ids + list(headings)))
+        i = 0
+        while i < len(lines):
+            top, x0, text, chars = lines[i]
+            if i in headings:
+                category = text
+                i += 1; continue
+            if i in headers:
+                i += 1; continue
+            if i in ids:
+                nxt = min([j for j in stops if j > i] + [len(lines)])
+                note_at = next((j for j in range(i + 1, nxt) if lines[j][2].startswith('Other information')), nxt)
+                row_chars = [c for j in range(i, note_at) for c in lines[j][3]]
+                code = text.split(' ')[0]
+                risk = _safe_band(row_chars, *SAFE_COLS['risk']).lower()
+                findings.append({'code': code, 'quarter': quarter, 'repeat': False, 'category': category or 'Other',
+                                 'risk': risk if risk in ('high', 'medium', 'low') else 'low',
+                                 'standard': _safe_band(row_chars, *SAFE_COLS['standard']), 'response': _safe_band(row_chars, *SAFE_COLS['response']),
+                                 'compliance': _safe_band(row_chars, *SAFE_COLS['compliance']), 'note': ''})
+                if note_at < nxt:
+                    findings[-1]['note'] = ' '.join(lines[j][2] for j in range(note_at + 1, nxt) if lines[j][2]).strip()
+                i = nxt; continue
+            if text.startswith('Other information') and findings and not findings[-1]['note']:
+                # A note that ran onto this page from the previous one.
+                nxt = min([j for j in stops if j > i] + [len(lines)])
+                findings[-1]['note'] = ' '.join(lines[j][2] for j in range(i + 1, nxt) if lines[j][2]).strip()
+                i = nxt; continue
+            i += 1
+    for f in findings:
+        f['items'] = [x for x in (f['standard'], f['response']) if x] + ([f['note']] if f['note'] else [])
+    if not findings:
+        raise ReportParseError('No findings found in this food safety report.')
+    out = {'kind': 'foodSafety', 'layout': 'safe', 'quarter': quarter,
+           'total': levels[0]['total'] if levels else len(findings), 'findings': findings, 'levels': levels}
+    if visit:
+        out['visit'] = f'{visit.group(3)}-{int(visit.group(1)):02d}-{int(visit.group(2)):02d}'
+    return out
+
+
 def parse_food_safety(pdf):
     text = '\n'.join(_page_text(p) for p in pdf.pages)
+    if 'PERFORMANCE LEVEL' in text and 'RISK LEVEL' in text:
+        return parse_food_safety_safe(pdf)
     m = re.search(r'(\d+)\s+Total Findings', text)
     total = int(m.group(1)) if m else None
     findings, quarter, last_code = [], None, None
