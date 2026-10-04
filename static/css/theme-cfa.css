@@ -160,6 +160,41 @@ button,input,select,textarea{font-family:inherit;}
 #positionsView .su-eval-btn:hover:not(:disabled){background:var(--cfa-red);color:#fff;}
 #positionsView .su-daytype.su-game,#positionsView .su-daytype-btn.su-game{background:var(--cfa-red);}
 
+/* The person picker: a quick bottom sheet, names best fit first */
+.overlay{background:rgba(28,27,25,0.38);backdrop-filter:none;-webkit-backdrop-filter:none;}
+.su-pick .sheet{border-radius:22px 22px 0 0;padding:14px 18px calc(16px + env(safe-area-inset-bottom));max-width:520px;animation:su-pick-in .18s ease-out;will-change:transform;}
+@keyframes su-pick-in{from{transform:translateY(24px);}to{transform:translateY(0);}}
+@media (min-width:720px){ .su-pick{align-items:center;} .su-pick .sheet{border-radius:22px;padding-bottom:18px;} }
+.su-pick-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;}
+.su-pick-head::before{content:"";position:absolute;left:50%;top:6px;width:40px;height:4px;margin-left:-20px;border-radius:999px;background:var(--cfa-soft);}
+.su-pick .sheet{position:relative;--su-crushing:#2E7D45;--su-rise:#C47A00;--su-notyet:#AF272F;--su-bg:var(--cfa-light);--su-ink:var(--text-primary);}
+.su-pick .su-tier-dot{margin-right:9px;}
+.su-pick-kicker{display:block;font-family:var(--font-ui);font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-secondary);margin-top:8px;}
+.su-pick .sheet h2{font-family:var(--font-display);font-size:22px;font-weight:600;text-transform:none;letter-spacing:0;margin:2px 0 0;color:var(--text-primary);}
+.su-pick .su-sheet-close{background:var(--cfa-light);color:var(--text-primary);margin-top:4px;}
+.su-pick-note{font-family:var(--font-ui);font-size:13px;color:#1F5B30;background:#E3F1E6;border-radius:12px;padding:8px 12px;margin-bottom:10px;}
+.su-pick-search{width:100%;box-sizing:border-box;min-height:44px;padding:8px 14px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-light);font-family:var(--font-ui);font-size:15px;color:var(--text-primary);margin-bottom:8px;-webkit-appearance:none;}
+.su-pick-search:focus{outline:none;border-color:var(--cfa-navy);background:var(--cfa-white);}
+.su-pick .pos-option-list{max-height:min(52vh,420px);border:1px solid var(--border);border-radius:14px;background:var(--cfa-white);}
+.pos-option{width:100%;box-sizing:border-box;min-height:52px;padding:10px 14px;border:0;border-bottom:1px solid var(--border);background:transparent;font-family:var(--font-ui);font-size:15px;color:var(--text-primary);display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;cursor:pointer;}
+.pos-option:hover{background:var(--cfa-light);} .pos-option:active{background:var(--cfa-soft);}
+.pos-option.is-current{background:var(--cfa-light);}
+.pos-option-who{display:inline-flex;align-items:center;min-width:0;}
+.pos-option-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pos-option .pos-option-tag{font-size:12px;font-weight:500;color:var(--text-tertiary);white-space:nowrap;}
+.pos-option.unassign-option{color:var(--cfa-dark-red);font-style:normal;font-size:14px;justify-content:center;}
+.pos-option-empty{font-family:var(--font-ui);}
+.su-pick-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;min-height:32px;}
+.su-pick-left{font-family:var(--font-ui);font-size:12px;color:var(--text-tertiary);}
+.su-pick-foot .su-btn-line{border-color:var(--border);border-radius:999px;font-family:var(--font-ui);min-height:40px;}
+/* Know the Numbers on the daypart card */
+.su-dp-nums{display:flex;flex-wrap:wrap;gap:4px 14px;padding:0 14px 8px;margin-top:-4px;font-family:var(--font-ui);font-size:12.5px;color:var(--text-secondary);cursor:pointer;}
+.su-dp-nums b{font-family:var(--font-display);font-size:14px;color:var(--text-primary);font-weight:600;}
+.su-dp-num.is-event{color:#7A4C00;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.su-col-c.is-open .su-dp-nums{color:inherit;}
+.su-dp.is-open .su-dp-nums{background:var(--sky);padding-top:0;margin-top:-6px;padding-bottom:10px;}
+.su-col-c.is-open .su-dp-nums,.su-col-c.is-open .su-dp-nums b{color:#F6F1E8;} .su-col-c.is-open .su-dp-num.is-event{color:#FFD9A0;}
+
 /* ===== Home: the greeting and quote on a navy card, calm cards below ===== */
 .home-welcome{background:var(--cfa-navy);color:#F6F1E8;border-radius:20px;padding:24px 22px 22px;margin-bottom:22px;box-shadow:none;}
 .home-welcome::before{top:-30px;right:-30px;width:160px;height:160px;background:transparent;border:18px solid rgba(246,241,232,0.06);box-sizing:border-box;}

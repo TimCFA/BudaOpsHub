@@ -232,12 +232,25 @@ function renderAllDayparts(){
 let currentPosKey = '';
 let currentPosName = '';
 
-window.openPosModal = function(key, pos, daypart){
+// The picker: one bottom sheet for a spot. Names come best fit first for
+// the spot's position (PEA tier dot and average beside each), with the
+// people still free above anyone already working elsewhere. Picking an
+// open spot moves straight on to the next open one, so a daypart fills in
+// one pass; "Change person" on a filled spot just picks and closes.
+let suPickNext = [];        // open spots after this one, in priority order
+let suPickWasOpen = false;  // the spot was empty when the picker opened
+window.openPosModal = function(key, pos, daypart, note){
   currentPosKey = key;
   currentPosName = pos;
-  document.getElementById('posModalTitle').textContent = daypart;
+  const slotRank = (setupsSlotsFor(daypart).indexOf(pos) + 1) || null;
+  document.getElementById('posModalTitle').textContent = `${suShortDaypart(daypart)}${slotRank ? ` · #${slotRank}` : ''}`;
   document.getElementById('posModalPos').textContent = pos;
-  document.getElementById('posModalSearch').value = '';
+  const search = document.getElementById('posModalSearch');
+  search.value = '';
+  const noteEl = document.getElementById('posModalNote');
+  noteEl.textContent = note || '';
+  noteEl.hidden = !note;
+  suPickWasOpen = !posAssignments[key];
   
   const dayName = document.getElementById('daySelect').value;
   const roster = currentPosSection === 'foh' ? fohRoster : bohRoster;
@@ -274,38 +287,63 @@ window.openPosModal = function(key, pos, daypart){
   if(currentlyAssigned && !eligible.some(p=>p.name === currentlyAssigned)){
     eligible = [{name: currentlyAssigned, offShift: true}, ...eligible];
   }
-  
+
+  // Fit for this spot: the PEA tier on the spot's position(s), best first;
+  // unrated after rated; an off-shift current holder stays on top.
+  const positions = peaPositionsForSlot(currentPosSection, pos);
+  const strength = peaStrengthByPerson();
+  const peaNames = Object.keys(strength);
+  const order = {crushing: 0, rise: 1, notyet: 2, unrated: 3, na: 4};
+  eligible = eligible.map(p => {
+    const peaName = peaNames.length ? peaMatchName(p.name, peaNames) : null;
+    const person = peaName ? strength[peaName] : null;
+    const cell = person ? positions.map(x => person.positions[x]).filter(Boolean).sort((a, b) => b.avg - a.avg)[0] || null : null;
+    const tier = !positions.length ? 'na' : cell ? cell.tier.key : 'unrated';
+    return {...p, tier, avg: cell ? cell.avg : null, tierLabel: cell ? cell.tier.label : (positions.length ? 'Not rated here' : ''), current: p.name === currentlyAssigned};
+  }).sort((a, b) => (b.offShift ? 1 : 0) - (a.offShift ? 1 : 0) || order[a.tier] - order[b.tier] || (b.avg || 0) - (a.avg || 0) || a.name.localeCompare(b.name));
+
+  // The open spots after this one, for "next".
+  const dpIndex2 = dayparts.findIndex(d => d.name === daypart);
+  const dpObj = dayparts[dpIndex2];
+  let m = null;
+  try{ m = dpObj ? suDaypartModel(currentPosSection, dayName, dpObj, dpIndex2) : null; }catch(e){ m = null; }
+  const openSlots = m ? m.tiles.filter(t => t.needed && t.slot !== pos).map(t => t.slot) : [];
+  const after = openSlots.filter(s => setupsSlotsFor(daypart).indexOf(s) > setupsSlotsFor(daypart).indexOf(pos));
+  suPickNext = after.length ? after : openSlots;
+  const left = document.getElementById('posModalLeft');
+  const nextBtn = document.getElementById('posModalNext');
+  const stillOpen = openSlots.length + (suPickWasOpen ? 1 : 0);
+  left.textContent = stillOpen ? `${stillOpen} open spot${stillOpen === 1 ? '' : 's'} in ${suShortDaypart(daypart)}` : `Every spot in ${suShortDaypart(daypart)} is filled`;
+  nextBtn.hidden = !suPickNext.length;
+  nextBtn.dataset.daypart = daypart;
+
   window.currentPosModalEligible = eligible;
   renderPosOptionList(eligible);
-  
-  document.getElementById('posModal').classList.add('active');
+  const modal = document.getElementById('posModal');
+  modal.classList.add('active');
+  modal.querySelector('.pos-option-list').scrollTop = 0;
+  if(window.matchMedia && window.matchMedia('(pointer: fine)').matches) search.focus();
 };
 
 function renderPosOptionList(eligible, filterText){
   const container = document.getElementById('posModalOptions');
-  const filtered = filterText
-    ? eligible.filter(p => p.name.toLowerCase().includes(filterText.toLowerCase()))
-    : eligible;
-  
-  let html = `
-    <div class="pos-option unassign-option" onclick="commitPosAssignment('')">
-      <span>Unassign</span>
-    </div>
-  `;
-  
-  if(filtered.length === 0 && filterText){
-    html += '<div class="pos-option-empty">No matches</div>';
+  const q = (filterText || '').trim().toLowerCase();
+  const filtered = q ? eligible.filter(p => p.name.toLowerCase().includes(q)) : eligible;
+  const hasPea = peaRatings.rows.length > 0;
+  let html = '';
+  if(!filtered.length){
+    html += `<div class="pos-option-empty">${q ? 'No one by that name on this shift' : 'Nobody on the roster is free for this daypart'}</div>`;
   } else {
-    html += filtered.map(p=>{
-      return `
-        <div class="pos-option" onclick="commitPosAssignment(${jsArg(p.name)})">
-          <span>${escapeHtml(p.name)}</span>
-          ${p.offShift ? '<span class="pos-option-tag">off shift</span>' : ''}
-        </div>
-      `;
+    html += filtered.map(p => {
+      const dot = hasPea && p.tier !== 'na' ? `<span class="su-tier-dot is-${p.tier}" aria-hidden="true"></span>` : '';
+      const sub = p.offShift ? 'off shift now' : hasPea && p.tierLabel ? `${p.tierLabel}${p.avg != null ? ` · ${p.avg.toFixed(2)}` : ''}` : '';
+      return `<button type="button" class="pos-option ${p.current ? 'is-current' : ''}" data-pos-pick="${escapeHtml(p.name)}">
+          <span class="pos-option-who">${dot}<span class="pos-option-name">${escapeHtml(p.name)}</span></span>
+          ${sub ? `<span class="pos-option-tag">${escapeHtml(sub)}${p.current ? ' · here now' : ''}</span>` : p.current ? '<span class="pos-option-tag">here now</span>' : ''}
+        </button>`;
     }).join('');
   }
-  
+  if(posAssignments[currentPosKey]) html += `<button type="button" class="pos-option unassign-option" data-pos-pick="">Clear this spot</button>`;
   container.innerHTML = html;
 }
 
@@ -339,14 +377,32 @@ window.commitPosAssignment = function(name){
     delete posAssignments[currentPosKey];
     delete posVacancyFlags[currentPosKey];
   }
-  const keyDate = currentPosKey.split('||')[1];
+  const [, keyDate, keyDp, keySlot] = currentPosKey.split('||');
   touchLastUpdated(keyDate);
-  document.getElementById('posModal').classList.remove('active');
+  const modal = document.getElementById('posModal');
+  const next = name && suPickWasOpen ? suPickNext.find(s => !posAssignments[[currentPosSection, keyDate, keyDp, s].join('||')]) : null;
+  if(next){
+    // Filling a daypart: straight on to the next open spot.
+    openPosModal([currentPosSection, keyDate, keyDp, next].join('||'), next, keyDp, `${name.split(/\s+/)[0]} → ${keySlot}`);
+  } else {
+    modal.classList.remove('active');
+    showToast(name ? `${name.split(/\s+/)[0]} → ${keySlot}` : `${keySlot} cleared`);
+  }
   renderAllDayparts();
   updateSelectedDayInfo('daySelect', 'daySelectedInfo');
-  showToast('✓ Assignment Saved!');
   saveState();
 };
+
+document.getElementById('posModalOptions').addEventListener('click', e => {
+  const opt = e.target.closest('[data-pos-pick]');
+  if(opt) commitPosAssignment(opt.dataset.posPick);
+});
+document.getElementById('posModalNext').addEventListener('click', () => {
+  const [section, date, dpName] = currentPosKey.split('||');
+  const next = suPickNext.find(s => !posAssignments[[section, date, dpName, s].join('||')]);
+  if(next) openPosModal([section, date, dpName, next].join('||'), next, dpName);
+  else document.getElementById('posModal').classList.remove('active');
+});
 
 document.getElementById('posModalSearch').addEventListener('input', (e)=>{
   renderPosOptionList(window.currentPosModalEligible || [], e.target.value);

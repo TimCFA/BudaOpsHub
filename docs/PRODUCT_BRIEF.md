@@ -40,6 +40,12 @@ during service. Clear at a glance. Never a moment of "did that save?"
 A landing page with the day's key info (content set in Manage → Home Page).
 
 ### Set Ups (positioning) — the most-used, most rule-heavy area
+- Every daypart card shows its Know the Numbers line (projected sales,
+  $/labor hour goal, special event) in both the Set up and Coach views.
+- The person picker is a bottom sheet: names best fit first for the spot's
+  position with the PEA tier dot and average, the current holder marked,
+  a Clear option, and "Next open spot"; picking an open spot moves straight
+  on to the next open one so a daypart fills in one pass.
 Assign team members to positions for each daypart, FOH and BOH.
 
 - **Dayparts** — FOH: Early Breakfast 6–8, Breakfast 8–11, Lunch 11–2,

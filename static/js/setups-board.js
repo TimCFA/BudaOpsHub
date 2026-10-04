@@ -228,6 +228,18 @@ function suFillAvailable(){
   return !(typeof launchIsOn === 'function' && launchIsOn());
 }
 
+// Know the Numbers for the daypart, as a short line on the card: projected
+// sales, the productivity goal, and any special event. Nothing when none
+// are entered.
+function suNumbersLineHtml(date, dp){
+  const n = getNumbersForDaypart(date, dp);
+  if(!n) return '';
+  const money = v => { const x = parseMoney(v); return x == null ? '' : x >= 10000 ? `$${(x / 1000).toFixed(1)}k` : `$${Math.round(x).toLocaleString('en-US')}`; };
+  const sales = money(n.projectedSales), goal = money(n.productivityGoal), ev = String(n.specialEvents || '').trim();
+  if(!sales && !goal && !ev) return '';
+  return `<div class="su-dp-nums" data-su-dp-toggle="${escapeHtml(dp.name)}">${sales ? `<span class="su-dp-num"><b>${escapeHtml(sales)}</b> projected</span>` : ''}${goal ? `<span class="su-dp-num"><b>${escapeHtml(goal)}</b>/labor hr</span>` : ''}${ev ? `<span class="su-dp-num is-event" title="${escapeHtml(ev)}">${escapeHtml(ev)}</span>` : ''}</div>`;
+}
+
 function suDaypartCardsHtml(section, date, current, openHtml, m){
   return `<div class="su-dp-list">${suDaypartsFor(section).map((dp, i)=>{
     const open = dp.name === current && !suDaypartClosed[section];
@@ -248,6 +260,7 @@ function suDaypartCardsHtml(section, date, current, openHtml, m){
           <span class="su-dp-fill">${suDaypartFillText(section, date, dp, i)}</span>
           <span class="su-dp-chev" aria-hidden="true">▾</span>
         </button>
+        ${suNumbersLineHtml(date, dp)}
         ${leadBtn || fillBtn ? `<div class="su-dp-sub" data-su-dp-toggle="${escapeHtml(dp.name)}">${leadBtn}${fillBtn}</div>` : ''}
       </div>
       ${open ? `<div class="su-dp-body">${openHtml}</div>` : ''}
