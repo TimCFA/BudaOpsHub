@@ -150,6 +150,7 @@ body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="z
 #positionsView .standup-card h3{font-family:var(--font-display);font-size:19px;font-weight:600;text-transform:none;letter-spacing:0;}
 .roster-leader-badge{background:var(--cfa-navy);}
 .btn-add-tm{border-radius:999px;font-family:var(--font-ui);}
+#rosterPanel{overflow-x:hidden;}   /* the list scrolls up and down only */
 .su-roster-empty{text-align:center;color:var(--text-secondary);font-family:var(--font-ui);font-size:13px;padding:20px 8px;line-height:1.5;}
 .su-roster-row{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"main remove" "break break";gap:8px 10px;align-items:start;padding:12px 0 12px;border-top:1px solid var(--border);font-family:var(--font-ui);}
 .su-roster-row:first-child{border-top:0;padding-top:4px;}
@@ -159,7 +160,7 @@ body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="z
 .su-roster-tag{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--cfa-soft);color:var(--text-secondary);font-size:10px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;}
 .su-roster-time{margin-top:3px;font-size:13px;color:var(--text-secondary);font-variant-numeric:tabular-nums;}
 .su-roster-time .roster-break-plan{color:var(--text-secondary);font-weight:600;}
-.su-roster-remove{grid-area:remove;width:36px;height:36px;margin:-6px -6px 0 0;border:0;border-radius:999px;background:transparent;color:var(--text-tertiary);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.su-roster-remove{grid-area:remove;width:36px;height:36px;margin:-6px 0 0;border:0;border-radius:999px;background:transparent;color:var(--text-tertiary);display:flex;align-items:center;justify-content:center;cursor:pointer;}
 .su-roster-remove:hover{background:var(--cfa-soft);color:var(--cfa-red);}
 .su-roster-break{grid-area:break;min-width:0;}
 .su-break-start,.su-break-complete{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 16px 0 14px;border-radius:999px;font-family:var(--font-ui);font-size:13px;font-weight:700;cursor:pointer;}
