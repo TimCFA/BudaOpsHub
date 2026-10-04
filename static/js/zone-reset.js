@@ -426,7 +426,6 @@ const bohRoster = {
 let currentPosSection = 'foh';
 let breakCountdowns = {};
 let completedBreaks = {};
-let activeCountdownTimers = {};
 let zoneChecklistState = {};
 let zoneChecklistHistory = {};
 let numbersData = {};

@@ -213,7 +213,6 @@
   .num-chip.num-event{background:#FFF3E0;}
   .num-chip.num-event .num-value{color:#B85C00;font-weight:600;}
 
-  .roster-item{background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px;font-size:12px;}
   .toggle-btn:hover{border-color:var(--cfa-red);}
 
   .view{display:none;}
@@ -436,8 +435,6 @@
   .scoreboard-day.is-today .scoreboard-day-label{font-size:10px;font-weight:800;color:var(--text-primary);}
   .scoreboard-day.is-today .scoreboard-day-pct{font-size:10px;font-weight:800;color:var(--text-primary);}
   .scoreboard-day.is-today .scoreboard-day-bar-wrap{outline:2px solid var(--text-primary);outline-offset:1px;}
-  .break-complete-badge{display:inline-block;font-size:10px;font-weight:700;color:var(--success);background:#E8F5E9;padding:2px 7px;border-radius:8px;margin-left:6px;vertical-align:middle;border:none;cursor:pointer;font-family:'Inter',sans-serif;}
-  .break-complete-badge:hover{background:#C8E6C9;}
   .wri-week-btn{background:none;border:none;padding:7px 16px;border-radius:16px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;transition:all .15s ease;user-select:none;}
   .wri-week-btn.active{background:var(--cfa-white);color:var(--cfa-red);box-shadow:0 1px 3px rgba(0,0,0,0.08);}
   .setups-week-nav{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
@@ -445,7 +442,6 @@
   .rolling-arrow-expanded:hover{background:var(--cfa-red);color:var(--cfa-white);}
   .su-week-toggle-btn{background:none;border:none;padding:7px 16px;border-radius:16px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;transition:all .15s ease;user-select:none;}
   .su-week-toggle-btn.active{background:var(--cfa-white);color:var(--cfa-red);box-shadow:0 1px 3px rgba(0,0,0,0.08);}
-  .roster-custom-badge{display:inline-block;font-size:10px;font-weight:700;color:#1565C0;background:#E3F2FD;padding:2px 7px;border-radius:8px;margin-left:6px;vertical-align:middle;}
   .pos-option-list{max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);}
   .pos-option{padding:12px 14px;font-family:'Inter',sans-serif;font-size:14px;color:var(--text-primary);cursor:pointer;transition:background .12s ease;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
   .pos-option:last-child{border-bottom:none;}
@@ -458,10 +454,6 @@
   .pos-option .pos-option-tag{font-size:10px;color:var(--text-tertiary);font-weight:600;}
   .pos-option.selected .pos-option-tag{color:rgba(255,255,255,0.8);}
   .pos-option-empty{padding:20px;text-align:center;color:var(--text-tertiary);font-size:13px;}
-  .btn-complete-break{width:100%;margin-top:6px;background:var(--cfa-white);color:var(--success);border:1.5px solid var(--success);padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;transition:all .15s ease;}
-  .btn-complete-break:hover{background:var(--success);color:var(--cfa-white);}
-  .roster-remove{position:absolute;top:10px;right:10px;background:transparent;border:none;color:var(--text-tertiary);font-size:14px;cursor:pointer;padding:2px 6px;line-height:1;}
-  .roster-remove:hover{color:var(--cfa-red);}
   .btn-ghost:hover{color:var(--text-primary);border-color:var(--text-primary);}
   .btn-secondary{background:var(--cfa-white);color:var(--text-primary);border:1px solid var(--border);}
   .btn-secondary:hover{border-color:var(--cfa-red);color:var(--cfa-red);}
@@ -504,13 +496,6 @@
   .who-chip:hover{border-color:var(--cfa-red);color:var(--cfa-red);}
   .who-chip.sel{background:var(--cfa-red);color:var(--cfa-white);border-color:var(--cfa-red);font-weight:600;}
 
-  .roster-item{background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px;font-size:12px;position:relative;}
-  .roster-name{font-weight:600;color:var(--text-primary);margin-bottom:4px;}
-  .roster-time{font-size:11px;color:var(--text-secondary);margin-bottom:8px;}
-  .break-btn{background:var(--cfa-white);border:1px solid var(--border);padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;transition:all .15s ease;width:100%;}
-  .break-btn:hover{border-color:var(--cfa-red);color:var(--cfa-red);}
-  .break-btn.onbreak{background:var(--cfa-red);color:white;border-color:var(--cfa-red);}
-  .countdown{background:var(--cfa-red);color:white;padding:6px 10px;border-radius:6px;font-size:11px;font-weight:600;text-align:center;margin-top:6px;font-family:'Outfit';}
 
 
   .section-intro{background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;font-size:12.5px;color:var(--text-secondary);line-height:1.6;}
@@ -1972,11 +1957,7 @@ body.launch-mode .su-sheet-coachlink,
 body.launch-mode .su-strength,
 body.launch-mode .su-pea-todo,
 body.launch-mode .su-legend{display:none !important;}
-/* Scheduled breaks wait for the full site too (to come back later). */
-body.launch-mode .break-btn,
-body.launch-mode .btn-complete-break,
-body.launch-mode .break-complete-badge,
-body.launch-mode .countdown,
+/* The planned break times wait for the full site (still being tuned); the break timer shows. */
 body.launch-mode .roster-break-plan,
 body.launch-mode .su-row-note.is-break{display:none !important;}
 body.launch-mode .tabs{overflow-x:visible;}

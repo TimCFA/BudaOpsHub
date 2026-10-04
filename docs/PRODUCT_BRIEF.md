@@ -208,6 +208,10 @@ Waste Tracking (limit, products), PEA Ratings, Backup & Data.
   more than ~15 min for someone back if breaks must pause.
 - Keep breaks out of the busiest hours (from the productivity upload).
 - Don't send two Team Leads off together.
+- The roster card on Set Ups carries each person's **break timer** (Start
+  break → 30-minute countdown with the time they're back → Break done, undo).
+  The simplified site (launch mode) has the timer too; the **planned break
+  times stay off it** until Tim is ready to roll them out to the team.
 
 ### Recurring FOH tasks (Tim confirmed these times)
 8:00 restroom check · 9:30 lemonades for lunch · 10:00 restroom full reset ·
