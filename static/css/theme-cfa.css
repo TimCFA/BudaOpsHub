@@ -68,6 +68,7 @@ button,input,select,textarea{font-family:inherit;}
 
 /* Week and day */
 .setups-week-nav{margin-bottom:10px;}
+.setups-week-nav .week-toggle{margin-bottom:0;}
 .week-toggle{background:var(--cfa-soft);border-radius:999px;}
 .su-week-toggle-btn,.week-toggle-btn{font-family:var(--font-ui);font-size:13px;text-transform:none;letter-spacing:0;color:var(--text-secondary);border-radius:999px;}
 .su-week-toggle-btn.active,.week-toggle-btn.active{background:var(--cfa-white);color:var(--cfa-dark-red);}

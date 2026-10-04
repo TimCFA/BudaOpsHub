@@ -39,9 +39,19 @@ during service. Clear at a glance. Never a moment of "did that save?"
 ### Home
 A landing page with the day's key info (content set in Manage → Home Page).
 
+### Simplified site (launch mode)
+While the team is getting started, a device without the manager PIN sees
+only Home, Set Ups, Waste and Lists (Zone Reset & Walkthroughs, Food Safety
+Walkthrough, Daily Safe Count, Prep Board). Set Ups opens in the plain set-up
+sheet with the roster's break timer; Coach and the planned break times wait
+for the full site. Managers turn launch mode off for everyone in Manage.
+
 ### Set Ups (positioning) — the most-used, most rule-heavy area
-- Every daypart card shows its Know the Numbers line (projected sales,
-  $/labor hour goal, special event) in both the Set up and Coach views.
+- Daypart cards show their Know the Numbers line (projected sales, $/labor
+  hour goal, special event) in both the Set up and Coach views. Numbers are
+  kept for the **four major dayparts only** (Breakfast 6–11, Lunch 11–2,
+  Afternoon 2–5, Dinner 5–10); the Early Breakfast, Transition and Close
+  cards show none, and BOH's Mid reads Lunch.
 - The person picker is a bottom sheet: names best fit first for the spot's
   position with the PEA tier dot and average, the current holder marked,
   a Clear option, and "Next open spot"; picking an open spot moves straight
@@ -129,9 +139,9 @@ labor % ÷ average wage. Patterns (KPIs, weekly trend, weekday averages),
 Accuracy (backtest of the model on days already lived), Channels (sales by
 destination), Data (what's loaded, add a file, remove all). Settings and
 adjustments are shared across devices; adjustments for past days fall away.
-**Send to Know the Numbers** previews each open day split into FOH dayparts
-(by the weekday's hourly sales shape from the productivity-by-hour report,
-evenly by hour without one; Transition is the last hour of Lunch) with the
+**Send to Know the Numbers** previews each open day split into the four
+Know the Numbers dayparts (by the weekday's hourly sales shape from the
+productivity-by-hour report, evenly by hour without one) with the
 $/labor-hour target as the productivity goal, then writes projected sales
 and goals — special events are never touched. Manage → Know the Numbers has
 a "Fill from the Forecast" button that opens that preview. Every day sent is

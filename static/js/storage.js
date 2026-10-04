@@ -374,6 +374,7 @@ function applyStateData(data){
   zoneChecklistState = data.zoneChecklistState || {};
   zoneChecklistHistory = data.zoneChecklistHistory || {};
   numbersData = data.numbersData || {};
+  if(typeof knNormalizeAll === 'function') knNormalizeAll();   // the four dayparts (know-numbers.js)
   lastUpdated = data.lastUpdated || {};
   trainerTrainees = data.trainerTrainees || [];
   trainerProgress = data.trainerProgress || {};

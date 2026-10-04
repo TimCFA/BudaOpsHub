@@ -693,12 +693,12 @@ function fcWigFromHistory(hist, nowIso){
 // labor hour) per FOH daypart. A forecast day is split into dayparts by the
 // weekday's hourly sales shape from the productivity-by-hour report (break
 // planner's profiles); without one, evenly by hour. Transition (1:00–2:00)
-// is the last hour of Lunch, so its figure is also inside Lunch's.
 
-// fohDayparts → [{name, start, end}] in minutes from midnight. `time` is the
-// 24-hour start; the end comes from the name ("(11:00-2:00)" → 2:00 PM).
+// numbersDayparts (the four Know the Numbers dayparts) → [{name, start,
+// end}] in minutes from midnight. `time` is the 24-hour start; the end
+// comes from the name ("(11:00-2:00)" → 2:00 PM).
 function fcDaypartWindows(dayparts){
-  return (dayparts || fohDayparts).map(dp => {
+  return (dayparts || (typeof numbersDayparts !== 'undefined' ? numbersDayparts : fohDayparts)).map(dp => {
     const [sh, sm] = String(dp.time || '0:00').split(':').map(Number);
     const start = sh * 60 + (sm || 0);
     const m = String(dp.name).match(/\(\d{1,2}:\d{2}\s*-\s*(\d{1,2}):(\d{2})\)/);
@@ -776,7 +776,7 @@ function fcNumbersPlan(){
 async function fcApplyNumbers(plan){
   let cells = 0;
   plan.forEach(p => {
-    const day = numbersData[p.date] = numbersData[p.date] || {};
+    const day = knNormalizeDay(numbersData[p.date] = numbersData[p.date] || {});
     Object.entries(p.split).forEach(([dp, v]) => {
       const entry = day[dp] = day[dp] || {};
       entry.projectedSales = formatAsCurrency(Math.round(v)); cells++;
@@ -1091,7 +1091,7 @@ function fcNumbersPreviewHtml(){
   const rows = windows.map(w => `<tr><td>${fcEsc(w.name)}</td>${plan.map(p => `<td class="fc-num">${fcMoney(p.split[w.name])}</td>`).join('')}</tr>`).join('');
   return `<div class="standup-card fc-numbers">
     <h3>Know the Numbers <span class="sub">what each daypart will show</span></h3>
-    <p class="fc-muted">${shapeNote} Projected sales and goals already there for these days are replaced; special events stay. Transition is the last hour of Lunch, so its figure is also inside Lunch's.</p>
+    <p class="fc-muted">${shapeNote} Projected sales and goals already there for these days are replaced; special events stay.</p>
     <div class="fc-table-wrap"><table class="fc-table fc-table-sm fc-table-numbers">
       <thead><tr><th>Daypart</th>${dayHead}</tr></thead>
       <tbody>${rows}</tbody>

@@ -4,24 +4,25 @@
 // Numbers for now. Either layout works:
 //   long — one row per day and daypart: Date | Daypart | Projected Sales | Productivity Goal
 //   wide — one row per day: Date | Lunch Sales | Lunch Productivity | Dinner Sales | …
+// Only the four major dayparts (Breakfast, Lunch, Afternoon, Dinner) take
+// numbers (know-numbers.js).
 // A blank date cell repeats the one above (merged cells in Excel). Days and
 // dayparts already typed in are updated; special events are never touched.
 
 const KN_TEMPLATE_HEADERS = ['Date', 'Daypart', 'Projected Sales', 'Productivity Goal'];
 
-// A daypart name from a cell ("Lunch", "LUNCH 11-2", "Early Bkfst") → the
-// FOH daypart it means, or null.
+// A daypart name from a cell ("Lunch", "LUNCH 11-2", "Bkfst") → the one of
+// the four Know the Numbers dayparts it means, or null. Early Breakfast,
+// Transition and Close rows are skipped: those windows take no numbers.
 function knDaypartFor(text){
   const t = String(text || '').toLowerCase().replace(/[^a-z0-9: ]/g, ' ');
   if(!t.trim()) return null;
-  const find = re => (fohDayparts.find(dp => re.test(dp.name.toLowerCase())) || {}).name || null;
-  if(/early/.test(t)) return find(/^early breakfast/);
+  if(/early|transition|clos|late ?night/.test(t)) return null;
+  const find = re => (numbersDayparts.find(dp => re.test(dp.name.toLowerCase())) || {}).name || null;
   if(/b(rea)?kfst|breakfast/.test(t)) return find(/^breakfast/);
   if(/lunch/.test(t)) return find(/^lunch/);
-  if(/transition/.test(t)) return find(/^transition/);
   if(/afternoon|mid ?day|snack/.test(t)) return find(/^afternoon/);
   if(/dinner/.test(t)) return find(/^dinner/);
-  if(/clos|late ?night/.test(t)) return find(/^close/);
   return null;
 }
 
@@ -108,7 +109,7 @@ function knImportFile(file){
       const dates = Object.keys(parsed.byDate).sort();
       let cells = 0;
       dates.forEach(iso=>{
-        const day = numbersData[iso] = numbersData[iso] || {};
+        const day = knNormalizeDay(numbersData[iso] = numbersData[iso] || {});
         Object.entries(parsed.byDate[iso]).forEach(([dp, v])=>{
           const entry = day[dp] = day[dp] || {};
           if(v.projectedSales !== undefined){ entry.projectedSales = formatAsCurrency(v.projectedSales); cells++; }
@@ -119,13 +120,13 @@ function knImportFile(file){
       duRecord('numbers', {file: file.name, summary: `${range} · ${dates.length} day${dates.length === 1 ? '' : 's'}`, periodEnd: dates[dates.length - 1] || null});
       await saveState();
       if(document.getElementById('numbersContent')) renderNumbersContent();
-      const skipped = parsed.unknown.length ? ` · skipped rows for “${parsed.unknown.slice(0, 3).join('”, “')}” (not a daypart)` : '';
+      const skipped = parsed.unknown.length ? ` · skipped rows for “${parsed.unknown.slice(0, 3).join('”, “')}” (not one of the four dayparts)` : '';
       resolve(`${range} · ${dates.length} day${dates.length === 1 ? '' : 's'}, ${cells} numbers → Know the Numbers${skipped}`);
     });
   });
 }
 
-// A CSV with the next two weeks of FOH dayparts, ready to fill in.
+// A CSV with the next two weeks of the four dayparts, ready to fill in.
 function knDownloadTemplate(){
   const lines = [KN_TEMPLATE_HEADERS.join(',')];
   const start = new Date(today + 'T00:00:00');
@@ -133,7 +134,7 @@ function knDownloadTemplate(){
     const d = new Date(start);
     d.setDate(d.getDate() + i);
     if(d.getDay() === 0) continue;   // closed Sundays
-    fohDayparts.filter(dp => !/^transition/i.test(dp.name)).forEach(dp => lines.push(`${toLocalISODate(d)},${suShortDaypart(dp.name)},,`));
+    numbersDayparts.forEach(dp => lines.push(`${toLocalISODate(d)},${suShortDaypart(dp.name)},,`));
   }
   const blob = new Blob([lines.join('\n') + '\n'], {type: 'text/csv'});
   const a = document.createElement('a');

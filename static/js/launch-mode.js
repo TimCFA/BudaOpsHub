@@ -1,7 +1,7 @@
 // ===== LAUNCH MODE =====
-// While the team is getting started, the site shows only Home and the three
+// While the team is getting started, the site shows only Home and the
 // essentials: Set Ups, Waste, and Lists (Zone Reset & Walkthroughs, Food
-// Safety Walkthrough, Daily Safe Count). Everything else is still there:
+// Safety Walkthrough, Daily Safe Count, Prep Board). Everything else is still there:
 // a device signed in with the manager PIN (Manage tab) sees every tab again,
 // and a manager can turn launch mode off for everyone in Manage.
 //
@@ -13,7 +13,7 @@
 // (app.py PRIVATE_SECTIONS), so signing in fetches it right away, and
 // locking reloads the page to clear it from the device.
 
-const LAUNCH_VIEWS = ['home', 'positions', 'wastelog', 'zonereset', 'foodsafety', 'safecount', 'manage'];
+const LAUNCH_VIEWS = ['home', 'positions', 'wastelog', 'zonereset', 'foodsafety', 'safecount', 'prepboard', 'manage'];
 let launchManager = false;
 
 function launchIsOn(){ return launchMode !== false && !launchManager; }
@@ -61,7 +61,7 @@ document.getElementById('launchModeToggle').addEventListener('change', async e=>
   launchMode = e.target.checked ? undefined : false;
   await saveState();
   launchApply();
-  showToast(e.target.checked ? 'Launch mode on — the team sees Home, Set Ups, Waste and Lists' : 'Launch mode off — everyone sees every tab');
+  showToast(e.target.checked ? 'Launch mode on — the team sees Home, Set Ups, Waste and Lists (with the Prep Board)' : 'Launch mode off — everyone sees every tab');
 });
 
 // Before the saved data arrives, make sure team members start on a page
