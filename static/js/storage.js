@@ -452,12 +452,25 @@ function stateStartSync(){
   document.addEventListener('click', () => setTimeout(() => { if(stateRerenderPending) stateRerender(); }, 300));
 }
 
+// A dialog that's actually showing. The person picker's sheet is in the
+// page all the time (hidden until a spot is tapped), so an attribute alone
+// doesn't count — it has to be on screen.
+function stateDialogOpen(){
+  return [...document.querySelectorAll('.overlay.active, [aria-modal="true"]')].some(el => el.offsetParent !== null || (el.classList.contains('overlay') && el.classList.contains('active')));
+}
+
 // Someone typing, or a pop-up open: redrawing now would wipe what they're
-// doing, so it waits.
+// doing, so it waits. A box that merely has focus with nothing typed (the
+// initials box after a page load, a field a tablet was left on) doesn't
+// hold the page — that's how Set Ups stayed empty until the next tap.
 function stateUserBusy(){
+  if(stateDialogOpen()) return true;
   const el = document.activeElement;
-  if(el && el.matches && el.matches('textarea, select, [contenteditable="true"], input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="file"])')) return true;
-  return !!document.querySelector('.overlay.active, [aria-modal="true"]');
+  if(el && el.matches && el.matches('textarea, [contenteditable="true"], input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="file"])')){
+    if(el.isContentEditable) return true;
+    return el.value !== el.defaultValue;
+  }
+  return false;
 }
 
 // ===== NEW DAY =====
@@ -475,7 +488,7 @@ function stateEverythingSaved(){
 }
 
 function stateMidEdit(){
-  if(document.querySelector('.overlay.active, [aria-modal="true"]')) return true;
+  if(stateDialogOpen()) return true;
   // A box that's focused but untouched (a tablet left sitting on an empty
   // field overnight) doesn't count; one with something typed in it does.
   const el = document.activeElement;
