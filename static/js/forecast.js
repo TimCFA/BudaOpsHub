@@ -36,6 +36,8 @@ const FC_YEAR_DAYS = 364;                      // the same weekday a year ago
 const FC_YOY_WEIGHTS = [0, 0.25, 0.5, 0.75, 1];  // share of the baseline that comes from last year
 const FC_YOY_MIN_DAYS = 6;                     // days with both years before the run-rate is trusted
 const FC_AUTO_TEST_DAYS = 28;                  // the backtest that picks the blend
+const FC_OUTLIER_PCT = 30;                     // a day this far from its weekday's median is left out
+const FC_OUTLIER_MIN_DAYS = 4;                 // open days of a weekday before any can be called unusual
 const FC_MAX_TREND_PCT = 5;      // % per week the projection will follow, at most
 const FC_FULL_WEEK_DAYS = 5;     // a week with fewer days of data is left out of weekly trends
 const FC_CLOSED_SPAN_DAYS = 21;  // a weekday never seen across this many days is taken as closed
@@ -314,7 +316,7 @@ function fcHistoryRows(hist, weeks, cutoff){
 function fcDowStats(rows){
   const b = Array.from({length: 7}, () => ({sales: [], trans: [], labor: []}));
   rows.forEach(r => {
-    if(!(r.sales > 0)) return;
+    if(!(r.sales > 0) || r.unusual) return;
     b[r.dow].sales.push(r.sales);
     if(r.transactions != null) b[r.dow].trans.push(r.transactions);
     if(r.laborHours != null) b[r.dow].labor.push(r.laborHours);
@@ -333,7 +335,7 @@ function fcDowStats(rows){
 function fcWeeklySeries(rows, pick){
   const byWeek = {};
   rows.forEach(r => {
-    const v = pick ? pick(r) : r.sales;
+    const v = pick ? pick(r) : (r.salesForTrend != null ? r.salesForTrend : r.sales);
     if(v == null || isNaN(v)) return;
     const w = fcWeekOf(r.date);
     const e = byWeek[w] = byWeek[w] || {week: w, sales: 0, days: 0};
@@ -354,8 +356,56 @@ function fcLinearTrend(series){
 }
 
 // Everything the forecast needs from a window of history.
-function fcAnalysis(hist, weeks, cutoff){
+// ----- Unusual days -----
+// A day that isn't a normal day shouldn't shape the forecast of normal
+// days: one with a special event typed into Know the Numbers, or one far
+// from its weekday's median (a storm, a one-off catering day). They're left
+// out of the weekday averages and the run-rate, and the weekday median
+// stands in for them in the weekly trend. Patterns lists them.
+
+function fcMedian(arr){
+  if(!arr.length) return null;
+  const a = arr.slice().sort((x, y) => x - y);
+  const m = a.length >> 1;
+  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+}
+
+// The special event(s) typed into Know the Numbers for a day, from the
+// current fortnight or the year of finished days it keeps; null if none.
+function fcEventFor(iso){
+  const texts = [];
+  const cur = typeof numbersData !== 'undefined' && numbersData ? numbersData[iso] : null;
+  if(cur && typeof cur === 'object') Object.values(cur).forEach(e => { const t = e && String(e.specialEvents || '').trim(); if(t) texts.push(t); });
+  const past = typeof numbersHistory !== 'undefined' && numbersHistory ? numbersHistory[iso] : null;
+  if(past && typeof past === 'object') Object.values(past).forEach(rec => { const t = Array.isArray(rec) ? String(rec[2] || '').trim() : ''; if(t) texts.push(t); });
+  return texts.length ? [...new Set(texts)].join(' · ') : null;
+}
+
+// Marks rows: r.unusual = {kind: 'event', text} | {kind: 'outlier', pct},
+// and r.salesForTrend. Returns the rows left out. `on` false clears marks.
+function fcMarkUnusual(rows, on){
+  rows.forEach(r => { delete r.unusual; r.salesForTrend = r.sales; });
+  if(on === false) return [];
+  const left = [];
+  rows.forEach(r => { if(!(r.sales > 0)) return; const ev = fcEventFor(r.date); if(ev){ r.unusual = {kind: 'event', text: ev}; left.push(r); } });
+  const byDow = Array.from({length: 7}, () => []);
+  rows.forEach(r => { if(r.sales > 0 && !r.unusual) byDow[r.dow].push(r.sales); });
+  const med = byDow.map(fcMedian);
+  rows.forEach(r => {
+    if(!(r.sales > 0) || r.unusual) return;
+    const m = med[r.dow];
+    if(!(m > 0) || byDow[r.dow].length < FC_OUTLIER_MIN_DAYS) return;
+    const pct = (r.sales / m - 1) * 100;
+    if(Math.abs(pct) > FC_OUTLIER_PCT){ r.unusual = {kind: 'outlier', pct}; left.push(r); }
+  });
+  rows.forEach(r => { if(r.unusual && med[r.dow] > 0) r.salesForTrend = med[r.dow]; });
+  return left.sort((x, y) => x.date.localeCompare(y.date));
+}
+function fcOpts(){ const s = fcSettings(); return {unusual: s.unusual !== false}; }
+
+function fcAnalysis(hist, weeks, cutoff, opts){
   const rows = fcHistoryRows(hist, weeks, cutoff);
+  const left = fcMarkUnusual(rows, (opts || fcOpts()).unusual);
   const dow = fcDowStats(rows);
   const weekly = fcWeeklySeries(rows);
   const trend = fcLinearTrend(weekly);
@@ -375,7 +425,7 @@ function fcAnalysis(hist, weeks, cutoff){
   const lastYear = fcLastYearMap(hist, cutoff);
   const yoy = fcYoyRatio(rows, lastYear);
   const vsLastYearPct = yoy.ratio != null ? (yoy.ratio - 1) * 100 : null;
-  return {rows, dow, weekly, trend, avgSPLH, avgLaborPct, avgWage, lastYear, yoyRatio: yoy.ratio, yoyDays: yoy.days, vsLastYearPct, lastYearDays: yoy.days,
+  return {rows, left, dow, weekly, trend, avgSPLH, avgLaborPct, avgWage, lastYear, yoyRatio: yoy.ratio, yoyDays: yoy.days, vsLastYearPct, lastYearDays: yoy.days,
     hasLastYear: Object.keys(lastYear).length > 0, yoyWeight: 0, hasTransactions: rows.some(r => r.transactions != null), hasLabor: withHours.length > 0};
 }
 
@@ -406,7 +456,7 @@ function fcLastYearMap(hist, cutoff){
 function fcYoyRatio(rows, lastYear){
   let ty = 0, ly = 0, n = 0;
   rows.forEach(r => {
-    if(!(r.sales > 0)) return;
+    if(!(r.sales > 0) || r.unusual) return;
     const prev = r.lastYearSales > 0 ? r.lastYearSales : (lastYear || {})[fcAddDays(r.date, -FC_YEAR_DAYS)];
     if(!(prev > 0)) return;
     ty += r.sales; ly += prev; n++;
@@ -766,7 +816,7 @@ function fcRenderForecast(){
       : `<div class="fc-adjcell"><button type="button" class="fc-step" data-fc-step="-5" data-date="${iso}" aria-label="5% less">&minus;</button><input type="number" class="fc-adj" data-fc-adj="${iso}" value="${adj}" step="5" inputmode="numeric" aria-label="Adjustment %"><span class="fc-adj-suffix">%</span><button type="button" class="fc-step" data-fc-step="5" data-date="${iso}" aria-label="5% more">+</button></div>`;
     const lyCell = base.closed ? '' : base.closedLastYear ? `<span class="fc-pill is-warn">closed last year</span>` : base.lastYear != null ? `${fcMoney(base.lastYear)}<span class="fc-muted"> ${fcShort(base.lastYearDate)}</span>` : '<span class="fc-muted">—</span>';
     return `<tr class="${adj ? 'is-adjusted' : ''} ${base.closed ? 'is-closed' : ''}">
-      <td><b>${FC_DOW[base.dow]}</b> <span class="fc-muted">${fcShort(iso)}</span></td>
+      <td><b>${FC_DOW[base.dow]}</b> <span class="fc-muted">${fcShort(iso)}</span>${(() => { const ev = base.closed ? null : fcEventFor(iso); return ev ? `<span class="fc-event" title="Special event in Know the Numbers">${fcEsc(ev)}</span>` : ''; })()}</td>
       ${a.hasLastYear ? `<td class="fc-num">${lyCell}</td>` : ''}
       <td class="fc-num">${base.sales == null ? '<span class="fc-muted">no history</span>' : fcMoney(base.sales)}</td>
       <td>${adjCell}</td>
@@ -936,12 +986,18 @@ function fcRenderPatterns(){
       ${fcKpi(FC_ICON.percent, 'Labor % of sales', a.avgLaborPct != null ? a.avgLaborPct.toFixed(1) + '%' : '—', a.avgLaborPct != null ? 'labor cost ÷ sales' : 'needs labor cost')}
       ${a.vsLastYearPct != null ? fcKpi(a.vsLastYearPct >= 0 ? FC_ICON.trendUp : FC_ICON.trendDown, 'vs last year', fcPctFmt(a.vsLastYearPct), `${a.lastYearDays} day${a.lastYearDays === 1 ? '' : 's'} with last year's sales`, a.vsLastYearPct >= 0 ? 'is-up' : 'is-down') : ''}
     </div>
-    <div class="standup-card fc-chart-card"><h3>Sales by week</h3><p class="fc-muted">Full weeks only (Sunday to Saturday). The dashed line is the trend the forecast follows.</p><div id="fcTrendChart" class="fc-chart"></div></div>
+    <div class="standup-card fc-chart-card"><h3>Sales by week</h3><p class="fc-muted">Full weeks only (Sunday to Saturday). The dashed line is the trend the forecast follows.${a.left.length ? ' Unusual days count at their weekday median here.' : ''}</p><div id="fcTrendChart" class="fc-chart"></div></div>
+    <div class="standup-card fc-left">
+      <h3>Days left out <span class="sub">${s.unusual === false ? 'off' : a.left.length ? `${a.left.length} of ${a.rows.filter(r => r.sales > 0).length} open days` : 'none in this window'}</span></h3>
+      <label class="fc-check"><input type="checkbox" id="fcUnusual" ${s.unusual === false ? '' : 'checked'}> Leave unusual days out of the averages: days with a special event in Know the Numbers, and days more than ${FC_OUTLIER_PCT}% from their weekday's median.</label>
+      ${a.left.length ? `<div class="fc-table-wrap"><table class="fc-table fc-table-sm"><thead><tr><th>Day</th><th class="fc-num">Sales</th><th>Why</th></tr></thead><tbody>${a.left.map(r => `<tr><td><b>${FC_DOW[r.dow]}</b> <span class="fc-muted">${fcShort(r.date)}</span></td><td class="fc-num">${fcMoney(r.sales)}</td><td>${r.unusual.kind === 'event' ? `<span class="fc-pill is-neutral">event</span> ${fcEsc(r.unusual.text)}` : `<span class="fc-pill is-warn">${fcPctFmt(r.unusual.pct, 0)}</span> vs the ${FC_DOW_LONG[r.dow]} median`}</td></tr>`).join('')}</tbody></table></div>` : ''}
+    </div>
     <div class="fc-two">
       <div class="standup-card fc-chart-card"><h3>Average sales by weekday</h3><div id="fcDowSales" class="fc-chart"></div></div>
       <div class="standup-card fc-chart-card"><h3>Average labor hours by weekday</h3><div id="fcDowLabor" class="fc-chart"></div></div>
     </div>`;
   document.getElementById('fcLookback2').addEventListener('change', e => { fcSaveSettings({lookback: +e.target.value}); fcRenderPatterns(); });
+  document.getElementById('fcUnusual').addEventListener('change', e => { fcSaveSettings({unusual: !!e.target.checked}); fcRenderPatterns(); });
   fcTrendChart(document.getElementById('fcTrendChart'), a.weekly, a.trend);
   fcBarChart(document.getElementById('fcDowSales'), FC_DOW, a.dow.map(d => d.sales), 'var(--cfa-navy)', fcMoney);
   if(a.dow.some(d => d.laborHours != null)) fcBarChart(document.getElementById('fcDowLabor'), FC_DOW, a.dow.map(d => d.laborHours), 'var(--fc-labor)', v => fcNumFmt(v));
