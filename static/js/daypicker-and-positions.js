@@ -292,10 +292,13 @@ window.openPosModal = function(key, pos, daypart, note){
   // 11:30" for a shift that starts after it does, "leaves at 1:30" for one
   // that ends before it's over.
   const timing = dpIndex !== -1 ? suDaypartTiming(currentPosSection, dayName, dpIndex) : null;
-  const whenText = name => {
+  const whenParts = name => {
     const t = timing ? suTimingFor(timing, name) : null;
-    if(!t) return '';
-    return [t.arrives !== null ? `arrives at ${suClock(t.arrives)}` : '', t.leaves !== null ? `leaves at ${suClock(t.leaves)}` : ''].filter(Boolean).join(' · ');
+    if(!t) return [];
+    const parts = [];
+    if(t.arrives !== null) parts.push({kind: 'arrives', text: `arrives at ${suClock(t.arrives)}`});
+    if(t.leaves !== null) parts.push({kind: 'leaves', text: `leaves at ${suClock(t.leaves)}`});
+    return parts;
   };
   // Fit for this spot: the PEA tier on the spot's position(s), best first;
   // unrated after rated; an off-shift current holder stays on top.
@@ -308,7 +311,7 @@ window.openPosModal = function(key, pos, daypart, note){
     const person = peaName ? strength[peaName] : null;
     const cell = person ? positions.map(x => person.positions[x]).filter(Boolean).sort((a, b) => b.avg - a.avg)[0] || null : null;
     const tier = !positions.length ? 'na' : cell ? cell.tier.key : 'unrated';
-    return {...p, tier, avg: cell ? cell.avg : null, tierLabel: cell ? cell.tier.label : (positions.length ? 'Not rated here' : ''), current: p.name === currentlyAssigned, when: p.offShift ? '' : whenText(p.name)};
+    return {...p, tier, avg: cell ? cell.avg : null, tierLabel: cell ? cell.tier.label : (positions.length ? 'Not rated here' : ''), current: p.name === currentlyAssigned, when: p.offShift ? [] : whenParts(p.name)};
   }).sort((a, b) => (b.offShift ? 1 : 0) - (a.offShift ? 1 : 0) || order[a.tier] - order[b.tier] || (b.avg || 0) - (a.avg || 0) || a.name.localeCompare(b.name));
 
   // The open spots after this one, for "next".
@@ -347,8 +350,9 @@ function renderPosOptionList(eligible, filterText){
       const dot = hasPea && p.tier !== 'na' ? `<span class="su-tier-dot is-${p.tier}" aria-hidden="true"></span>` : '';
       const fit = p.offShift ? 'off shift now' : hasPea && p.tierLabel ? `${p.tierLabel}${p.avg != null ? ` · ${p.avg.toFixed(2)}` : ''}` : '';
       const sub = [fit, p.current ? 'here now' : ''].filter(Boolean).join(' · ');
-      return `<button type="button" class="pos-option ${p.current ? 'is-current' : ''} ${p.when ? 'has-when' : ''}" data-pos-pick="${escapeHtml(p.name)}">
-          <span class="pos-option-who">${dot}<span class="pos-option-name">${escapeHtml(p.name)}</span>${p.when ? `<span class="pos-option-when">${escapeHtml(p.when)}</span>` : ''}</span>
+      const when = (p.when || []).map(w => `<span class="pos-option-when is-${w.kind}">${escapeHtml(w.text)}</span>`).join('');
+      return `<button type="button" class="pos-option ${p.current ? 'is-current' : ''} ${when ? 'has-when' : ''}" data-pos-pick="${escapeHtml(p.name)}">
+          <span class="pos-option-who">${dot}<span class="pos-option-name">${escapeHtml(p.name)}</span>${when ? `<span class="pos-option-whens">${when}</span>` : ''}</span>
           ${sub ? `<span class="pos-option-tag">${escapeHtml(sub)}</span>` : ''}
         </button>`;
     }).join('');
