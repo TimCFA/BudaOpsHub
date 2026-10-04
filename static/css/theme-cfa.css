@@ -1,0 +1,161 @@
+/* ===== Chick-fil-A theme: warm, editorial, sporty =====
+   Loaded after main.css. First screen restyled for real: Set Ups. The shell
+   it needs (ground color, type, header, tabs, the FOH/BOH switch) is
+   site-wide so the page sits in a matching frame; every other page keeps
+   its own component styles until it gets the same pass.
+
+   Palette: Chick-fil-A red for actions and limits, Chick-fil-A navy for the
+   dark "stats" surfaces, an ivory ground, ink text, green / amber / dark red
+   for status only. Type: a slab serif for headings and hero numbers, a
+   friendly grotesque for everything else (stand-ins for Caecilia and Apercu
+   until the brand fonts are licensed; swap the two font variables then). */
+
+:root{
+  --cfa-red:#DD0031;
+  --cfa-dark-red:#AF272F;
+  --cfa-navy:#004F71;
+  --cfa-white:#FFFDF9;        /* cards */
+  --cfa-bg:#F6F1E8;           /* ground */
+  --cfa-light:#FBF8F2;
+  --cfa-soft:#EBE4D8;         /* segmented controls, quiet fills */
+  --text-primary:#1C1B19;
+  --text-secondary:#5F5A52;
+  --text-tertiary:#7C766C;
+  --border:#E4DCCF;
+  --radius:14px;
+  --success:#2E7D45;
+  --font-display:'Zilla Slab', Georgia, serif;
+  --font-ui:'Figtree', 'DM Sans', system-ui, sans-serif;
+}
+html,body{font-family:var(--font-ui);}
+button,input,select,textarea{font-family:inherit;}
+
+/* ----- Header ----- */
+.hdr{margin-bottom:18px;}
+.hdr-title h1{font-family:var(--font-display);font-weight:700;font-size:27px;letter-spacing:-0.01em;text-transform:none;}
+.hdr-title .location{font-family:var(--font-ui);font-weight:700;color:var(--cfa-dark-red);}
+#initialsBadge{font-family:var(--font-ui) !important;font-size:13px !important;color:var(--text-primary) !important;background:var(--cfa-white) !important;border-color:var(--border) !important;border-radius:999px !important;padding:7px 12px !important;}
+.hdr-waste{font-family:var(--font-ui);border-radius:999px;padding:6px 12px;}
+.clock{font-family:var(--font-ui);}
+
+/* ----- Tabs: plain words, the Spanish in the serif italic ----- */
+.tabs{border-bottom-color:var(--border);}
+.tab,.tab-group-label{font-family:var(--font-ui);font-size:14px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--text-primary);}
+.tab .sub,.tab-group-label .sub{font-family:var(--font-display);font-style:italic;font-size:11.5px;color:var(--text-tertiary);}
+.tab.active,.tab-group.active .tab-group-label{color:var(--cfa-dark-red);border-bottom-color:var(--cfa-red);}
+.tab:hover,.tab-group-label:hover{color:var(--cfa-dark-red);}
+.tab-dropdown-item .sub-inline{font-family:var(--font-display);font-style:italic;}
+@media (max-width:480px){
+  body.launch-mode .tab,body.launch-mode .tab-group-label{font-size:13px;}
+  body.launch-mode .tab .sub,body.launch-mode .tab-group-label .sub{font-size:9.5px;}
+}
+
+/* ----- FOH / BOH: one segmented switch, full width for the floor ----- */
+.foh-boh-toggle{display:flex;gap:0;background:var(--cfa-soft);border-radius:999px;padding:3px;margin-bottom:14px;}
+.toggle-btn{flex:1;min-height:44px;padding:8px 16px;border:0;border-radius:999px;background:transparent;color:var(--text-primary);font-family:var(--font-ui);font-size:14px;font-weight:600;letter-spacing:0;text-transform:none;}
+.toggle-btn .sub{font-family:var(--font-display);font-style:italic;font-size:10.5px;color:var(--text-tertiary);}
+.toggle-btn:hover{border-color:transparent;}
+.toggle-btn.active{background:var(--text-primary);color:#F6F1E8;border-color:transparent;}
+.toggle-btn.active .sub{color:rgba(246,241,232,0.7);}
+
+/* ===== Set Ups ===== */
+#positionsView{
+  --su-bg:var(--cfa-bg); --su-card:var(--cfa-white); --su-ink:#1C1B19; --su-muted:#5F5A52; --su-line:#E4DCCF; --su-soft:var(--cfa-soft);
+  --su-red:var(--cfa-red); --su-crushing:#2E7D45; --su-rise:#C47A00; --su-rise-ink:#FFFFFF; --su-notyet:#AF272F; --su-unrated:#DDD6C9;
+}
+#positionsView .su-board{font-family:var(--font-ui);}
+#positionsView .su-board h2,#positionsView .su-board h3{font-family:var(--font-display);font-weight:600;}
+
+/* Week and day */
+.setups-week-nav{margin-bottom:10px;}
+.week-toggle{background:var(--cfa-soft);border-radius:999px;}
+.su-week-toggle-btn,.week-toggle-btn{font-family:var(--font-ui);font-size:13px;text-transform:none;letter-spacing:0;color:var(--text-secondary);border-radius:999px;}
+.su-week-toggle-btn.active,.week-toggle-btn.active{background:var(--cfa-white);color:var(--cfa-dark-red);}
+.rolling-arrow{background:var(--cfa-white);border-color:var(--border);color:var(--text-primary);width:36px;height:36px;}
+.day-picker{margin-bottom:14px;}
+.day-pill{font-family:var(--font-ui);font-size:13px;font-weight:600;min-height:40px;padding:9px 16px;background:var(--cfa-white);color:var(--text-primary);border-color:var(--border);}
+.day-pill:hover{border-color:var(--cfa-red);color:var(--cfa-dark-red);}
+.day-pill.active{background:var(--cfa-red);border-color:var(--cfa-red);color:#fff;}
+.day-info-bar{margin-bottom:12px;}
+.day-info-date{font-family:var(--font-display);font-size:21px;font-weight:600;}
+
+/* Set up / Coach switch and Print */
+.su-modebar{margin-bottom:2px;}
+.su-mode{background:var(--cfa-soft);border-radius:999px;}
+.su-mode-btn{border-radius:999px;font-family:var(--font-ui);}
+.su-mode-btn.active{background:var(--text-primary);color:#F6F1E8;box-shadow:none;}
+.su-print-btn{font-family:var(--font-ui);}
+
+/* Shift changes: an amber edge, the serif for the title */
+.su-changes{border-radius:16px;box-shadow:inset 4px 0 0 #C47A00;background:var(--cfa-white);}
+.su-changes-head{font-family:var(--font-display);font-size:17px;font-weight:600;}
+.su-changes-head span{font-family:var(--font-ui);font-size:13px;}
+.su-changes-actions button{background:var(--cfa-soft);border-color:transparent;}
+
+/* Daypart cards: a sky swatch, the daypart in the serif, how full as a pill */
+.su-dp-list{gap:8px;}
+.su-dp{--sky:linear-gradient(135deg,#DCEBFF,#F2F7FF);}
+.su-col-eb{--sky:linear-gradient(135deg,#FFE1C2,#FFF3E3);}
+.su-col-b{--sky:linear-gradient(135deg,#FFF0B8,#FFF9E6);}
+.su-col-l,.su-col-t{--sky:linear-gradient(135deg,#DCEBFF,#F2F7FF);}
+.su-col-a{--sky:linear-gradient(135deg,#F4CFA8,#FBE6D2);}
+.su-col-d{--sky:linear-gradient(135deg,#C9B6E8,#EADFF7);}
+.su-col-c{--sky:linear-gradient(135deg,#2B3A52,#4A5C7A);}
+.su-dp .su-dp-banner{background:var(--su-card);border:1px solid var(--border);border-radius:16px;box-shadow:0 1px 2px rgba(28,27,25,0.04);}
+.su-dp-head{min-height:58px;padding:10px 12px;gap:12px;}
+.su-dp-art,.su-col-c .su-dp-art{width:44px;height:36px;border-radius:10px;background:var(--sky);}
+.su-dp-art svg{width:22px;}
+.su-dp-name{font-family:var(--font-display);font-weight:600;font-size:19px;line-height:1.1;}
+.su-dp-time{font-family:var(--font-ui);font-size:12.5px;font-weight:500;}
+.su-dp .su-dp-fill{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:var(--cfa-soft);color:var(--text-primary);}
+.su-dp.is-open .su-dp-banner{border-color:transparent;box-shadow:0 0 0 2px var(--cfa-red),0 8px 20px rgba(28,27,25,0.08);}
+.su-dp.is-open .su-dp-head{background:var(--sky);border-radius:14px 14px 0 0;}
+.su-col-c.is-open .su-dp-head{color:#F6F1E8;}
+.su-col-c.is-open .su-dp-head .su-dp-time,.su-col-c.is-open .su-dp-head .su-dp-chev{color:rgba(246,241,232,0.8);}
+.su-dp.is-open .su-dp-fill{background:var(--cfa-white);}
+.su-dp-sub{padding:8px 12px 10px;}
+.su-dp .su-dp-lead{background:var(--cfa-white);border-color:var(--border);border-radius:999px;font-family:var(--font-ui);}
+.su-dp .su-dp-lead:hover{background:var(--cfa-light);}
+.su-dp-fillbtn{background:var(--cfa-red);font-family:var(--font-ui);}
+
+/* Positions: the priority number in the serif, a thin zone stripe, calm rows */
+.su-sheet-list{padding:4px 10px 8px;}
+.su-sheet-list .su-row{background:transparent;box-shadow:inset 3px 0 0 var(--zc);border-top:1px solid #EFE8DC;border-radius:0;padding:8px 6px 8px 14px;min-height:46px;}
+.su-sheet-list .su-row:first-child{border-top:0;}
+.su-sheet-list .su-row:hover{filter:none;background:var(--cfa-light);}
+.su-sheet-list .su-row-slot{font-family:var(--font-ui);font-size:14px;font-weight:500;color:var(--text-primary);}
+.su-row-rank{background:transparent;font-family:var(--font-display);font-size:16px;font-weight:600;color:#9A9388;min-width:20px;height:auto;margin-right:6px;}
+.su-row-who{font-size:14.5px;font-weight:700;}
+.su-row-role{border-radius:6px;background:var(--cfa-soft);border-color:transparent;color:var(--text-secondary);}
+.su-sheet-list .su-row.is-needed{background:#FBE3E4;border-radius:10px;}
+.su-sheet-list .su-row.is-open:not(.is-needed){background:transparent;}
+.su-tier-dot{width:10px;height:10px;box-shadow:none;}
+.su-tier-dot.is-unrated{box-shadow:inset 0 0 0 2px #9A9388;}
+.su-zone-more{font-family:var(--font-ui);color:var(--text-secondary);}
+.su-tier-key{font-family:var(--font-ui);}
+
+/* Roster */
+#positionsView .standup-card{background:var(--cfa-white);border:1px solid var(--border);border-radius:16px;box-shadow:none;}
+#positionsView .standup-card h3{font-family:var(--font-display);font-size:19px;font-weight:600;text-transform:none;letter-spacing:0;}
+.roster-item{background:var(--cfa-light);border-color:var(--border);border-radius:12px;}
+.roster-name{font-size:14px;}
+.roster-leader-badge{background:var(--cfa-navy);}
+.btn-add-tm{border-radius:999px;font-family:var(--font-ui);}
+
+/* Coach view: the game plan and the tool bar in Chick-fil-A navy */
+#positionsView .su-plan{background:var(--cfa-navy);}
+#positionsView .su-plan-head h2{font-family:var(--font-display);font-weight:600;font-size:22px;}
+#positionsView .su-plan-facts,#positionsView .su-plan-line em{color:rgba(246,241,232,0.78);}
+#positionsView .su-plan-tag.is-open{color:var(--cfa-navy);}
+#positionsView .su-chip{background:var(--cfa-white);border:1px solid var(--border);font-family:var(--font-ui);}
+#positionsView .su-chip.active{background:var(--cfa-navy);border-color:var(--cfa-navy);}
+#positionsView .su-tool{background:var(--cfa-navy);font-family:var(--font-ui);}
+#positionsView .su-tool:hover,#positionsView .su-tool.active{background:#003B57;}
+#positionsView .su-zone{background:var(--cfa-white);border:1px solid var(--border);}
+#positionsView .su-zone-head h3,#positionsView .su-sheet-title h2{font-family:var(--font-display);font-weight:600;}
+#positionsView .su-sheet-head h2{font-family:var(--font-display);font-weight:600;}
+#positionsView .su-sheet{background:var(--cfa-white);}
+#positionsView .su-sheet-act.is-dark,#positionsView .su-btn-dark{background:var(--cfa-navy);}
+#positionsView .su-eval-btn{border-color:var(--cfa-red);color:var(--cfa-dark-red);}
+#positionsView .su-eval-btn:hover:not(:disabled){background:var(--cfa-red);color:#fff;}
+#positionsView .su-daytype.su-game,#positionsView .su-daytype-btn.su-game{background:var(--cfa-red);}
