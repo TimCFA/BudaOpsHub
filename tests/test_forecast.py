@@ -163,3 +163,57 @@ class ForecastFilesTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+DAYPARTS = [
+    {'name': 'Early Breakfast (6:00-8:00)', 'time': '6:00'},
+    {'name': 'Breakfast (8:00-11:00)', 'time': '8:00'},
+    {'name': 'Lunch (11:00-2:00)', 'time': '11:00'},
+    {'name': 'Transition (1:00-2:00)', 'time': '13:00'},
+    {'name': 'Afternoon (2:00-5:00)', 'time': '14:00'},
+    {'name': 'Dinner (5:00-8:00)', 'time': '17:00'},
+    {'name': 'Close (8:00-10:00)', 'time': '20:00'},
+]
+
+
+class KnowTheNumbersFeedTest(unittest.TestCase):
+    def test_daypart_windows_read_the_end_from_the_name(self):
+        wins, = run([{'op': 'c => fcDaypartWindows(c.dp)', 'dp': DAYPARTS}])
+        by = {w['name']: (w['start'], w['end']) for w in wins}
+        self.assertEqual(by['Lunch (11:00-2:00)'], (660, 840))        # 11 AM – 2 PM
+        self.assertEqual(by['Transition (1:00-2:00)'], (780, 840))
+        self.assertEqual(by['Close (8:00-10:00)'], (1200, 1320))     # 8 PM – 10 PM, from `time`
+
+    def test_even_split_without_a_profile(self):
+        split, = run([{'op': 'c => fcSplitDay(1600, null, fcDaypartWindows(c.dp))', 'dp': DAYPARTS}])
+        self.assertAlmostEqual(split['Early Breakfast (6:00-8:00)'], 200)   # 2 of 16 open hours
+        self.assertAlmostEqual(split['Lunch (11:00-2:00)'], 300)
+        self.assertAlmostEqual(split['Transition (1:00-2:00)'], 100)        # inside Lunch
+        main = [k for k in split if not k.startswith('Transition')]
+        self.assertAlmostEqual(sum(split[k] for k in main), 1600)
+
+    def test_split_follows_the_hourly_shape(self):
+        hours = {str(h * 60): {'salesPerDay': 100} for h in range(6, 22)}
+        hours['720'] = {'salesPerDay': 1000}     # a noon rush
+        hours['780'] = {'prod': 200, 'labor': 2}  # 1 PM from $/labor hour × hours = 400
+        hours['300'] = {'salesPerDay': 5000}     # 5 AM, outside the dayparts: ignored
+        res, = run([{'op': 'c => { const w = fcHourWeights(c.hours); return {w, split: fcSplitDay(2800, w, fcDaypartWindows(c.dp))}; }', 'hours': hours, 'dp': DAYPARTS}])
+        self.assertEqual(res['w']['780'], 400)
+        total = 14 * 100 + 1000 + 400
+        self.assertAlmostEqual(res['split']['Lunch (11:00-2:00)'], 2800 * 1500 / total, places=6)
+        self.assertAlmostEqual(res['split']['Transition (1:00-2:00)'], 2800 * 400 / total, places=6)
+        self.assertAlmostEqual(res['split']['Dinner (5:00-8:00)'], 2800 * 300 / total, places=6)
+
+    def test_no_usable_weights_means_even(self):
+        res, = run([{'op': 'c => fcHourWeights({"420": {prod: 150}, "480": {}})'}])
+        self.assertIsNone(res)
+
+    def test_goal_from_each_target(self):
+        splh, pct, none = run([
+            {'op': 'c => fcGoalSplh({method: "splh", splh: 175}, {})'},
+            {'op': 'c => fcGoalSplh({method: "pct", pct: 10, wage: 16}, {})'},
+            {'op': 'c => fcGoalSplh({method: "splh", splh: null}, {avgSPLH: null})'},
+        ])
+        self.assertEqual(splh, 175)
+        self.assertAlmostEqual(pct, 160)
+        self.assertIsNone(none)
