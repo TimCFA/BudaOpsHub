@@ -339,7 +339,9 @@ function renderHomeScoreboard(){
   else if(hour < 17) greeting = 'Good Afternoon';
   else greeting = 'Good Evening';
   
-  document.getElementById('homeGreeting').textContent = greeting;
+  document.getElementById('homeGreeting').textContent = greeting + '.';
+  const dateEl = document.getElementById('homeDate');
+  if(dateEl) dateEl.textContent = formatVerboseDate(today);
   renderHomeQuote();
   
   const vmvContainer = document.getElementById('homeVMVContainer');
@@ -351,7 +353,7 @@ function renderHomeScoreboard(){
       .replace(/\n/g, '<br>');
   };
   
-  const vmvTitles = ['🎯 Vision', '❤️ Mission', '⭐ Values'];
+  const vmvTitles = ['Vision', 'Mission', 'Values'];
   const vmvData = [homeData.vision, homeData.mission, homeData.values];
   
   vmvContainer.innerHTML = vmvData.map((content, idx) => `
@@ -362,11 +364,8 @@ function renderHomeScoreboard(){
   `).join('');
   
   const winsContainer = document.getElementById('homeWinsContainer');
-  const winIcons = ['🏆', '🚀', '⚡'];
-  
-  winsContainer.innerHTML = homeData.wins.map((win, idx) => `
+  winsContainer.innerHTML = homeData.wins.map((win) => `
     <div class="home-win-card">
-      <div style="font-size:24px;margin-bottom:12px;">${winIcons[idx]}</div>
       <div class="home-win-name">${escapeHtml(win.name)}</div>
       <div class="home-win-role">${escapeHtml(win.role)}</div>
       <div class="home-win-content">${win.content ? escapeHtml(win.content) : '<em style="color:var(--text-secondary);">No update yet this month</em>'}</div>
