@@ -226,6 +226,9 @@ body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="z
 .su-pick-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;min-height:32px;}
 .su-pick-left{font-family:var(--font-ui);font-size:12px;color:var(--text-tertiary);}
 .su-pick-foot .su-btn-line{border-color:var(--border);border-radius:999px;font-family:var(--font-ui);min-height:40px;}
+.su-pick-foot .su-pick-left{flex:1;text-align:center;white-space:nowrap;}
+.su-pick-foot #posModalPrev{padding-left:12px;}
+.pos-option.split-option{color:var(--cfa-navy);font-weight:600;font-size:13px;}
 /* Know the Numbers on the daypart card */
 .su-dp-nums{display:flex;flex-wrap:wrap;gap:4px 14px;padding:0 14px 8px;margin-top:-4px;font-family:var(--font-ui);font-size:12.5px;color:var(--text-secondary);cursor:pointer;}
 .su-dp-nums b{font-family:var(--font-display);font-size:14px;color:var(--text-primary);font-weight:600;}

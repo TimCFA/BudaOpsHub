@@ -238,6 +238,7 @@ let currentPosName = '';
 // open spot moves straight on to the next open one, so a daypart fills in
 // one pass; "Change person" on a filled spot just picks and closes.
 let suPickNext = [];        // open spots after this one, in priority order
+let suPickPrev = null;      // the spot before this one in priority order (filled or not), for stepping back
 let suPickWasOpen = false;  // the spot was empty when the picker opened
 window.openPosModal = function(key, pos, daypart, note){
   currentPosKey = key;
@@ -325,9 +326,18 @@ window.openPosModal = function(key, pos, daypart, note){
   const left = document.getElementById('posModalLeft');
   const nextBtn = document.getElementById('posModalNext');
   const stillOpen = openSlots.length + (suPickWasOpen ? 1 : 0);
-  left.textContent = stillOpen ? `${stillOpen} open spot${stillOpen === 1 ? '' : 's'} in ${suShortDaypart(daypart)}` : `Every spot in ${suShortDaypart(daypart)} is filled`;
+  left.textContent = stillOpen ? `${stillOpen} left` : 'All filled';
+  left.title = stillOpen ? `${stillOpen} spot${stillOpen === 1 ? '' : 's'} left in ${suShortDaypart(daypart)}` : `Every spot in ${suShortDaypart(daypart)} is filled`;
   nextBtn.hidden = !suPickNext.length;
   nextBtn.dataset.daypart = daypart;
+  // Step back to the spot before this one (filled or not), e.g. to split
+  // the spot just filled.
+  const slots = setupsSlotsFor(daypart);
+  const here = slots.indexOf(pos);
+  suPickPrev = here > 0 ? slots[here - 1] : null;
+  const prevBtn = document.getElementById('posModalPrev');
+  prevBtn.hidden = !suPickPrev;
+  prevBtn.title = suPickPrev ? `Back to ${suPickPrev}` : '';
 
   window.currentPosModalEligible = eligible;
   renderPosOptionList(eligible);
@@ -357,7 +367,10 @@ function renderPosOptionList(eligible, filterText){
         </button>`;
     }).join('');
   }
-  if(posAssignments[currentPosKey]) html += `<button type="button" class="pos-option unassign-option" data-pos-pick="">Clear this spot</button>`;
+  if(posAssignments[currentPosKey]){
+    html += `<button type="button" class="pos-option split-option" data-pos-split="1">Hand off / split this spot →</button>`;
+    html += `<button type="button" class="pos-option unassign-option" data-pos-pick="">Clear this spot</button>`;
+  }
   container.innerHTML = html;
 }
 
@@ -408,8 +421,21 @@ window.commitPosAssignment = function(name){
 };
 
 document.getElementById('posModalOptions').addEventListener('click', e => {
+  const split = e.target.closest('[data-pos-split]');
+  if(split){
+    // A filled spot: on to the hand-off / coverage sheet for it.
+    const [, , dpName, slot] = currentPosKey.split('||');
+    document.getElementById('posModal').classList.remove('active');
+    openVacancyModal(currentPosKey, slot, dpName);
+    return;
+  }
   const opt = e.target.closest('[data-pos-pick]');
   if(opt) commitPosAssignment(opt.dataset.posPick);
+});
+document.getElementById('posModalPrev').addEventListener('click', () => {
+  if(!suPickPrev) return;
+  const [section, date, dpName] = currentPosKey.split('||');
+  openPosModal([section, date, dpName, suPickPrev].join('||'), suPickPrev, dpName);
 });
 document.getElementById('posModalNext').addEventListener('click', () => {
   const [section, date, dpName] = currentPosKey.split('||');
