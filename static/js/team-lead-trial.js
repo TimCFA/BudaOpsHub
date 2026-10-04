@@ -295,7 +295,7 @@ function renderTeamLeadTrial(){
       <div class="trial-root" data-theme="teamlead">
         <div class="trial-masthead">
           <p class="trial-masthead-eyebrow">Trial Tracker</p>
-          <h2 class="trial-masthead-title">🎟️ Team Lead 90-Day Trial</h2>
+          <h2 class="trial-masthead-title">Team Lead 90-Day Trial</h2>
           <p class="trial-masthead-subtitle">90-day path from Team Member to certified Team Leader</p>
         </div>
         <div class="trial-empty-state">
@@ -315,7 +315,7 @@ function renderTeamLeadTrial(){
     <div class="trial-root" data-theme="teamlead">
       <div class="trial-masthead">
         <p class="trial-masthead-eyebrow">Trial Tracker</p>
-        <h2 class="trial-masthead-title">🎟️ Team Lead 90-Day Trial</h2>
+        <h2 class="trial-masthead-title">Team Lead 90-Day Trial</h2>
         <p class="trial-masthead-subtitle">90-day path from Team Member to certified Team Leader</p>
       </div>
 

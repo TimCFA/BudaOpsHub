@@ -435,7 +435,7 @@ function rpOpsPanelsHtml(){
   const parts = [];
   const ss = rpSmartShopMonth();
   if(ss){
-    parts.push(`<div class="gx-section-subtitle" style="margin-top:16px;">🕵️ Smart Shop · ${escapeHtml(ss.label.replace(/,/, ''))}</div>
+    parts.push(`<div class="gx-section-subtitle" style="margin-top:16px;">Smart Shop · ${escapeHtml(ss.label.replace(/,/, ''))}</div>
       <div class="rp-panel">
         <div class="rp-panel-head"><span class="rp-big">${ss.score}%</span><span>of scored standards met across ${ss.visits.length} visit${ss.visits.length === 1 ? '' : 's'}</span></div>
         <div class="rp-chips">${ss.visits.map(v => `<span class="rp-chip">${escapeHtml(v.dayOfWeek)} ${escapeHtml(v.daypart)} <b>${v.score}%</b></span>`).join('')}</div>
@@ -445,7 +445,7 @@ function rpOpsPanelsHtml(){
   const q = rpLatestQiv();
   if(q){
     const low = (q.touchpoints || []).filter(t => t.score < 100 && !RP_QIV_UNSCORED.test(t.name));
-    parts.push(`<div class="gx-section-subtitle" style="margin-top:16px;">🔬 QIV · ${escapeHtml(q.quarter || '')}${q.date ? ` · ${escapeHtml(duShort(q.date))}` : ''}</div>
+    parts.push(`<div class="gx-section-subtitle" style="margin-top:16px;">QIV · ${escapeHtml(q.quarter || '')}${q.date ? ` · ${escapeHtml(duShort(q.date))}` : ''}</div>
       <div class="rp-panel">
         <div class="rp-panel-head"><span class="rp-big">${q.overall}%</span><span>overall${low.length ? ` · ${low.length} touchpoint${low.length === 1 ? '' : 's'} below 100%` : ' · every touchpoint 100%'}</span></div>
         ${low.length ? `<div class="rp-chips">${low.map(t => `<span class="rp-chip">${escapeHtml(t.name.replace(/^Finished Product:\s*/, '').replace(/Chick-fil-A\s*/g, ''))} <b>${t.score}%</b></span>`).join('')}</div>` : ''}

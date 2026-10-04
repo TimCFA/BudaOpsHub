@@ -321,3 +321,75 @@ button,input,select,textarea{font-family:inherit;}
 .eoi-field input[type="number"]{width:100%;padding:10px 12px;border-radius:12px;border:2px solid var(--border);font-family:var(--font-ui);font-size:14px;background:var(--cfa-white);color:var(--text-primary);}
 .eoi-field input[type="number"]:focus{outline:none;border-color:var(--cfa-navy);}
 .eoi-field input[type="text"]:focus,.eoi-field select:focus,.eoi-field textarea:focus{border-color:var(--cfa-navy);}
+
+/* ===== Scoreboard ===== */
+.sb-subtabs{background:var(--cfa-soft);border-radius:999px;padding:3px;gap:0;}
+.sb-subtab-btn{border-radius:999px;font-family:var(--font-ui);font-size:13px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--text-primary);min-height:40px;}
+.sb-subtab-btn.active{background:var(--text-primary);color:#F6F1E8;}
+.sb-section-label{font-family:var(--font-ui);font-size:11px !important;font-weight:600 !important;letter-spacing:0.12em !important;color:var(--text-secondary) !important;}
+/* Today's waste: the navy stats card with the thermometer */
+.waste-today-card{background:var(--cfa-navy);color:#F6F1E8;border-color:transparent;}
+.waste-today-card h3,.waste-today-card .sub,.waste-today-card .waste-hero-total,.waste-today-card .wt-left b{color:#F6F1E8;}
+.waste-today-card .sub,.waste-today-card .waste-hero-target,.waste-today-card .wt-left,.waste-today-card .wt-hint,.waste-today-card .wt-tick{color:rgba(246,241,232,0.78);}
+.waste-today-card .wt-tick.is-limit{color:#FFA3B4;}
+.waste-today-card .waste-hero-total{font-family:var(--font-display);font-weight:700;font-size:56px;letter-spacing:-0.02em;}
+.waste-today-card .wt-limit{border-top-color:#FF6B85;}
+.waste-today-card .stat-card{background:rgba(246,241,232,0.08);border-color:rgba(246,241,232,0.14);border-radius:14px;box-shadow:none;padding:12px 14px;}
+.waste-today-card .stat-card .label{font-family:var(--font-ui);color:rgba(246,241,232,0.7);letter-spacing:0.12em;}
+.waste-today-card .stat-card .value{font-family:var(--font-display);font-weight:600;font-size:28px;color:#F6F1E8;margin-top:4px;}
+.waste-today-card .bar-list{background:transparent;border:0;padding:0;}
+.waste-today-card .bar-item .bi-top .bn{color:#F6F1E8;}
+.waste-today-card .bar-item .bi-top .bv{font-family:var(--font-display);font-size:14px;color:#F6F1E8;}
+.waste-today-card .bar-track{background:rgba(246,241,232,0.14);}
+.waste-today-card .bar-fill{background:var(--cfa-red);}
+.waste-today-card .sync-status{color:rgba(246,241,232,0.7);}
+.waste-today-card .btn,.waste-today-card .btn-secondary{background:rgba(246,241,232,0.12);color:#F6F1E8;border:1px solid rgba(246,241,232,0.2);min-height:38px;}
+.waste-today-card .btn:hover{background:rgba(246,241,232,0.2);}
+/* Streaks as rings: --p is 0–1 of a full open week (waste-log.js) */
+.streak-display{--p:0;position:relative;background:var(--cfa-white);border:1px solid var(--border);border-radius:16px;padding:22px 10px 18px;}
+.streak-display > div:first-child{font-family:var(--font-ui);font-size:11px !important;letter-spacing:0.12em;font-weight:600 !important;color:var(--text-secondary) !important;}
+.streak-number{--ring:84px;width:var(--ring);height:var(--ring);margin:6px auto 8px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:36px;color:var(--text-primary);background:radial-gradient(closest-side,var(--cfa-white) 79%,transparent 80% 100%),conic-gradient(var(--cfa-navy) calc(var(--p) * 360deg),var(--cfa-soft) 0);}
+.streak-label{font-family:var(--font-ui);font-size:11px;text-transform:none;letter-spacing:0;color:var(--text-tertiary);margin-top:4px;}
+@media (max-width:480px){ .streak-display{padding:16px 6px 14px;} .streak-number{--ring:66px;font-size:26px;} }
+/* Insights */
+.oi-stat-value{font-family:var(--font-display);font-weight:700;font-size:24px;}
+.oi-stat-value.oi-bad{color:var(--cfa-dark-red);}
+.oi-dow-track{background:var(--cfa-soft);}
+.oi-dow-fill{background:var(--cfa-navy);}
+.oi-dow-name{font-family:var(--font-ui);}
+/* Waste dashboard (managers) */
+.wd-h-total{font-family:var(--font-display);font-weight:700;color:var(--cfa-dark-red);}
+.wd-rbar label{font-family:var(--font-ui);letter-spacing:0.12em;}
+.wd-rbar select,.wd-rbar input,.wd-search,.wd-sumtop select{border-radius:12px;font-family:var(--font-ui);background:var(--cfa-white);}
+.wd-pill{font-family:var(--font-ui);}
+.wd-stat{background:var(--cfa-light);border:1px solid var(--border);border-radius:14px;}
+.wd-stat .v{font-family:var(--font-display);font-weight:700;}
+.wd-box{border-radius:14px;}
+.wd-box h4{font-family:var(--font-display);font-weight:600;font-size:17px;}
+.wd-bar-track{background:var(--cfa-soft);}
+.wd-bar-fill{background:var(--cfa-navy);}
+.wd-d-val{font-family:var(--font-display);}
+/* Guest Obsession: calm ivory sections, numbers in the serif */
+.gx-section,.gx-hero,.gx-hero-alt,.gx-satisfaction,.gx-accent-blue,.gx-accent-orange,.gx-accent-green{background:var(--cfa-white);border:1px solid var(--border);border-top:1px solid var(--border);border-radius:16px;}
+.gx-section-title{font-family:var(--font-display);font-size:20px;font-weight:600;text-transform:none;letter-spacing:0;}
+.gx-metric-card,.gx-comparison-card{background:var(--cfa-light);border:1px solid var(--border);border-radius:14px;box-shadow:none;}
+.gx-metric-card:hover,.gx-comparison-card:hover{transform:none;box-shadow:none;}
+.gx-metric-value{font-family:var(--font-display);font-weight:700;color:var(--text-primary);}
+.gx-metric-label{font-family:var(--font-ui);letter-spacing:0.1em;}
+.gx-comparison-num{font-family:var(--font-display);font-weight:700;color:var(--cfa-navy);}
+.gx-comparison-label{font-family:var(--font-ui);letter-spacing:0.1em;}
+.gx-satisfaction-ring{background:conic-gradient(var(--cfa-navy) var(--gx-ring,0%),var(--cfa-soft) 0);}
+.gx-satisfaction-ring-inner{background:var(--cfa-white);}
+.gx-satisfaction-ring-value{font-family:var(--font-display);font-weight:700;color:var(--cfa-navy);}
+.gx-opportunities{background:var(--cfa-light);border-left:3px solid #C47A00;border-radius:12px;}
+.gx-opportunities-title{color:#7A4C00;font-family:var(--font-ui);letter-spacing:0.1em;}
+.gx-opportunities-list{font-family:var(--font-ui);font-size:13px;}
+/* LX: the metrics table */
+.metrics-table{border-radius:14px;overflow:hidden;}
+.metrics-table thead{background:var(--cfa-navy);}
+.metrics-table th{font-family:var(--font-ui);letter-spacing:0.1em;}
+.metrics-table td{font-family:var(--font-ui);}
+.metrics-table tbody tr:hover{background:var(--cfa-light);}
+.metric-value{font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--text-primary);}
+.sb-h2{font-family:var(--font-display);font-size:22px;font-weight:600;margin:0 0 14px;color:var(--text-primary);}
+.waste-today-card .bar-list > div[style]{color:rgba(246,241,232,0.75) !important;}

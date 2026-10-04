@@ -159,7 +159,7 @@ function renderWasteDashboard(){
 
   root.innerHTML = `
     <div class="standup-card wd-card">
-      <h3>📊 Waste Dashboard</h3>
+      <h3>Waste Dashboard</h3>
       ${wdRangeBarHtml(range)}
       <div class="wd-stats">
         <div class="wd-stat"><div class="l">Total waste</div><div class="v">${wdMoney(A.total)}</div></div>
@@ -180,7 +180,7 @@ function renderWasteDashboard(){
       </div>
     </div>
     <div class="standup-card wd-card">
-      <h3>🧾 Waste Summary <span class="wd-h-total">${wdMoney(shown)}</span></h3>
+      <h3>Waste Summary <span class="wd-h-total">${wdMoney(shown)}</span></h3>
       <div class="wd-sumtop">
         <input type="search" class="wd-search" data-wd-q placeholder="Search items or categories" value="${escapeHtml(wdQuery)}" autocomplete="off" aria-label="Search">
         <select data-wd-cat aria-label="Category">${sumCats.map(c => `<option value="${escapeHtml(c)}" ${wdCat === c ? 'selected' : ''}>${c === 'All' ? 'All categories' : escapeHtml(c)}</option>`).join('')}</select>

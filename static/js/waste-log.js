@@ -383,8 +383,15 @@ function renderScoreboardView(){
   document.getElementById('wasteStreakLabel').textContent = 'consecutive ' + (wasteStreak === 1 ? 'day' : 'days');
   document.getElementById('fohOEStreakNum').textContent = fohOEStreak;
   document.getElementById('fohOEStreakLabel').textContent = 'consecutive ' + (fohOEStreak === 1 ? 'day' : 'days');
+  // Each streak as a ring that closes at a full open week (6 days).
+  [['foodSafetyStreakNum', foodSafetyStreak], ['wasteStreakNum', wasteStreak], ['fohOEStreakNum', fohOEStreak]].forEach(([id, n])=>{
+    const box = document.getElementById(id).closest('.streak-display');
+    if(box) box.style.setProperty('--p', Math.min(1, (Number(n) || 0) / STREAK_RING_DAYS));
+  });
   if(typeof renderWasteDashboard === 'function') renderWasteDashboard();
 }
+
+const STREAK_RING_DAYS = 6;   // a full week of open days closes the ring
 
 // ===== WASTE THERMOMETER =====
 // Today's waste against the daily limit (the Manage "Daily Waste Limit"),

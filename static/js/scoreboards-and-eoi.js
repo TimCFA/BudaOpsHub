@@ -24,7 +24,7 @@ function renderGXScoreboard(){
   const satPct = parseFloat(gxData.satisfaction.highlySatisfied.value) || 0;
   satisfactionContainer.innerHTML = `
     <div style="margin-bottom:8px;">
-      <div class="gx-satisfaction-ring" style="background:conic-gradient(#7C4DFF ${satPct}%, #E8E4FF ${satPct}%);">
+      <div class="gx-satisfaction-ring" style="background:conic-gradient(#004F71 ${satPct}%, #EBE4D8 ${satPct}%);">
         <div class="gx-satisfaction-ring-inner">
           <div class="gx-satisfaction-ring-value">${escapeHtml(gxData.satisfaction.highlySatisfied.value)}</div>
           <div class="gx-satisfaction-ring-label">Highly Satisfied</div>

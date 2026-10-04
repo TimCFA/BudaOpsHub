@@ -810,7 +810,7 @@ function renderCemTrends(){
   if(!root) return;
   const tabs = [ { id:'scoreboard', label:'Scoreboard' }, { id:'trends', label:'Trends' }, { id:'insights', label:'Insights' }, { id:'data', label:'Data' } ];
   let html = `
-    <div class="ct-header-row"><h2 class="ct-title">📈 CEM Trends</h2></div>
+    <div class="ct-header-row"><h2 class="ct-title">CEM Trends</h2></div>
     <p class="ct-subtitle">Multi-month guest experience trends &amp; statistical insights — the Guest Obsession scoreboard above shows the latest month logged here</p>
     <nav class="ct-tabs">${tabs.map((t) => `<button class="ct-tab ${cemTab===t.id?'active':''}" data-ct-set-tab="${t.id}">${t.label}</button>`).join('')}</nav>
     <div class="ct-panel">
