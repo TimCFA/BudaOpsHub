@@ -54,7 +54,7 @@ const DU_SOURCES = [
   },
   {
     key: 'labor', short: 'DayTrack export', icon: '', name: 'DayTrack Table (sales & labor by day)', freq: 'weekly', accept: '.csv,.txt,.xlsx,.xls',
-    how: 'Analytics Hub → DayTrack → Table, export as CSV, with a row per business date. Carries this year’s and last year’s sales, timekeeping and benchmark hours, effective wage, labor cost % and check average. Any other export with a date column and labor columns works too; the Forecast page’s Data tab shows which column was taken for what.',
+    how: 'Analytics Hub → DayTrack → Table, export as CSV, with a row per business date. Carries this year’s and last year’s sales, timekeeping and benchmark hours, effective wage, labor cost % and check average. Export a range that reaches back a year once, so the forecast has last year’s figure for every day ahead; after that a few weeks at a time keeps it current. Any other export with a date column and labor columns works too; the Forecast page’s Data tab shows which column was taken for what.',
     feeds: 'Forecast — sales history, last year’s sales, labor hours, $ per labor hour and labor % targets'
   },
   {

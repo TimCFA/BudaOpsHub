@@ -269,7 +269,87 @@ class DayTrackTest(unittest.TestCase):
         self.assertNotIn('2026-09-10', res['bt'])                      # closed days aren't scored
 
     def test_vs_last_year(self):
-        hist = {'2026-09-01': {'sales': 110, 'lastYearSales': 100}, '2026-09-02': {'sales': 220, 'lastYearSales': 200}, '2026-09-03': {'sales': 50}}
+        hist = {f'2026-09-0{i}': {'sales': 110 * i, 'lastYearSales': 100 * i} for i in range(1, 7)}
+        hist['2026-09-07'] = {'sales': 50}                                   # no last-year figure: left out
         res, = run([{'op': 'c => { const a = fcAnalysis(c.hist, 0); return [a.vsLastYearPct, a.lastYearDays]; }', 'hist': hist}])
         self.assertAlmostEqual(res[0], 10)
-        self.assertEqual(res[1], 2)
+        self.assertEqual(res[1], 6)
+
+
+class LastYearTest(unittest.TestCase):
+    def seasonal(self):
+        """This year is last year's same weekday × 1.10, with last year's
+        rows present as their own days (a year-back export), plus a
+        Sunday-closed pattern. The last-year model should win outright."""
+        hist = {}
+        base = {1: 6000, 2: 6200, 3: 6500, 4: 7000, 5: 8500, 6: 8000}
+        start = datetime.date(2025, 8, 3)                 # a Sunday
+        for i in range(12 * 7):
+            ly_day = start + datetime.timedelta(days=i)
+            dow = (ly_day.weekday() + 1) % 7
+            if dow == 0:
+                continue
+            swing = 1.3 if (i // 7) % 2 else 0.8          # alternate weeks swing, both years alike
+            ly_sales = round(base[dow] * swing, 2)
+            hist[ly_day.isoformat()] = {'sales': ly_sales}
+            ty_day = ly_day + datetime.timedelta(days=364)
+            if ty_day <= datetime.date(2026, 9, 26):
+                hist[ty_day.isoformat()] = {'sales': round(ly_sales * 1.10, 2), 'lastYearSales': ly_sales, 'lastYearDate': ly_day.isoformat()}
+        return hist
+
+    def test_last_year_map_prefers_a_days_own_row_and_respects_cutoff(self):
+        hist = {
+            '2026-09-01': {'sales': 100, 'lastYearSales': 90, 'lastYearDate': '2025-09-02'},
+            '2025-09-02': {'sales': 95},
+            '2026-09-03': {'sales': 120},
+        }
+        full, cut = run([
+            {'op': 'c => fcLastYearMap(c.hist)', 'hist': hist},
+            {'op': 'c => fcLastYearMap(c.hist, "2026-09-02")', 'hist': hist},
+        ])
+        self.assertEqual(full['2025-09-02'], 95)          # the day's own row wins over the carried figure
+        self.assertEqual(full['2026-09-03'], 120)
+        self.assertNotIn('2026-09-03', cut)               # this year's rows after the cutoff are unknown
+        self.assertEqual(cut['2025-09-02'], 95)
+
+    def test_run_rate_needs_a_week_of_pairs(self):
+        rows = [{'date': f'2026-09-0{i}', 'sales': 110, 'lastYearSales': 100} for i in range(1, 6)]
+        short, full = run([
+            {'op': 'c => fcYoyRatio(c.rows, {})', 'rows': rows},
+            {'op': 'c => fcYoyRatio(c.rows, {})', 'rows': rows + [{'date': '2026-09-06', 'sales': 220, 'lastYearSales': 200}]},
+        ])
+        self.assertIsNone(short['ratio'])
+        self.assertAlmostEqual(full['ratio'], 1.1)
+        self.assertEqual(full['days'], 6)
+
+    def test_baseline_blends_and_flags_a_closed_day_last_year(self):
+        hist = history(weeks=8)                           # 2026-08-02 … 2026-09-26, Sunday closed
+        for iso in list(hist):
+            d = datetime.date.fromisoformat(iso)
+            hist[iso]['lastYearSales'] = 1000
+            hist[iso]['lastYearDate'] = (d - datetime.timedelta(days=364)).isoformat()
+        hist['2025-10-03'] = {'sales': 2000}              # Friday a year before 2026-10-02
+        hist['2025-10-04'] = {'sales': 0}                 # Saturday a year before 2026-10-03: closed
+        res, = run([{'op': 'c => { const a = fcAnalysis(c.hist, 0); return {ratio: a.yoyRatio, w0: fcBaseline("2026-10-02", a, 0), w1: fcBaseline("2026-10-02", a, 1), half: fcBaseline("2026-10-02", a, 0.5), sat: fcBaseline("2026-10-03", a, 1), none: fcBaseline("2026-10-01", a, 1)}; }', 'hist': hist}])
+        ratio = res['ratio']
+        self.assertGreater(ratio, 1)                      # this year runs well above the flat $1,000 "last year"
+        self.assertAlmostEqual(res['w1']['sales'], 2000 * ratio, places=3)
+        self.assertAlmostEqual(res['w0']['sales'], res['w0']['dowSales'], places=6)
+        self.assertAlmostEqual(res['half']['sales'], (res['w0']['sales'] + res['w1']['sales']) / 2, places=3)
+        self.assertEqual(res['w1']['lastYearDate'], '2025-10-03')
+        self.assertTrue(res['sat']['closedLastYear'])
+        self.assertAlmostEqual(res['sat']['sales'], res['sat']['dowSales'], places=6)   # the weekday figure stands
+        self.assertIsNone(res['none']['yoySales'])        # no figure for that day a year ago
+        self.assertAlmostEqual(res['none']['sales'], res['none']['dowSales'], places=6)
+
+    def test_backtest_picks_last_year_when_the_year_repeats(self):
+        hist = self.seasonal()
+        res, = run([{'op': 'c => { const sc = fcBacktestScores(c.hist, 28, 0); return {best: fcBestYoyWeight(c.hist, 0), acc: sc.byWeight, w: fcModelWeight("auto", c.hist, 0), fixed: [fcModelWeight("weekday"), fcModelWeight("lastyear"), fcModelWeight("blend")]}; }', 'hist': hist}])
+        self.assertEqual(res['best'], 1)
+        self.assertGreater(res['acc']['1'], res['acc']['0'] + 5)
+        self.assertEqual(res['w'], 1)
+        self.assertEqual(res['fixed'], [0, 1, 0.5])
+
+    def test_scores_absent_without_last_year(self):
+        res, = run([{'op': 'c => [fcBacktestScores(c.hist, 14, 0), fcBestYoyWeight(c.hist, 0)]', 'hist': history(weeks=6)}])
+        self.assertEqual(res, [None, 0])

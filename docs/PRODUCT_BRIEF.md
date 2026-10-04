@@ -92,9 +92,14 @@ own data, never guessed or narrated.
 
 ### Forecast (managers)
 Sales & Labor Forecast tab (full site only; the history is manager-only, so a
-device without the PIN sees a gate). Baseline = that weekday's average over
-the look-back window, carried forward by a straight-line weekly trend
-(full weeks only, capped at ±5%/week); a per-day or every-day adjustment %
+device without the PIN sees a gate). Baseline = a blend of two models: that
+weekday's average over the look-back window, carried forward by a
+straight-line weekly trend (full weeks only, capped at ±5%/week), and the
+same weekday a year ago (364 days back, from the DayTrack export) × this
+year's run-rate against last year over the window. The blend weight comes
+from the backtest over the last 28 open days ("Best fit") unless the leader
+picks a fixed mix; a day the store was closed a year ago is flagged and uses
+the weekday figure. A per-day or every-day adjustment %
 for games, holidays, weather; labor hours from a $-per-labor-hour target or
 labor % ÷ average wage. Patterns (KPIs, weekly trend, weekday averages),
 Accuracy (backtest of the model on days already lived), Channels (sales by
