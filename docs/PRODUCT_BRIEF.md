@@ -41,9 +41,10 @@ A landing page with the day's key info (content set in Manage → Home Page).
 
 ### Simplified site (launch mode)
 While the team is getting started, a device without the manager PIN sees
-only Home, Set Ups, Waste and Lists. Lists opens Zone Reset & Walkthroughs in
-one tap; Food Safety Walkthrough, Daily Safe Count and the Prep Board are
-pills at the top of each list page. Set Ups opens in the plain set-up
+only Home, Set Ups, Waste and Lists. Lists opens Zone Resets in one tap; the
+Leader Transition List, Food Safety Walkthrough, Daily Safe Count and the Prep
+Board are pills at the top of each list page (Zone Resets and the Leader
+Transition List are one page on the full site, two pills here). Set Ups opens in the plain set-up
 sheet with the roster's break timer; Coach and the planned break times wait
 for the full site. Managers turn launch mode off for everyone in Manage.
 
@@ -109,7 +110,10 @@ Two lists, each a set of handoff drop-downs that all start closed (the
 current handoff is marked "now"): Zone Reset (open a handoff, then a zone,
 for its reset list) and the Leader Transition List. The OE walkthrough is
 kept but hidden; the Food Safety Walkthrough has its own page and no longer
-appears here. A daily safe count is its own page too.
+appears here. A daily safe count is its own page too: cashier tills, coin
+rolls (entered as rolls: quarters $10, dimes $5, nickels $2), loose coin, and
+bills entered as the **dollar amount in each denomination** (seventeen $20s is
+340; the row shows the bill count, or flags an amount that isn't a multiple).
 
 ### Scoreboards
 Waste (above), Guest Obsession (CEM survey scores from the monthly upload), TX

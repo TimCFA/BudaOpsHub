@@ -419,9 +419,11 @@
   <!-- Zone Reset & Walkthroughs View -->
   <div class="view" id="zoneresetView">
     <nav class="launch-subnav launch-only" aria-label="Lists" data-launch-subnav></nav>
-    <p class="section-intro"><b>Zone Reset</b> is for Team Members — restock and reset each zone between dayparts. <b>Walkthroughs</b> are for Leaders — a quick scan to confirm the big things are handled.</p>
+    <p class="section-intro" data-launch-page="zones"><b>Zone Reset</b> is for Team Members — restock and reset each zone between dayparts. <b>Walkthroughs</b> are for Leaders — a quick scan to confirm the big things are handled.</p>
 
-    <div class="standup-card">
+    <!-- On the simplified site Zone Resets and the Leader Transition List are
+         separate pills (launch-mode.js): data-launch-page says which pill a card belongs to. -->
+    <div class="standup-card" id="zoneResetCard" data-launch-page="zones">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
         <h3 style="margin:0;">Zone Reset</h3>
         <span class="zone-overall-pct" id="zoneOverallPct">0%</span>
@@ -448,7 +450,7 @@
       </div>
     </div>
 
-    <div class="standup-card">
+    <div class="standup-card" id="leaderTransitionCard" data-launch-page="leaders">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
         <h3 style="margin:0;">Leader Transition List <span class="sub"><i>Lista de Transición — Líderes</i></span></h3>
         <span class="zone-overall-pct" id="leaderTransitionBadge">0%</span>
@@ -513,13 +515,14 @@
 
         <div class="gx-section-subtitle" style="margin:16px 0 10px;">Bills</div>
         <div class="denom-grid" id="denomGrid">
-          <div class="denom-row"><label>$100</label><input type="number" min="0" class="denom-input" data-value="100"><span class="denom-sub"></span></div>
-          <div class="denom-row"><label>$50</label><input type="number" min="0" class="denom-input" data-value="50"><span class="denom-sub"></span></div>
-          <div class="denom-row"><label>$20</label><input type="number" min="0" class="denom-input" data-value="20"><span class="denom-sub"></span></div>
-          <div class="denom-row"><label>$10</label><input type="number" min="0" class="denom-input" data-value="10"><span class="denom-sub"></span></div>
-          <div class="denom-row"><label>$5</label><input type="number" min="0" class="denom-input" data-value="5"><span class="denom-sub"></span></div>
-          <div class="denom-row"><label>$1</label><input type="number" min="0" class="denom-input" data-value="1"><span class="denom-sub"></span></div>
+          <div class="denom-row"><label>$100</label><input type="number" min="0" step="100" inputmode="numeric" placeholder="$ total" class="denom-input" data-value="100" aria-label="Dollar total in $100 bills"><span class="denom-sub"></span></div>
+          <div class="denom-row"><label>$50</label><input type="number" min="0" step="50" inputmode="numeric" placeholder="$ total" class="denom-input" data-value="50" aria-label="Dollar total in $50 bills"><span class="denom-sub"></span></div>
+          <div class="denom-row"><label>$20</label><input type="number" min="0" step="20" inputmode="numeric" placeholder="$ total" class="denom-input" data-value="20" aria-label="Dollar total in $20 bills"><span class="denom-sub"></span></div>
+          <div class="denom-row"><label>$10</label><input type="number" min="0" step="10" inputmode="numeric" placeholder="$ total" class="denom-input" data-value="10" aria-label="Dollar total in $10 bills"><span class="denom-sub"></span></div>
+          <div class="denom-row"><label>$5</label><input type="number" min="0" step="5" inputmode="numeric" placeholder="$ total" class="denom-input" data-value="5" aria-label="Dollar total in $5 bills"><span class="denom-sub"></span></div>
+          <div class="denom-row"><label>$1</label><input type="number" min="0" step="1" inputmode="numeric" placeholder="$ total" class="denom-input" data-value="1" aria-label="Dollar total in $1 bills"><span class="denom-sub"></span></div>
         </div>
+        <p style="font-size:10px;color:var(--text-secondary);margin:-8px 0 12px;">Enter the dollar amount in each bill, not the number of bills — seventeen $20s is 340.</p>
 
         <div class="safe-total-banner">
           <div class="safe-total-label">Total Counted</div>
@@ -805,7 +808,7 @@
 
       <label class="launch-setting">
         <input type="checkbox" id="launchModeToggle" checked>
-        <span><b>Launch mode</b> — the team sees only Home, Set Ups, Waste and Lists (Zone Resets first, then Food Safety, Safe Count and the Prep Board as pills). Devices signed in here see everything.</span>
+        <span><b>Launch mode</b> — the team sees only Home, Set Ups, Waste and Lists (Zone Resets first, then Leader Transition, Food Safety, Safe Count and the Prep Board as pills). Devices signed in here see everything.</span>
       </label>
 
 
