@@ -203,7 +203,7 @@ overdue) and an upload button per report.
 | Productivity (CSV) | Daypart productivity report | Busy hours for breaks |
 | Sales Mix (CSV) | Daily items sold | Prep Board build-to |
 | Sales by day (CSV) | Analytics Hub sales by destination | Guest Obsession WIG; every day → Forecast history |
-| Labor by day (CSV/xlsx) | Analytics Hub labor report or DayTrack | Forecast labor hours, $/labor hour, labor % |
+| DayTrack Table (CSV) | Analytics Hub → DayTrack → Table, a row per business date | Forecast: sales this year and last, labor hours, wage, labor %, check average |
 
 - Sales Mix needs a date (picked if the file doesn't say), and a **duplicate
   guard**: flag a file identical to another day's within the last 2 weeks.

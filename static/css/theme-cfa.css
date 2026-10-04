@@ -601,7 +601,7 @@ button,input,select,textarea{font-family:inherit;}
 .fc-actions .btn{width:auto;margin:0;}
 .fc-danger{border-color:var(--cfa-dark-red);color:var(--cfa-dark-red);}
 /* KPI cards */
-.fc-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px;}
+.fc-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:14px;}
 .fc-kpis-3{grid-template-columns:repeat(3,1fr);}
 .fc-kpi{background:var(--cfa-white);border:1px solid var(--border);border-radius:16px;padding:16px;min-width:0;}
 .fc-kpi-ic{width:32px;height:32px;border-radius:10px;background:var(--cfa-light);display:flex;align-items:center;justify-content:center;color:var(--cfa-navy);margin-bottom:10px;}
