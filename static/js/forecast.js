@@ -27,13 +27,15 @@
 // an empty history shows an empty page, never sample numbers.
 
 let salesHistory = {};      // {iso: {sales, transactions, laborHours, laborCost, laborPct, wage, channels: {name: $}}}
-let forecastSettings = {};  // {method, splh, pct, wage, lookback, days, adjustments: {iso: pct}}
+let forecastSettings = {};  // {method, splh, pct, wage, lookback, days, model, unusual, adjustments: {iso: pct}}
+let forecastLog = {};       // {iso: {sales, baseline, adj, model, at}} — what was sent to Know the Numbers, scored once the day's actual lands
 
 const FC_DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const FC_DOW_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const FC_DEFAULTS = {method: 'splh', splh: null, pct: null, wage: null, lookback: 'auto', days: 7, model: 'auto', adjustments: {}};
 const FC_LOOKBACKS = [4, 8, 12, 26];           // the windows Best fit chooses between, per weekday
 const FC_LOOKBACK_MIN_DAYS = 3;                // scored days of a weekday before it gets its own window
+const FC_LOG_KEEP_DAYS = 120;                  // how long a sent forecast is kept
 const FC_YEAR_DAYS = 364;                      // the same weekday a year ago
 const FC_YOY_WEIGHTS = [0, 0.25, 0.5, 0.75, 1];  // share of the baseline that comes from last year
 const FC_YOY_MIN_DAYS = 6;                     // days with both years before the run-rate is trusted
@@ -727,10 +729,11 @@ function fcNumbersPlan(){
   return fcDates().map(iso => {
     const base = fcBaseline(iso, a);
     if(base.sales == null || base.closed) return null;
-    const sales = base.sales * (1 + (+s.adjustments[iso] || 0) / 100);
+    const adj = +s.adjustments[iso] || 0;
+    const sales = base.sales * (1 + adj / 100);
     const prof = typeof breakProfileFor === 'function' ? breakProfileFor(iso) : null;
     const weights = prof ? fcHourWeights(prof.hours) : null;
-    return {date: iso, dow: base.dow, sales, goal, split: fcSplitDay(sales, weights, windows), source: weights ? prof.day : null};
+    return {date: iso, dow: base.dow, sales, baseline: base.sales, adj, model: fcModelLabel(s.model, base.yoyWeight), goal, split: fcSplitDay(sales, weights, windows), source: weights ? prof.day : null};
   }).filter(Boolean);
 }
 
@@ -750,10 +753,77 @@ async function fcApplyNumbers(plan){
   if(plan.length){
     const dates = plan.map(p => p.date);
     duRecord('numbers', {file: 'Forecast tab', summary: `${fcShort(dates[0])} – ${fcShort(dates[dates.length - 1])} · ${dates.length} day${dates.length === 1 ? '' : 's'} from the forecast`, periodEnd: dates[dates.length - 1]});
+    fcLogPlan(plan, forecastLog, today);
   }
   await saveState();
   if(document.getElementById('numbersContent') && document.getElementById('numbersDaySelect') && document.getElementById('numbersDaySelect').value) renderNumbersContent();
   return cells;
+}
+
+// ----- Track record -----
+// What was actually sent to Know the Numbers, kept so the Accuracy tab can
+// score the real forecast (adjustments included) against the day once its
+// actual lands — and show whether the adjustments helped.
+
+// Records each planned day (today or later). A day sent again is replaced
+// until it arrives; entries older than FC_LOG_KEEP_DAYS fall away.
+function fcLogPlan(plan, log, todayIso){
+  const now = new Date().toISOString();
+  let n = 0;
+  plan.forEach(p => {
+    if(!fcValidIso(p.date) || p.date < todayIso || !(p.sales >= 0)) return;
+    log[p.date] = {sales: Math.round(p.sales), baseline: Math.round(p.baseline), adj: p.adj || 0, model: p.model || '', at: now};
+    n++;
+  });
+  const cutoff = fcAddDays(todayIso, -FC_LOG_KEEP_DAYS);
+  Object.keys(log).forEach(iso => { if(!fcValidIso(iso) || iso < cutoff) delete log[iso]; });
+  return n;
+}
+
+// Sent forecasts against actuals: per-day rows (newest first) and the
+// summary — accuracy of what was sent, of the model's baseline at the
+// time, how the adjusted days fared, and which way the forecast leans.
+function fcTrackRecord(log, hist){
+  const rows = [], waiting = [];
+  Object.keys(log || {}).filter(fcValidIso).sort().forEach(iso => {
+    const e = log[iso];
+    if(!e || !(e.sales >= 0)) return;
+    const day = (hist || {})[iso];
+    const actual = day && day.sales > 0 ? day.sales : null;
+    if(actual == null){ waiting.push(iso); return; }
+    rows.push({date: iso, dow: fcDow(iso), sent: e.sales, baseline: e.baseline, adj: e.adj || 0, model: e.model || '', actual,
+      accuracy: fcAccuracy(actual, e.sales), baselineAccuracy: fcAccuracy(actual, e.baseline), errorPct: (e.sales / actual - 1) * 100});
+  });
+  const avg = (arr, f) => arr.length ? arr.reduce((t, r) => t + f(r), 0) / arr.length : null;
+  const adjusted = rows.filter(r => r.adj);
+  return {
+    rows: rows.slice().reverse(), waiting,
+    days: rows.length,
+    accuracy: avg(rows, r => r.accuracy),
+    baselineAccuracy: avg(rows, r => r.baselineAccuracy),
+    miss: avg(rows, r => Math.abs(r.actual - r.sent)),
+    bias: avg(rows, r => r.errorPct),
+    adjustedDays: adjusted.length,
+    adjustedHelped: adjusted.filter(r => r.accuracy > r.baselineAccuracy + 1e-9).length
+  };
+}
+
+function fcTrackRecordHtml(){
+  const t = fcTrackRecord(forecastLog, salesHistory);
+  const tier = acc => acc >= 90 ? 'is-good' : acc >= 75 ? 'is-warn' : 'is-bad';
+  if(!t.days && !t.waiting.length) return `<div class="standup-card fc-compare"><h3>Your track record</h3><p class="fc-muted">Nothing sent yet. Press <b>Send to Know the Numbers</b> on the Forecast tab: each day you send is kept, and scored here once its actual sales land from the DayTrack export.</p></div>`;
+  const head = t.days ? `<div class="fc-kpis">
+      ${fcKpi(FC_ICON.percent, 'Sent forecasts', t.accuracy.toFixed(1) + '%', `${t.days} day${t.days === 1 ? '' : 's'} scored · avg miss ${fcMoney(t.miss)}`, tier(t.accuracy))}
+      ${fcKpi(FC_ICON.trendUp, 'Model alone', t.baselineAccuracy.toFixed(1) + '%', t.accuracy > t.baselineAccuracy + 0.05 ? 'your adjustments beat it' : t.accuracy < t.baselineAccuracy - 0.05 ? 'the model alone did better' : 'about the same')}
+      ${fcKpi(FC_ICON.check, 'Adjusted days', t.adjustedDays ? `${t.adjustedHelped} of ${t.adjustedDays}` : '—', t.adjustedDays ? 'helped vs the model alone' : 'no adjustments sent yet')}
+      ${fcKpi(t.bias >= 0 ? FC_ICON.trendUp : FC_ICON.trendDown, 'Leans', fcPctFmt(t.bias), t.bias > 1 ? 'the sent forecast runs high' : t.bias < -1 ? 'the sent forecast runs low' : 'no lean to speak of')}
+    </div>` : '';
+  const rows = t.rows.map(r => `<tr class="${r.adj ? 'is-adjusted' : ''}"><td><b>${FC_DOW[r.dow]}</b> <span class="fc-muted">${fcShort(r.date)}</span></td><td class="fc-num">${fcMoney(r.sent)}${r.adj ? `<span class="fc-muted"> (${fcPctFmt(r.adj, 0)})</span>` : ''}</td><td class="fc-num">${fcMoney(r.baseline)}</td><td class="fc-num">${fcMoney(r.actual)}</td><td><span class="fc-pill ${tier(r.accuracy)}">${r.accuracy.toFixed(1)}%</span></td><td class="fc-num">${r.baselineAccuracy.toFixed(1)}%</td></tr>`).join('');
+  return `<div class="standup-card fc-compare"><h3>Your track record <span class="sub">what was sent to Know the Numbers, against what happened</span></h3>
+    ${head}
+    ${t.days ? `<div class="fc-table-wrap"><table class="fc-table fc-table-sm"><thead><tr><th>Day</th><th class="fc-num">Sent</th><th class="fc-num">Model alone</th><th class="fc-num">Actual</th><th>Accuracy</th><th class="fc-num">Model alone</th></tr></thead><tbody>${rows}</tbody></table></div>` : ''}
+    ${t.waiting.length ? `<p class="fc-muted">${t.waiting.length} day${t.waiting.length === 1 ? '' : 's'} sent and waiting for actuals (${fcShort(t.waiting[0])}${t.waiting.length > 1 ? ` – ${fcShort(t.waiting[t.waiting.length - 1])}` : ''}) — they score once the DayTrack export covering them is uploaded.</p>` : ''}
+  </div>`;
 }
 
 // ----- Settings -----
@@ -939,6 +1009,7 @@ function fcRenderForecast(){
       <button type="button" class="btn ${fcNumbersOpen ? 'btn-ghost' : 'btn-primary'}" id="fcToNumbers">${fcNumbersOpen ? 'Hide the Know the Numbers preview' : 'Send to Know the Numbers'}</button>
       <button type="button" class="btn btn-ghost" id="fcCopy">Copy as CSV</button>
       <button type="button" class="btn btn-ghost" id="fcDownload">Download CSV</button>
+      ${(() => { const sent = dates.filter(d => forecastLog[d]); if(!sent.length) return ''; const last = sent.map(d => forecastLog[d].at).sort().pop(); return `<span class="fc-muted fc-note-wide is-info">Sent to Know the Numbers ${fcShort(last.slice(0, 10))} for ${sent.length === dates.length ? 'every day here' : `${sent.length} of these days`}. Sending again replaces those.</span>`; })()}
       ${lyNote ? `<span class="fc-muted fc-note-wide">${lyNote}</span>` : ''}
       <span class="fc-muted">${a.yoyWeight > 0 ? `Baseline = ${fcModelLabel(s.model, a.yoyWeight)}: the same weekday a year ago × this year's run-rate (${fcPctFmt(a.vsLastYearPct)}), and that weekday's average over ${fcLookbackLabel(a, s)} carried forward by the trend.` : `Baseline = that weekday's average over ${fcLookbackLabel(a, s)}, carried forward by the weekly trend.`}</span>
     </div>
@@ -1079,7 +1150,7 @@ function fcRenderAccuracy(){
   const scores = a0.hasLastYear ? fcBacktestScores(salesHistory, compareDays, weeks0) : null;
   const sel = `<select id="fcBacktestDays" class="fc-inline-select" aria-label="Days to test">${[7, 14, 28].map(n => `<option value="${n}" ${fcBacktestDays === n ? 'selected' : ''}>last ${n} days</option>`).join('')}</select>`;
   if(!results.length){
-    panel.innerHTML = `<div class="fc-panel-head"><p class="fc-lede">How the model would have done on days already lived, forecasting each from only the history before it: ${sel}</p></div><p class="fc-empty">Not enough history to test yet — the backtest needs at least a week before each day it scores.</p>`;
+    panel.innerHTML = `${fcTrackRecordHtml()}<div class="fc-panel-head"><p class="fc-lede">How the model would have done on days already lived, forecasting each from only the history before it: ${sel}</p></div><p class="fc-empty">Not enough history to test yet — the backtest needs at least a week before each day it scores.</p>`;
     document.getElementById('fcBacktestDays').addEventListener('change', e => { fcBacktestDays = +e.target.value; fcRenderAccuracy(); });
     return;
   }
@@ -1106,6 +1177,7 @@ function fcRenderAccuracy(){
       <p class="fc-muted">${s.model === 'auto' ? `Best fit is on: the forecast uses whichever mix scored best over the last ${FC_AUTO_TEST_DAYS} open days, and follows it as the weeks go by.` : 'Change the model on the Forecast tab, or pick Best fit to let the backtest choose.'}</p></div>`;
   }
   panel.innerHTML = `
+    ${fcTrackRecordHtml()}
     <div class="fc-panel-head"><p class="fc-lede">How the model would have done on days already lived, forecasting each from only the history before it: ${sel}</p></div>
     ${compareHtml}
     <div class="fc-kpis">

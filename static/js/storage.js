@@ -28,7 +28,7 @@ const STATE_SECTIONS = {
   prep: ['prepBuffers', 'prepSoldEntries', 'prepWasteEntries', 'prepStockoutEvents', 'prepHistorySeeded'],
   prepTimes: ['prepTimes', 'prepTimers'],
   cem: ['cemEntries'],
-  forecast: ['salesHistory', 'forecastSettings'],
+  forecast: ['salesHistory', 'forecastSettings', 'forecastLog'],
   misc: []
 };
 const STATE_SECTION_OF = {};
@@ -68,7 +68,7 @@ function stateSnapshot(){
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
     prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, launchMode, prepTimes, prepTimers,
-    salesHistory, forecastSettings
+    salesHistory, forecastSettings, forecastLog
   };
 }
 
@@ -410,6 +410,7 @@ function applyStateData(data){
   // (manager sessions only — a page without one keeps them empty).
   salesHistory = (data.salesHistory && typeof data.salesHistory === 'object' && !Array.isArray(data.salesHistory)) ? data.salesHistory : {};
   forecastSettings = (data.forecastSettings && typeof data.forecastSettings === 'object' && !Array.isArray(data.forecastSettings)) ? data.forecastSettings : {};
+  forecastLog = (data.forecastLog && typeof data.forecastLog === 'object' && !Array.isArray(data.forecastLog)) ? data.forecastLog : {};
 }
 
 // ===== OTHER PEOPLE'S CHANGES =====

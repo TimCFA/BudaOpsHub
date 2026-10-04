@@ -424,3 +424,36 @@ class LookbackPickTest(unittest.TestCase):
         self.assertTrue(res['hasPer'])
         self.assertGreater(res['friBase'], 8500 * 1.15)           # from the recent, higher Fridays
         self.assertLess(abs(res['monBase'] - 6000), 300)           # Mondays unchanged
+
+
+class TrackRecordTest(unittest.TestCase):
+    def test_log_keeps_days_ahead_and_prunes_old_ones(self):
+        plan = [{'date': '2026-10-05', 'sales': 26125.4, 'baseline': 26125.4, 'adj': 0, 'model': 'weekday average'},
+                {'date': '2026-10-06', 'sales': 30000, 'baseline': 27272.7, 'adj': 10, 'model': '25% last year · 75% weekday'},
+                {'date': '2026-10-03', 'sales': 100, 'baseline': 100, 'adj': 0}]       # yesterday: not logged
+        res, = run([{'op': 'c => { const log = {"2026-05-01": {sales: 1, baseline: 1}}; const n = fcLogPlan(c.plan, log, "2026-10-04"); return {n, log}; }', 'plan': plan}])
+        self.assertEqual(res['n'], 2)
+        self.assertEqual(sorted(res['log']), ['2026-10-05', '2026-10-06'])            # the May entry is older than 120 days
+        self.assertEqual(res['log']['2026-10-06']['sales'], 30000)
+        self.assertEqual(res['log']['2026-10-06']['baseline'], 27273)
+        self.assertEqual(res['log']['2026-10-06']['adj'], 10)
+
+    def test_track_record_scores_sent_vs_model_and_counts_helpful_adjustments(self):
+        log = {
+            '2026-09-28': {'sales': 30000, 'baseline': 27000, 'adj': 11, 'model': 'm'},   # adjusted up, actual 29500: helped
+            '2026-09-29': {'sales': 24000, 'baseline': 26000, 'adj': -8, 'model': 'm'},   # adjusted down, actual 26500: hurt
+            '2026-09-30': {'sales': 28000, 'baseline': 28000, 'adj': 0, 'model': 'm'},    # no adjustment, actual 28000
+            '2026-10-05': {'sales': 26000, 'baseline': 26000, 'adj': 0, 'model': 'm'},    # not lived yet
+        }
+        hist = {'2026-09-28': {'sales': 29500}, '2026-09-29': {'sales': 26500}, '2026-09-30': {'sales': 28000}, '2026-10-04': {'sales': 0}}
+        t, = run([{'op': 'c => fcTrackRecord(c.log, c.hist)', 'log': log, 'hist': hist}])
+        self.assertEqual(t['days'], 3)
+        self.assertEqual(t['waiting'], ['2026-10-05'])
+        self.assertEqual([r['date'] for r in t['rows']], ['2026-09-30', '2026-09-29', '2026-09-28'])
+        self.assertEqual(t['adjustedDays'], 2)
+        self.assertEqual(t['adjustedHelped'], 1)
+        sent = [r['accuracy'] for r in t['rows']]
+        self.assertAlmostEqual(t['accuracy'], sum(sent) / 3)
+        self.assertGreater(t['rows'][2]['accuracy'], t['rows'][2]['baselineAccuracy'])
+        self.assertLess(t['rows'][1]['accuracy'], t['rows'][1]['baselineAccuracy'])
+        self.assertAlmostEqual(t['bias'], ((30000 / 29500 - 1) + (24000 / 26500 - 1) + 0) * 100 / 3)
