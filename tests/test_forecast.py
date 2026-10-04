@@ -217,3 +217,59 @@ class KnowTheNumbersFeedTest(unittest.TestCase):
         self.assertEqual(splh, 175)
         self.assertAlmostEqual(pct, 160)
         self.assertIsNone(none)
+
+
+# The shape of the Analytics Hub DayTrack Table export (made-up numbers):
+# a Tableau week-code column first, a Total row per week, a $0 Sunday.
+DAYTRACK = (
+    "str(DATEPART('year', [Business Date]))+'-'+str(DATEPART('wee...\tCurrent Year's Date\tDay of Week\tLast Year's Date\tThis Year's Sales\tLast Year's Sales\tSales % Chg. vs Last Year\tTimekeeping Hours\tBenchmark Hours\tHours Difference (Benchmark)\tEst. Labor Cost Opportunity ($)\tEst. Labor Cost Opportunity (%)\tLabor Productivity\tBenchmark Productivity\tEffective Wage Rate\tLabor Cost %\tCheck Average\n"
+    "2026-36\t9/1/2026\tTuesday\t9/2/2025\t$20,000\t$22,000\t-9.09%\t200.00\t210.00\t-10.00\t($180.00)\t-0.90%\t$100.00\t$95.24\t$18.00\t18.00%\t$15.00\n"
+    "2026-36\t9/2/2026\tWednesday\t9/3/2025\t$24,000\t$20,000\t20.00%\t240.00\t250.00\t-10.00\t($180.00)\t-0.75%\t$100.00\t$96.00\t$18.00\t18.00%\t$16.00\n"
+    "2026-36\tTotal\tTotal\tTotal\t$44,000\t$42,000\t4.76%\t440.00\t460.00\t-20.00\t($360.00)\t-0.82%\t$100.00\t$95.65\t$18.00\t18.00%\t$15.50\n"
+    "2026-37\t9/6/2026\tSunday\t9/7/2025\t$0\t$0\t\t24.00\t0.00\t24.00\t\t\t$0.00\t\t\t\t\n"
+    "Grand Total\tTotal\tTotal\tTotal\t$44,000\t$42,000\t4.76%\t464.00\t460.00\t4.00\t($360.00)\t-0.82%\t$94.83\t$95.65\t$18.00\t18.00%\t$15.50\n"
+)
+
+
+class DayTrackTest(unittest.TestCase):
+    def test_daytrack_columns_are_read(self):
+        res, = run([{'op': 'c => { const t = fcParseTable(c.text); const map = fcGuessMap(t.headers, t.rows); const recs = fcRecordsFromTable(t, map); const hist = {}; const n = fcMergeRecords(recs, hist); return {map, n, hist, labor: fcLooksLikeLabor(c.text)}; }', 'text': DAYTRACK}])
+        self.assertTrue(res['labor'])
+        self.assertEqual(res['map']['date'], 1)              # not the week code that mentions [Business Date]
+        self.assertEqual(res['map']['sales'], 4)             # this year's, not last year's
+        self.assertEqual(res['map']['hours'], 7)             # timekeeping, not benchmark
+        self.assertNotIn('cost', res['map'])                 # the "opportunity" column is not labor cost
+        self.assertEqual(res['map']['pct'], 15)
+        self.assertEqual(res['map']['wage'], 14)
+        self.assertEqual(res['map']['lastYearSales'], 5)
+        self.assertEqual(res['map']['lastYearDate'], 3)
+        self.assertEqual(res['map']['benchmarkHours'], 8)
+        self.assertEqual(res['map']['checkAvg'], 16)
+        self.assertEqual(res['n'], 3)                        # three dated rows; Total rows skipped
+        day = res['hist']['2026-09-01']
+        self.assertEqual(day['sales'], 20000)
+        self.assertEqual(day['lastYearSales'], 22000)
+        self.assertEqual(day['lastYearDate'], '2025-09-02')
+        self.assertEqual(day['laborHours'], 200)
+        self.assertEqual(day['laborPct'], 18)
+        self.assertEqual(day['wage'], 18)
+        self.assertEqual(day['checkAverage'], 15)
+        self.assertEqual(res['hist']['2026-09-06']['sales'], 0)
+
+    def test_zero_sales_days_are_closed_not_averaged(self):
+        hist = history(weeks=6)
+        hist['2026-09-06'] = {'sales': 0, 'laborHours': 24}           # a Sunday logged as $0
+        hist['2026-09-10'] = {'sales': 0}                              # a Thursday closed for a day
+        res, = run([{'op': 'c => { const a = fcAnalysis(c.hist, 0); return {sun: a.dow[0], thu: a.dow[4], weeks: a.weekly.length, splh: a.avgSPLH, bt: fcBacktest(c.hist, 3, 0).map(r => r.date)}; }', 'hist': hist}])
+        self.assertTrue(res['sun']['closed'])
+        self.assertEqual(res['sun']['sales'], 0)
+        self.assertAlmostEqual(res['thu']['sales'], 7000, places=5)   # the $0 day is left out of Thursday's average
+        self.assertEqual(res['thu']['days'], 5)
+        self.assertAlmostEqual(res['splh'], 170, places=0)             # Sunday's 24 hours don't count
+        self.assertNotIn('2026-09-10', res['bt'])                      # closed days aren't scored
+
+    def test_vs_last_year(self):
+        hist = {'2026-09-01': {'sales': 110, 'lastYearSales': 100}, '2026-09-02': {'sales': 220, 'lastYearSales': 200}, '2026-09-03': {'sales': 50}}
+        res, = run([{'op': 'c => { const a = fcAnalysis(c.hist, 0); return [a.vsLastYearPct, a.lastYearDays]; }', 'hist': hist}])
+        self.assertAlmostEqual(res[0], 10)
+        self.assertEqual(res[1], 2)

@@ -53,9 +53,9 @@ const DU_SOURCES = [
     feeds: 'Guest Obsession WIG — sales and % change vs last year · Forecast (sales history by day and destination)'
   },
   {
-    key: 'labor', short: 'labor export', icon: '', name: 'Labor by day', freq: 'weekly', accept: '.csv,.txt,.xlsx,.xls',
-    how: 'Any export with a date column and labor hours (timekeeping hours), labor cost, labor % or effective wage by day — e.g. the Analytics Hub labor report by day, or a DayTrack export. Columns are recognized by their headers; the Forecast page’s Data tab lets you check or change which column is which.',
-    feeds: 'Forecast — labor hours per day, $ per labor hour and labor % targets'
+    key: 'labor', short: 'DayTrack export', icon: '', name: 'DayTrack Table (sales & labor by day)', freq: 'weekly', accept: '.csv,.txt,.xlsx,.xls',
+    how: 'Analytics Hub → DayTrack → Table, export as CSV, with a row per business date. Carries this year’s and last year’s sales, timekeeping and benchmark hours, effective wage, labor cost % and check average. Any other export with a date column and labor columns works too; the Forecast page’s Data tab shows which column was taken for what.',
+    feeds: 'Forecast — sales history, last year’s sales, labor hours, $ per labor hour and labor % targets'
   },
   {
     key: 'dtRank', short: 'rankings', icon: '', name: 'Drive-thru rankings (Analytics Hub)', freq: 'monthly', accept: '.csv,.txt', multiple: true,

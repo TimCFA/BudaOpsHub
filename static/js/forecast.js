@@ -34,16 +34,24 @@ const FC_CHANNEL_ORDER = ['Drive Thru', 'Dine In', '3PD', 'Carry Out', 'Catering
 
 // The columns a file can carry, with the header words that identify each.
 // `not` keeps a near-miss (Labor Cost % for labor cost $) from being picked.
+// The DayTrack Table export (Analytics Hub) carries most of them: this
+// year's and last year's sales with last year's date, timekeeping and
+// benchmark hours, effective wage, labor cost % and check average.
 const FC_FIELDS = [
-  {key: 'date', label: 'Date', kws: ['business date', 'current year', 'date', 'day']},
-  {key: 'sales', label: 'Sales $', kws: ['net sales', 'sales amount', 'total sales', 'sales metric', 'revenue', 'sales'], not: /%|pct|percent|secondary|per labor|splh|productiv/i},
+  {key: 'date', label: 'Date', kws: ["current year's date", 'business date', 'current year', 'date', 'day'], not: /last year|prior year|ly date/i, isDate: true},
+  {key: 'sales', label: 'Sales $', kws: ["this year's sales", 'net sales', 'sales amount', 'total sales', 'sales metric', 'revenue', 'sales'], not: /%|pct|percent|secondary|per labor|splh|productiv|last year|prior year|benchmark|opportunit/i},
   {key: 'transactions', label: 'Transactions', kws: ['transaction', 'trans count', 'ticket count', 'guest count', 'checks', 'trans']},
-  {key: 'hours', label: 'Labor hours', kws: ['timekeeping hours', 'labor hours', 'worked hours', 'total hours', 'hours'], not: /%|pct|percent|per labor|splh|productiv/i},
-  {key: 'cost', label: 'Labor cost $', kws: ['labor cost $', 'total labor cost', 'labor $', 'labor dollars', 'labor cost'], not: /%|pct|percent/i},
-  {key: 'pct', label: 'Labor % of sales', kws: ['labor cost %', 'labor %', 'labor pct', 'labor percent']},
-  {key: 'wage', label: 'Average wage $/hr', kws: ['effective wage', 'average wage', 'avg wage', 'wage rate', 'wage']}
+  {key: 'hours', label: 'Labor hours', kws: ['timekeeping hours', 'labor hours', 'worked hours', 'total hours', 'hours'], not: /%|pct|percent|per labor|splh|productiv|benchmark|difference|opportunit/i},
+  {key: 'cost', label: 'Labor cost $', kws: ['labor cost $', 'total labor cost', 'labor $', 'labor dollars', 'labor cost'], not: /%|pct|percent|opportunit|benchmark|difference/i},
+  {key: 'pct', label: 'Labor % of sales', kws: ['labor cost %', 'labor %', 'labor pct', 'labor percent'], not: /opportunit|benchmark|difference/i},
+  {key: 'wage', label: 'Average wage $/hr', kws: ['effective wage', 'average wage', 'avg wage', 'wage rate', 'wage']},
+  {key: 'lastYearSales', label: "Last year's sales $", kws: ["last year's sales", 'last year sales', 'prior year sales', 'ly sales'], not: /%|pct|percent|chg|change/i},
+  {key: 'lastYearDate', label: "Last year's date", kws: ["last year's date", 'last year date', 'prior year date', 'ly date'], isDate: true},
+  {key: 'benchmarkHours', label: 'Benchmark hours', kws: ['benchmark hours'], not: /difference|%/i},
+  {key: 'checkAvg', label: 'Check average $', kws: ['check average', 'average check', 'avg check', 'avg ticket', 'average ticket']}
 ];
-const FC_FIELD_TO_KEY = {sales: 'sales', transactions: 'transactions', hours: 'laborHours', cost: 'laborCost', pct: 'laborPct', wage: 'wage'};
+const FC_FIELD_TO_KEY = {sales: 'sales', transactions: 'transactions', hours: 'laborHours', cost: 'laborCost', pct: 'laborPct', wage: 'wage', lastYearSales: 'lastYearSales', benchmarkHours: 'benchmarkHours', checkAvg: 'checkAverage'};
+const FC_DAY_KEYS = [...Object.values(FC_FIELD_TO_KEY), 'lastYearDate'];
 
 // ----- Small helpers -----
 
@@ -146,10 +154,18 @@ function fcGuessMap(headers, rows){
       if(idx === -1) idx = lower.findIndex((h, i) => ok(i));
       if(idx > -1) break;
     }
+    // A header can say "date" without holding one (a Tableau week code
+    // built from [Business Date], say): the values have to parse.
+    if(f.isDate && idx > -1 && !fcColumnHoldsDates(rows, idx)) idx = -1;
     if(f.key === 'date' && idx === -1) idx = fcSniffDateColumn(headers, rows);
     if(idx > -1) map[f.key] = idx;
   });
   return map;
+}
+function fcColumnHoldsDates(rows, c){
+  let hits = 0, total = 0;
+  rows.slice(0, 30).forEach(r => { const v = (r[c] || '').trim(); if(!v) return; total++; if(fcDate(v)) hits++; });
+  return total >= 1 && hits / total > 0.5;
 }
 function fcSniffDateColumn(headers, rows){
   const sample = rows.slice(0, 30);
@@ -193,6 +209,7 @@ function fcRecordsFromTable(table, map){
       const v = fcNum(r[map[field]]);
       if(v !== null){ rec[key] = v; any = true; }
     });
+    if(map.lastYearDate != null){ const ly = fcDate(r[map.lastYearDate]); if(ly) rec.lastYearDate = ly; }
     channelCols.forEach(c => { const v = fcNum(r[c.index]); if(v !== null){ rec.channels = rec.channels || {}; rec.channels[c.name] = v; any = true; } });
     if(any) out.push(rec);
   });
@@ -207,7 +224,7 @@ function fcMergeRecords(records, hist){
   records.forEach(rec => {
     if(!rec || !fcValidIso(rec.date)) return;
     const day = h[rec.date] = (h[rec.date] && typeof h[rec.date] === 'object') ? h[rec.date] : {};
-    Object.values(FC_FIELD_TO_KEY).forEach(key => { if(rec[key] != null) day[key] = rec[key]; });
+    FC_DAY_KEYS.forEach(key => { if(rec[key] != null) day[key] = rec[key]; });
     if(rec.channels){ day.channels = {...(day.channels || {})}; Object.entries(rec.channels).forEach(([name, v]) => { if(v != null) day.channels[name] = v; }); }
     n++;
   });
@@ -247,11 +264,11 @@ async function fcImportLaborFile(file, text, buffer){
   const n = fcMergeRecords(records);
   const dates = records.map(r => r.date).sort();
   const range = dates[0] === dates[dates.length - 1] ? fcShort(dates[0]) : `${fcShort(dates[0])} – ${fcShort(dates[dates.length - 1])}`;
-  const fields = ['laborHours', 'laborCost', 'laborPct', 'wage', 'sales', 'transactions'].filter(k => records.some(r => r[k] != null));
+  const fields = ['sales', 'lastYearSales', 'laborHours', 'laborCost', 'laborPct', 'wage', 'checkAverage', 'transactions'].filter(k => records.some(r => r[k] != null));
   duRecord('labor', {file: file.name, summary: `${range} · ${n} day${n === 1 ? '' : 's'}`, periodEnd: dates[dates.length - 1]});
   await saveState();
   fcRerender();
-  const names = {laborHours: 'labor hours', laborCost: 'labor cost', laborPct: 'labor %', wage: 'wage', sales: 'sales', transactions: 'transactions'};
+  const names = {laborHours: 'labor hours', laborCost: 'labor cost', laborPct: 'labor %', wage: 'wage', sales: 'sales', lastYearSales: "last year's sales", checkAverage: 'check average', transactions: 'transactions'};
   return `${range}: ${n} day${n === 1 ? '' : 's'} (${fields.map(f => names[f]).join(', ') || 'no labor columns found'}) → Forecast`;
 }
 
@@ -281,12 +298,14 @@ function fcHistoryRows(hist, weeks, cutoff){
   return rows;
 }
 
-// Per weekday: average sales, transactions and labor hours. A weekday that
-// never appears across three weeks or more of history is a closed day (the
-// sales export leaves Sundays out instead of logging $0).
+// Per weekday: average sales, transactions and labor hours over the days
+// the store was open. A $0 day is a closed day (DayTrack logs Sundays that
+// way; the sales export leaves them out), so it never drags a weekday's
+// average; a weekday with no open day across three weeks or more is closed.
 function fcDowStats(rows){
   const b = Array.from({length: 7}, () => ({sales: [], trans: [], labor: []}));
   rows.forEach(r => {
+    if(!(r.sales > 0)) return;
     b[r.dow].sales.push(r.sales);
     if(r.transactions != null) b[r.dow].trans.push(r.transactions);
     if(r.laborHours != null) b[r.dow].labor.push(r.laborHours);
@@ -309,7 +328,7 @@ function fcWeeklySeries(rows, pick){
     if(v == null || isNaN(v)) return;
     const w = fcWeekOf(r.date);
     const e = byWeek[w] = byWeek[w] || {week: w, sales: 0, days: 0};
-    e.sales += v; e.days++;
+    e.sales += v; if(r.sales > 0) e.days++;
   });
   return Object.values(byWeek).filter(w => w.days >= FC_FULL_WEEK_DAYS).sort((a, b) => a.week.localeCompare(b.week));
 }
@@ -344,7 +363,9 @@ function fcAnalysis(hist, weeks, cutoff){
   let avgWage = null;
   if(costHours.length) avgWage = sum(costHours, r => r.laborCost) / sum(costHours, r => r.laborHours);
   else if(withWage.length) avgWage = sum(withWage, r => r.wage) / withWage.length;
-  return {rows, dow, weekly, trend, avgSPLH, avgLaborPct, avgWage, hasTransactions: rows.some(r => r.transactions != null), hasLabor: withHours.length > 0};
+  const withLY = rows.filter(r => r.lastYearSales > 0 && r.sales > 0);
+  const vsLastYearPct = withLY.length ? (sum(withLY, r => r.sales) / sum(withLY, r => r.lastYearSales) - 1) * 100 : null;
+  return {rows, dow, weekly, trend, avgSPLH, avgLaborPct, avgWage, vsLastYearPct, lastYearDays: withLY.length, hasTransactions: rows.some(r => r.transactions != null), hasLabor: withHours.length > 0};
 }
 
 // The model's own expectation for one day: the weekday average carried
@@ -387,7 +408,7 @@ function fcAccuracy(actual, forecast){
 function fcBacktest(hist, testDays, weeks){
   const all = fcHistoryRows(hist, 0);
   const out = [];
-  all.slice(-testDays).forEach(row => {
+  all.filter(r => r.sales > 0).slice(-testDays).forEach(row => {
     const a = fcAnalysis(hist, weeks, row.date);
     if(a.rows.length < 7) return;
     const base = fcBaseline(row.date, a);
@@ -797,6 +818,7 @@ function fcRenderPatterns(){
       ${fcKpi(g >= 0 ? FC_ICON.trendUp : FC_ICON.trendDown, 'Weekly trend', fcPctFmt(g), g >= 0 ? 'trending up' : 'trending down', g >= 0 ? 'is-up' : 'is-down')}
       ${fcKpi(FC_ICON.clock, 'Avg $ / labor hour', a.avgSPLH != null ? fcMoney(a.avgSPLH) : '—', a.avgSPLH != null ? 'sales ÷ labor hours' : 'upload labor by day')}
       ${fcKpi(FC_ICON.percent, 'Labor % of sales', a.avgLaborPct != null ? a.avgLaborPct.toFixed(1) + '%' : '—', a.avgLaborPct != null ? 'labor cost ÷ sales' : 'needs labor cost')}
+      ${a.vsLastYearPct != null ? fcKpi(a.vsLastYearPct >= 0 ? FC_ICON.trendUp : FC_ICON.trendDown, 'vs last year', fcPctFmt(a.vsLastYearPct), `${a.lastYearDays} day${a.lastYearDays === 1 ? '' : 's'} with last year's sales`, a.vsLastYearPct >= 0 ? 'is-up' : 'is-down') : ''}
     </div>
     <div class="standup-card fc-chart-card"><h3>Sales by week</h3><p class="fc-muted">Full weeks only (Sunday to Saturday). The dashed line is the trend the forecast follows.</p><div id="fcTrendChart" class="fc-chart"></div></div>
     <div class="fc-two">
@@ -877,6 +899,7 @@ function fcRenderData(){
   const laborDays = all.filter(r => r.laborHours != null || r.laborCost != null).length;
   const chanDays = all.filter(r => r.channels).length;
   const recent = all.slice(-14).reverse();
+  const hasLY = recent.some(r => r.lastYearSales != null);
   const laborLog = (dataUploadLog.labor || []).slice(-1)[0];
   const salesLog = (dataUploadLog.sales || []).slice(-1)[0];
   panel.innerHTML = `
@@ -887,7 +910,7 @@ function fcRenderData(){
     </div>
     <div class="standup-card">
       <h3>Add to the history</h3>
-      <p class="fc-muted">Two files keep it current, and Data Uploads in Manage takes both: the Analytics Hub <b>sales by day</b> export (sales and destinations) and a <b>labor by day</b> export (hours, cost, labor %). Days already saved are updated, never doubled. Nothing but the numbers is kept.</p>
+      <p class="fc-muted">Two files keep it current, and Data Uploads in Manage takes both: the Analytics Hub <b>DayTrack Table</b> export (sales this year and last, labor hours, wage, labor %, check average) and the <b>sales by day</b> export (sales by destination). Days already saved are updated, never doubled. Nothing but the numbers is kept.</p>
       <label class="du-drop fc-drop" data-fc-drop>
         <input type="file" id="fcFile" accept=".csv,.txt,.tsv,.xlsx,.xls" hidden>
         <span class="du-drop-main">Drop a file here or tap to choose</span>
@@ -898,8 +921,8 @@ function fcRenderData(){
     <div class="standup-card">
       <h3>Most recent days</h3>
       ${recent.length ? `<div class="fc-table-wrap"><table class="fc-table fc-table-sm">
-        <thead><tr><th>Day</th><th class="fc-num">Sales</th><th class="fc-num">Trans.</th><th class="fc-num">Labor hrs</th><th class="fc-num">$ / labor hr</th><th class="fc-num">Labor %</th></tr></thead>
-        <tbody>${recent.map(r => { const splh = r.laborHours > 0 && r.sales ? r.sales / r.laborHours : null; const pct = r.laborPct != null ? r.laborPct : (r.laborCost != null && r.sales ? r.laborCost / r.sales * 100 : null); return `<tr><td><b>${FC_DOW[r.dow]}</b> <span class="fc-muted">${fcShort(r.date)}</span></td><td class="fc-num">${fcMoney(r.sales)}</td><td class="fc-num">${r.transactions != null ? fcNumFmt(r.transactions) : '—'}</td><td class="fc-num">${r.laborHours != null ? fcNumFmt(r.laborHours, 1) : '—'}</td><td class="fc-num">${splh != null ? fcMoney(splh) : '—'}</td><td class="fc-num">${pct != null ? pct.toFixed(1) + '%' : '—'}</td></tr>`; }).join('')}</tbody>
+        <thead><tr><th>Day</th><th class="fc-num">Sales</th>${hasLY ? '<th class="fc-num">vs last year</th>' : ''}<th class="fc-num">Trans.</th><th class="fc-num">Labor hrs</th><th class="fc-num">$ / labor hr</th><th class="fc-num">Labor %</th></tr></thead>
+        <tbody>${recent.map(r => { const splh = r.laborHours > 0 && r.sales ? r.sales / r.laborHours : null; const pct = r.laborPct != null ? r.laborPct : (r.laborCost != null && r.sales ? r.laborCost / r.sales * 100 : null); const ly = r.lastYearSales > 0 && r.sales > 0 ? (r.sales / r.lastYearSales - 1) * 100 : null; return `<tr class="${r.sales > 0 ? '' : 'is-closed'}"><td><b>${FC_DOW[r.dow]}</b> <span class="fc-muted">${fcShort(r.date)}</span></td><td class="fc-num">${r.sales > 0 ? fcMoney(r.sales) : '<span class="fc-muted">closed</span>'}</td>${hasLY ? `<td class="fc-num ${ly > 0 ? 'is-up' : ly < 0 ? 'is-down' : ''}">${ly != null ? fcPctFmt(ly) : '—'}</td>` : ''}<td class="fc-num">${r.transactions != null ? fcNumFmt(r.transactions) : '—'}</td><td class="fc-num">${r.laborHours != null ? fcNumFmt(r.laborHours, 1) : '—'}</td><td class="fc-num">${splh != null ? fcMoney(splh) : '—'}</td><td class="fc-num">${pct != null ? pct.toFixed(1) + '%' : '—'}</td></tr>`; }).join('')}</tbody>
       </table></div>` : '<p class="fc-empty">Nothing saved yet.</p>'}
     </div>
     ${all.length ? `<div class="fc-actions"><button type="button" class="btn btn-ghost fc-danger" id="fcClear">Remove all sales history</button><span class="fc-muted">Every device loses it. The uploads can be dropped again.</span></div>` : ''}`;
@@ -934,7 +957,8 @@ function fcPickFile(file){
     if(!table.headers.length){ fcPendingFile = {name: file.name, error: 'Couldn’t find any rows in this file.'}; fcRenderMap(); return; }
     // The Analytics Hub sales export is read the way Guest Obsession reads it.
     if(typeof rpDetect === 'function' && !/\.(xlsx|xls)$/i.test(file.name) && rpDetect(pbDecodeText(reader.result)) === 'sales'){
-      fcPendingFile = {name: file.name, salesExport: rpParseSales(pbDecodeText(reader.result))};
+      try{ fcPendingFile = {name: file.name, salesExport: rpParseSales(pbDecodeText(reader.result))}; }
+      catch(e){ fcPendingFile = {name: file.name, error: `${e.message} The sales export needs a row per day (business date); a by-weekday or by-daypart version can't be filed by date.`}; }
       fcRenderMap();
       return;
     }
