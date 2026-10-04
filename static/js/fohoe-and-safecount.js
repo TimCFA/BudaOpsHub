@@ -123,11 +123,9 @@ function renderWalkthroughsPage(){
   renderOEDaypartPicker();
   renderOEWalkthroughCard();
 
-  if(!leaderHandoffChosen) currentLeaderTransitionDaypart = zrCurrentHandoff();
+  // Every handoff starts closed; the leader opens the one they're handing off.
+  if(!leaderHandoffChosen) currentLeaderTransitionDaypart = '';
   renderLeaderTransitionCard();
-
-  // --- Food Safety Walkthrough (full checklist lives on its own page) ---
-  fsRenderSummaryCard();
 }
 
 window.openWalkthroughCategory = function(cat){
