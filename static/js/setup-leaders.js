@@ -111,7 +111,7 @@ function suLeadCaptainSheetHtml(date, dp, dpIndex){
         : `<button type="button" class="${i === 0 ? 'su-btn-dark' : 'su-btn-line'}" data-su-set-lead="${escapeHtml(o.name)}">Make Lead</button>`}
     </div>`).join('');
   const body = `
-    <p class="su-sheet-rule">${escapeHtml(rule)} Only Team Leads can be Lead Captain, and they don’t also captain a zone. They work Runner if staffing allows, otherwise Drinks 3 or FC Bagger${/^afternoon/i.test(dp.name) ? ' (Afternoon: DT Bagger 2)' : ''}.</p>
+    <p class="su-sheet-rule">${escapeHtml(rule)} Only Team Leads can be Lead Captain, and they don’t also captain a zone. They work Runner if staffing allows, otherwise Drinks 3 or FC Bagger${suIsAfternoon(dp) ? ' (Mid: DT Bagger 2)' : ''}.</p>
     ${current ? `<div class="su-note">${working ? `${escapeHtml(current)} is working ${escapeHtml(working)}.` : home ? `${escapeHtml(current)} has no working spot yet. <button type="button" class="su-btn-dark" data-su-lead-home="${escapeHtml(home.slot)}">Put on ${escapeHtml(home.slot)}</button>` : `${escapeHtml(current)} has no working spot, and Runner, Drinks 3 and FC Bagger are taken.`}</div>` : ''}
     ${options.length ? `<div class="su-pb">${rows}</div>` : '<div class="su-note">No Team Lead is on the FOH roster for this daypart. Import the weekly HotSchedules CSV so Team Leader shifts are marked.</div>'}
     ${current ? `<div class="su-person-actions" style="grid-template-columns:1fr"><button type="button" class="su-btn-line" data-su-clear-lead="1">Clear Lead Captain (${escapeHtml(current)})</button></div>` : ''}`;
