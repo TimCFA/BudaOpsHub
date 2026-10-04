@@ -24,7 +24,7 @@ function suModeBarHtml(){
     </div>`;
 }
 
-// "Josh → Lauren @ 7:30", "Avah (from 11:30)", "Dan (leaves 6:00)".
+// "Josh → Lauren @ 7:30", "Avah (arrives 11:30)", "Dan (leaves 6:00)".
 function suSheetNameHtml(t, brk){
   // A needed spot is shown by its light red row alone (no wording).
   if(!t.names.length) return t.needed ? '' : '<span class="su-row-open">—</span>';

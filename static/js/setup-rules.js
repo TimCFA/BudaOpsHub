@@ -88,7 +88,7 @@ function suPairFor(timing, a, b){
   return timing.pairs.find(p => lo(p.out) === lo(a) && (b === undefined || lo(p.in) === lo(b))) || null;
 }
 
-// "Josh → Lauren @ 7:30", "leaves 7:30", "from 11:30" — for a slot's names.
+// "Josh → Lauren @ 7:30", "leaves 7:30", "arrives 11:30" — for a slot's names.
 function suSlotTimeNote(timing, names){
   if(names.length > 1){
     const a = suTimingFor(timing, names[0]), b = suTimingFor(timing, names[1]);
@@ -99,7 +99,7 @@ function suSlotTimeNote(timing, names){
   const p = names[0] ? suTimingFor(timing, names[0]) : null;
   if(!p) return null;
   if(p.leaves !== null) return {text: `leaves ${suClock(p.leaves)}`, warn: true};
-  if(p.arrives !== null) return {text: `from ${suClock(p.arrives)}`, warn: false};
+  if(p.arrives !== null) return {text: `arrives ${suClock(p.arrives)}`, warn: false};
   return null;
 }
 
