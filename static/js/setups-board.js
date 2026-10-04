@@ -32,7 +32,7 @@ const SU_ZONES = {
 const SU_EXTRA_ZONE = {key: 'extra', name: 'Extra hands'};
 
 let suSelectedDaypart = {foh: '', boh: ''};   // daypart name per section
-let suDaypartClosed = {foh: false, boh: false};   // Set up view: the open daypart card was tapped shut
+let suDaypartClosed = {foh: true, boh: true};     // Set up view: every daypart card starts closed; a tap opens the one the leader wants (Tim, Oct 2026)
 let suSelectedDate = '';
 let suExpandedZones = new Set();              // zones showing their optional slots
 let suSheet = null;                           // {kind: 'develop'|'fill'|'evaluate'|'planb'|'person'|'lead', slot}
@@ -65,7 +65,7 @@ function suCurrentDaypart(section, date){
   if(suSelectedDate !== date){
     suSelectedDate = date;
     suSelectedDaypart = {foh: '', boh: ''};
-    suDaypartClosed = {foh: false, boh: false};
+    suDaypartClosed = {foh: true, boh: true};
     suExpandedZones.clear();
     suSheet = null;
   }
