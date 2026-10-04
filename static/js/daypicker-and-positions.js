@@ -326,8 +326,8 @@ window.openPosModal = function(key, pos, daypart, note){
   const left = document.getElementById('posModalLeft');
   const nextBtn = document.getElementById('posModalNext');
   const stillOpen = openSlots.length + (suPickWasOpen ? 1 : 0);
-  left.textContent = stillOpen ? `${stillOpen} open` : 'All filled';
-  left.title = stillOpen ? `${stillOpen} open spot${stillOpen === 1 ? '' : 's'} in ${suShortDaypart(daypart)}` : `Every spot in ${suShortDaypart(daypart)} is filled`;
+  left.textContent = stillOpen ? `${stillOpen} left` : 'All filled';
+  left.title = stillOpen ? `${stillOpen} spot${stillOpen === 1 ? '' : 's'} left in ${suShortDaypart(daypart)}` : `Every spot in ${suShortDaypart(daypart)} is filled`;
   nextBtn.hidden = !suPickNext.length;
   nextBtn.dataset.daypart = daypart;
   // Step back to the spot before this one (filled or not), e.g. to split
