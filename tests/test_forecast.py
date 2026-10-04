@@ -123,6 +123,21 @@ class ForecastModelTest(unittest.TestCase):
         self.assertEqual([c['name'] for c in stats['channels']], ['Drive Thru', 'Dine In'])
         self.assertAlmostEqual(stats['channels'][0]['share'], 0.7, places=3)
 
+# Analytics Hub "Custom by Day": the day's times down the left, one row per
+# destination and measure, the measure's value under each day.
+def sos_export(dt_count, mobile_count):
+    rows = [
+        '\t\t\t\t\t\tBusiness Date (Sad Dates)\tBusiness Date (Sad Dates)',
+        'Avg Order Time\tAvg Payment Time\tAvg Total Time\tAvg Fulfillment Time\tDestination Type Breakout (group)\t\tSep 01\tSep 02',
+        f'1 min 0 sec\t0 min 10 sec\t3 min 0 sec\t2 min 0 sec\tDrive Thru\tTrans Count Sos\t{dt_count}\t',
+        f'1 min 0 sec\t0 min 10 sec\t4 min 0 sec\t3 min 0 sec\tDrive Thru\tTrans Count Sos\t\t{dt_count}',
+        f'0 min 30 sec\t0 min 0 sec\t2 min 0 sec\t1 min 30 sec\tM: Drive Thru\tTrans Count Sos\t{mobile_count}\t',
+        '0 min 0 sec\t0 min 0 sec\t1 min 0 sec\t1 min 0 sec\tDine In\tTrans Count Sos\t300\t',
+    ]
+    return '\n'.join(rows) + '\n'
+
+SOS_OP = 'c => { try { const s = rpParseSos(c.text, new Date("2026-10-04T12:00:00")); return {ok: true, from: s.from, to: s.to, dt: rpSosDriveThru(s), lanes: s.destinations}; } catch(e){ return {ok: false, error: e.message}; } }'
+
 
 class ForecastFilesTest(unittest.TestCase):
     def test_sales_export_feeds_history_with_destinations(self):
@@ -131,6 +146,22 @@ class ForecastFilesTest(unittest.TestCase):
         self.assertEqual(res['hist']['2026-09-02']['sales'], 12000)
         self.assertEqual(res['hist']['2026-09-02']['channels'], {'Dine In': 2500, 'Drive Thru': 9500})
         self.assertEqual(res['channels']['Drive Thru']['sales'], 24000)   # the WIG summary is unchanged
+
+    def test_speed_of_service_is_weighted_by_cars(self):
+        res, = run([{'op': SOS_OP, 'text': sos_export(1000, 500)}])
+        self.assertTrue(res['ok'], res.get('error'))
+        self.assertEqual((res['from'], res['to']), ('2026-09-01', '2026-09-02'))
+        self.assertEqual(res['lanes']['Drive Thru']['cars'], 2000)
+        self.assertAlmostEqual(res['lanes']['Drive Thru']['total'], 210)        # 3:00 and 4:00, a thousand cars each
+        self.assertEqual(res['dt']['cars'], 2500)                                # both drive-thru lanes
+        self.assertAlmostEqual(res['dt']['total'], (210 * 2000 + 120 * 500) / 2500)
+
+    def test_speed_of_service_with_inflated_counts_is_refused(self):
+        # A mis-set export counts millions a day (and its times are off).
+        res, = run([{'op': SOS_OP, 'text': sos_export(2348056, 500)}])
+        self.assertFalse(res['ok'])
+        self.assertIn('2,348,056 transactions in one day', res['error'])
+        self.assertIn('Export Custom by Day again', res['error'])
 
     def test_labor_csv_is_mapped_from_headers(self):
         res, = run([{'op': 'c => { const t = fcParseTable(c.text); const map = fcGuessMap(t.headers, t.rows); const recs = fcRecordsFromTable(t, map); const hist = {"2026-09-01": {sales: 9999, channels: {"Dine In": 1}}}; const n = fcMergeRecords(recs, hist); return {map, recs, hist, n, labor: fcLooksLikeLabor(c.text)}; }', 'text': LABOR_CSV}])

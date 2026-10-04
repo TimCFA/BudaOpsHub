@@ -64,7 +64,7 @@ const DU_SOURCES = [
   },
   {
     key: 'sos', short: 'speed of service export', icon: '', name: 'Speed of service (Analytics Hub)', freq: 'monthly', accept: '.csv,.txt',
-    how: 'Analytics Hub → speed of service, Custom by Day, export as CSV (month to date).',
+    how: 'Analytics Hub → speed of service, Custom by Day, export as CSV (month to date). A good export counts about 1,000–1,400 drive-thru transactions a day; one that counts millions a day was exported with other settings and is refused.',
     feeds: 'Guest Obsession Speed of Service (drive-thru, every car)'
   },
   {

@@ -84,9 +84,10 @@ The findings card at the top comes from the assessment PDF upload: the
 visit's SAFE report (findings by category with risk, response and the
 advisor's note, the visit date, and the last four quarters' performance
 levels; a code seen in an earlier quarter the hub holds is marked repeat)
-or the "All Findings" list. The speed-of-service export's "Trans Count Sos"
-is only trusted as a car count when it looks like one (under 20,000 a day);
-otherwise days weigh alike and no car count is shown.
+or the "All Findings" list. A speed-of-service export whose "Trans Count
+Sos" runs over 20,000 in a day (a mis-set export counts millions, and its
+times are off too) is refused with a note to export again with the settings
+that give about 1,000–1,400 a day.
 Replaces the store's Google Form. The questions are the store's real ones
 (transcribed and corrected with Tim's approval; every question phrased so "Yes"
 is good). Bilingual. **Temperature targets are still waiting on Tim (TIM-5) —

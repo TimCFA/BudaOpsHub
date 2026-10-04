@@ -224,37 +224,35 @@ function rpParseSos(text, now){
       if(/^Trans Count Sos$/i.test(measure)) rec.cars = rpNum(cell);
     });
   });
-  // Some month-long exports carry a "Trans Count Sos" in the millions per
-  // day — not cars, and not in a fixed ratio to them. Then each day counts
-  // once and no car count is shown.
-  const countsOk = !Object.values(byDest).some(perDay => Object.values(perDay).some(d => d.cars > RP_SOS_MAX_CARS));
+  // A mis-set export carries a "Trans Count Sos" in the millions per day
+  // (a real day is about a thousand cars) and its times are off too, so it
+  // isn't usable: ask for the export again rather than show a wrong number.
+  const worst = Math.max(0, ...Object.values(byDest).flatMap(perDay => Object.values(perDay).map(d => d.cars || 0)));
+  if(worst > RP_SOS_MAX_CARS) throw new Error(`This export counts ${Math.round(worst).toLocaleString('en-US')} transactions in one day; a real day is about a thousand. Its times are off too. Export Custom by Day again with the same settings as the upload that showed per-day counts (around 1,000–1,400) and upload that one.`);
   const destinations = {};
   const allDays = [];
   Object.entries(byDest).forEach(([dest, perDay])=>{
-    let cars = 0, total = 0, order = 0, fulfill = 0, n = 0;
+    let cars = 0, total = 0, order = 0, fulfill = 0;
     Object.entries(perDay).forEach(([iso, d])=>{
       if(!d.cars || d.total === null) return;
-      const w = countsOk ? d.cars : 1;
       allDays.push(iso);
-      n++; cars += w; total += d.total * w; order += (d.order || 0) * w; fulfill += (d.fulfill || 0) * w;
+      cars += d.cars; total += d.total * d.cars; order += (d.order || 0) * d.cars; fulfill += (d.fulfill || 0) * d.cars;
     });
-    if(cars) destinations[dest] = {cars: countsOk ? cars : null, days: n, total: total / cars, order: order / cars, fulfill: fulfill / cars};
+    if(cars) destinations[dest] = {cars, total: total / cars, order: order / cars, fulfill: fulfill / cars};
   });
   if(!Object.keys(destinations).length) throw new Error('No speed of service numbers in this export.');
   allDays.sort();
-  return {from: allDays[0], to: allDays[allDays.length - 1], destinations, countsOk};
+  return {from: allDays[0], to: allDays[allDays.length - 1], destinations};
 }
-const RP_SOS_MAX_CARS = 20000;   // more than this in one day for one destination isn't a car count
+const RP_SOS_MAX_CARS = 20000;   // more than this in one day for one destination isn't a car count: a mis-set export
 
-// Drive-thru, every car: regular and mobile-order lanes together. Lanes are
-// weighted by cars, or by days when the export's counts aren't cars.
+// Drive-thru, every car: regular and mobile-order lanes together, weighted
+// by cars.
 function rpSosDriveThru(sos){
   const lanes = Object.entries(sos.destinations).filter(([name]) => /^(M:\s*)?Drive Thru$/i.test(name)).map(([, d]) => d);
-  const weight = d => d.cars != null ? d.cars : (d.days || 1);
-  const w = lanes.reduce((s, d) => s + weight(d), 0);
-  if(!w) return null;
-  const cars = lanes.every(d => d.cars != null) ? lanes.reduce((s, d) => s + d.cars, 0) : null;
-  return {cars, total: lanes.reduce((s, d) => s + d.total * weight(d), 0) / w};
+  const cars = lanes.reduce((s, d) => s + d.cars, 0);
+  if(!cars) return null;
+  return {cars, total: lanes.reduce((s, d) => s + d.total * d.cars, 0) / cars};
 }
 
 async function rpImportSos(file, text){
@@ -265,7 +263,7 @@ async function rpImportSos(file, text){
   duRecord('sos', {file: file.name, summary: rpRange(s.from, s.to), periodEnd: s.to});
   await saveState();
   rpRerender();
-  return `${rpRange(s.from, s.to)} · drive-thru ${dt ? `${rpClock(dt.total)} average${dt.cars ? ` (${dt.cars.toLocaleString('en-US')} cars)` : ' (days weighted alike — this export’s counts aren’t cars)'}` : 'not in this export'} → Speed of Service`;
+  return `${rpRange(s.from, s.to)} · drive-thru ${dt ? `${rpClock(dt.total)} average (${dt.cars.toLocaleString('en-US')} cars)` : 'not in this export'} → Speed of Service`;
 }
 
 // ----- Ops Hub PDFs (Smart Shop, food safety) -----
