@@ -15,24 +15,37 @@
 // locking reloads the page to clear it from the device.
 
 const LAUNCH_VIEWS = ['home', 'positions', 'wastelog', 'zonereset', 'foodsafety', 'safecount', 'prepboard', 'manage'];
+// Zone Resets and the Leader Transition List share a view; `page` picks
+// which of its cards show (data-launch-page on the cards).
 const LAUNCH_LISTS = [
-  {view: 'zonereset', label: 'Zone Resets', sub: 'Reinicios'},
+  {view: 'zonereset', page: 'zones', label: 'Zone Resets', sub: 'Reinicios'},
+  {view: 'zonereset', page: 'leaders', label: 'Leader Transition', sub: 'Transición'},
   {view: 'foodsafety', label: 'Food Safety', sub: 'Seguridad'},
   {view: 'safecount', label: 'Safe Count', sub: 'Caja Fuerte'},
   {view: 'prepboard', label: 'Prep Board', sub: 'Preparación'},
 ];
 let launchManager = false;
+let launchListPage = null;   // the page a pill asked for; the tab itself opens the first
 
-// The pill row at the top of a list page, with the open one marked.
+// The pill row at the top of a list page, with the open one marked. The
+// view's cards for other pages hide on the simplified site (CSS).
 function launchSubnavRender(view){
-  if(!LAUNCH_LISTS.some(l => l.view === view)) return;
-  const nav = document.querySelector(`#${view}View [data-launch-subnav]`);
+  const here = LAUNCH_LISTS.filter(l => l.view === view);
+  if(!here.length) return;
+  const page = here.some(l => l.page === launchListPage) ? launchListPage : (here[0].page || '');
+  launchListPage = null;
+  const root = document.getElementById(view + 'View');
+  if(page) root.dataset.launchPage = page; else delete root.dataset.launchPage;
+  const nav = root.querySelector('[data-launch-subnav]');
   if(!nav) return;
-  nav.innerHTML = LAUNCH_LISTS.map(l => `<button type="button" class="launch-pill ${l.view === view ? 'active' : ''}" aria-current="${l.view === view ? 'page' : 'false'}" data-launch-go="${l.view}">${l.label}<span>${l.sub}</span></button>`).join('');
+  nav.innerHTML = LAUNCH_LISTS.map(l => {
+    const on = l.view === view && (l.page || '') === page;
+    return `<button type="button" class="launch-pill ${on ? 'active' : ''}" aria-current="${on ? 'page' : 'false'}" data-launch-go="${l.view}" data-launch-pick="${l.page || ''}">${l.label}<span>${l.sub}</span></button>`;
+  }).join('');
 }
 document.addEventListener('click', e=>{
   const go = e.target.closest('[data-launch-go]');
-  if(go){ launchShowTab(go.dataset.launchGo); window.scrollTo({top: 0}); }
+  if(go){ launchListPage = go.dataset.launchPick || null; launchShowTab(go.dataset.launchGo); window.scrollTo({top: 0}); }
 });
 
 function launchIsOn(){ return launchMode !== false && !launchManager; }

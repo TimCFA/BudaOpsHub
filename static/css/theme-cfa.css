@@ -76,6 +76,9 @@ button,input,select,textarea{font-family:inherit;}
 .launch-pill.active{background:var(--cfa-navy);border-color:var(--cfa-navy);color:#F6F1E8;}
 .launch-pill.active span{color:rgba(246,241,232,0.75);}
 .launch-pill:hover:not(.active){border-color:var(--cfa-navy);}
+/* On the simplified site a list page shows only the cards of the open pill. */
+body.launch-mode #zoneresetView[data-launch-page="zones"] [data-launch-page="leaders"],
+body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="zones"]{display:none;}
 .week-toggle{background:var(--cfa-soft);border-radius:999px;}
 .su-week-toggle-btn,.week-toggle-btn{font-family:var(--font-ui);font-size:13px;text-transform:none;letter-spacing:0;color:var(--text-secondary);border-radius:999px;}
 .su-week-toggle-btn.active,.week-toggle-btn.active{background:var(--cfa-white);color:var(--cfa-dark-red);}

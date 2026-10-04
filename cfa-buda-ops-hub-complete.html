@@ -419,9 +419,11 @@
   <!-- Zone Reset & Walkthroughs View -->
   <div class="view" id="zoneresetView">
     <nav class="launch-subnav launch-only" aria-label="Lists" data-launch-subnav></nav>
-    <p class="section-intro"><b>Zone Reset</b> is for Team Members — restock and reset each zone between dayparts. <b>Walkthroughs</b> are for Leaders — a quick scan to confirm the big things are handled.</p>
+    <p class="section-intro" data-launch-page="zones"><b>Zone Reset</b> is for Team Members — restock and reset each zone between dayparts. <b>Walkthroughs</b> are for Leaders — a quick scan to confirm the big things are handled.</p>
 
-    <div class="standup-card">
+    <!-- On the simplified site Zone Resets and the Leader Transition List are
+         separate pills (launch-mode.js): data-launch-page says which pill a card belongs to. -->
+    <div class="standup-card" id="zoneResetCard" data-launch-page="zones">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
         <h3 style="margin:0;">Zone Reset</h3>
         <span class="zone-overall-pct" id="zoneOverallPct">0%</span>
@@ -448,7 +450,7 @@
       </div>
     </div>
 
-    <div class="standup-card">
+    <div class="standup-card" id="leaderTransitionCard" data-launch-page="leaders">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
         <h3 style="margin:0;">Leader Transition List <span class="sub"><i>Lista de Transición — Líderes</i></span></h3>
         <span class="zone-overall-pct" id="leaderTransitionBadge">0%</span>
@@ -806,7 +808,7 @@
 
       <label class="launch-setting">
         <input type="checkbox" id="launchModeToggle" checked>
-        <span><b>Launch mode</b> — the team sees only Home, Set Ups, Waste and Lists (Zone Resets first, then Food Safety, Safe Count and the Prep Board as pills). Devices signed in here see everything.</span>
+        <span><b>Launch mode</b> — the team sees only Home, Set Ups, Waste and Lists (Zone Resets first, then Leader Transition, Food Safety, Safe Count and the Prep Board as pills). Devices signed in here see everything.</span>
       </label>
 
 
