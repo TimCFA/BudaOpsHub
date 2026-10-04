@@ -353,3 +353,36 @@ class LastYearTest(unittest.TestCase):
     def test_scores_absent_without_last_year(self):
         res, = run([{'op': 'c => [fcBacktestScores(c.hist, 14, 0), fcBestYoyWeight(c.hist, 0)]', 'hist': history(weeks=6)}])
         self.assertEqual(res, [None, 0])
+
+
+class UnusualDaysTest(unittest.TestCase):
+    def test_outlier_and_event_days_are_left_out(self):
+        hist = history(weeks=8)                       # Fridays 8500
+        hist['2026-09-11']['sales'] = 14000           # a Friday +65%: outlier
+        hist['2026-09-18']['sales'] = 8600            # a normal Friday, flagged as an event day
+        res, = run([{'op': '''c => { numbersHistory = {"2026-09-18": {"Lunch (11:00-2:00)": [9000, 170, "Home game"]}}; numbersData = {};
+            const a = fcAnalysis(c.hist, 0); const off = fcAnalysis(c.hist, 0, null, {unusual: false});
+            return {left: a.left.map(r => [r.date, r.unusual.kind, r.unusual.text || Math.round(r.unusual.pct)]), fri: a.dow[5].sales, friDays: a.dow[5].days, offFri: off.dow[5].sales, offLeft: off.left.length,
+              trendWeek: a.weekly.find(w => w.week === "2026-09-06").sales, yoyDays: a.yoyDays, event: fcEventFor("2026-09-18")}; }''', 'hist': hist}])
+        self.assertEqual(res['left'], [['2026-09-11', 'outlier', 65], ['2026-09-18', 'event', 'Home game']])
+        self.assertAlmostEqual(res['fri'], 8500, places=5)             # the average is the six normal Fridays
+        self.assertEqual(res['friDays'], 6)
+        self.assertGreater(res['offFri'], 9000)                          # with the switch off they count
+        self.assertEqual(res['offLeft'], 0)
+        self.assertAlmostEqual(res['trendWeek'], 6000 + 6200 + 6500 + 7000 + 8500 + 8000, places=5)   # the outlier week counts the Friday median
+        self.assertEqual(res['event'], 'Home game')
+
+    def test_needs_enough_days_before_calling_one_unusual(self):
+        hist = history(weeks=2)                       # two of each weekday
+        hist['2026-08-07']['sales'] = 20000
+        res, = run([{'op': 'c => { numbersHistory = {}; numbersData = {}; return fcAnalysis(c.hist, 0).left.length; }', 'hist': hist}])
+        self.assertEqual(res, 0)
+
+    def test_run_rate_skips_unusual_days(self):
+        hist = history(weeks=8)
+        for iso in hist:
+            hist[iso]['lastYearSales'] = hist[iso]['sales'] / 1.1
+        hist['2026-09-11']['sales'] = 14000           # outlier this year; its last-year figure is normal
+        res, = run([{'op': 'c => { numbersHistory = {}; numbersData = {}; const a = fcAnalysis(c.hist, 0); return [a.yoyRatio, a.yoyDays]; }', 'hist': hist}])
+        self.assertAlmostEqual(res[0], 1.1, places=6)
+        self.assertEqual(res[1], 47)

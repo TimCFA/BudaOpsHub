@@ -99,7 +99,12 @@ same weekday a year ago (364 days back, from the DayTrack export) × this
 year's run-rate against last year over the window. The blend weight comes
 from the backtest over the last 28 open days ("Best fit") unless the leader
 picks a fixed mix; a day the store was closed a year ago is flagged and uses
-the weekday figure. A per-day or every-day adjustment %
+the weekday figure. Unusual days are left out of the averages and run-rate
+(a day with a special event in Know the Numbers, or one more than 30% from
+its weekday's median once that weekday has 4 open days); the weekday median
+stands in for them in the trend, Patterns lists them, and a switch turns
+the rule off. A special event typed for a day ahead shows on its forecast
+row. A per-day or every-day adjustment %
 for games, holidays, weather; labor hours from a $-per-labor-hour target or
 labor % ÷ average wage. Patterns (KPIs, weekly trend, weekday averages),
 Accuracy (backtest of the model on days already lived), Channels (sales by

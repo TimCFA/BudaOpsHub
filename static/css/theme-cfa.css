@@ -602,6 +602,10 @@ button,input,select,textarea{font-family:inherit;}
 .fc-note-wide{flex-basis:100%;color:#7A4C00;}
 .fc-danger{border-color:var(--cfa-dark-red);color:var(--cfa-dark-red);}
 .fc-compare{margin-bottom:14px;} .fc-compare h3 .sub{margin-left:6px;} .fc-compare .fc-muted{display:block;margin-top:8px;}
+.fc-left{margin-bottom:14px;} .fc-left h3 .sub{margin-left:6px;}
+.fc-check{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--text-secondary);line-height:1.5;margin:0 0 12px;}
+.fc-check input{accent-color:var(--cfa-navy);width:18px;height:18px;flex:none;margin-top:2px;}
+.fc-event{display:block;font-size:11px;color:#7A4C00;white-space:normal;max-width:180px;line-height:1.3;}
 /* KPI cards */
 .fc-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:14px;}
 .fc-kpis-3{grid-template-columns:repeat(3,1fr);}
