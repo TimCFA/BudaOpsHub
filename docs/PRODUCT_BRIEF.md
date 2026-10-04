@@ -90,6 +90,18 @@ celebrations), LX (leadership pillars/metrics), plus custom trackers managers
 define. Operational insights are **rule-based only** — computed from the app's
 own data, never guessed or narrated.
 
+### Forecast (managers)
+Sales & Labor Forecast tab (full site only; the history is manager-only, so a
+device without the PIN sees a gate). Baseline = that weekday's average over
+the look-back window, carried forward by a straight-line weekly trend
+(full weeks only, capped at ±5%/week); a per-day or every-day adjustment %
+for games, holidays, weather; labor hours from a $-per-labor-hour target or
+labor % ÷ average wage. Patterns (KPIs, weekly trend, weekday averages),
+Accuracy (backtest of the model on days already lived), Channels (sales by
+destination), Data (what's loaded, add a file, remove all). Settings and
+adjustments are shared across devices; adjustments for past days fall away.
+No sample data, ever — an empty history shows an empty page.
+
 ### Talent
 - **Trainer trial** (30 days) and **Team Lead trial** (90 days) trackers, built
   from the store's Leadership Playbook.
@@ -184,6 +196,8 @@ overdue) and an upload button per report.
 | CEM (xlsx) | Guest survey reports | Guest Obsession scoreboard, CEM trends |
 | Productivity (CSV) | Daypart productivity report | Busy hours for breaks |
 | Sales Mix (CSV) | Daily items sold | Prep Board build-to |
+| Sales by day (CSV) | Analytics Hub sales by destination | Guest Obsession WIG; every day → Forecast history |
+| Labor by day (CSV/xlsx) | Analytics Hub labor report or DayTrack | Forecast labor hours, $/labor hour, labor % |
 
 - Sales Mix needs a date (picked if the file doesn't say), and a **duplicate
   guard**: flag a file identical to another day's within the last 2 weeks.
