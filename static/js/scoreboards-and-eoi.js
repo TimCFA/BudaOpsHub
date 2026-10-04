@@ -177,11 +177,11 @@ function renderTXScoreboard(){
 
   const celebContainer = document.getElementById('txCelebrationContainer');
   if(txData.celebrations.length === 0){
-    celebContainer.innerHTML = '<div class="celeb-empty">No celebrations this month — check back soon! 🎈</div>';
+    celebContainer.innerHTML = '<div class="celeb-empty">No celebrations this month — check back soon!</div>';
   } else {
     celebContainer.innerHTML = txData.celebrations.map(celeb => {
       const isBirthday = String(celeb.type).toLowerCase() === 'birthday';   // older saves have 'Birthday'
-      const icon = isBirthday ? '🎂' : '🎊';
+      const icon = isBirthday ? '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M5 20v-6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v6"/><path d="M5 16c2 1.5 4-1.5 6 0s4 1.5 6 0 2-1.5 2 0"/><path d="M12 12V8"/><path d="M12 5c-1 1-1 2 0 3 1-1 1-2 0-3z"/></svg>' : '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.5 6 .8-4.4 4.2 1.1 6-5.3-2.9L6.7 19.5l1.1-6L3.4 9.3l6-.8z"/></svg>';
       return `
         <div class="celeb-card ${isBirthday ? 'celeb-birthday' : 'celeb-anniversary'}">
           <div class="celeb-icon">${icon}</div>

@@ -5,7 +5,7 @@ function renderLXScoreboard(){
     return `
     <div class="pillar-card" style="--pillar-color:${style.color};--pillar-tint:${style.tint};">
       <div class="pillar-header" onclick="togglePillar(${idx})">
-        <div class="pillar-title"><span class="pillar-icon">${escapeHtml(style.icon)}</span>${escapeHtml(pillar.title)}</div>
+        <div class="pillar-title"><span class="pillar-icon" aria-hidden="true">${idx + 1}</span>${escapeHtml(pillar.title)}</div>
         <div class="pillar-toggle" id="toggle-${idx}">▼</div>
       </div>
       <div class="pillar-content" id="content-${idx}">
