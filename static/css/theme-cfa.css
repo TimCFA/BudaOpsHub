@@ -631,6 +631,14 @@ button,input,select,textarea{font-family:inherit;}
 .fc-mixrow:last-child{border-bottom:0;}
 .fc-mixrow .fc-num{text-align:right;font-variant-numeric:tabular-nums;}
 .fc-dot{display:inline-block;width:12px;height:12px;border-radius:50%;flex:none;}
+/* Know the Numbers preview */
+.fc-numbers{margin-bottom:16px;}
+.fc-numbers h3 .sub{margin-left:6px;}
+.fc-numbers .fc-muted{display:block;margin-bottom:10px;line-height:1.5;}
+.fc-table-numbers{min-width:0;}
+.fc-table-numbers th:first-child,.fc-table-numbers td:first-child{position:sticky;left:0;background:var(--cfa-white);z-index:1;}
+.fc-table-numbers thead th:first-child,.fc-table-numbers tfoot td:first-child{background:var(--cfa-light);}
+.fc-table-numbers th .fc-muted{font-weight:500;letter-spacing:0;text-transform:none;}
 /* Data tab */
 .fc-drop{margin:4px 0 12px;}
 .fc-map{margin-top:4px;}
@@ -648,6 +656,7 @@ button,input,select,textarea{font-family:inherit;}
 }
 @media (max-width:480px){
   .fc-tabs{border-radius:14px;} .fc-tab{padding:8px 6px;font-size:12px;}
+  .fc-table-numbers th:first-child,.fc-table-numbers td:first-child{white-space:normal;max-width:120px;font-size:12px;}
   .fc-sum-stats{grid-template-columns:1fr 1fr;}
   .fc-kpi-value{font-size:22px;}
 }

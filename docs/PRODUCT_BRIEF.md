@@ -100,6 +100,12 @@ labor % ÷ average wage. Patterns (KPIs, weekly trend, weekday averages),
 Accuracy (backtest of the model on days already lived), Channels (sales by
 destination), Data (what's loaded, add a file, remove all). Settings and
 adjustments are shared across devices; adjustments for past days fall away.
+**Send to Know the Numbers** previews each open day split into FOH dayparts
+(by the weekday's hourly sales shape from the productivity-by-hour report,
+evenly by hour without one; Transition is the last hour of Lunch) with the
+$/labor-hour target as the productivity goal, then writes projected sales
+and goals — special events are never touched. Manage → Know the Numbers has
+a "Fill from the Forecast" button that opens that preview.
 No sample data, ever — an empty history shows an empty page.
 
 ### Talent

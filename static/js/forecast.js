@@ -417,6 +417,110 @@ function fcChannelColor(name){
   return `var(--fc-chan-${(idx % 6) + 1})`;
 }
 
+// ----- Know the Numbers feed -----
+// Know the Numbers holds projected sales and a productivity goal ($ per
+// labor hour) per FOH daypart. A forecast day is split into dayparts by the
+// weekday's hourly sales shape from the productivity-by-hour report (break
+// planner's profiles); without one, evenly by hour. Transition (1:00–2:00)
+// is the last hour of Lunch, so its figure is also inside Lunch's.
+
+// fohDayparts → [{name, start, end}] in minutes from midnight. `time` is the
+// 24-hour start; the end comes from the name ("(11:00-2:00)" → 2:00 PM).
+function fcDaypartWindows(dayparts){
+  return (dayparts || fohDayparts).map(dp => {
+    const [sh, sm] = String(dp.time || '0:00').split(':').map(Number);
+    const start = sh * 60 + (sm || 0);
+    const m = String(dp.name).match(/\(\d{1,2}:\d{2}\s*-\s*(\d{1,2}):(\d{2})\)/);
+    let end = m ? (+m[1]) * 60 + (+m[2]) : start + 180;
+    while(end <= start) end += 720;
+    return {name: dp.name, start, end};
+  });
+}
+
+// Sales weight per hour from a productivity profile's hours
+// ({hourMin: {prod, labor, salesPerDay}}): that hour's average sales, or
+// $/labor hour × labor hours. Null when the profile has neither.
+function fcHourWeights(hours){
+  const out = {};
+  let any = false;
+  Object.entries(hours || {}).forEach(([h, v]) => {
+    if(!v) return;
+    const w = v.salesPerDay != null ? v.salesPerDay : (v.prod != null && v.labor != null ? v.prod * v.labor : null);
+    if(w != null && w >= 0){ out[Math.floor(+h / 60) * 60] = (out[Math.floor(+h / 60) * 60] || 0) + w; any = true; }
+  });
+  return any ? out : null;
+}
+
+// A day's sales → {daypart name: $}. Shares come from the hour weights over
+// the day's open span (the earliest daypart start to the latest end); with
+// no weights every hour counts the same.
+function fcSplitDay(sales, weights, windows){
+  const wins = windows || fcDaypartWindows();
+  const lo = Math.min(...wins.map(w => w.start)), hi = Math.max(...wins.map(w => w.end));
+  const weightAt = h => weights ? (weights[h] || 0) : 1;
+  let total = 0;
+  for(let h = lo; h < hi; h += 60) total += weightAt(h);
+  const even = !weights || total <= 0;
+  if(even) total = (hi - lo) / 60;
+  const out = {};
+  wins.forEach(w => {
+    let part = 0;
+    for(let h = w.start; h < w.end; h += 60) part += even ? 1 : weightAt(h);
+    out[w.name] = sales * part / total;
+  });
+  return out;
+}
+
+// The productivity goal Know the Numbers gets: the $ per labor hour target,
+// or the one a labor % and wage imply.
+function fcGoalSplh(s, a){
+  if(s.method === 'pct'){
+    const pct = s.pct != null ? +s.pct : (a.avgLaborPct || 0), wage = s.wage != null ? +s.wage : (a.avgWage || 0);
+    return pct > 0 && wage > 0 ? wage / (pct / 100) : null;
+  }
+  const splh = s.splh != null ? +s.splh : (a.avgSPLH ? Math.round(a.avgSPLH) : null);
+  return splh > 0 ? splh : null;
+}
+
+// One entry per open forecast day: the adjusted sales, the goal, and the
+// split by daypart, with where the hourly shape came from.
+function fcNumbersPlan(){
+  const s = fcSettings();
+  const a = fcAnalysis(salesHistory, +s.lookback);
+  const goal = fcGoalSplh(s, a);
+  const windows = fcDaypartWindows();
+  return fcDates().map(iso => {
+    const base = fcBaseline(iso, a);
+    if(base.sales == null || base.closed) return null;
+    const sales = base.sales * (1 + (+s.adjustments[iso] || 0) / 100);
+    const prof = typeof breakProfileFor === 'function' ? breakProfileFor(iso) : null;
+    const weights = prof ? fcHourWeights(prof.hours) : null;
+    return {date: iso, dow: base.dow, sales, goal, split: fcSplitDay(sales, weights, windows), source: weights ? prof.day : null};
+  }).filter(Boolean);
+}
+
+// Write the plan into Know the Numbers. Projected sales and goals for these
+// days are replaced; special events are never touched.
+async function fcApplyNumbers(plan){
+  let cells = 0;
+  plan.forEach(p => {
+    const day = numbersData[p.date] = numbersData[p.date] || {};
+    Object.entries(p.split).forEach(([dp, v]) => {
+      const entry = day[dp] = day[dp] || {};
+      entry.projectedSales = formatAsCurrency(Math.round(v)); cells++;
+      if(p.goal != null){ entry.productivityGoal = formatAsCurrency(Math.round(p.goal)); cells++; }
+    });
+    if(typeof touchLastUpdated === 'function') touchLastUpdated(p.date);
+  });
+  if(plan.length){
+    const dates = plan.map(p => p.date);
+    duRecord('numbers', {file: 'Forecast tab', summary: `${fcShort(dates[0])} – ${fcShort(dates[dates.length - 1])} · ${dates.length} day${dates.length === 1 ? '' : 's'} from the forecast`, periodEnd: dates[dates.length - 1]});
+  }
+  await saveState();
+  if(document.getElementById('numbersContent') && document.getElementById('numbersDaySelect') && document.getElementById('numbersDaySelect').value) renderNumbersContent();
+  return cells;
+}
+
 // ----- Settings -----
 
 function fcSettings(){
@@ -445,6 +549,7 @@ let fcStart = null;
 let fcTab = 'forecast';
 let fcBacktestDays = 14;
 let fcPendingFile = null;   // {name, table, map} chosen on the Data tab, before saving
+let fcNumbersOpen = false;  // the Know the Numbers preview under the forecast table
 
 function fcDates(){
   const s = fcSettings();
@@ -584,10 +689,12 @@ function fcRenderForecast(){
       </table>
     </div>
     <div class="fc-actions">
+      <button type="button" class="btn ${fcNumbersOpen ? 'btn-ghost' : 'btn-primary'}" id="fcToNumbers">${fcNumbersOpen ? 'Hide the Know the Numbers preview' : 'Send to Know the Numbers'}</button>
       <button type="button" class="btn btn-ghost" id="fcCopy">Copy as CSV</button>
       <button type="button" class="btn btn-ghost" id="fcDownload">Download CSV</button>
       <span class="fc-muted">Baseline = that weekday's average over ${fcLookbackLabel(a, s)}, carried forward by the weekly trend.</span>
-    </div>`;
+    </div>
+    <div id="fcNumbersCard">${fcNumbersOpen ? fcNumbersPreviewHtml() : ''}</div>`;
 
   const wire = (id, ev, fn) => { const el = document.getElementById(id); if(el) el.addEventListener(ev, fn); };
   wire('fcStart', 'change', e => { if(fcValidIso(e.target.value)) fcStart = e.target.value; fcRenderForecast(); });
@@ -604,6 +711,42 @@ function fcRenderForecast(){
   panel.querySelectorAll('[data-fc-step]').forEach(b => b.addEventListener('click', () => { const cur = +fcSettings().adjustments[b.dataset.date] || 0; fcSetAdjustment(b.dataset.date, cur + +b.dataset.fcStep); fcRenderForecast(); }));
   wire('fcCopy', 'click', () => fcExportCsv('copy'));
   wire('fcDownload', 'click', () => fcExportCsv('download'));
+  wire('fcToNumbers', 'click', () => { fcNumbersOpen = !fcNumbersOpen; fcRenderForecast(); if(fcNumbersOpen){ const c = document.getElementById('fcNumbersCard'); if(c && c.scrollIntoView) c.scrollIntoView({behavior: 'smooth', block: 'start'}); } });
+  wire('fcNumbersSave', 'click', async () => {
+    const plan = fcNumbersPlan();
+    const cells = await fcApplyNumbers(plan);
+    fcNumbersOpen = false;
+    if(typeof showToast === 'function') showToast(`Know the Numbers filled: ${plan.length} day${plan.length === 1 ? '' : 's'}, ${cells} numbers`);
+    fcRenderForecast();
+  });
+  wire('fcNumbersCancel', 'click', () => { fcNumbersOpen = false; fcRenderForecast(); });
+}
+
+// The split by daypart for every open day in the window, to check before
+// it goes into Know the Numbers.
+function fcNumbersPreviewHtml(){
+  const plan = fcNumbersPlan();
+  if(!plan.length) return `<div class="standup-card fc-numbers"><h3>Know the Numbers</h3><p class="fc-empty">No open days with a forecast in this window.</p></div>`;
+  const windows = fcDaypartWindows();
+  const sources = [...new Set(plan.map(p => p.source || 'even'))];
+  const shapeNote = sources.every(x => x === 'even')
+    ? 'Split evenly by hour — upload the productivity by hour report (Data Uploads) and each weekday takes its real shape.'
+    : `Split by the hourly sales shape from the productivity report${sources.includes('even') ? ' where a weekday has one, evenly by hour otherwise' : ''} (${sources.filter(x => x !== 'even').join(', ')}).`;
+  const goal = plan[0].goal;
+  const dayHead = plan.map(p => `<th class="fc-num">${FC_DOW[p.dow]}<span class="fc-muted"> ${fcShort(p.date)}</span></th>`).join('');
+  const rows = windows.map(w => `<tr><td>${fcEsc(w.name)}</td>${plan.map(p => `<td class="fc-num">${fcMoney(p.split[w.name])}</td>`).join('')}</tr>`).join('');
+  return `<div class="standup-card fc-numbers">
+    <h3>Know the Numbers <span class="sub">what each daypart will show</span></h3>
+    <p class="fc-muted">${shapeNote} Projected sales and goals already there for these days are replaced; special events stay. Transition is the last hour of Lunch, so its figure is also inside Lunch's.</p>
+    <div class="fc-table-wrap"><table class="fc-table fc-table-sm fc-table-numbers">
+      <thead><tr><th>Daypart</th>${dayHead}</tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr><td>Day total</td>${plan.map(p => `<td class="fc-num">${fcMoney(p.sales)}</td>`).join('')}</tr>
+      <tr><td>Productivity goal</td>${plan.map(p => `<td class="fc-num">${p.goal != null ? fcMoney(p.goal) + '/hr' : '—'}</td>`).join('')}</tr></tfoot>
+    </table></div>
+    ${goal == null ? '<p class="fc-muted">No productivity goal yet: set a $ per labor hour target (or labor % and wage) above and it fills in too.</p>' : ''}
+    <div class="fc-actions"><button type="button" class="btn btn-primary" id="fcNumbersSave">Save to Know the Numbers</button><button type="button" class="btn btn-ghost" id="fcNumbersCancel">Cancel</button></div>
+  </div>`;
 }
 function fcBulkAdjust(pct){
   const adjustments = {...fcSettings().adjustments};
@@ -954,6 +1097,9 @@ if(typeof document !== 'undefined' && document.getElementById('forecastView')){
     fcTab = btn.dataset.fcTab;
     renderForecastView();
   });
+  // Manage → Know the Numbers: "Fill from the Forecast" opens the preview here.
+  const knBtn = document.getElementById('knFromForecast');
+  if(knBtn) knBtn.addEventListener('click', () => { fcTab = 'forecast'; fcNumbersOpen = true; launchShowTab('forecast'); const c = document.getElementById('fcNumbersCard'); if(c && c.scrollIntoView) c.scrollIntoView({block: 'start'}); });
   let fcResizeTimer = null;
   window.addEventListener('resize', () => {
     const view = document.getElementById('forecastView');
