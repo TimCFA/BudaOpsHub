@@ -31,7 +31,9 @@ let forecastSettings = {};  // {method, splh, pct, wage, lookback, days, adjustm
 
 const FC_DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const FC_DOW_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const FC_DEFAULTS = {method: 'splh', splh: null, pct: null, wage: null, lookback: 8, days: 7, model: 'auto', adjustments: {}};
+const FC_DEFAULTS = {method: 'splh', splh: null, pct: null, wage: null, lookback: 'auto', days: 7, model: 'auto', adjustments: {}};
+const FC_LOOKBACKS = [4, 8, 12, 26];           // the windows Best fit chooses between, per weekday
+const FC_LOOKBACK_MIN_DAYS = 3;                // scored days of a weekday before it gets its own window
 const FC_YEAR_DAYS = 364;                      // the same weekday a year ago
 const FC_YOY_WEIGHTS = [0, 0.25, 0.5, 0.75, 1];  // share of the baseline that comes from last year
 const FC_YOY_MIN_DAYS = 6;                     // days with both years before the run-rate is trusted
@@ -472,6 +474,8 @@ function fcModelWeight(model, hist, weeks){
   if(model === 'blend') return 0.5;
   return fcBestYoyWeight(hist, weeks);
 }
+// `weeks` is a number, or an array of seven (one window per weekday).
+function fcWeeksFor(weeks, dow){ return Array.isArray(weeks) ? weeks[dow] : weeks; }
 function fcBestYoyWeight(hist, weeks){
   const scores = fcBacktestScores(hist, FC_AUTO_TEST_DAYS, weeks);
   if(!scores || !scores.days) return 0;
@@ -487,9 +491,63 @@ function fcModelLabel(model, weight){
 
 // The analysis for the current settings, with the model's blend weight.
 function fcAnalysisFor(s){
-  const a = fcAnalysis(salesHistory, +s.lookback);
-  a.yoyWeight = a.hasLastYear ? fcModelWeight(s.model, salesHistory, +s.lookback) : 0;
+  const pick = s.lookback === 'auto' ? fcLookbackPick(salesHistory, FC_AUTO_TEST_DAYS) : null;
+  const weeks = pick ? pick.overall : +s.lookback;
+  const a = fcAnalysis(salesHistory, weeks);
+  if(pick){
+    // One analysis per distinct window; weekdays whose window differs from
+    // the overall one read their averages from it.
+    const byWindow = {[weeks]: a};
+    a.perDow = pick.perDow.map(w => { if(w === weeks) return null; byWindow[w] = byWindow[w] || fcAnalysis(salesHistory, w); return byWindow[w]; });
+    a.lookbackPick = pick;
+  }
+  a.yoyWeight = a.hasLastYear ? fcModelWeight(s.model, salesHistory, pick ? pick.perDow : weeks) : 0;
   return a;
+}
+
+// ----- Look-back window -----
+// How many weeks of history each weekday's average should use is a
+// question the backtest can answer: score the weekday model under each
+// window on the last 28 open days, and give every weekday the window that
+// was closest for it (the overall best until a weekday has 3 scored days).
+let fcLookbackMemo = null;
+function fcLookbackPick(hist, testDays){
+  const h = hist || salesHistory;
+  const keys = Object.keys(h);
+  const key = `${keys.length}|${keys.sort().slice(-1)[0] || ''}|${Object.values(h).reduce((t, d) => t + (d && d.sales > 0 ? d.sales : 0), 0)}|${fcOpts().unusual}|${testDays}`;
+  if(fcLookbackMemo && fcLookbackMemo.key === key && fcLookbackMemo.hist === h) return fcLookbackMemo.pick;
+  const all = fcHistoryRows(h, 0).filter(r => r.sales > 0).slice(-testDays);
+  const score = {};   // window → {acc, n, byDow: [{acc, n}]}
+  FC_LOOKBACKS.forEach(w => { score[w] = {acc: 0, n: 0, byDow: Array.from({length: 7}, () => ({acc: 0, n: 0}))}; });
+  all.forEach(row => {
+    FC_LOOKBACKS.forEach(w => {
+      const a = fcAnalysis(h, w, row.date);
+      if(a.rows.length < 7) return;
+      const acc = fcAccuracy(row.sales, fcBaseline(row.date, a, 0).sales);
+      if(acc == null) return;
+      const sc = score[w]; sc.acc += acc; sc.n++; sc.byDow[row.dow].acc += acc; sc.byDow[row.dow].n++;
+    });
+  });
+  const best = (get) => { let bw = FC_LOOKBACKS[1], bv = -1; FC_LOOKBACKS.forEach(w => { const x = get(score[w]); if(x.n && x.acc / x.n > bv + 1e-9){ bv = x.acc / x.n; bw = w; } }); return {w: bw, acc: bv < 0 ? null : bv, n: get(score[bw]).n}; };
+  const overallPick = best(sc => sc);
+  const perDow = [], perDowAcc = [];
+  for(let d = 0; d < 7; d++){
+    const pickD = best(sc => sc.byDow[d]);
+    const own = pickD.n >= FC_LOOKBACK_MIN_DAYS;
+    perDow.push(own ? pickD.w : overallPick.w);
+    perDowAcc.push(own ? pickD.acc : null);
+  }
+  const pick = {overall: overallPick.w, overallAcc: overallPick.acc, days: overallPick.n, perDow, perDowAcc,
+    byWindow: Object.fromEntries(FC_LOOKBACKS.map(w => [w, score[w].n ? score[w].acc / score[w].n : null]))};
+  fcLookbackMemo = {key, hist: h, pick};
+  return pick;
+}
+// "Mon, Tue: 8 wks · Wed: 4 wks …", leaving closed weekdays out.
+function fcLookbackText(pick, a){
+  if(!pick) return '';
+  const groups = {};
+  pick.perDow.forEach((w, d) => { if(a && a.dow[d] && a.dow[d].closed) return; (groups[w] = groups[w] || []).push(FC_DOW[d]); });
+  return Object.entries(groups).sort((x, y) => +x[0] - +y[0]).map(([w, days]) => `${days.join(', ')}: ${w} wks`).join(' · ');
 }
 
 // The model's own expectation for one day: the weekday average carried
@@ -499,8 +557,9 @@ function fcAnalysisFor(s){
 // run-rate when last year's figure is there. `weight` (0–1) is the share
 // from last year; it defaults to the analysis's. A day the store was
 // closed a year ago is flagged, and the weekday figure stands.
-function fcBaseline(iso, a, weight){
+function fcBaseline(iso, src, weight){
   const dow = fcDow(iso);
+  const a = src.perDow && src.perDow[dow] ? src.perDow[dow] : src;
   const stat = a.dow[dow];
   if(!stat || stat.sales == null) return {sales: null, transactions: null, dow, closed: false};
   if(stat.closed) return {sales: 0, transactions: 0, dow, closed: true};
@@ -510,7 +569,7 @@ function fcBaseline(iso, a, weight){
   const dowSales = stat.sales * Math.pow(1 + g / 100, weeksAhead);
   const lastYearDate = fcAddDays(iso, -FC_YEAR_DAYS);
   const ly = a.lastYear ? a.lastYear[lastYearDate] : undefined;
-  const w = weight != null ? weight : (a.yoyWeight || 0);
+  const w = weight != null ? weight : (src.yoyWeight || 0);
   let sales = dowSales, yoySales = null, yoyWeight = 0, closedLastYear = false;
   if(ly != null && a.yoyRatio != null){
     if(ly > 0){ yoySales = ly * a.yoyRatio; sales = w * yoySales + (1 - w) * dowSales; yoyWeight = w; }
@@ -550,7 +609,7 @@ function fcBacktest(hist, testDays, weeks, weight){
   const all = fcHistoryRows(hist, 0);
   const out = [];
   all.filter(r => r.sales > 0).slice(-testDays).forEach(row => {
-    const a = fcAnalysis(hist, weeks, row.date);
+    const a = fcAnalysis(hist, fcWeeksFor(weeks, row.dow), row.date);
     if(a.rows.length < 7) return;
     const base = fcBaseline(row.date, a, weight == null ? 0 : weight);
     const acc = fcAccuracy(row.sales, base.sales);
@@ -784,9 +843,13 @@ function fcKpi(icon, label, value, note, tone){
   return `<div class="fc-kpi"><div class="fc-kpi-ic">${icon}</div><div class="fc-kpi-label">${label}</div><div class="fc-kpi-value">${value}</div>${note ? `<div class="fc-kpi-note ${tone || ''}">${note}</div>` : ''}</div>`;
 }
 function fcLookbackLabel(a, s){
+  if(s.lookback === 'auto') return a && a.lookbackPick ? `best-fit window (${a.lookbackPick.overall} weeks overall)` : 'best-fit window';
   const weeks = +s.lookback;
   return weeks > 0 ? `last ${weeks} weeks` : 'all history';
 }
+const FC_LOOKBACK_OPTS = [['auto', 'Best fit (per weekday)'], [4, '4 weeks'], [8, '8 weeks'], [12, '12 weeks'], [26, '26 weeks'], [0, 'All history']];
+function fcLookbackOptions(s){ return FC_LOOKBACK_OPTS.map(([v, l]) => `<option value="${v}" ${String(s.lookback) === String(v) ? 'selected' : ''}>${l}</option>`).join(''); }
+function fcLookbackValue(v){ return v === 'auto' ? 'auto' : +v; }
 
 // --- Forecast tab ---
 function fcRenderForecast(){
@@ -799,7 +862,6 @@ function fcRenderForecast(){
   const wage = s.wage != null ? s.wage : (a.avgWage ? +a.avgWage.toFixed(2) : '');
   const dates = fcDates();
   const pctMethod = s.method === 'pct';
-  const lookbackOpts = [[4, '4 weeks'], [8, '8 weeks'], [12, '12 weeks'], [26, '26 weeks'], [0, 'All history']];
 
   let totalBase = 0, totalAdj = 0, totalHrs = 0, anyHrs = false, anyAdj = false;
   const rowsHtml = dates.map(iso => {
@@ -838,7 +900,7 @@ function fcRenderForecast(){
     <div class="standup-card fc-controls">
       <div class="fc-field"><label for="fcStart">Start</label><input type="date" id="fcStart" value="${fcStart}"></div>
       <div class="fc-field"><label for="fcDays">Days</label><select id="fcDays">${[7, 14].map(n => `<option value="${n}" ${+s.days === n ? 'selected' : ''}>${n} days</option>`).join('')}</select></div>
-      <div class="fc-field"><label for="fcLookback">Based on</label><select id="fcLookback">${lookbackOpts.map(([v, l]) => `<option value="${v}" ${+s.lookback === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+      <div class="fc-field"><label for="fcLookback">Based on</label><select id="fcLookback">${fcLookbackOptions(s)}</select></div>
       ${a.hasLastYear ? `<div class="fc-field"><label for="fcModel">Model</label><select id="fcModel">${[['auto', 'Best fit (backtest picks)'], ['blend', 'Half last year, half weekday'], ['lastyear', 'Last year × run-rate'], ['weekday', 'Weekday average only']].map(([v, l]) => `<option value="${v}" ${s.model === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>` : ''}
       <div class="fc-field"><label for="fcMethod">Labor target</label><select id="fcMethod"><option value="splh" ${!pctMethod ? 'selected' : ''}>$ per labor hour</option><option value="pct" ${pctMethod ? 'selected' : ''}>Labor % of sales</option></select></div>
       <div class="fc-field" ${pctMethod ? 'hidden' : ''}><label for="fcSplh">$ / labor hour</label><input type="number" id="fcSplh" value="${splh}" min="1" step="1" inputmode="decimal" placeholder="${a.avgSPLH ? Math.round(a.avgSPLH) : 'e.g. 170'}"></div>
@@ -885,7 +947,7 @@ function fcRenderForecast(){
   const wire = (id, ev, fn) => { const el = document.getElementById(id); if(el) el.addEventListener(ev, fn); };
   wire('fcStart', 'change', e => { if(fcValidIso(e.target.value)) fcStart = e.target.value; fcRenderForecast(); });
   wire('fcDays', 'change', e => { fcSaveSettings({days: +e.target.value}); fcRenderForecast(); });
-  wire('fcLookback', 'change', e => { fcSaveSettings({lookback: +e.target.value}); fcRenderForecast(); });
+  wire('fcLookback', 'change', e => { fcSaveSettings({lookback: fcLookbackValue(e.target.value)}); fcRenderForecast(); });
   wire('fcMethod', 'change', e => { fcSaveSettings({method: e.target.value}); fcRenderForecast(); });
   wire('fcModel', 'change', e => { fcSaveSettings({model: e.target.value}); fcRenderForecast(); });
   wire('fcSplh', 'change', e => { fcSaveSettings({splh: fcNum(e.target.value)}); fcRenderForecast(); });
@@ -973,12 +1035,12 @@ function fcExportCsv(how){
 function fcRenderPatterns(){
   const panel = document.getElementById('fcPanelPatterns');
   const s = fcSettings();
-  const a = fcAnalysis(salesHistory, +s.lookback);
+  const a = fcAnalysisFor(s);
   const weeklyAvg = a.weekly.length ? a.weekly.reduce((t, w) => t + w.sales, 0) / a.weekly.length : null;
   const g = a.trend.weeklyGrowthPct || 0;
   const first = a.rows[0], last = a.rows[a.rows.length - 1];
   panel.innerHTML = `
-    <div class="fc-panel-head"><p class="fc-lede">${a.rows.length} day${a.rows.length === 1 ? '' : 's'} · ${first ? `${fcShort(first.date)} – ${fcShort(last.date)}` : ''} · ${fcLookbackLabel(a, s)} <select id="fcLookback2" class="fc-inline-select" aria-label="Look back">${[[4, '4 weeks'], [8, '8 weeks'], [12, '12 weeks'], [26, '26 weeks'], [0, 'All history']].map(([v, l]) => `<option value="${v}" ${+s.lookback === v ? 'selected' : ''}>${l}</option>`).join('')}</select></p></div>
+    <div class="fc-panel-head"><p class="fc-lede">${a.rows.length} day${a.rows.length === 1 ? '' : 's'} · ${first ? `${fcShort(first.date)} – ${fcShort(last.date)}` : ''} · ${fcLookbackLabel(a, s)} <select id="fcLookback2" class="fc-inline-select" aria-label="Look back">${fcLookbackOptions(s)}</select>${a.lookbackPick ? `<span class="fc-pickline">Windows the backtest picked: ${fcLookbackText(a.lookbackPick, a)}</span>` : ''}</p></div>
     <div class="fc-kpis">
       ${fcKpi(FC_ICON.dollar, 'Avg weekly sales', fcMoney(weeklyAvg), a.weekly.length ? `${a.weekly.length} full week${a.weekly.length === 1 ? '' : 's'}` : 'no full week yet')}
       ${fcKpi(g >= 0 ? FC_ICON.trendUp : FC_ICON.trendDown, 'Weekly trend', fcPctFmt(g), g >= 0 ? 'trending up' : 'trending down', g >= 0 ? 'is-up' : 'is-down')}
@@ -996,7 +1058,7 @@ function fcRenderPatterns(){
       <div class="standup-card fc-chart-card"><h3>Average sales by weekday</h3><div id="fcDowSales" class="fc-chart"></div></div>
       <div class="standup-card fc-chart-card"><h3>Average labor hours by weekday</h3><div id="fcDowLabor" class="fc-chart"></div></div>
     </div>`;
-  document.getElementById('fcLookback2').addEventListener('change', e => { fcSaveSettings({lookback: +e.target.value}); fcRenderPatterns(); });
+  document.getElementById('fcLookback2').addEventListener('change', e => { fcSaveSettings({lookback: fcLookbackValue(e.target.value)}); fcRenderPatterns(); });
   document.getElementById('fcUnusual').addEventListener('change', e => { fcSaveSettings({unusual: !!e.target.checked}); fcRenderPatterns(); });
   fcTrendChart(document.getElementById('fcTrendChart'), a.weekly, a.trend);
   fcBarChart(document.getElementById('fcDowSales'), FC_DOW, a.dow.map(d => d.sales), 'var(--cfa-navy)', fcMoney);
@@ -1009,11 +1071,12 @@ function fcRenderAccuracy(){
   const panel = document.getElementById('fcPanelAccuracy');
   const s = fcSettings();
   const a0 = fcAnalysisFor(s);
-  const results = fcBacktest(salesHistory, fcBacktestDays, +s.lookback, a0.yoyWeight);
+  const weeks0 = a0.lookbackPick ? a0.lookbackPick.perDow : +s.lookback;
+  const results = fcBacktest(salesHistory, fcBacktestDays, weeks0, a0.yoyWeight);
   // In Best fit the mix is picked over a fixed window, so the comparison
   // shows that same window; otherwise it follows the days selected above.
   const compareDays = s.model === 'auto' ? FC_AUTO_TEST_DAYS : fcBacktestDays;
-  const scores = a0.hasLastYear ? fcBacktestScores(salesHistory, compareDays, +s.lookback) : null;
+  const scores = a0.hasLastYear ? fcBacktestScores(salesHistory, compareDays, weeks0) : null;
   const sel = `<select id="fcBacktestDays" class="fc-inline-select" aria-label="Days to test">${[7, 14, 28].map(n => `<option value="${n}" ${fcBacktestDays === n ? 'selected' : ''}>last ${n} days</option>`).join('')}</select>`;
   if(!results.length){
     panel.innerHTML = `<div class="fc-panel-head"><p class="fc-lede">How the model would have done on days already lived, forecasting each from only the history before it: ${sel}</p></div><p class="fc-empty">Not enough history to test yet — the backtest needs at least a week before each day it scores.</p>`;
@@ -1026,9 +1089,17 @@ function fcRenderAccuracy(){
   const miss = results.reduce((t, r) => t + Math.abs(r.actual - r.forecast), 0) / results.length;
   const tier = acc => acc >= 90 ? 'is-good' : acc >= 75 ? 'is-warn' : 'is-bad';
   let compareHtml = '';
+  if(a0.lookbackPick){
+    const pk = a0.lookbackPick;
+    compareHtml += `<div class="standup-card fc-compare"><h3>Which window fits <span class="sub">weekday model, last ${pk.days} open days</span></h3>
+      <div class="fc-table-wrap"><table class="fc-table fc-table-sm"><thead><tr><th>Look back</th><th class="fc-num">Avg accuracy</th><th></th></tr></thead><tbody>
+      ${FC_LOOKBACKS.map(w => `<tr class="${w === pk.overall ? 'is-adjusted' : ''}"><td>${w} weeks</td><td class="fc-num">${pk.byWindow[w] == null ? '—' : `<span class="fc-pill ${tier(pk.byWindow[w])}">${pk.byWindow[w].toFixed(1)}%</span>`}</td><td>${w === pk.overall ? 'best overall' : ''}</td></tr>`).join('')}
+      </tbody></table></div>
+      <p class="fc-muted">Per weekday: ${fcLookbackText(pk, a0)}. A weekday takes its own window once it has ${FC_LOOKBACK_MIN_DAYS} scored days; until then it uses the best overall.</p></div>`;
+  }
   if(scores){
     const bestW = FC_YOY_WEIGHTS.reduce((b, w) => scores.byWeight[w] > scores.byWeight[b] + 1e-9 ? w : b, 0);
-    compareHtml = `<div class="standup-card fc-compare"><h3>Which mix fits <span class="sub">last ${scores.days} open days · ${scores.withLastYear} had a last-year figure</span></h3>
+    compareHtml += `<div class="standup-card fc-compare"><h3>Which mix fits <span class="sub">last ${scores.days} open days · ${scores.withLastYear} had a last-year figure</span></h3>
       <div class="fc-table-wrap"><table class="fc-table fc-table-sm"><thead><tr><th>Model</th><th class="fc-num">Avg accuracy</th><th class="fc-num">Avg miss</th><th></th></tr></thead><tbody>
       ${FC_YOY_WEIGHTS.map(w => `<tr class="${w === a0.yoyWeight ? 'is-adjusted' : ''}"><td>${fcModelLabel(w === 0 ? 'weekday' : w === 1 ? 'lastyear' : 'blend', w)}</td><td class="fc-num"><span class="fc-pill ${tier(scores.byWeight[w])}">${scores.byWeight[w].toFixed(1)}%</span></td><td class="fc-num">${fcMoney(scores.miss[w])}</td><td>${[w === bestW ? 'best' : '', w === a0.yoyWeight ? 'in use' : ''].filter(Boolean).join(' · ')}</td></tr>`).join('')}
       </tbody></table></div>
@@ -1056,7 +1127,7 @@ function fcRenderAccuracy(){
 function fcRenderChannels(){
   const panel = document.getElementById('fcPanelChannels');
   const s = fcSettings();
-  const a = fcAnalysis(salesHistory, +s.lookback);
+  const a = fcAnalysisFor(s);
   const stats = fcChannelStats(a.rows);
   if(!stats){
     panel.innerHTML = '<p class="fc-empty">No sales by destination yet. The Analytics Hub sales-by-day export carries Drive Thru, Dine In, Carry Out and the rest — upload it and they show here.</p>';
