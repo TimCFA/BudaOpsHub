@@ -117,7 +117,11 @@ adjustments are shared across devices; adjustments for past days fall away.
 evenly by hour without one; Transition is the last hour of Lunch) with the
 $/labor-hour target as the productivity goal, then writes projected sales
 and goals — special events are never touched. Manage → Know the Numbers has
-a "Fill from the Forecast" button that opens that preview.
+a "Fill from the Forecast" button that opens that preview. Every day sent is
+kept in a forecast log (private, 120 days) and scored on the Accuracy tab's
+"Your track record" once its actual lands: sent vs model-alone accuracy,
+how many adjusted days the adjustment helped, and which way the sent
+forecast leans.
 No sample data, ever — an empty history shows an empty page.
 
 ### Talent

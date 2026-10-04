@@ -57,7 +57,7 @@ MANAGER_ONLY_KEYS = {
     'eoiSubmissions', 'trainerTrainees', 'trainerProgress', 'teamLeadTrainees',
     'teamLeadProgress', 'scoreboardItems',
     # Sales and labor history (below): private, so only a manager session changes it.
-    'salesHistory', 'forecastSettings',
+    'salesHistory', 'forecastSettings', 'forecastLog',
 }
 
 # Sections sent only to a manager session: PEA ratings, people data
@@ -144,7 +144,7 @@ STATE_SECTIONS = {
     'prep': ['prepBuffers', 'prepSoldEntries', 'prepWasteEntries', 'prepStockoutEvents', 'prepHistorySeeded'],
     'prepTimes': ['prepTimes', 'prepTimers'],
     'cem': ['cemEntries'],
-    'forecast': ['salesHistory', 'forecastSettings'],
+    'forecast': ['salesHistory', 'forecastSettings', 'forecastLog'],
     'misc': [],
 }
 SECTION_OF_KEY = {key: name for name, keys in STATE_SECTIONS.items() for key in keys}
