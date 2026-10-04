@@ -339,7 +339,7 @@ function suChangesLineHtml(m){
   const bits = [
     ...t.pairs.map(p => `${first(p.out)} → ${first(p.in)} @ ${suClock(p.at)}${p.gap > 5 ? ` (${first(p.in)} in ${suClock(p.arrives)})` : ''}`),
     ...t.leavers.map(p => `${first(p.name)} leaves ${suClock(p.leaves)}`),
-    ...t.arrivals.map(p => `${first(p.name)} from ${suClock(p.arrives)}`)
+    ...t.arrivals.map(p => `${first(p.name)} arrives ${suClock(p.arrives)}`)
   ];
   const ready = suSplitsReady(m);
   return `<div class="su-plan-line"><span class="su-plan-tag is-watch">Changes</span><span>${escapeHtml(bits.join(' · '))}</span>${ready.length ? `<button type="button" class="su-plan-link" data-su-apply-splits="1">Split ${ready.length}</button>` : ''}</div>`;
