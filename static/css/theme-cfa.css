@@ -713,6 +713,22 @@ body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="z
 .fc-dot{display:inline-block;width:12px;height:12px;border-radius:50%;flex:none;}
 /* Know the Numbers preview */
 .fc-numbers{margin-bottom:16px;}
+.fc-mix{border:1px solid var(--border);border-radius:14px;padding:12px 14px 4px;margin-bottom:14px;background:var(--cfa-light);}
+.fc-mix-head{display:flex;align-items:baseline;gap:10px;margin-bottom:8px;}
+.fc-mix-head span{font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-secondary);}
+.fc-mix-head em{font-family:var(--font-display);font-style:italic;font-size:13px;color:var(--text-tertiary);}
+.fc-mix-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;}
+.fc-mix-field{display:flex;flex-direction:column;gap:4px;min-width:0;}
+.fc-mix-field > span:first-child{font-family:var(--font-ui);font-size:13px;font-weight:600;color:var(--text-primary);}
+.fc-mix-input{display:flex;align-items:center;gap:6px;}
+.fc-mix-input input{font-family:var(--font-ui);font-size:15px;min-height:40px;padding:6px 10px;border:1px solid var(--border);border-radius:10px;background:var(--cfa-white);color:var(--text-primary);width:100%;min-width:0;box-sizing:border-box;}
+.fc-mix-input input:focus{outline:none;border-color:var(--cfa-navy);}
+.fc-mix-input i{font-style:normal;font-size:13px;color:var(--text-tertiary);}
+.fc-mix-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 10px;font-size:12.5px;color:var(--text-secondary);}
+.fc-mix-foot .is-warn{color:var(--cfa-red);font-weight:600;}
+.fc-link{border:0;background:none;padding:0;font-family:var(--font-ui);font-size:12.5px;font-weight:600;color:var(--cfa-navy);cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
+.fc-mix .fc-check{margin-bottom:8px;}
+.fc-table-numbers td small{display:block;font-size:11px;color:var(--text-tertiary);font-weight:500;}
 .fc-numbers h3 .sub{margin-left:6px;}
 .fc-numbers .fc-muted{display:block;margin-bottom:10px;line-height:1.5;}
 .fc-table-numbers{min-width:0;}

@@ -1,16 +1,29 @@
 // ===== KNOW THE NUMBERS: THE FOUR DAYPARTS =====
 // Projected sales and productivity goals are kept for the four major
-// dayparts only: Breakfast, Lunch, Afternoon and Dinner (Tim). Breakfast
-// takes in Early Breakfast and Dinner takes in Close, so a day's dayparts
-// add up to the day; Transition sits inside Lunch. On Set Ups, the Early
-// Breakfast, Transition and Close cards show no numbers.
+// dayparts only, on Analytics Hub's hours so projections line up with the
+// actuals the team compares them to (Tim): Breakfast to 10:30, Lunch 10:30
+// to 2, Afternoon 2 to 5, Dinner 5 to close. Breakfast takes in Early
+// Breakfast and Dinner takes in Close, so a day's dayparts add up to the
+// day; Transition sits inside Lunch. On Set Ups, the Early Breakfast,
+// Transition and Close cards show no numbers.
 
 const numbersDayparts = [
-  {name: 'Breakfast (6:00-11:00)', time: '6:00'},
-  {name: 'Lunch (11:00-2:00)', time: '11:00'},
+  {name: 'Breakfast (6:00-10:30)', time: '6:00'},
+  {name: 'Lunch (10:30-2:00)', time: '10:30'},
   {name: 'Afternoon (2:00-5:00)', time: '14:00'},
   {name: 'Dinner (5:00-10:00)', time: '17:00'},
 ];
+
+// Where a daypart key starts, in minutes: the hub's own lists give the
+// 24-hour time; any other key ("Breakfast (6:00-11:00)", an earlier
+// layout) is read from its name, morning up to 5:59, afternoon from 1:00.
+function knStartOf(key){
+  const known = [...fohDayparts, ...bohDayparts, ...numbersDayparts].find(d => d.name === key);
+  if(known) return knWindowOf(known).start;
+  const m = String(key).match(/\((\d{1,2}):(\d{2})\s*-/);
+  if(!m) return -1;
+  return (+m[1] + (+m[1] < 6 ? 12 : 0)) * 60 + +m[2];
+}
 
 // {start, end} in minutes from midnight: the start from `time` (24-hour),
 // the end from the name ("(5:00-10:00)" → 10 PM).
@@ -40,10 +53,11 @@ function knDaypartOf(dp){
   return knDaypartAt(Math.floor((w.start + w.end) / 2));
 }
 
-// A day's numbers typed under the older seven FOH dayparts → the four.
-// Early Breakfast adds into Breakfast and Close into Dinner (their sales
-// add up; the main daypart's goal wins). Transition's sales are already
-// inside Lunch's, so only its event text carries over.
+// A day's numbers typed under an earlier layout (the seven FOH dayparts,
+// or the four on 11:00 hours) → the four. Early Breakfast adds into
+// Breakfast and Close into Dinner (their sales add up; the main daypart's
+// goal wins). Transition's sales are already inside Lunch's, so only its
+// event text carries over.
 function knNormalizeDay(day){
   if(!day || typeof day !== 'object') return day;
   Object.keys(day).forEach(key=>{
@@ -51,8 +65,7 @@ function knNormalizeDay(day){
     const e = day[key];
     delete day[key];
     if(!e || typeof e !== 'object') return;
-    const old = [...fohDayparts, ...bohDayparts].find(d => d.name === key);
-    const target = old ? knDaypartAt(knWindowOf(old).start) : null;
+    const target = knDaypartAt(knStartOf(key));
     if(!target) return;
     const t = day[target.name] = day[target.name] || {};
     const inside = /^transition/i.test(key);
