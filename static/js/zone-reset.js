@@ -69,6 +69,7 @@ function pruneZoneChecklistData(){
       pruned = true;
     }
   });
+  if(pruneZoneOwnersAndNotes(cutoffISO)) pruned = true;
   return pruned;
 }
 
@@ -113,11 +114,12 @@ function zrHandoffBannersHtml(kind, current, progressFor, bodyHtml){
     const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
     const sky = ZR_HANDOFF_SKIES[i] || 'midday';
     const lead = zrHandoffLead(dp);
+    const unowned = kind === 'zone' && !done && zrSetupExists(today, dp.name) ? zrUnownedZones(today, dp.name).length : 0;
     return `<section class="su-dp su-col-${suDaypartColor(dp.leadFrom)} ${open ? 'is-open' : ''} ${done ? 'is-done' : ''} ${isNow ? 'is-now' : ''}">
       <div class="su-dp-banner">
         <button type="button" class="su-dp-head" data-zr-handoff="${escapeHtml(dp.name)}" aria-expanded="${open}">
           <span class="su-dp-art">${suSkyArt(sky)}</span>
-          <span class="su-dp-name">${escapeHtml(title)}${time ? ` <span class="su-dp-time">${escapeHtml(time)}</span>` : ''}${isNow && !done ? '<span class="zr-dp-now">now</span>' : ''}${lead ? `<span class="zr-dp-lead"><span class="su-dp-k">Lead</span> ${escapeHtml(suDisplayName(lead))}</span>` : `<span class="zr-dp-lead is-none">No Lead Captain set</span>`}</span>
+          <span class="su-dp-name">${escapeHtml(title)}${time ? ` <span class="su-dp-time">${escapeHtml(time)}</span>` : ''}${isNow && !done ? '<span class="zr-dp-now">now</span>' : ''}${lead ? `<span class="zr-dp-lead"><span class="su-dp-k">Lead</span> ${escapeHtml(suDisplayName(lead))}</span>` : `<span class="zr-dp-lead is-none">No Lead Captain set</span>`}${unowned ? `<span class="zr-dp-unowned">${unowned} unowned</span>` : ''}</span>
           <span class="zr-dp-progress"><span class="zr-dp-track"><span class="zr-dp-bar" style="width:${pct}%"></span></span><span class="su-dp-fill">${done ? '✓ ' : ''}${checked}/${total}</span></span>
           <span class="su-dp-chev" aria-hidden="true">▾</span>
         </button>
@@ -148,7 +150,11 @@ function renderZoneResetCard(){
     const open = zone === currentChecklistZone;
     const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
     const state = dayState[zone] || {};
-    const body = open ? `<div class="zone-acc-body">${getZoneItems(zone).map((item, i)=>{
+    const owners = zrZoneOwners(today, currentZoneDaypart, zone);
+    const setUp = zrSetupExists(today, currentZoneDaypart);
+    const none = setUp && !owners.all.length;
+    const ownersLine = `<div class="zr-owners">${none ? '<span class="zr-owner-none">Nobody owns this reset</span>' : owners.all.length ? owners.all.map(n => `<span class="zr-owner ${owners.added.includes(n) ? 'is-added' : ''}">${escapeHtml(suDisplayName(n))}</span>`).join('') : `<span>No ${owners.dp ? suShortDaypart(owners.dp.name) : ''} set up yet</span>`}<button type="button" class="zr-owner-hand" data-zr-hand="${escapeHtml(zone)}">${owners.all.length ? 'Hand off' : 'Pick someone'}</button></div>`;
+    const body = open ? `<div class="zone-acc-body">${ownersLine}${getZoneItems(zone).map((item, i)=>{
       const entry = state[item];
       const isChecked = !!entry;
       const stamp = isChecked ? `<span style="font-size:10px;color:var(--text-tertiary);font-style:italic;margin-left:auto;white-space:nowrap;">${escapeHtml(entry.initials)} · ${formatShortTime(entry.ts)}</span>` : '';
@@ -159,10 +165,10 @@ function renderZoneResetCard(){
       </div>`;
     }).join('')}</div>` : '';
     return `
-      <div class="zone-acc-item ${open ? 'open' : ''} ${done ? 'done' : ''}" data-zone="${escapeHtml(zone)}">
+      <div class="zone-acc-item ${open ? 'open' : ''} ${done ? 'done' : ''} ${none && !done ? 'is-unowned' : ''}" data-zone="${escapeHtml(zone)}">
         <button type="button" class="zone-acc-head" aria-expanded="${open}">
           <span class="zone-acc-icon">${ZONE_ICONS[zone] || ''}</span>
-          <span class="zone-acc-name">${escapeHtml(zone)}</span>
+          <span class="zone-acc-name">${escapeHtml(zone)}${none ? '<span class="zone-acc-who is-none">No one yet · tap to pick</span>' : owners.all.length ? `<span class="zone-acc-who">${escapeHtml(owners.all.map(suDisplayName).join(', '))}</span>` : ''}</span>
           <span class="zone-acc-track"><span class="zone-acc-fill" style="width:${pct}%"></span></span>
           <span class="zone-acc-count">${done ? '✓ ' : ''}${checked}/${total}</span>
           <span class="zone-acc-chevron">▾</span>
@@ -194,9 +200,16 @@ document.getElementById('zoneButtonRow').addEventListener('click', async (e)=>{
   if(!itemEl || !currentZoneDaypart) return;
   const zoneName = itemEl.dataset.zone;
 
+  const hand = e.target.closest('[data-zr-hand]');
+  if(hand){
+    zrOpenOwnerModal(today, currentZoneDaypart, hand.dataset.zrHand, renderZoneResetCard);
+    return;
+  }
   if(e.target.closest('.zone-acc-head')){
-    currentChecklistZone = currentChecklistZone === zoneName ? '' : zoneName;
+    const opening = currentChecklistZone !== zoneName;
+    currentChecklistZone = opening ? zoneName : '';
     renderZoneResetCard();
+    if(opening && zrSetupExists(today, currentZoneDaypart) && !zrZoneOwners(today, currentZoneDaypart, zoneName).all.length) zrOpenOwnerModal(today, currentZoneDaypart, zoneName, renderZoneResetCard);
     return;
   }
 
@@ -224,6 +237,75 @@ document.getElementById('zoneButtonRow').addEventListener('click', async (e)=>{
   }
   recomputeChecklistHistory(today);
   renderZoneResetCard();
+  await saveState();
+});
+
+// ----- The owner sheet: hand a zone's reset to someone -----
+// Lists everyone on the FOH roster during the handoff's daypart, with the
+// spot they're working; a tap hands them the zone (on top of whoever holds
+// its positions). "Back to the positions only" drops the hand-offs.
+let zrOwnerCtx = null;   // {date, handoff, zone, onChange}
+
+function zrOpenOwnerModal(date, handoffName, zone, onChange){
+  zrOwnerCtx = {date, handoff: handoffName, zone, onChange};
+  zrRenderOwnerModal();
+  document.getElementById('zrOwnerModal').classList.add('active');
+}
+
+function zrCloseOwnerModal(){
+  zrOwnerCtx = null;
+  document.getElementById('zrOwnerModal').classList.remove('active');
+}
+
+function zrRenderOwnerModal(){
+  if(!zrOwnerCtx) return;
+  const {date, handoff, zone} = zrOwnerCtx;
+  const o = zrZoneOwners(date, handoff, zone);
+  const {title} = zrHandoffParts(handoff);
+  document.getElementById('zrOwnerKicker').textContent = `${title} · reset`;
+  document.getElementById('zrOwnerZone').textContent = zone;
+  const dpIndex = o.dp ? fohDayparts.findIndex(d => d.name === o.dp.name) : -1;
+  const prefix = o.dp ? 'foh||' + date + '||' + o.dp.name + '||' : '';
+  const spotOf = name => {
+    if(!o.dp) return '';
+    const lo = name.trim().toLowerCase();
+    if(suSplitNames(posAssignments[prefix + SU_LEAD_CAPTAIN]).some(n => n.toLowerCase() === lo)) return 'Lead Captain';
+    const slot = (fohPositions[o.dp.name] || []).find(sl => suSplitNames(posAssignments[prefix + sl]).some(n => n.toLowerCase() === lo));
+    return slot || 'not placed';
+  };
+  let people = [];
+  if(dpIndex !== -1){
+    const {startMin, endMin} = daypartTimeWindow(fohDayparts, dpIndex);
+    people = (fohRoster[date] || []).filter(p => rosterOverlaps(p, startMin, endMin)).map(p => p.name);
+  }
+  const have = new Set(o.all.map(n => n.toLowerCase()));
+  people = people.filter(n => !have.has(n.trim().toLowerCase())).sort((a, b) => a.localeCompare(b));
+  const note = document.getElementById('zrOwnerNote');
+  note.textContent = o.all.length
+    ? `Owned by ${o.all.map(suDisplayName).join(', ')}. Pick someone to add; the position keeps it too.`
+    : `The position that owns this reset is open${o.dp ? ` in the ${suShortDaypart(o.dp.name)} set up` : ''}. Pick someone on the clock.`;
+  note.classList.toggle('is-none', !o.all.length);
+  document.getElementById('zrOwnerOptions').innerHTML = people.length
+    ? people.map(n => `<button type="button" class="pos-option" data-zr-pick="${escapeHtml(n)}"><span class="pos-option-who"><span class="pos-option-name">${escapeHtml(n)}</span></span><span class="pos-option-tag">${escapeHtml(spotOf(n))}</span></button>`).join('')
+    : `<div class="pos-option-empty">${o.dp ? 'Nobody else on the roster is here for this handoff' : 'No roster for this day yet'}</div>`;
+  document.getElementById('zrOwnerFoot').innerHTML = o.added.length ? `<button type="button" class="su-btn-line" data-zr-unhand="1">Back to the positions only</button>` : '';
+}
+
+document.getElementById('zrOwnerModal').addEventListener('click', async (e)=>{
+  if(!zrOwnerCtx) return;
+  if(e.target === e.currentTarget || e.target.closest('#zrOwnerClose')){ zrCloseOwnerModal(); return; }
+  const pick = e.target.closest('[data-zr-pick]');
+  const unhand = e.target.closest('[data-zr-unhand]');
+  if(!pick && !unhand) return;
+  const {date, handoff, zone, onChange} = zrOwnerCtx;
+  if(pick){
+    zrHandZone(date, handoff, zone, pick.dataset.zrPick);
+    showToast(`${suDisplayName(pick.dataset.zrPick)} has ${zone}`);
+  } else {
+    zrUnhandZone(date, handoff, zone);
+  }
+  zrCloseOwnerModal();
+  if(onChange) onChange();
   await saveState();
 });
 
@@ -343,10 +425,10 @@ const fohPositions = {
   'Early Breakfast (6:00-8:00)': ['iPOS 1 LANE 1', 'iPOS 2 LANE 2', 'DT Bagger 1', 'Drinks 1', 'OMD 1', 'Drinks 3 / Runner', 'Host 1'],
   'Breakfast (8:00-10:30)': ['iPOS 1 (Captain)', 'iPOS 2 LANE 2', 'DT Bagger 1', 'Drinks 1', 'OMD 1', 'Host 1', 'FC Bagger', 'Drinks 3', 'DT Bagger 2', 'iPOS 3 LANE 3', 'Runner', 'Host 2', 'Drinks 2', 'iPOS 4 LANE 1'],
   'Lunch (10:30-1:00)': ['iPOS 1 (Captain)', 'iPOS 2 LANE 1', 'iPOS 3 LANE 2', 'iPOS 4 LANE 1', 'iPOS 5 LANE 2', 'DT Bagger 1 (Cockpit Cap)', 'DT Bagger 2', 'Drinks 1', 'Drinks 2/Sample Prep', 'OMD 1', 'OMD 2', 'FC Bagger', 'Drinks 3', 'Host 1 (Captain)', 'Host 2', 'Runner', 'Surfer', 'iPOS 6 LANE 1', 'OMD 3', 'Host 3', 'Host 4', 'iPOS 7 LANE 2', 'Traffic Lane 1', 'iPOS 8 LANE 2', 'DT Bagger 4'],
-  'Transition (1:00-2:00)': ['iPOS 1 (Captain)', 'iPOS 2 LANE 2', 'iPOS 3 LANE 1', 'DT Bagger 1 (Cockpit Cap)', 'FC Bagger', 'OMD 1', 'Host 1 (Captain)', 'Drinks 1', 'Drink 3', 'Runner', 'Drinks Zone', 'Bagging Zone', 'Front Counter Zone', 'Dinning Room', 'Restroom Zone', 'Lemonades', 'Pouches'],
+  'Transition (1:00-2:00)': ['iPOS 1 (Captain)', 'iPOS 2 LANE 2', 'iPOS 3 LANE 1', 'DT Bagger 1 (Cockpit Cap)', 'FC Bagger', 'OMD 1', 'Host 1 (Captain)', 'Drinks 1', 'Drink 3', 'Runner', 'Lemonades', 'Pouches'],
   'Mid (2:00-5:00)': ['iPOS 1 (Captain)', 'iPOS 2 LANE 2', 'iPOS 3 LANE 1', 'DT Bagger 1', 'Drinks 1', 'OMD 1', 'Host 1', 'FC Bagger', 'Drink 3', 'Host 2', 'Runner', 'iPOS 4 LANE 2', 'DT Bagger 2', 'Drinks 2', 'Shift Lead', 'Breaks', 'iPOS 5 LANE 1', 'DT Bagger 3', 'Host 3', 'iPOS 6 LANE 3', 'iPOS 7 LANE 1', 'Traffic Lane 1', 'Desserts'],
   'Dinner (5:00-8:00)': ['iPOS 1 (Captain)', 'iPOS 2 LANE 2', 'iPOS 3 LANE 2', 'iPOS 4 LANE 1', 'iPOS 5 LANE 2', 'DT Bagger 1 (Captain)', 'DT Bagger 2', 'Drinks 1', 'Drinks 2', 'OMD 1', 'OMD 2', 'FC Bagger', 'Drinks 3', 'Host 1', 'Host 2', 'Runner', 'DT Bagger 3', 'Host 3', 'iPOS 6 LANE 3', 'OMD 3', 'iPOS 7 LANE 1', 'Traffic Lane 1', 'iPOS 8 LANE 2', 'DT Bagger 4'],
-  'Close (8:00-10:00)': ['iPOS 1 LANE 1', 'iPOS 2 LANE 2', 'DT Bagger 1', 'Drinks 1', 'OMD', 'Host 1', 'FC Bagger', 'Drinks 3', 'Runner', 'Lemonades', 'Drinks Zone', 'Bagging Zone', 'Front Counter Zone', 'Outside Zone', 'Dinning Room', 'Restroom Zone', 'Floors'],
+  'Close (8:00-10:00)': ['iPOS 1 LANE 1', 'iPOS 2 LANE 2', 'DT Bagger 1', 'Drinks 1', 'OMD', 'Host 1', 'FC Bagger', 'Drinks 3', 'Runner', 'Lemonades', 'Floors'],
 };
 
 const bohPositions = {
@@ -357,6 +439,124 @@ const bohPositions = {
   'Dinner (5:00-8:00)': ['Breader 1', 'Breader 2', 'Machines', 'Primary 1', 'Fries', 'Secondary 1', 'Primary 2', 'Secondary 2', 'Prep'],
   'Close (8:00-10:00)': ['Breader 1', 'Breader 2', 'Machines', 'Primary 1', 'Fries', 'Secondary 1', 'Primary 2', 'Secondary 2', 'Prep', 'Floors', 'Prep/dishes'],
 };
+
+// ----- Zone reset owners -----
+// A zone's reset belongs to the positions that work that zone, so filling
+// the set up assigns the resets (the old "Drinks Zone" / "Bagging Zone"
+// spots are gone). The positions are the FOH daypart on the floor during
+// the handoff (Lunch → Mid at 1:00 is the Transition set up). A zone whose
+// positions are all open has no owner until someone is handed it; a leader
+// can hand any zone to extra people too (zoneOwners, per day and handoff).
+const ZONE_OWNER_RULES = {
+  'Dining Room': /^host/i,
+  'Restrooms': /^host/i,
+  'Front Counter': /^(omd|fc bagger)/i,
+  'Bagging Station': /^dt bagger/i,
+  'Drinks Zone': /^(drinks? [12]\b|lemonade)/i,
+  'Outside': /^ipos/i,
+  'Soda Room / Tea Station': /^drinks? 3\b/i,
+  'The Spot': /^runner/i,
+  'Final Check': null   // the Lead Captain
+};
+let zoneOwners = {};   // date -> handoff name -> zone -> [names handed the zone]
+let posNotes = {};     // "section||date||daypart||slot" -> [{text, by, ts}], newest last
+
+// The FOH daypart whose set up is on the floor when a handoff starts: the
+// last one starting at or before the handoff's time.
+function zrHandoffDaypart(handoff){
+  const toMins = t => { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0); };
+  const at = toMins(handoff.time);
+  let pick = null;
+  fohDayparts.forEach(dp => { if(toMins(dp.time) <= at) pick = dp; });
+  return pick;
+}
+
+// The handoff that happens during a FOH daypart, or null.
+function zrHandoffForDaypart(dpName){
+  return zoneResetDayparts.find(h => { const dp = zrHandoffDaypart(h); return dp && dp.name === dpName; }) || null;
+}
+
+// Who owns a zone's reset on a day: the people in its positions, plus
+// anyone it was handed to. {all, fromPos, added, dp}.
+function zrZoneOwners(date, handoffName, zone){
+  const handoff = zoneResetDayparts.find(h => h.name === handoffName);
+  const dp = handoff ? zrHandoffDaypart(handoff) : null;
+  const rule = ZONE_OWNER_RULES[zone];
+  const prefix = 'foh||' + date + '||' + (dp ? dp.name : '') + '||';
+  const fromPos = [];
+  if(dp && rule === null){
+    suSplitNames(posAssignments[prefix + SU_LEAD_CAPTAIN]).forEach(n => fromPos.push(n));
+  } else if(dp && rule){
+    (fohPositions[dp.name] || []).forEach(slot => {
+      if(rule.test(slot)) suSplitNames(posAssignments[prefix + slot]).forEach(n => fromPos.push(n));
+    });
+  }
+  const handed = ((zoneOwners[date] || {})[handoffName] || {})[zone] || [];
+  const seen = new Set();
+  const uniq = list => list.filter(n => { const k = n.trim().toLowerCase(); if(!k || seen.has(k)) return false; seen.add(k); return true; });
+  const all = uniq([...fromPos, ...handed]);
+  const posSet = new Set(fromPos.map(n => n.trim().toLowerCase()));
+  return {all, fromPos: all.filter(n => posSet.has(n.trim().toLowerCase())), added: all.filter(n => !posSet.has(n.trim().toLowerCase())), dp};
+}
+
+function zrHandZone(date, handoffName, zone, name){
+  if(!zoneOwners[date]) zoneOwners[date] = {};
+  if(!zoneOwners[date][handoffName]) zoneOwners[date][handoffName] = {};
+  const list = zoneOwners[date][handoffName][zone] || [];
+  if(!list.some(n => n.toLowerCase() === name.toLowerCase())) list.push(name);
+  zoneOwners[date][handoffName][zone] = list;
+}
+
+function zrUnhandZone(date, handoffName, zone){
+  const h = zoneOwners[date] && zoneOwners[date][handoffName];
+  if(!h) return;
+  delete h[zone];
+  if(!Object.keys(h).length) delete zoneOwners[date][handoffName];
+  if(!Object.keys(zoneOwners[date]).length) delete zoneOwners[date];
+}
+
+// Zones of a handoff nobody owns yet.
+function zrUnownedZones(date, handoffName){
+  return ALL_ZONE_NAMES.filter(z => !zrZoneOwners(date, handoffName, z).all.length);
+}
+
+// Whether the set up on the floor for a handoff has anyone placed yet. Until
+// it does, the Zone Reset page doesn't call every zone unowned.
+function zrSetupExists(date, handoffName){
+  const handoff = zoneResetDayparts.find(h => h.name === handoffName);
+  const dp = handoff ? zrHandoffDaypart(handoff) : null;
+  if(!dp) return false;
+  const prefix = 'foh||' + date + '||' + dp.name + '||';
+  return Object.keys(posAssignments).some(k => k.startsWith(prefix) && posAssignments[k]);
+}
+
+// Position notes: anything the next person needs to know about a spot,
+// always signed with the writer's initials and the time (there's no
+// unsigned note). Keyed like posAssignments.
+function posNotesFor(key){ return posNotes[key] || []; }
+
+function addPosNote(key, text, by){
+  const t = String(text || '').trim(), b = String(by || '').trim().toUpperCase();
+  if(!t || !b) return false;
+  (posNotes[key] = posNotes[key] || []).push({text: t.slice(0, 500), by: b, ts: Date.now()});
+  return true;
+}
+
+function removePosNote(key, index){
+  const list = posNotes[key];
+  if(!list || !list[index]) return;
+  list.splice(index, 1);
+  if(!list.length) delete posNotes[key];
+}
+
+// Owners and notes older than the checklist history (60 days) go.
+function pruneZoneOwnersAndNotes(cutoffISO){
+  let pruned = false;
+  Object.keys(zoneOwners).forEach(d => { if(d < cutoffISO){ delete zoneOwners[d]; pruned = true; } });
+  Object.keys(posNotes).forEach(k => { const d = k.split('||')[1] || ''; if(d < cutoffISO){ delete posNotes[k]; pruned = true; } });
+  return pruned;
+}
+// ----- end zone reset owners -----
 
 const OE_CATEGORY_ICONS = {
   'Guest Experience': '🙂',

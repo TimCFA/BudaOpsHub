@@ -76,6 +76,24 @@ Assign team members to positions for each daypart, FOH and BOH.
 - **Tools**: Fill (auto-assign), Develop this shift, Plan B, Evaluate, Lead
   Captain. See the rules in section 4.
 - **Breaks & tasks** per daypart (section 4).
+- **Zone resets ride on positions.** A FOH card whose daypart carries a
+  handoff (Breakfast → Lunch on Lunch, Lunch → Mid on Transition, Mid → Dinner
+  on Mid, Dinner → Late Night on Dinner, Close on Close) ends with a
+  **Resets** strip: every zone with its owners, taken from the positions
+  that work it (`ZONE_OWNER_RULES` in zone-reset.js: Drinks 1/2 and
+  Lemonades → Drinks Zone, DT Baggers → Bagging Station, OMD and FC Bagger →
+  Front Counter, Hosts → Dining Room and Restrooms, iPOS lanes → Outside,
+  Drinks 3 → Soda Room / Tea, Runner → The Spot, Lead Captain → Final Check).
+  The old "Drinks Zone" / "Bagging Zone" / "Front Counter Zone" / "Dinning
+  Room" / "Restroom Zone" / "Outside Zone" spots are gone from Transition and
+  Close (Lemonades, Pouches and Floors stay). A zone whose positions are all
+  open shows red with Pick; tapping any zone hands it to someone on the
+  clock on top of the positions (`zoneOwners`, per day and handoff). The
+  same owners show on the Zone Reset page.
+- **Position notes**: the pencil on a row (or Note in a row's sheet) adds a
+  note to that spot, always signed with the writer's initials and the time
+  (no initials, no note; `posNotes`, kept 60 days). Notes show under the row
+  and on the print.
 - Assigning must feel instant (it once took ~2 seconds; that was unacceptable).
 
 ### Waste
@@ -109,7 +127,10 @@ never invent them.**
 ### Zone Reset & Walkthroughs (OE)
 Two lists, each a set of handoff drop-downs that all start closed (the
 current handoff is marked "now"): Zone Reset (open a handoff, then a zone,
-for its reset list) and the Leader Transition List. The OE walkthrough is
+for its reset list) and the Leader Transition List. Each zone carries who
+owns its reset (from the Set Ups positions, see Set Ups); a zone nobody owns
+is red ("No one yet · tap to pick") and the handoff banner counts them; Hand
+off inside a zone gives it to someone else on the clock. The OE walkthrough is
 kept but hidden; the Food Safety Walkthrough has its own page and no longer
 appears here. A daily safe count is its own page too: cashier tills, coin
 rolls (entered as rolls: quarters $10, dimes $5, nickels $2), loose coin, and
