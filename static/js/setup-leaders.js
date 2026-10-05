@@ -227,7 +227,7 @@ document.getElementById('allDayparts').addEventListener('click', async e=>{
   if(!open && !set && !clear && !home) return;
   e.stopPropagation();
   // Lead on a daypart card's banner: that daypart becomes the one worked on.
-  if(open && open.dataset.suLeadDp){ suSelectedDaypart.foh = open.dataset.suLeadDp; suDaypartClosed.foh = false; }
+  if(open && open.dataset.suLeadDp){ suSelectedDaypart.foh = open.dataset.suLeadDp; suOpenCards.foh.add(open.dataset.suLeadDp); }
   const date = document.getElementById('daySelect').value;
   const {dp} = suCurrentDaypart('foh', date);
   const key = suEvalKey('foh', date, dp.name) + '||' + SU_LEAD_CAPTAIN;

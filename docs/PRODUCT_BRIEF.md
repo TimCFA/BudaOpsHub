@@ -90,16 +90,19 @@ Assign team members to positions for each daypart, FOH and BOH.
 - **Views**: a quick sheet (default) and a coach board with zones, tiles,
   person cards, and tools. No Print button: Tim took it out (Oct 2026), set
   ups are never printed.
-- **Pill layout** (Oct 2026, Tim trying it): the sheet view shows the
-  dayparts as a row of pills (each with how full it is; the chosen one in
-  navy) and only the chosen daypart's card, always open. Above its spots, a
-  **Not placed yet** tray lists who's on shift and not in a spot (with "in
-  11:00" / "till 1:00" for late arrivals and early leavers): tap a name,
-  every open spot lights up "Put Maya here", tap one to place them. A spot
-  below an open one asks first, as the picker does; a filled spot is left
-  alone; tapping the name again puts it down. **To go back to the stacked
-  cards**, set `SU_LAYOUT` to `'cards'` in setups-board.js: both layouts read
-  and write the same set up data, so switching loses nothing.
+- **Daypart cards** (the sheet view): every daypart is a card down the page,
+  all closed to start. Tap a card's banner to open or close it; **any number
+  can be open at once** so leaders can compare dayparts (Tim, Oct 2026). Each
+  open card lists its own spots, and whatever is tapped, held or dragged in a
+  card works on that card's daypart (the picker, notes, Fill, the Lead
+  sheet); a name drags only within its own card. "More spots" opens per card.
+- **Pill layout** (Oct 2026: Tim tried it, then went back to the cards; it may
+  come back): the dayparts as a row of pills with only the chosen daypart's
+  card below, and a **Not placed yet** tray of who's on shift and not in a
+  spot (tap a name, then an open spot; a spot below an open one asks first).
+  It's still in the code: set `SU_LAYOUT` to `'pills'` in setups-board.js to
+  bring it back. Both layouts read and write the same set up data, so
+  switching loses nothing.
 - **Tools**: Fill (auto-assign), Develop this shift, Plan B, Evaluate, Lead
   Captain. See the rules in section 4.
 - **Breaks & tasks** per daypart (section 4).
