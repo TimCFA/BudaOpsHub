@@ -13,6 +13,10 @@ services:
       # Levelset share code for the PEA sync (the end of the share link).
       - key: LEVELSET_PEA_TOKEN
         sync: false
+      # Secret for the read-only set up feed (/api/setup-feed), 32+ random
+      # characters. Leave unset to keep the feed off.
+      - key: SETUP_FEED_TOKEN
+        sync: false
     routes:
       - path: /
         matchType: prefix

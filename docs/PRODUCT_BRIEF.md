@@ -103,6 +103,16 @@ Assign team members to positions for each daypart, FOH and BOH.
   start, with a red count of changes and a red "still placed" flag when
   someone who changed is still in a spot. Open, changed hours read "was"
   (light grey) then "now" (bold). Open or closed is remembered on the device.
+- **Set up feed** for the daily briefing (`/api/setup-feed`, setup_feed.py):
+  a read-only copy of a day's set up for a reader that can't sign in —
+  each daypart, its Lead Captain, and who is in which position, by the names
+  Set Ups shows. Nothing else (no shift times, scores, notes or private
+  sections). Off unless `SETUP_FEED_TOKEN` (32+ random characters) is set in
+  Render; a missing or wrong token gets "not found", and wrong guesses are
+  throttled separately from the PIN. `?date=today|tomorrow|YYYY-MM-DD`
+  (default tomorrow, store time), `&format=text` for plain text. A token in
+  the link can land in request logs, so change the variable to cut off an old
+  link.
 - **Refresh** (beside Print): pulls the latest set up and roster from the
   server right away instead of waiting for the 30-second check, then says
   "Up to date" or how many spots changed, with the time. It asks for just
