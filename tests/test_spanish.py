@@ -62,6 +62,17 @@ class Glossary(unittest.TestCase):
     def test_weekdays(self):
         self.assertEqual(G['weekdays'], [['lunes', 'lunes'], ['sábado', 'sábados'], ['sáb', 'sáb']])
 
+    def test_foh_side_stays_english_only(self):
+        # FOH is English-only (Tim): the theme hides .es on the FOH side of
+        # Set Ups and Waste and the sheets they open; esSyncSides sets the class.
+        with open(os.path.join(ROOT, 'static', 'css', 'theme-cfa.css'), encoding='utf-8') as f:
+            css = f.read()
+        self.assertIn('body.es-off-setups :is(#positionsView, #posModal, #vacancyModal, #addTMModal) .es', css)
+        self.assertIn('body.es-off-waste :is(#wastelogView, #wasteCountModal) .es{display:none;}', css)
+        for name in ('fohoe-and-safecount.js', 'navigation.js'):
+            with open(os.path.join(JS, name), encoding='utf-8') as f:
+                self.assertIn('esSyncSides()', f.read(), name)
+
     def test_food_safety_is_bilingual(self):
         for s in G['fsSections']:
             self.assertTrue(s['es'], s['name'])

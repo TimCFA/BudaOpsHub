@@ -35,10 +35,12 @@ paraphrase or add an unsourced quote.
 
 ## Spanish
 
-Everything the kitchen (BOH) team sees carries Spanish next to the English. New
-or changed text on those screens (Set Ups, Waste, Food Safety, Prep Board) gets
-its Spanish from the glossary in `static/js/spanish.js` (`esHtml` / `esLine`,
-`data-es` in the page); `tests/test_spanish.py` fails if a phrase is missing.
+Everything the kitchen (BOH) team sees carries Spanish next to the English; FOH
+stays English-only to keep it uncluttered. New or changed text on those screens
+(Set Ups and Waste on their BOH side, Food Safety, Prep Board) gets its Spanish
+from the glossary in `static/js/spanish.js` (`esHtml` / `esLine`, `data-es` in
+the page); `tests/test_spanish.py` fails if a phrase is missing. On FOH the
+Spanish is hidden (`esSyncSides`, the `es-off-*` classes in theme-cfa.css).
 
 ## Theme
 

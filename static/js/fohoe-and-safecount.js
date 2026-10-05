@@ -416,6 +416,7 @@ document.querySelectorAll('#posToggle .toggle-btn').forEach(t=>{
     t.classList.add('active');
     t.setAttribute('aria-pressed', 'true');
     currentPosSection = t.dataset.section;
+    esSyncSides();
     renderAllDayparts();
     updateSelectedDayInfo('daySelect', 'daySelectedInfo');
   });

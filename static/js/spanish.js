@@ -105,6 +105,9 @@ const ES = {
   'End Time': 'Hora de salida',
   'Add to Roster': 'Agregar al horario',
   'No roster yet': 'Todavía no hay horario para este día.',
+  'Breaks left': 'Descansos pendientes',
+  'Every break is done.': 'Todos los descansos están hechos.',
+  'No breaks owed': 'Nadie trabaja 6 horas o más hoy, así que no hay descansos pendientes.',
   'Search team members': 'Buscar miembros del equipo',
   'Full name': 'Nombre completo',
 
@@ -315,15 +318,34 @@ function esPlace(slot){
 }
 
 // Static page text: an element with data-es="phrase" gets the Spanish on a
-// line under it; data-es-placeholder adds it to an input's placeholder.
+// line under it; data-es-placeholder adds it to an input's placeholder (the
+// inputs that have one are all Set Ups', so they follow its side).
 function esFillPage(root){
   (root || document).querySelectorAll('[data-es]').forEach(el => {
     if(el.querySelector(':scope > .es')) return;
     el.insertAdjacentHTML('beforeend', el.dataset.esInline !== undefined ? esHtml(el.dataset.es) : esLine(el.dataset.es));
   });
-  (root || document).querySelectorAll('[data-es-placeholder]').forEach(el => {
+  esSyncSides();
+}
+
+// FOH stays English-only, to keep its screens uncluttered (Tim): Set Ups and
+// Waste, which switch between FOH and BOH, show the Spanish on the BOH side
+// only. Each screen's side sets a class on <body> and theme-cfa.css hides
+// .es under it (the screen and the sheets it opens). Food Safety and the Prep
+// Board are the kitchen's own, so they always keep it.
+function esSideIsBoh(screen){
+  if(screen === 'setups') return typeof currentPosSection !== 'undefined' && currentPosSection === 'boh';
+  return typeof currentSection !== 'undefined' && currentSection === 'boh';
+}
+
+function esSyncSides(){
+  if(typeof document === 'undefined' || !document.body) return;
+  document.body.classList.toggle('es-off-setups', !esSideIsBoh('setups'));
+  document.body.classList.toggle('es-off-waste', !esSideIsBoh('waste'));
+  document.querySelectorAll('[data-es-placeholder]').forEach(el => {
+    if(el.dataset.esEn === undefined) el.dataset.esEn = el.placeholder;
     const t = esText(el.dataset.esPlaceholder);
-    if(t && !el.placeholder.includes(t)) el.placeholder = `${el.placeholder} / ${t}`;
+    el.placeholder = t && esSideIsBoh('setups') ? `${el.dataset.esEn} / ${t}` : el.dataset.esEn;
   });
 }
 

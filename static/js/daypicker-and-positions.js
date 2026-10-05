@@ -624,6 +624,24 @@ function breakKeyFor(name){ return name + today; }
 function breakClockText(secs){ return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`; }
 function breakBackAt(endMs){ return new Date(endMs).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'}); }
 
+// The roster card shows everyone, or just who still has a break to take
+// (Tim): people on 6+ hours on the floor (BREAK_MIN_SHIFT, break-planner.js)
+// whose break isn't done. Someone on break now stays in, timer and all.
+// The choice is remembered on the device.
+const ROSTER_VIEW_KEY = 'cfaBudaRosterView';
+let rosterView = 'all';   // 'all' | 'breaks'
+try{ if(localStorage.getItem(ROSTER_VIEW_KEY) === 'breaks') rosterView = 'breaks'; }catch(e){}
+
+function rosterOwesBreak(person){
+  const onFloor = suShiftBlocks(person).reduce((n, [s, e]) => n + (e - s), 0);
+  return onFloor >= BREAK_MIN_SHIFT;
+}
+
+function rosterViewHtml(all, left){
+  const btn = (view, label, n) => `<button type="button" class="su-roster-filter-btn ${rosterView === view ? 'active' : ''}" aria-pressed="${rosterView === view}" data-roster-view="${view}">${label} · ${n}${esLine(label)}</button>`;
+  return `<div class="su-roster-filter" role="group" aria-label="Show">${btn('all', 'All', all)}${btn('breaks', 'Breaks left', left)}</div>`;
+}
+
 function renderRoster(){
   const dayName = document.getElementById('daySelect').value;
   breakPlanReset();
@@ -646,7 +664,16 @@ function renderRoster(){
     return aStart - bStart;
   });
 
-  const html = sortedRoster.map(person=>{
+  // Who still has a break to take (on break now counts): for the filter.
+  const breakLeft = person => {
+    const key = breakKeyFor(person.name);
+    const running = breakCountdowns[key] && breakCountdowns[key] > Date.now();
+    return rosterOwesBreak(person) && (running || !completedBreaks[key]);
+  };
+  const leftCount = sortedRoster.filter(breakLeft).length;
+  const shown = rosterView === 'breaks' ? sortedRoster.filter(breakLeft) : sortedRoster;
+
+  const html = shown.map(person=>{
     const key = breakKeyFor(person.name);
     let remaining = 0;
     if(breakCountdowns[key]){
@@ -692,7 +719,10 @@ function renderRoster(){
   if(roster.length === 0){
     panel.innerHTML = '<div class="su-roster-empty">No roster for ' + escapeHtml(formatVerboseDate(dayName)) + ' yet. Import the weekly HotSchedules CSV in Manage to populate.' + esLine('No roster yet') + '</div>';
   } else {
-    panel.innerHTML = html;
+    const empty = !shown.length
+      ? `<div class="su-roster-empty">${leftCount === 0 && sortedRoster.some(rosterOwesBreak) ? `Every break is done.${esLine('Every break is done.')}` : `No one today works 6 hours or more, so no breaks are owed.${esLine('No breaks owed')}`}</div>`
+      : '';
+    panel.innerHTML = rosterViewHtml(sortedRoster.length, leftCount) + (html || empty);
     breakTickStart();
   }
 
@@ -729,6 +759,13 @@ async function breakTick(){
 }
 
 document.getElementById('rosterPanel').addEventListener('click', e=>{
+  const view = e.target.closest('[data-roster-view]');
+  if(view){
+    rosterView = view.dataset.rosterView === 'breaks' ? 'breaks' : 'all';
+    try{ localStorage.setItem(ROSTER_VIEW_KEY, rosterView); }catch(err){}
+    renderRoster();
+    return;
+  }
   const start = e.target.closest('[data-break-start]');
   if(start) return toggleBreak(start.dataset.breakStart);
   const done = e.target.closest('[data-break-done]');
