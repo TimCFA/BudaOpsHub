@@ -70,6 +70,14 @@ Assign team members to positions for each daypart, FOH and BOH.
   in the picker: "Put them in [the open spot]" (the suggested choice) or
   "Keep them in [this spot]". Skipping is discouraged, not blocked (Tim); the
   skipped spot stays red until it's filled.
+- **Drag to move**: hold a placed name (about a third of a second; a mouse
+  just drags) and drop it on another spot in the same daypart. An open spot
+  takes the person; a filled spot trades with them. A handoff ("A → B")
+  moves whole. Notes and resets stay with the spot; a "needs coverage" flag
+  clears, as it does when the picker places someone. A quick swipe still
+  scrolls, a tap still opens the spot, and holding near the screen's edge
+  scrolls the list. Works on the Set up list and the Coach board; the spot
+  sheet carries a one-line tip.
 - **Who's working** comes from the weekly HotSchedules roster (see Data
   Uploads). Shifts that start or end mid-daypart are handled (see handoffs).
 - **Names** show first name only; last initial only when first names collide;

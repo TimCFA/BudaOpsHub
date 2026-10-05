@@ -885,3 +885,13 @@ body.launch-mode .su-row-notebtn{width:36px;height:36px;}
 .su-skip-btn.is-primary{background:var(--cfa-red);border-color:var(--cfa-red);color:#fff;}
 .su-skip-btn:not(.is-primary):hover{border-color:var(--text-secondary);}
 .su-skip-back{justify-self:start;border:0;background:none;padding:6px 2px;font-family:var(--font-ui);font-size:13px;font-weight:600;color:var(--text-secondary);cursor:pointer;}
+
+/* Set Ups: drag a placed name to another spot (setups-board.js suDrag*). */
+#allDayparts [data-su-tile]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;}
+#allDayparts.su-dragging, #allDayparts.su-dragging *{cursor:grabbing !important;}
+#allDayparts [data-su-tile].is-drag-source{opacity:0.4;}
+#allDayparts [data-su-tile].is-drop-target{outline:2px dashed var(--cfa-red);outline-offset:-2px;background:#FCEBE9;}
+.su-drag-ghost{position:fixed;left:0;top:0;z-index:2000;pointer-events:none;display:inline-flex;align-items:center;gap:6px;padding:8px 14px 8px 10px;border-radius:999px;background:var(--cfa-navy, #004F71);color:#fff;font-family:var(--font-ui);font-size:15px;font-weight:700;box-shadow:0 8px 20px rgba(0,0,0,0.25);white-space:nowrap;}
+.su-drag-ghost svg{opacity:0.7;}
+.su-drag-tip{display:flex;align-items:center;gap:6px;margin:10px 0 0;font-family:var(--font-ui);font-size:12px;color:var(--text-secondary);}
+.su-drag-tip svg{flex:0 0 auto;}
