@@ -262,9 +262,9 @@ function renderFoodSafety(){
   const pct = t.total ? Math.round((t.done / t.total) * 100) : 0;
 
   let status;
-  if(t.complete) status = `<span class="fs-status done">✓ Complete · ${formatShortTime(rec.completedAt)}</span>`;
-  else if(start) status = `<span class="fs-status">In progress · started ${formatShortTime(start.t)} by ${escapeHtml(start.i || '—')}</span>`;
-  else status = `<span class="fs-status">Not started yet today</span>`;
+  if(t.complete) status = `<span class="fs-status done">✓ Complete · ${formatShortTime(rec.completedAt)}${esHtml('Complete')}</span>`;
+  else if(start) status = `<span class="fs-status">In progress · started ${formatShortTime(start.t)} by ${escapeHtml(start.i || '—')}${esHtml('In progress')}</span>`;
+  else status = `<span class="fs-status">Not started yet today${esHtml('Not started yet today')}</span>`;
 
   const sp = fsSectionProgress(rec, section);
   const next = FS_SECTIONS[idx + 1], prev = FS_SECTIONS[idx - 1];
@@ -278,13 +278,13 @@ function renderFoodSafety(){
       <div class="fs-count"><b>${t.done}</b><span>/ ${t.total}</span></div>
     </div>
     <div class="fs-progress"><div class="fs-progress-fill ${t.complete ? 'done' : ''}" style="width:${pct}%"></div></div>
-    <div class="fs-meta">${status}${t.coached ? `<span class="fs-coached-total">↺ ${t.coached} coached &amp; corrected</span>` : ''}</div>
+    <div class="fs-meta">${status}${t.coached ? `<span class="fs-coached-total">↺ ${t.coached} coached &amp; corrected${esHtml('N coached & corrected', t.coached)}</span>` : ''}</div>
 
     <nav class="fs-chips">${FS_SECTIONS.map(s => {
       const p = fsSectionProgress(rec, s);
       const done = p.done === p.total;
       return `<button type="button" class="fs-chip ${s.id === section.id ? 'active' : ''} ${done ? 'done' : ''}" data-fs-section="${s.id}">
-        <span class="fs-chip-name">${done ? '✓ ' : ''}${escapeHtml(s.name)}</span>
+        <span class="fs-chip-name">${done ? '✓ ' : ''}${escapeHtml(s.name)}${esSpan(s.es, true)}</span>
         <span class="fs-chip-count">${p.done}/${p.total}${p.coached ? ` · <i>↺${p.coached}</i>` : ''}</span>
       </button>`;
     }).join('')}</nav>
@@ -295,7 +295,7 @@ function renderFoodSafety(){
           <h3>${escapeHtml(section.name)} <span class="fs-section-es">${escapeHtml(section.es)}</span></h3>
           ${section.note ? `<div class="fs-section-note">${escapeHtml(section.note)} · <i>${escapeHtml(section.noteEs)}</i></div>` : ''}
         </div>
-        <span class="fs-section-count">${idx + 1} of ${FS_SECTIONS.length} · ${sp.done}/${sp.total}</span>
+        <span class="fs-section-count">${idx + 1} of ${FS_SECTIONS.length} · ${sp.done}/${sp.total}${esLine('N of M', idx + 1, FS_SECTIONS.length)}</span>
       </div>
       ${section.temps.length ? `
       <div class="fs-temps-head">🌡️ Temperatures here <span>Temperaturas aquí · °F</span></div>
@@ -307,17 +307,17 @@ function renderFoodSafety(){
         ${section.items.map(item => fsQuestionHtml(item, rec)).join('')}
       </div>
       <div class="fs-nav">
-        ${prev ? `<button type="button" class="btn btn-ghost fs-nav-btn" data-fs-section="${prev.id}" data-fs-scroll>← ${escapeHtml(prev.name)}</button>` : '<span></span>'}
-        ${next ? `<button type="button" class="btn btn-primary fs-nav-btn ${sp.done === sp.total ? 'ready' : ''}" data-fs-section="${next.id}" data-fs-scroll>Next: ${escapeHtml(next.name)} →</button>` : ''}
+        ${prev ? `<button type="button" class="btn btn-ghost fs-nav-btn" data-fs-section="${prev.id}" data-fs-scroll>← ${escapeHtml(prev.name)}${esSpan(prev.es ? `← ${prev.es}` : '', true)}</button>` : '<span></span>'}
+        ${next ? `<button type="button" class="btn btn-primary fs-nav-btn ${sp.done === sp.total ? 'ready' : ''}" data-fs-section="${next.id}" data-fs-scroll>Next: ${escapeHtml(next.name)} →${esSpan(next.es ? `${esText('Next:')} ${next.es} →` : '', true)}</button>` : ''}
       </div>
     </section>
   `;
 
   const history = Object.keys(foodSafetyWalkthroughs).filter(d => d !== today).sort().reverse().slice(0, 7);
   if(history.length){
-    html += `<div class="fs-history"><div class="fs-history-title">Recent walkthroughs</div>${history.map(d => {
+    html += `<div class="fs-history"><div class="fs-history-title">Recent walkthroughs${esHtml('Recent walkthroughs')}</div>${history.map(d => {
       const ht = fsTotals(foodSafetyWalkthroughs[d]);
-      return `<div class="fs-history-row"><span>${escapeHtml(formatVerboseDate(d))}</span><span class="${ht.complete ? 'fs-ok' : 'fs-partial'}">${ht.complete ? '✓ Complete' : `${ht.done}/${ht.total}`}</span><span class="fs-history-coached">${ht.coached} coached</span></div>`;
+      return `<div class="fs-history-row"><span>${escapeHtml(formatVerboseDate(d))}</span><span class="${ht.complete ? 'fs-ok' : 'fs-partial'}">${ht.complete ? `✓ Complete${esHtml('Complete')}` : `${ht.done}/${ht.total}`}</span><span class="fs-history-coached">${ht.coached} coached${esHtml('coached')}</span></div>`;
     }).join('')}</div>`;
   }
 
@@ -336,7 +336,7 @@ function fsEnsureRecord(){
 
 function fsRequireInitials(){
   const initials = getInitials();
-  if(!initials){ showToast('Set your initials first (top right)'); beginEditInitials(); }
+  if(!initials){ showToast(`Set your initials first (top right) · ${esText('Set your initials first (top right)')}`); beginEditInitials(); }
   return initials;
 }
 

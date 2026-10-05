@@ -92,3 +92,32 @@ function getNumbersForDaypart(dayName, dp){
   const n = knDaypartOf(dp);
   return n ? (day[n.name] || null) : null;
 }
+
+// ----- Actuals -----
+// After a daypart, a leader types what actually happened (Analytics Hub's
+// sales and sales per labor hour), next to what was planned (Tim):
+// actualSales against projectedSales, actualProductivity against
+// productivityGoal. {actual, plan, diff, pct} for one pair, or null until
+// both are there.
+function knVersus(actualRaw, planRaw){
+  const actual = parseMoney(actualRaw), plan = parseMoney(planRaw);
+  if(actual === null || plan === null) return null;
+  return {actual, plan, diff: actual - plan, pct: plan ? (actual - plan) / plan * 100 : null};
+}
+
+const knMoneyText = v => '$' + Math.round(v).toLocaleString('en-US');
+const knSignedMoney = v => (v < 0 ? '−' : '+') + knMoneyText(Math.abs(v));
+
+// The "how did we do" lines under a Know the Numbers daypart.
+function knActualsHtml(entry){
+  const e = entry || {};
+  const sales = knVersus(e.actualSales, e.projectedSales);
+  const prod = knVersus(e.actualProductivity, e.productivityGoal);
+  const line = (label, v, planWord, pct) => {
+    const cls = Math.round(v.diff) === 0 ? 'is-even' : v.diff > 0 ? 'is-up' : 'is-down';
+    const delta = Math.round(v.diff) === 0 ? 'on target' : `${knSignedMoney(v.diff)}${pct && v.pct !== null ? ` (${v.pct < 0 ? '−' : '+'}${Math.abs(v.pct).toFixed(1)}%)` : ''}`;
+    return `<div class="kn-vs-row"><span class="kn-vs-k">${label}</span><span class="kn-vs-v"><b>${escapeHtml(knMoneyText(v.actual))}</b> vs ${escapeHtml(knMoneyText(v.plan))} ${planWord}</span><span class="kn-vs-d ${cls}">${escapeHtml(delta)}</span></div>`;
+  };
+  const rows = [sales && line('Sales', sales, 'projected', true), prod && line('Productivity', prod, 'goal', false)].filter(Boolean);
+  return rows.join('');
+}

@@ -20,13 +20,14 @@ def owners(assignments, handed, zone, handoff='Lunch to Mid (1:00pm - 2:00pm)', 
 
 
 T = 'foh||2026-10-06||Transition (1:00-2:00)||'
+SU_LC = 'Lead Captain'
 
 
 class HandoffDaypart(unittest.TestCase):
     def test_each_handoff_lands_on_the_set_up_on_the_floor(self):
         got = run([{'op': "() => zoneResetDayparts.map(h => [h.name.split(' (')[0], zrHandoffDaypart(h).name])"}])[0]
         self.assertEqual(got, [
-            ['Breakfast to Lunch', 'Lunch (10:30-1:00)'],
+            ['Breakfast to Lunch', 'Breakfast (8:00-10:30)'],   # the breakfast crew resets
             ['Lunch to Mid', 'Transition (1:00-2:00)'],
             ['Mid to Dinner', 'Mid (2:00-5:00)'],
             ['Dinner to Late Night', 'Dinner (5:00-8:00)'],
@@ -36,10 +37,17 @@ class HandoffDaypart(unittest.TestCase):
     def test_daypart_to_handoff_and_back(self):
         got = run([{'op': "() => fohDayparts.map(d => [d.name, zrHandoffForDaypart(d.name) && zrHandoffForDaypart(d.name).name.split(' (')[0]])"}])[0]
         self.assertEqual(dict(got), {
-            'Early Breakfast (6:00-8:00)': None, 'Breakfast (8:00-10:30)': None,
-            'Lunch (10:30-1:00)': 'Breakfast to Lunch', 'Transition (1:00-2:00)': 'Lunch to Mid',
+            'Early Breakfast (6:00-8:00)': None, 'Breakfast (8:00-10:30)': 'Breakfast to Lunch',
+            'Lunch (10:30-1:00)': None, 'Transition (1:00-2:00)': 'Lunch to Mid',
             'Mid (2:00-5:00)': 'Mid to Dinner', 'Dinner (5:00-8:00)': 'Dinner to Late Night',
             'Close (8:00-10:00)': 'Close'})
+
+    def test_breakfast_crew_owns_the_breakfast_to_lunch_resets(self):
+        b, l = 'foh||2026-10-06||Breakfast (8:00-10:30)||', 'foh||2026-10-06||Lunch (10:30-1:00)||'
+        a = {b + 'Drinks 1': 'Caleb Brooks', l + 'Drinks 1': 'Grace Kim', b + SU_LC: 'Maya Torres', l + SU_LC: 'Noah Bennett'}
+        o = owners(a, {}, 'Drinks Zone', handoff='Breakfast to Lunch (10:30am - 11:30am)')
+        self.assertEqual((o['all'], o['dp']), (['Caleb Brooks'], 'Breakfast (8:00-10:30)'))
+        self.assertEqual(owners(a, {}, 'Final Check', handoff='Breakfast to Lunch (10:30am - 11:30am)')['all'], ['Maya Torres'])
 
     def test_every_daypart_has_its_position_list(self):
         got = run([{'op': "() => [fohDayparts.map(d => d.name), Object.keys(fohPositions), bohDayparts.map(d => d.name), Object.keys(bohPositions)]"}])[0]
@@ -100,7 +108,7 @@ class Owners(unittest.TestCase):
         self.assertEqual(got[2], {})
 
     def test_other_handoffs_use_their_own_set_up(self):
-        a = {'foh||2026-10-06||Lunch (10:30-1:00)||Host 1 (Captain)': 'Sofia Alvarez', 'foh||2026-10-06||Close (8:00-10:00)||Drinks 3': 'Ethan Walsh'}
+        a = {'foh||2026-10-06||Breakfast (8:00-10:30)||Host 1': 'Sofia Alvarez', 'foh||2026-10-06||Close (8:00-10:00)||Drinks 3': 'Ethan Walsh'}
         self.assertEqual(owners(a, {}, 'Dining Room', 'Breakfast to Lunch (10:30am - 11:30am)')['all'], ['Sofia Alvarez'])
         self.assertEqual(owners(a, {}, 'Soda Room / Tea Station', 'Close')['all'], ['Ethan Walsh'])
         self.assertEqual(owners(a, {}, 'Dining Room')['all'], [])

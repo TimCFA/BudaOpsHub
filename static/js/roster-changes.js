@@ -160,25 +160,31 @@ function rosterChangesHtml(side, date){
   const stillPlaced = changes.filter(c => (c.kind === 'swap' && placedAt(c.for).length) || (c.kind === 'off' && placedAt(c.name).length)).length;
   const was = t => `<span class="su-changes-was">was ${escapeHtml(t)}</span>`;
   const now = t => `<span class="su-changes-now">now ${escapeHtml(t)}</span>`;
+  // The Spanish for a change, on its own line under the English.
+  const es = c => {
+    const who = suDisplayName(c.name), at = placedAt(c.kind === 'swap' ? c.for : c.name);
+    const line = esText('Change ' + c.kind, who, c.kind === 'swap' ? suDisplayName(c.for) : c.kind === 'time' ? c.was : c.span, c.span);
+    return esSpan(line + (at.length && (c.kind === 'swap' || c.kind === 'off') ? ` · ${esText('still placed')}: ${at.join(', ')}` : ''), true);
+  };
   const line = c => {
     const ic = `<span class="su-changes-ic is-${c.kind}">${RC_ICONS[c.kind] || RC_ICONS.time}</span>`;
-    if(c.kind === 'swap') return `<li>${ic}<span>${nm(c.name)} for ${nm(c.for)} <span class="su-changes-now">${escapeHtml(c.span)}</span>${placed(c.for)}</span></li>`;
-    if(c.kind === 'on') return `<li>${ic}<span>${nm(c.name)} added <span class="su-changes-now">${escapeHtml(c.span)}</span></span></li>`;
-    if(c.kind === 'off') return `<li>${ic}<span>${nm(c.name)} off ${was(c.span)}${placed(c.name)}</span></li>`;
-    return `<li>${ic}<span>${nm(c.name)} <span class="su-changes-times">${was(c.was)} ${now(c.span)}</span></span></li>`;
+    if(c.kind === 'swap') return `<li>${ic}<span>${nm(c.name)} for ${nm(c.for)} <span class="su-changes-now">${escapeHtml(c.span)}</span>${placed(c.for)}${es(c)}</span></li>`;
+    if(c.kind === 'on') return `<li>${ic}<span>${nm(c.name)} added <span class="su-changes-now">${escapeHtml(c.span)}</span>${es(c)}</span></li>`;
+    if(c.kind === 'off') return `<li>${ic}<span>${nm(c.name)} off ${was(c.span)}${placed(c.name)}${es(c)}</span></li>`;
+    return `<li>${ic}<span>${nm(c.name)} <span class="su-changes-times">${was(c.was)} ${now(c.span)}</span>${es(c)}</span></li>`;
   };
   const n = changes.length;
   return `<div class="su-changes ${rcOpen ? 'is-open' : ''}" role="note">
     <button type="button" class="su-changes-head" data-rc-toggle="1" aria-expanded="${rcOpen}">
-      <span class="su-changes-title">Shift changes</span>
+      <span class="su-changes-title">Shift changes${esHtml('Shift changes')}</span>
       ${n ? `<span class="su-changes-count" aria-label="${n} change${n === 1 ? '' : 's'}">${n}</span>` : ''}
-      ${stillPlaced ? `<span class="su-changes-flag">${RC_ICONS.warn}${stillPlaced} still placed</span>` : ''}
-      <span class="su-changes-sub">${n ? 'since the schedule was posted' : `none on ${side.toUpperCase()}`}</span>
+      ${stillPlaced ? `<span class="su-changes-flag">${RC_ICONS.warn}${stillPlaced} still placed${esHtml('N still placed', stillPlaced)}</span>` : ''}
+      <span class="su-changes-sub">${n ? `since the schedule was posted${esHtml('since the schedule was posted')}` : `none on ${side.toUpperCase()}${esHtml('none on SIDE', side.toUpperCase())}`}</span>
       <span class="su-changes-chev" aria-hidden="true">▾</span>
     </button>
     ${rcOpen ? `<div class="su-changes-body">
     ${n ? `<ul>${changes.map(line).join('')}</ul>` : ''}
-    ${otherN ? `<div class="su-changes-other">${otherN} ${other.toUpperCase()} change${otherN === 1 ? '' : 's'} — switch to ${other.toUpperCase()} to see ${otherN === 1 ? 'it' : 'them'}</div>` : ''}
+    ${otherN ? `<div class="su-changes-other">${otherN} ${other.toUpperCase()} change${otherN === 1 ? '' : 's'} — switch to ${other.toUpperCase()} to see ${otherN === 1 ? 'it' : 'them'}${esLine('N SIDE changes', otherN, other.toUpperCase())}</div>` : ''}
     ${typeof launchManager !== 'undefined' && launchManager ? `<div class="su-changes-actions">
       <button type="button" data-rc-reset="day" data-rc-date="${escapeHtml(date)}">Reset day</button>
       <button type="button" data-rc-reset="week" data-rc-date="${escapeHtml(date)}">Reset week</button>

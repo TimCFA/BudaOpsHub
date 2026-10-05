@@ -412,9 +412,12 @@ function suMigrateDaypartNames(){
 }
 
 // leadFrom: the FOH Set Ups daypart whose Lead Captain owns this reset (the
-// leader handing off), shown on the handoff's banner.
+// leader handing off), shown on the handoff's banner. crewFrom: the daypart
+// whose set up does the zone resets, when it isn't the one on the floor at
+// the handoff's time (Breakfast to Lunch starts as Lunch does, but the
+// breakfast crew resets their zones; Tim).
 const zoneResetDayparts = [
-  {name: 'Breakfast to Lunch (10:30am - 11:30am)', time: '10:30', leadFrom: 'Breakfast'},
+  {name: 'Breakfast to Lunch (10:30am - 11:30am)', time: '10:30', leadFrom: 'Breakfast', crewFrom: 'Breakfast'},
   {name: 'Lunch to Mid (1:00pm - 2:00pm)', time: '13:00', leadFrom: 'Lunch'},
   {name: 'Mid to Dinner (4:00pm - 5:00pm)', time: '16:00', leadFrom: 'Mid'},
   {name: 'Dinner to Late Night (7:00pm - 8:00pm)', time: '19:00', leadFrom: 'Dinner'},
@@ -447,7 +450,9 @@ const bohPositions = {
 // A zone's reset belongs to the positions that work that zone, so filling
 // the set up assigns the resets (the old "Drinks Zone" / "Bagging Zone"
 // spots are gone). The positions are the FOH daypart on the floor during
-// the handoff (Lunch → Mid at 1:00 is the Transition set up). A zone whose
+// the handoff (Lunch → Mid at 1:00 is the Transition set up), or the crew
+// handing off where a handoff names one (Breakfast → Lunch is Breakfast's
+// set up). A zone whose
 // positions are all open has no owner until someone is handed it; a leader
 // can hand any zone to extra people too (zoneOwners, per day and handoff).
 const ZONE_OWNER_RULES = {
@@ -464,9 +469,11 @@ const ZONE_OWNER_RULES = {
 let zoneOwners = {};   // date -> handoff name -> zone -> [names handed the zone]
 let posNotes = {};     // "section||date||daypart||slot" -> [{text, by, ts}], newest last
 
-// The FOH daypart whose set up is on the floor when a handoff starts: the
-// last one starting at or before the handoff's time.
+// The FOH daypart whose set up does a handoff's resets: the one it names
+// (crewFrom), else the one on the floor when it starts (the last one
+// starting at or before the handoff's time).
 function zrHandoffDaypart(handoff){
+  if(handoff.crewFrom) return fohDayparts.find(dp => dp.name.split(' (')[0] === handoff.crewFrom) || null;
   const toMins = t => { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0); };
   const at = toMins(handoff.time);
   let pick = null;

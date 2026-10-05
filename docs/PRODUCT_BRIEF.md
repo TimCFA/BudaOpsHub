@@ -50,7 +50,12 @@ for the full site. Managers turn launch mode off for everyone in Manage.
 
 ### Set Ups (positioning) — the most-used, most rule-heavy area
 - Daypart cards show their Know the Numbers line (projected sales, $/labor
-  hour goal, special event) in both the Set up and Coach views. Numbers are
+  hour goal, special event; once typed, the actual sales and how far off
+  projection, e.g. "$4,061 actual −3.7%") in both the Set up and Coach views.
+  **Actuals** are typed by hand on Manage → Know the Numbers under each
+  daypart (Actual Sales, Actual Productivity in $/labor hour), and the card
+  shows sales vs projected (dollars and percent) and productivity vs goal
+  (dollars). They're kept for a year with the plan (numbersHistory). Numbers are
   kept for the **four major dayparts only, on Analytics Hub's hours**
   (Breakfast 6–10:30, Lunch 10:30–2, Afternoon 2–5, Dinner 5–close), so
   projections line up with the actuals; the Early Breakfast, Transition and
@@ -88,8 +93,10 @@ Assign team members to positions for each daypart, FOH and BOH.
   Captain. See the rules in section 4.
 - **Breaks & tasks** per daypart (section 4).
 - **Zone resets ride on positions.** A FOH card whose daypart carries a
-  handoff (Breakfast → Lunch on Lunch, Lunch → Mid on Transition, Mid → Dinner
-  on Mid, Dinner → Late Night on Dinner, Close on Close) ends with a
+  handoff (Breakfast → Lunch on Breakfast, since the breakfast crew resets
+  their zones before they leave, not the lunch crew coming on (Tim); Lunch →
+  Mid on Transition, Mid → Dinner on Mid, Dinner → Late Night on Dinner,
+  Close on Close) ends with a
   **Resets** drop-down (closed to start, its header counts unowned zones or
   says "all owned"; open or closed is remembered on the device): every zone
   with its owners, taken from the positions
@@ -331,6 +338,7 @@ overdue) and an upload button per report.
 |---|---|---|
 | Weekly roster (CSV) | HotSchedules | Who works when, FOH/BOH, Team Leader shifts |
 | Projected sales & goals | The Forecast tab (Send to Know the Numbers), or a spreadsheet | Know the Numbers, Set Ups game plan; no file needed with the forecast |
+| Actual sales & productivity per daypart | Typed into Manage → Know the Numbers after the daypart (Analytics Hub's figures) | Plan vs actual on Know the Numbers and the Set Ups card; kept a year with the plan |
 | PEA ratings (PDF) | Levelset | Position strength, all green, Set Ups tools |
 | CEM (xlsx) | Guest survey reports | Guest Obsession scoreboard, CEM trends |
 | Productivity (CSV) | Daypart productivity report | Busy hours for breaks |
@@ -357,6 +365,17 @@ overdue) and an upload button per report.
   the server, not just hidden in the page.
 - The manager PIN is stored hashed, can't be read or overwritten through the
   app, and login is rate-limited.
+- **Spanish next to the English on everything the kitchen (BOH) team sees**
+  (Tim, Oct 2026): Set Ups (both sides share it), Waste, Food Safety, the
+  Prep Board with its timers, and the header's initials prompt. All of it
+  comes from one glossary, `static/js/spanish.js` (informal "tú", as the
+  Waste tab's help line was), so a bilingual leader can fix a word in one
+  place. BOH stations translate word by word ("Breader 2" → "Empanizador
+  2"); FOH spots stay English-only rather than half-translated. Spanish
+  shows as a quiet italic line under the English (`.es`, `.es-line`).
+  `tests/test_spanish.py` fails if a screen asks for a phrase the glossary
+  doesn't have, or a BOH station or daypart has no Spanish. Home quotes stay
+  English: they must be verbatim and sourced, and a translation isn't.
 - **Every change goes through a pull request; Tim says "merge".** Linear
   project "CFA Ops Hub" (team "Tim Lane") holds the backlog.
 
@@ -384,6 +403,11 @@ overdue) and an upload button per report.
 ## 8. Open items
 
 - Food-safety temperature targets (TIM-5) — waiting on Tim.
+- Spanish: a bilingual leader to read over `static/js/spanish.js`, the BOH
+  station words especially ("Empanizador", "Primario", "Papas"), and the
+  food safety zone "Boards Zone" = "Zona de Pantillas" (not a Spanish word;
+  "Zona de Tablas"?). Zone Resets, Safe Count, Home and Manage aren't
+  translated yet (FOH or leader screens).
 - Hire dates for tenure in Develop (TIM-38) — waiting on the employee list.
 - Firebase: confirm the plan, add a budget alert, turn on 2-step verification
   before Oct 20, 2026.

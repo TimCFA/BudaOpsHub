@@ -895,3 +895,30 @@ body.launch-mode .su-row-notebtn{width:36px;height:36px;}
 .su-drag-ghost svg{opacity:0.7;}
 .su-drag-tip{display:flex;align-items:center;gap:6px;margin:10px 0 0;font-family:var(--font-ui);font-size:12px;color:var(--text-secondary);}
 .su-drag-tip svg{flex:0 0 auto;}
+
+/* Know the Numbers: actuals typed after a daypart, against the plan (know-numbers.js knActualsHtml). */
+.kn-actuals{margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);}
+.kn-actuals-head{font-family:var(--font-display);font-size:15px;font-weight:600;color:var(--text-primary);margin-bottom:10px;}
+.kn-actuals-head span{font-family:var(--font-ui);font-size:12px;font-weight:500;color:var(--text-tertiary);margin-left:6px;}
+.kn-actuals-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.kn-vs:empty{display:none;}
+.kn-vs{display:grid;gap:6px;margin-top:12px;padding:10px 12px;border-radius:12px;background:var(--cfa-light);border:1px solid var(--border);}
+.kn-vs-row{display:grid;grid-template-columns:auto 1fr auto;align-items:baseline;gap:10px;font-family:var(--font-ui);font-size:13px;color:var(--text-secondary);}
+.kn-vs-k{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-tertiary);min-width:86px;}
+.kn-vs-v b{font-family:var(--font-display);font-size:16px;font-weight:600;color:var(--text-primary);}
+.kn-vs-d{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.kn-vs-d.is-up,.su-dp-vs.is-up{color:var(--success);}
+.kn-vs-d.is-down,.su-dp-vs.is-down{color:var(--cfa-dark-red);}
+.kn-vs-d.is-even{color:var(--text-secondary);}
+.su-dp-vs{font-weight:700;font-variant-numeric:tabular-nums;}
+@media (max-width:420px){.kn-vs-row{grid-template-columns:1fr auto;}.kn-vs-k{grid-column:1 / -1;}}
+
+/* Spanish next to the English on the kitchen's screens (spanish.js): the
+   same quiet italic slab as the tabs' Spanish, on its own line (.es-line)
+   or after the English. On dark or red buttons it takes the button's color. */
+.es{font-family:var(--font-display);font-style:italic;font-weight:400;font-size:0.92em;color:var(--text-tertiary);letter-spacing:0;text-transform:none;}
+.es-line{display:block;font-size:0.84em;line-height:1.25;margin-top:1px;}
+.su-btn-dark .es,.btn-primary .es,.su-dp-fillbtn .es,.su-skip-btn.is-primary .es,.su-mode-btn.active .es,.toggle-btn.active .es,.su-changes-count .es,.roster-leader-badge .es{color:inherit;opacity:0.78;}
+.su-row-slotname{display:flex;flex-direction:column;min-width:0;}
+.su-row-slotname .es-line{font-size:0.82em;font-weight:400;}
+.su-drag-tip > span{display:block;}

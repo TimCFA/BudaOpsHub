@@ -74,8 +74,8 @@
     <div class="setups-week-nav">
       <button type="button" class="rolling-arrow" id="setupsPrevWeekBtn" title="Previous week">‹</button>
       <div class="week-toggle" id="setupsWeekToggle">
-        <button type="button" class="su-week-toggle-btn active" aria-pressed="true" data-offset="0">This Week</button>
-        <button type="button" class="su-week-toggle-btn" aria-pressed="false" data-offset="1">Next Week</button>
+        <button type="button" class="su-week-toggle-btn active" aria-pressed="true" data-offset="0" data-es="This Week">This Week</button>
+        <button type="button" class="su-week-toggle-btn" aria-pressed="false" data-offset="1" data-es="Next Week">Next Week</button>
       </div>
     </div>
     <div class="day-picker" id="dayPicker"></div>
@@ -90,8 +90,8 @@
       <div id="rosterContainer" style="display:none;">
         <div class="standup-card">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-            <h3 style="margin:0;">Roster</h3>
-            <button class="btn-add-tm" id="btnAddTeamMember">+ Add Team Member</button>
+            <h3 style="margin:0;" data-es="Roster">Roster</h3>
+            <button class="btn-add-tm" id="btnAddTeamMember" data-es="+ Add Team Member">+ Add Team Member</button>
           </div>
           <div id="rosterPanel" style="max-height:600px;overflow-y:auto;"></div>
         </div>
@@ -107,12 +107,12 @@
         <button type="button" id="btnCancelPos" class="su-sheet-close" aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
       <div id="posModalNote" class="su-pick-note" hidden></div>
-      <input type="search" id="posModalSearch" class="su-pick-search" placeholder="Search names" autocomplete="off" aria-label="Search team members">
+      <input type="search" id="posModalSearch" class="su-pick-search" placeholder="Search names" data-es-placeholder="Search names" autocomplete="off" aria-label="Search team members">
       <div id="posModalOptions" class="pos-option-list"></div>
       <div class="su-pick-foot">
-        <button type="button" id="posModalPrev" class="su-btn-line" hidden>← Previous</button>
+        <button type="button" id="posModalPrev" class="su-btn-line" hidden data-es="← Previous">← Previous</button>
         <span id="posModalLeft" class="su-pick-left"></span>
-        <button type="button" id="posModalNext" class="su-btn-line" hidden>Next open spot →</button>
+        <button type="button" id="posModalNext" class="su-btn-line" hidden data-es="Next open spot →">Next open spot →</button>
       </div>
     </div>
   </div>
@@ -122,19 +122,19 @@
     <div class="sheet">
       <h2 id="vacancyModalTitle">Find Coverage</h2>
       <div class="field">
-        <label>Position</label>
+        <label data-es="Position" data-es-inline>Position</label>
         <div id="vacancyModalPos" style="font-weight:600;color:var(--cfa-red);margin-bottom:4px;"></div>
         <div id="vacancyModalCurrent" style="font-size:12px;color:var(--text-secondary);margin-bottom:16px;"></div>
       </div>
       <div class="field">
-        <label>Split With</label>
-        <input type="text" id="vacancyModalSearch" placeholder="Search team members..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';margin-bottom:8px;">
+        <label data-es="Split With" data-es-inline>Split With</label>
+        <input type="text" id="vacancyModalSearch" placeholder="Search team members..." data-es-placeholder="Search team members" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';margin-bottom:8px;">
         <div id="vacancyModalOptions" class="pos-option-list"></div>
       </div>
-      <button id="btnConfirmVacancy" class="btn btn-primary">🔀 Split Shift</button>
+      <button id="btnConfirmVacancy" class="btn btn-primary" data-es="Split Shift">🔀 Split Shift</button>
       <button id="btnFlagOnly" class="btn btn-secondary">Flag Only — Find Coverage Later</button>
-      <button id="btnResolveNoSplit" class="btn btn-secondary" style="display:none;">Mark Resolved — No Split Needed</button>
-      <button id="btnCancelVacancy" class="btn btn-ghost">Cancel</button>
+      <button id="btnResolveNoSplit" class="btn btn-secondary" style="display:none;" data-es="Mark Resolved — No Split Needed">Mark Resolved — No Split Needed</button>
+      <button id="btnCancelVacancy" class="btn btn-ghost" data-es="Cancel">Cancel</button>
     </div>
   </div>
 
@@ -154,24 +154,24 @@
   <!-- Add Team Member to Roster Modal -->
   <div class="overlay" id="addTMModal">
     <div class="sheet">
-      <h2>Add Team Member</h2>
+      <h2 data-es="Add Team Member">Add Team Member</h2>
       <div class="sub" id="addTMContext"></div>
       <div class="field">
-        <label>Name</label>
-        <input type="text" id="addTMName" placeholder="Full name" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+        <label data-es="Name" data-es-inline>Name</label>
+        <input type="text" id="addTMName" placeholder="Full name" data-es-placeholder="Full name" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
       </div>
       <div style="display:flex;gap:12px;">
         <div class="field" style="flex:1;">
-          <label>Start Time</label>
+          <label data-es="Start Time" data-es-inline>Start Time</label>
           <input type="text" id="addTMStart" placeholder="e.g. 5:30a" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
         </div>
         <div class="field" style="flex:1;">
-          <label>End Time</label>
+          <label data-es="End Time" data-es-inline>End Time</label>
           <input type="text" id="addTMEnd" placeholder="e.g. 1:30p" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
         </div>
       </div>
-      <button id="btnConfirmAddTM" class="btn btn-primary">Add to Roster</button>
-      <button id="btnCancelAddTM" class="btn btn-ghost">Cancel</button>
+      <button id="btnConfirmAddTM" class="btn btn-primary" data-es="Add to Roster">Add to Roster</button>
+      <button id="btnCancelAddTM" class="btn btn-ghost" data-es="Cancel">Cancel</button>
     </div>
   </div>
 
@@ -424,7 +424,7 @@
     <div class="tape-wrap">
       <div class="tape-head">
         <span>Recent Entries <span class="sub"><i>Entradas Recientes</i></span></span>
-        <button id="btnExportCsv" style="background:none;border:none;color:var(--cfa-red);cursor:pointer;font-size:11px;text-transform:uppercase;font-weight:600;letter-spacing:0.05em;">Export CSV</button>
+        <button id="btnExportCsv" style="background:none;border:none;color:var(--cfa-red);cursor:pointer;font-size:11px;text-transform:uppercase;font-weight:600;letter-spacing:0.05em;" data-es="Export CSV" data-es-inline>Export CSV</button>
       </div>
       <div class="tape" id="tape"></div>
     </div>
@@ -855,7 +855,7 @@
               <label class="du-row-upload"><input type="file" id="knFile" accept=".csv,.xlsx,.xls,.txt"><span>⬆ Upload projected sales &amp; productivity goals</span></label>
               <button type="button" id="knTemplate" class="btn btn-ghost">Download template</button>
               <button type="button" id="knFromForecast" class="btn btn-ghost full-only">Fill from the Forecast</button>
-              <p class="kn-help">Excel or CSV — a row per day and daypart (Date, Daypart, Projected Sales, Productivity Goal) — or fill the days ahead from the Forecast tab. Special events are still typed in below.</p>
+              <p class="kn-help">Excel or CSV — a row per day and daypart (Date, Daypart, Projected Sales, Productivity Goal) — or fill the days ahead from the Forecast tab. Special events and the actuals are typed in below.</p>
               <div id="knStatus" class="kn-status"></div>
             </div>
             <div class="week-toggle">
@@ -1044,6 +1044,7 @@
 <script src="/static/js/setup-evaluate.js"></script>
 <script src="/static/js/setup-develop.js"></script>
 <script src="/static/js/setup-planb.js"></script>
+<script src="/static/js/spanish.js"></script>
 <script src="/static/js/setups-board.js"></script>
 <script src="/static/js/setups-sheet.js"></script>
 <script src="/static/js/setup-leaders.js"></script>

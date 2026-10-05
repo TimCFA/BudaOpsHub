@@ -21,15 +21,15 @@ let suRefresh = {busy: false, at: 0, text: ''};
 const SU_ICON_REFRESH = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 21v-5h-5"/></svg>';
 
 function suModeBarHtml(){
-  const btn = (mode, label) => `<button type="button" class="su-mode-btn ${suMode === mode ? 'active' : ''}" aria-pressed="${suMode === mode}" data-su-mode="${mode}">${label}</button>`;
-  const checked = suRefresh.at ? `<span class="su-refresh-note" role="status">${escapeHtml(suRefresh.text)} · ${escapeHtml(formatShortTime(suRefresh.at))}</span>` : '<span class="su-refresh-note" role="status"></span>';
+  const btn = (mode, label) => `<button type="button" class="su-mode-btn ${suMode === mode ? 'active' : ''}" aria-pressed="${suMode === mode}" data-su-mode="${mode}">${label}${esLine(label)}</button>`;
+  const checked = suRefresh.at ? `<span class="su-refresh-note" role="status">${escapeHtml(suRefresh.text)} · ${escapeHtml(formatShortTime(suRefresh.at))}${esSpan(suRefresh.es)}</span>` : '<span class="su-refresh-note" role="status"></span>';
   return `
     <div class="su-modebar">
       <div class="su-mode" role="group" aria-label="View">${btn('sheet', 'Set up')}${btn('coach', 'Coach')}</div>
       <div class="su-modebar-actions">
         ${checked}
-        <button type="button" class="su-print-btn su-refresh-btn ${suRefresh.busy ? 'is-busy' : ''}" data-su-refresh="1" aria-label="Refresh the set up" ${suRefresh.busy ? 'disabled' : ''}>${SU_ICON_REFRESH}<span>${suRefresh.busy ? 'Checking' : 'Refresh'}</span></button>
-        <button type="button" class="su-print-btn" data-su-print="1" aria-label="Print today’s set up"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="2"/><path d="M7 14h10v7H7z"/></svg><span>Print</span></button>
+        <button type="button" class="su-print-btn su-refresh-btn ${suRefresh.busy ? 'is-busy' : ''}" data-su-refresh="1" aria-label="Refresh the set up" ${suRefresh.busy ? 'disabled' : ''}>${SU_ICON_REFRESH}<span>${suRefresh.busy ? 'Checking' : 'Refresh'}${esLine(suRefresh.busy ? 'Checking' : 'Refresh')}</span></button>
+        <button type="button" class="su-print-btn" data-su-print="1" aria-label="Print today’s set up"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="2"/><path d="M7 14h10v7H7z"/></svg><span>Print${esLine('Print')}</span></button>
       </div>
     </div>`;
 }
@@ -58,6 +58,7 @@ async function suRunRefresh(){
   const moved = new Set([...Object.keys(before), ...Object.keys(after)].filter(k => before[k] !== after[k])).size;
   suRefresh.at = Date.now();
   suRefresh.text = moved ? `${moved} spot${moved === 1 ? '' : 's'} updated` : 'Up to date';
+  suRefresh.es = moved ? esText('N spots updated', moved) : esText('Up to date');
   if(result.changed) suNameMap = null;
   renderAllDayparts();
   showToast(moved ? `Set up refreshed: ${moved} spot${moved === 1 ? '' : 's'} changed` : result.changed ? 'Set up refreshed' : 'Your set up is up to date');
@@ -70,7 +71,7 @@ function suSheetNameHtml(t, brk){
   const who = t.names.length > 1 && t.timeNote ? suDisplayName(t.names[0]) : t.names.map(suDisplayName).join(' → ');
   const lead = t.leaderRole ? `<span class="su-row-role" title="${escapeHtml(t.leaderRole)}">${t.leaderRole === 'Team Lead' ? 'TL' : 'T'}</span>` : '';
   const note = t.timeNote ? `<span class="su-row-note ${t.timeNote.warn ? 'is-warn' : ''}">${escapeHtml(t.timeNote.text)}</span>` : '';
-  const flag = t.flagged ? '<span class="su-row-note is-warn">needs coverage</span>' : '';
+  const flag = t.flagged ? `<span class="su-row-note is-warn">needs coverage${esHtml('needs coverage')}</span>` : '';
   const brkNote = brk ? `<span class="su-row-note is-break" title="Planned 30-minute break">☕ ${suClock(brk)}</span>` : '';
   return `<span class="su-row-who">${suTierDotHtml(t)}${escapeHtml(who)}${lead}</span>${note}${brkNote}${flag}`;
 }
@@ -90,7 +91,7 @@ function suTierDotHtml(t){
 
 function suTierKeyHtml(){
   if(!peaRatings.rows.length) return '';
-  return `<div class="su-tier-key" aria-hidden="true"><span><i class="su-tier-dot is-crushing"></i>Crushing It</span><span><i class="su-tier-dot is-rise"></i>On the Rise</span><span><i class="su-tier-dot is-notyet"></i>Not Yet</span><span><i class="su-tier-dot is-unrated"></i>Not rated</span></div>`;
+  return `<div class="su-tier-key" aria-hidden="true"><span><i class="su-tier-dot is-crushing"></i>Crushing It${esHtml('Crushing It')}</span><span><i class="su-tier-dot is-rise"></i>On the Rise${esHtml('On the Rise')}</span><span><i class="su-tier-dot is-notyet"></i>Not Yet${esHtml('Not Yet')}</span><span><i class="su-tier-dot is-unrated"></i>Not rated${esHtml('Not rated')}</span></div>`;
 }
 
 // The open daypart card's body in the Set up view: the positions, zone by
@@ -121,7 +122,7 @@ function suSheetViewHtml(section, date, dp, dpIndex, m){
     return `
           <div class="su-rowwrap ${notes.length ? 'has-notes' : ''}">
           <button type="button" class="su-row su-z-${suZoneKeyOf(section, x.slot)} ${x.needed ? 'is-needed' : ''} ${!x.names.length ? 'is-open' : ''}" data-su-tile="${escapeHtml(x.slot)}" aria-label="${escapeHtml(`#${x.rank} ${x.slot}: ${x.names.length ? x.names.join(' then ') : x.needed ? 'needed' : 'open'}`)}">
-            <span class="su-row-slot"><span class="su-row-rank">${x.rank}</span>${escapeHtml(x.slot)}</span>
+            <span class="su-row-slot"><span class="su-row-rank">${x.rank}</span><span class="su-row-slotname">${escapeHtml(x.slot)}${esSpan(esPlace(x.slot), true)}</span></span>
             <span class="su-row-name">${suSheetNameHtml(x, rowBreak(x))}</span>
           </button>
           <button type="button" class="su-row-notebtn ${notes.length ? 'has' : ''}" data-su-note="${escapeHtml(x.slot)}" aria-label="${escapeHtml(`${notes.length ? `Read ${notes.length} note${notes.length === 1 ? '' : 's'} on` : 'Add a note to'} ${x.slot}`)}" title="${notes.length ? `${notes.length} note${notes.length === 1 ? '' : 's'}` : 'Add a note'}">${notes.length ? SU_ICON_NOTE_MARK + (notes.length > 1 ? `<span class="su-row-notecount">${notes.length}</span>` : '') : SU_ICON_PENCIL}</button>
@@ -130,8 +131,8 @@ function suSheetViewHtml(section, date, dp, dpIndex, m){
   const zones = `
       <section class="su-sheet-zone su-sheet-list" aria-label="Positions in priority order">
         ${rows}
-        ${hidden.length ? `<button type="button" class="su-zone-more" data-su-zone-more="all">+ ${hidden.length} more spot${hidden.length === 1 ? '' : 's'} if you have extra people</button>` : ''}
-        ${showAll && m.headcount && upTo > Math.max(m.headcount, lastFilled) ? `<button type="button" class="su-zone-more" data-su-zone-less="all">Hide open extras</button>` : ''}
+        ${hidden.length ? `<button type="button" class="su-zone-more" data-su-zone-more="all">+ ${hidden.length} more spot${hidden.length === 1 ? '' : 's'} if you have extra people${esLine('N more spots', hidden.length)}</button>` : ''}
+        ${showAll && m.headcount && upTo > Math.max(m.headcount, lastFilled) ? `<button type="button" class="su-zone-more" data-su-zone-less="all">Hide open extras${esLine('Hide open extras')}</button>` : ''}
         ${suResetsStripHtml(section, date, dp)}
       </section>`;
 
@@ -198,16 +199,16 @@ function suNoteSheetHtml(section, date, dp, m, slot){
   const notes = posNotesFor(key);
   const ini = getInitials();
   const draft = suNoteDraft.key === key ? suNoteDraft.text : '';
-  const list = notes.length ? `<div class="su-notes">${notes.map((n, i) => `<div class="su-notes-item"><div>${escapeHtml(n.text)}<div class="su-notes-meta">${suNoteStampHtml(n)} today</div></div>${n.by === ini ? `<button type="button" class="su-notes-rm" data-su-note-rm="${i}">Remove</button>` : ''}</div>`).join('')}</div>` : '<p class="su-notes-empty">No notes on this spot yet.</p>';
+  const list = notes.length ? `<div class="su-notes">${notes.map((n, i) => `<div class="su-notes-item"><div>${escapeHtml(n.text)}<div class="su-notes-meta">${suNoteStampHtml(n)} today${esHtml('today')}</div></div>${n.by === ini ? `<button type="button" class="su-notes-rm" data-su-note-rm="${i}">Remove${esLine('Remove')}</button>` : ''}</div>`).join('')}</div>` : `<p class="su-notes-empty">No notes on this spot yet.${esLine('No notes on this spot yet.')}</p>`;
   const who = t && t.names.length ? t.names.map(suDisplayName).join(' → ') : 'Open';
   const body = `
     <div class="su-notes-who">${escapeHtml(suShortDaypart(dp.name))} · ${escapeHtml(who)}</div>
     ${list}
-    <textarea id="suNoteText" class="su-notes-text" rows="3" maxlength="500" placeholder="Something the next person needs to know">${escapeHtml(draft)}</textarea>
-    <div class="su-notes-sign">${ini ? `Signed <b>${escapeHtml(ini)}</b> at ${escapeHtml(formatShortTime(Date.now()))}` : 'Set your initials (top right) to sign a note'}</div>
+    <textarea id="suNoteText" class="su-notes-text" rows="3" maxlength="500" placeholder="Something the next person needs to know / ${escapeHtml(esText('Something the next person needs to know'))}">${escapeHtml(draft)}</textarea>
+    <div class="su-notes-sign">${ini ? `Signed <b>${escapeHtml(ini)}</b> at ${escapeHtml(formatShortTime(Date.now()))}${esHtml('Signed')}` : `Set your initials (top right) to sign a note${esLine('Set your initials (top right) to sign a note')}`}</div>
     <div class="su-person-actions">
-      <button type="button" class="su-btn-line" data-su-close-sheet="1">Cancel</button>
-      ${ini ? `<button type="button" class="su-btn-dark" data-su-note-save="1">Add note</button>` : `<button type="button" class="su-btn-dark" data-su-note-initials="1">Set initials</button>`}
+      <button type="button" class="su-btn-line" data-su-close-sheet="1">Cancel${esLine('Cancel')}</button>
+      ${ini ? `<button type="button" class="su-btn-dark" data-su-note-save="1">Add note${esLine('Add note')}</button>` : `<button type="button" class="su-btn-dark" data-su-note-initials="1">Set initials${esLine('Set initials')}</button>`}
     </div>`;
   return suSheetFrame(`Note · ${slot}`, body);
 }
@@ -221,18 +222,20 @@ function suRowSheetHtml(section, date, dp, m, slot){
     const p = suTimingFor(m.timing, n);
     const when = p ? `${suClock(p.from)}–${suClock(p.to)}` : '';
     const role = suLeaderRole(section, date, n, peaStrengthByPerson());
-    return `<div class="su-pb-row"><span class="su-pb-v"><b>${escapeHtml(n)}</b><span>${escapeHtml([when && `here ${when}`, role].filter(Boolean).join(' · ') || 'on the roster')}</span></span></div>`;
+    const en = [when && `here ${when}`, role].filter(Boolean).join(' · ') || 'on the roster';
+    const es = [when && `${esText('here')} ${when}`, role && esText(role)].filter(Boolean).join(' · ') || esText('on the roster');
+    return `<div class="su-pb-row"><span class="su-pb-v"><b>${escapeHtml(n)}</b><span>${escapeHtml(en)}${esSpan(es)}</span></span></div>`;
   }).join('');
   const body = `
     <div class="su-pb">${lines}</div>
     <div class="su-person-actions" style="grid-template-columns:1fr 1fr 1fr 1fr">
-      <button type="button" class="su-btn-line" data-su-change="${escapeHtml(slot)}">Change</button>
-      <button type="button" class="su-btn-line" data-su-handoff="${escapeHtml(slot)}">Hand off</button>
-      <button type="button" class="su-btn-line" data-su-note="${escapeHtml(slot)}">Note</button>
-      <button type="button" class="su-btn-line" data-su-unassign="${escapeHtml(slot)}">Clear</button>
+      <button type="button" class="su-btn-line" data-su-change="${escapeHtml(slot)}">Change${esLine('Change')}</button>
+      <button type="button" class="su-btn-line" data-su-handoff="${escapeHtml(slot)}">Hand off${esLine('Hand off')}</button>
+      <button type="button" class="su-btn-line" data-su-note="${escapeHtml(slot)}">Note${esLine('Note')}</button>
+      <button type="button" class="su-btn-line" data-su-unassign="${escapeHtml(slot)}">Clear${esLine('Clear')}</button>
     </div>
     <button type="button" class="su-sheet-coachlink" data-su-mode="coach" data-su-coach-slot="${escapeHtml(slot)}">See scores and Plan B in Coach →</button>
-    <p class="su-drag-tip">${SU_ICON_GRIP}Hold a name and drag it to another spot to move, or onto someone to trade.</p>`;
+    <p class="su-drag-tip">${SU_ICON_GRIP}<span>Hold a name and drag it to another spot to move, or onto someone to trade.${esLine('Drag tip')}</span></p>`;
   return suSheetFrame(`${slot} · #${t.rank}`, body);
 }
 

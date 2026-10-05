@@ -240,15 +240,18 @@ function suFillAvailable(){
 }
 
 // Know the Numbers for the daypart, as a short line on the card: projected
-// sales, the productivity goal, and any special event. Nothing when none
-// are entered.
+// sales, the productivity goal, and any special event; once actual sales
+// are typed, the actual and how far off projection. Nothing when none are
+// entered.
 function suNumbersLineHtml(date, dp){
   const n = getNumbersForDaypart(date, dp);
   if(!n) return '';
   const money = v => { const x = parseMoney(v); return x == null ? '' : x >= 10000 ? `$${(x / 1000).toFixed(1)}k` : `$${Math.round(x).toLocaleString('en-US')}`; };
   const sales = money(n.projectedSales), goal = money(n.productivityGoal), ev = String(n.specialEvents || '').trim();
-  if(!sales && !goal && !ev) return '';
-  return `<div class="su-dp-nums" data-su-dp-toggle="${escapeHtml(dp.name)}">${sales ? `<span class="su-dp-num"><b>${escapeHtml(sales)}</b> projected</span>` : ''}${goal ? `<span class="su-dp-num"><b>${escapeHtml(goal)}</b>/labor hr</span>` : ''}${ev ? `<span class="su-dp-num is-event" title="${escapeHtml(ev)}">${escapeHtml(ev)}</span>` : ''}</div>`;
+  const actual = money(n.actualSales), vs = knVersus(n.actualSales, n.projectedSales);
+  if(!sales && !goal && !ev && !actual) return '';
+  const off = vs && vs.pct !== null ? ` <span class="su-dp-vs ${vs.diff >= 0 ? 'is-up' : 'is-down'}">${vs.pct < 0 ? '−' : '+'}${Math.abs(vs.pct).toFixed(1)}%</span>` : '';
+  return `<div class="su-dp-nums" data-su-dp-toggle="${escapeHtml(dp.name)}">${sales ? `<span class="su-dp-num"><b>${escapeHtml(sales)}</b> projected${esHtml('projected')}</span>` : ''}${actual ? `<span class="su-dp-num"><b>${escapeHtml(actual)}</b> actual${esHtml('actual')}${off}</span>` : ''}${goal ? `<span class="su-dp-num"><b>${escapeHtml(goal)}</b>/labor hr${esHtml('per labor hour')}</span>` : ''}${ev ? `<span class="su-dp-num is-event" title="${escapeHtml(ev)}">${escapeHtml(ev)}</span>` : ''}</div>`;
 }
 
 function suDaypartCardsHtml(section, date, current, openHtml, m){
@@ -261,13 +264,13 @@ function suDaypartCardsHtml(section, date, current, openHtml, m){
     // banner opens and closes the card.
     const leadBtn = section === 'foh' ? `<span class="su-dp-k">Lead</span><button type="button" class="su-dp-lead" data-su-lead-open="1" data-su-lead-dp="${escapeHtml(dp.name)}">${lead ? `<b>${escapeHtml(suDisplayName(lead))}</b>` : '<em>Choose</em>'}</button>${working ? `<span class="su-dp-where">· ${escapeHtml(working)}</span>` : ''}` : '';
     const needed = open && m ? m.tiles.filter(x => x.needed).length : 0;
-    const fillBtn = needed && m.unplaced.length && suFillAvailable() ? `<button type="button" class="su-dp-fillbtn" data-su-tool="fill">Fill ${needed} open</button>` : '';
+    const fillBtn = needed && m.unplaced.length && suFillAvailable() ? `<button type="button" class="su-dp-fillbtn" data-su-tool="fill">Fill ${needed} open${esLine('Fill N open', needed)}</button>` : '';
     const sky = suDaypartSky(dp.name);
     return `<section class="su-dp su-col-${suDaypartColor(dp.name)} ${open ? 'is-open' : ''}" aria-label="${escapeHtml(suShortDaypart(dp.name))}">
       <div class="su-dp-banner">
         <button type="button" class="su-dp-head" data-su-dp-toggle="${escapeHtml(dp.name)}" aria-expanded="${open}">
           <span class="su-dp-art">${suSkyArt(sky)}</span>
-          <span class="su-dp-name">${escapeHtml(suShortDaypart(dp.name))}${time ? ` <span class="su-dp-time">${escapeHtml(time)}</span>` : ''}</span>
+          <span class="su-dp-name">${escapeHtml(suShortDaypart(dp.name))}${time ? ` <span class="su-dp-time">${escapeHtml(time)}</span>` : ''}${esSpan(esDaypart(dp.name), true)}</span>
           <span class="su-dp-fill">${suDaypartFillText(section, date, dp, i)}</span>
           <span class="su-dp-chev" aria-hidden="true">▾</span>
         </button>

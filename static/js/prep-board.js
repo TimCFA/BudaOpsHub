@@ -339,16 +339,18 @@ function pbComputeSuggestion(day){
   if(soldTotal <= 0) return null;
   const ratio = wasteTotal / soldTotal;
   const current = prepBuffers[day] != null ? prepBuffers[day] : 10;
-  let suggested = null, reason = '';
+  let suggested = null, reason = '', reasonEs = '';
   if(ratio >= PB_WASTE_RATIO_HIGH){
     suggested = Math.max(0, current - 5);
     reason = 'Waste is running about ' + Math.round(ratio*100) + '% of what you sold — consider trimming the buffer.';
+    reasonEs = esText('Waste high reason', Math.round(ratio*100));
   } else if(ratio <= PB_WASTE_RATIO_LOW && current < 15){
     suggested = Math.min(100, current + 5);
     reason = 'Waste is very low (about ' + Math.round(ratio*100) + '%) — if you’re running short, a slightly higher buffer may help.';
+    reasonEs = esText('Waste low reason', Math.round(ratio*100));
   }
   if(suggested === null || suggested === current) return null;
-  return { suggested, current, reason, ratio, wasteEntries: waste.length };
+  return { suggested, current, reason, reasonEs, ratio, wasteEntries: waste.length };
 }
 
 function pbParsePaste(text){
@@ -657,7 +659,7 @@ function pbPeriodAveragesForBucket(bucket){
 function pbTrendSvg(rows, opts){
   opts = opts || {};
   const unit = opts.unit || 'wasted';
-  if(rows.length === 0) return `<div class="pb-empty">${opts.emptyText || 'No waste logged yet for this item.'}</div>`;
+  if(rows.length === 0) return `<div class="pb-empty">${opts.emptyText || 'No waste logged yet for this item.' + esLine('No waste logged yet for this item.')}</div>`;
   const W = 600, H = 160, padL = 8, padR = 8, padT = 14, padB = 22;
   const maxV = Math.max.apply(null, rows.map(r => r.value)) || 1;
   const stepX = rows.length > 1 ? (W - padL - padR) / (rows.length - 1) : 0;
@@ -706,7 +708,7 @@ function pbDateNavHtml(){
     const wd = pbWeekdayOf(d);
     const buf = prepBuffers[wd] != null ? prepBuffers[wd] : 10;
     const md = pbDateFromISO(d);
-    return `<button class="pb-day-btn ${d===pbCurrentDate?'active':''}" data-pb-select-date="${d}">${wd.slice(0,3)} ${md.getMonth()+1}/${md.getDate()}<span class="pb-buf-tag">${buf}%</span></button>`;
+    return `<button class="pb-day-btn ${d===pbCurrentDate?'active':''}" data-pb-select-date="${d}">${wd.slice(0,3)} ${md.getMonth()+1}/${md.getDate()}${esSpan(esWeekday(wd.slice(0,3)), true)}<span class="pb-buf-tag">${buf}%</span></button>`;
   }).join('')}
   <label class="pb-date-jump">or <input type="date" data-pb-prep-date value="${pbCurrentDate}"></label></nav>`;
 }
@@ -718,10 +720,10 @@ function pbSuggestBannerHtml(){
   if(pbDismissedSuggestions[pbCurrentDay] === s.suggested) return '';
   return `
     <div class="pb-banner">
-      <div><strong>Buffer suggestion for ${pbCurrentDay}:</strong> ${s.reason} (${s.current}% → ${s.suggested}%, based on ${s.wasteEntries} waste ${s.wasteEntries===1?'entry':'entries'})</div>
+      <div><strong>Buffer suggestion for ${pbCurrentDay}:</strong> ${s.reason} (${s.current}% → ${s.suggested}%, based on ${s.wasteEntries} waste ${s.wasteEntries===1?'entry':'entries'})${esLine('Buffer suggestion', esWeekday(pbCurrentDay), s.reasonEs, s.current, s.suggested)}</div>
       <div class="pb-banner-actions">
-        <button class="btn btn-primary" style="width:auto;padding:6px 14px;font-size:12px;" data-pb-apply-suggestion="${pbCurrentDay}" data-suggested="${s.suggested}">Apply ${s.suggested}%</button>
-        <button class="btn btn-ghost" style="width:auto;padding:6px 14px;font-size:12px;" data-pb-dismiss-suggestion="${pbCurrentDay}" data-suggested="${s.suggested}">Dismiss</button>
+        <button class="btn btn-primary" style="width:auto;padding:6px 14px;font-size:12px;" data-pb-apply-suggestion="${pbCurrentDay}" data-suggested="${s.suggested}">Apply ${s.suggested}%${esLine('Apply')}</button>
+        <button class="btn btn-ghost" style="width:auto;padding:6px 14px;font-size:12px;" data-pb-dismiss-suggestion="${pbCurrentDay}" data-suggested="${s.suggested}">Dismiss${esLine('Dismiss')}</button>
       </div>
     </div>
   `;
@@ -731,9 +733,10 @@ function pbRenderBuildTo(){
   const f = pbForecast(pbCurrentDate);
   const plural = f.weekday + 's';
   const basisText = f.n === 0 ? 'no data yet' : `${f.n} ${f.n === 1 ? f.weekday : plural} on record`;
-  let html = `<p class="pb-subline">${pbFormatDate(pbCurrentDate, {year: true})} · ${basisText} · ${f.bufferPct}% buffer</p>`;
+  const basisEs = f.n === 0 ? esText('no data yet') : esText('N weekdays on record', f.n, esWeekday(f.weekday, f.n !== 1));
+  let html = `<p class="pb-subline">${pbFormatDate(pbCurrentDate, {year: true})} · ${basisText} · ${f.bufferPct}% buffer${esLine('Build-to subline', esDate(pbCurrentDate), basisEs, f.bufferPct)}</p>`;
   if(f.stats.length === 0){
-    return html + `<div class="pb-empty-day">No sold counts on file for ${plural} yet — switch to Sold Counts to add some.</div>`;
+    return html + `<div class="pb-empty-day">No sold counts on file for ${plural} yet — switch to Sold Counts to add some.${esLine('No sold counts for', esWeekday(f.weekday, true))}</div>`;
   }
   let note;
   if(f.seasonal){
@@ -743,13 +746,16 @@ function pbRenderBuildTo(){
   } else {
     note = `Based on a plain average of ${plural} on file — these entries have no dates yet. Give them dates on Sold Counts to weight recent weeks.`;
   }
-  html += `<div class="pb-forecast-note">${note}</div>`;
+  const noteEs = f.seasonal ? esText('Seasonal note', esWeekday(f.weekday, true), esDate(f.lyTarget))
+    : f.usingDated ? esText('Dated note', f.n, esWeekday(f.weekday, f.n !== 1), esDate(f.lyTarget))
+    : esText('Plain note', esWeekday(f.weekday, true));
+  html += `<div class="pb-forecast-note">${note}${esSpan(noteEs, true)}</div>`;
   ['Salads','Wraps','Sides','Other'].forEach(cat => {
     const items = f.stats.filter(it => it.category === cat);
     if(items.length === 0) return;
     html += `
       <section class="pb-category">
-        <div class="pb-category-head"><h3>${cat}</h3><span class="pb-count">${items.length} items</span></div>
+        <div class="pb-category-head"><h3>${cat}${esHtml(cat)}</h3><span class="pb-count">${items.length} items${esHtml('items')}</span></div>
         ${items.map(it => {
           const seasonPct = Math.round((it.factor - 1) * 100);
           const how = f.seasonal && seasonPct !== 0
@@ -757,11 +763,15 @@ function pbRenderBuildTo(){
             : `forecast ${it.forecast.toFixed(1)} · ${f.usingDated ? 'recent' : 'avg'} ${it.n} ${it.n === 1 ? f.weekday : plural}`;
           const lastYear = it.lastYear !== null ? ` · last year ${it.lastYear}` : '';
           const waste = it.wasteAvg !== null ? ` · <span class="pb-waste-flag">avg ${it.wasteAvg.toFixed(1)} wasted</span>` : '';
+          const howEs = f.seasonal && seasonPct !== 0
+            ? esText('forecast seasonal', it.forecast.toFixed(1), it.level.toFixed(1), `${seasonPct > 0 ? '+' : ''}${seasonPct}`)
+            : esText('forecast plain', it.forecast.toFixed(1), f.usingDated, it.n, esWeekday(f.weekday, it.n !== 1));
+          const metaEs = [howEs, it.lastYear !== null ? esText('last year N', it.lastYear) : '', it.wasteAvg !== null ? esText('avg N wasted', it.wasteAvg.toFixed(1)) : ''].filter(Boolean).join(' · ');
           return `
             <div class="pb-item-row">
               <div class="pb-item-left">
                 <div class="pb-item-name">${escapeHtml(it.name)}</div>
-                <div class="pb-item-meta"><span class="pb-confidence ${pbConfidenceClass(it.n)}"></span>${how}${lastYear}${waste}</div>
+                <div class="pb-item-meta"><span class="pb-confidence ${pbConfidenceClass(it.n)}"></span>${how}${lastYear}${waste}${esSpan(metaEs, true)}</div>
               </div>
               <div class="pb-item-buildto">${it.buildTo}</div>
             </div>
@@ -778,14 +788,14 @@ function pbListFilterNavHtml(list){
   const counts = {};
   list.forEach(e => { counts[e.day] = (counts[e.day] || 0) + 1; });
   const btn = (value, label, n) => `<button class="pb-day-btn ${pbListFilter===value?'active':''}" data-pb-list-filter="${value}">${label}<span class="pb-buf-tag">${n}</span></button>`;
-  return `<nav class="pb-days">${btn('all', 'All', list.length)}${PB_DAYS.map(d => btn(d, d.slice(0,3), counts[d] || 0)).join('')}</nav>`;
+  return `<nav class="pb-days">${btn('all', `All${esLine('All')}`, list.length)}${PB_DAYS.map(d => btn(d, `${d.slice(0,3)}${esSpan(esWeekday(d.slice(0,3)), true)}`, counts[d] || 0)).join('')}</nav>`;
 }
 
 // Newest first; each entry is a dropdown whose items are numbered so the count
 // can be checked against the report at a glance.
 function pbRenderEntryCards(list, removeAttr, kind){
   const shown = pbListFilter === 'all' ? list : list.filter(e => e.day === pbListFilter);
-  if(shown.length === 0) return `<div class="pb-empty-day">Nothing recorded yet${pbListFilter === 'all' ? '' : ' for ' + pbListFilter + 's'}.</div>`;
+  if(shown.length === 0) return `<div class="pb-empty-day">Nothing recorded yet${pbListFilter === 'all' ? '' : ' for ' + pbListFilter + 's'}.${esLine('Nothing recorded yet')}</div>`;
   return pbSortByDateDesc(shown).map(entry => {
     const itemNames = Object.keys(entry.items || {}).sort((a,b) => entry.items[b] - entry.items[a]);
     const total = itemNames.reduce((sum, n) => sum + (Number(entry.items[n]) || 0), 0);
@@ -793,10 +803,10 @@ function pbRenderEntryCards(list, removeAttr, kind){
     const isNew = pbJustAdded.has(entry.id);
     const title = entry.date
       ? escapeHtml(pbFormatDate(entry.date, {year: true}))
-      : `<span class="pb-undated">Undated${entry.label ? ' — ' + escapeHtml(entry.label) : ''}</span>`;
+      : `<span class="pb-undated">Undated${esHtml('Undated')}${entry.label ? ' — ' + escapeHtml(entry.label) : ''}</span>`;
     const dateFix = entry.date || !removeAttr ? '' : `
       <div class="pb-date-fix">
-        <label>Set the date for this entry</label>
+        <label>Set the date for this entry${esHtml('Set the date for this entry')}</label>
         <input type="date" max="${today}" data-pb-set-date="${escapeHtml(entry.id)}" data-kind="${kind}">
       </div>`;
     return `
@@ -804,12 +814,12 @@ function pbRenderEntryCards(list, removeAttr, kind){
         <div class="pb-entry-head">
           <button type="button" class="pb-entry-toggle" data-pb-toggle-entry="${escapeHtml(entry.id)}" aria-expanded="${open}">
             <span class="pb-entry-title">${title}</span>
-            <span class="pb-entry-sum">${itemNames.length} item${itemNames.length===1?'':'s'} · ${Math.round(total*10)/10} total</span>
-            ${isNew ? '<span class="pb-new-tag">New</span>' : ''}
+            <span class="pb-entry-sum">${itemNames.length} item${itemNames.length===1?'':'s'} · ${Math.round(total*10)/10} total${esLine('N items · N total', itemNames.length, Math.round(total*10)/10)}</span>
+            ${isNew ? `<span class="pb-new-tag">New${esHtml('New')}</span>` : ''}
             <span class="pb-src-tag">${escapeHtml(entry.source || 'manual')}</span>
             <span class="pb-entry-chevron">▾</span>
           </button>
-          ${removeAttr ? `<button class="pb-entry-remove" data-${removeAttr}="${entry.id}">Remove</button>` : ''}
+          ${removeAttr ? `<button class="pb-entry-remove" data-${removeAttr}="${entry.id}">Remove${esLine('Remove')}</button>` : ''}
         </div>
         ${dateFix}
         ${open ? `<div class="pb-entry-items">
@@ -826,37 +836,37 @@ function pbDateFieldHtml(attr, question, kind){
   const iso = pbEntryDates[kind] || pbDefaultEntryDate();
   return `
     <div class="pb-field">
-      <label>${question}</label>
+      <label>${question}${esHtml(question)}</label>
       <div class="pb-date-row">
-        <button type="button" class="pb-step-btn" data-pb-step-date="${kind}" data-delta="-1" aria-label="Previous day">← Prev day</button>
+        <button type="button" class="pb-step-btn" data-pb-step-date="${kind}" data-delta="-1" aria-label="Previous day">← Prev day${esLine('← Prev day')}</button>
         <input type="date" ${attr} value="${iso}" max="${today}">
-        <button type="button" class="pb-step-btn" data-pb-step-date="${kind}" data-delta="1" aria-label="Next day" ${iso >= today ? 'disabled' : ''}>Next day →</button>
+        <button type="button" class="pb-step-btn" data-pb-step-date="${kind}" data-delta="1" aria-label="Next day" ${iso >= today ? 'disabled' : ''}>Next day →${esLine('Next day →')}</button>
         <span class="pb-date-weekday" data-pb-weekday-for="${attr}">${pbWeekdayOf(iso)}</span>
       </div>
-      <div class="pb-field-hint">Stays on this date after each upload — tap Next day to move on. Files with a date column use each row's own date.</div>
+      <div class="pb-field-hint">Stays on this date after each upload — tap Next day to move on. Files with a date column use each row's own date.${esLine('Date field hint')}</div>
     </div>`;
 }
 
 function pbHistorySubline(list, noun){
   const n = pbListFilter === 'all' ? list.length : list.filter(e => e.day === pbListFilter).length;
-  return `<p class="pb-subline">${pbListFilter === 'all' ? 'All days' : pbListFilter + 's'} · ${n} ${noun}${n===1?'':'s'} recorded · newest first</p>`;
+  return `<p class="pb-subline">${pbListFilter === 'all' ? 'All days' : pbListFilter + 's'} · ${n} ${noun}${n===1?'':'s'} recorded · newest first${esLine('History subline', pbListFilter === 'all' ? '' : esWeekday(pbListFilter, true), n, noun)}</p>`;
 }
 
 function pbRenderRecorded(){
   let html = pbHistorySubline(prepSoldEntries, 'day');
   html += `
     <div class="pb-panel">
-      <button class="pb-panel-toggle" data-pb-toggle-panel="add">${pbAddPanelOpen?'−':'+'} Add sold counts</button>
+      <button class="pb-panel-toggle" data-pb-toggle-panel="add">${pbAddPanelOpen?'−':'+'} Add sold counts${esLine('Add sold counts')}</button>
       ${pbAddPanelOpen ? `
         <div class="pb-panel-body">
           ${pbDateFieldHtml('data-pb-sold-date', 'What date are these sales from?', 'sold')}
           <div class="pb-field">
-            <label>Paste item name + sold count (tab-separated)</label>
+            <label>Paste item name + sold count (tab-separated)${esLine('Paste item name + sold count (tab-separated)')}</label>
             <textarea data-pb-paste-area rows="5" placeholder="Salad, Cobb w/ Nuggets&#9;61.0"></textarea>
           </div>
-          <p class="pb-subline">Sales Mix report files go in Manage → Data Uploads (the date comes from the file name).</p>
+          <p class="pb-subline">Sales Mix report files go in Manage → Data Uploads (the date comes from the file name).${esLine('Sales Mix note')}</p>
           <div class="pb-panel-actions">
-            <button class="btn btn-primary" style="width:auto;padding:9px 18px;" data-pb-add-day>Add this day</button>
+            <button class="btn btn-primary" style="width:auto;padding:9px 18px;" data-pb-add-day>Add this day${esLine('Add this day')}</button>
           </div>
           <div class="pb-feedback" data-pb-feedback></div>
         </div>
@@ -872,14 +882,15 @@ function pbRenderWaste(){
   let html = pbHistorySubline(list, 'waste day');
   html += `<div class="pb-panel"><div class="pb-panel-body pb-waste-note">
     <b>Waste comes from the Waste tab.</b> Cold-side items logged there (salads, wraps, fruit cups, parfaits) show here by day and feed the build-to numbers, buffer suggestions and Insights. To fix an entry, use the Waste Summary on the Scoreboard tab.
+    ${esLine('Prep waste note')}
   </div></div>`;
   html += pbRenderEntryCards(list, null, 'waste');
   return html;
 }
 
 function pbRenderBuffers(){
-  let html = `<p class="pb-subline">Per-day prep buffers · applied on top of the average sold</p>`;
-  html += `<p class="pb-buffers-intro">Each day builds to its own buffer on top of the average sold count. Saturday defaults to 0% since sales are less predictable to over-build for; every other day defaults to 10%. Once a day has at least 3 waste-log entries, a suggested adjustment shows up here and on the Build-To Sheet — nothing changes automatically until you tap Apply.</p>`;
+  let html = `<p class="pb-subline">Per-day prep buffers · applied on top of the average sold${esLine('Buffers subline')}</p>`;
+  html += `<p class="pb-buffers-intro">Each day builds to its own buffer on top of the average sold count. Saturday defaults to 0% since sales are less predictable to over-build for; every other day defaults to 10%. Once a day has at least 3 waste-log entries, a suggested adjustment shows up here and on the Build-To Sheet — nothing changes automatically until you tap Apply.${esLine('Buffers intro')}</p>`;
   html += '<div class="pb-buffer-table">';
   PB_DAYS.forEach(day => {
     const current = prepBuffers[day] != null ? prepBuffers[day] : 10;
@@ -887,7 +898,7 @@ function pbRenderBuffers(){
     const showSuggest = s && pbDismissedSuggestions[day] !== s.suggested;
     html += `
       <div class="pb-buffer-row">
-        <div class="pb-bd-name">${day}</div>
+        <div class="pb-bd-name">${day}${esSpan(esWeekday(day), true)}</div>
         <div class="pb-stepper">
           <button data-pb-buffer-step="${day}" data-delta="-5">−</button>
           <div class="pb-step-value">${current}%</div>
@@ -896,7 +907,7 @@ function pbRenderBuffers(){
         <div class="pb-preset-chips">
           ${[0,5,10,15,20].map(val => `<button class="pb-preset-chip ${current===val?'active':''}" data-pb-buffer-set="${day}" data-value="${val}">${val}%</button>`).join('')}
         </div>
-        ${showSuggest ? `<div class="pb-bd-suggest"><span>suggest ${s.suggested}% — ${s.reason}</span><button data-pb-apply-suggestion="${day}" data-suggested="${s.suggested}">Apply</button></div>` : ''}
+        ${showSuggest ? `<div class="pb-bd-suggest"><span>suggest ${s.suggested}% — ${s.reason}${esLine('suggest N%', s.suggested, s.reasonEs)}</span><button data-pb-apply-suggestion="${day}" data-suggested="${s.suggested}">Apply${esLine('Apply')}</button></div>` : ''}
       </div>
     `;
   });
@@ -905,46 +916,46 @@ function pbRenderBuffers(){
 }
 
 function pbRenderInsights(){
-  let html = `<p class="pb-subline">Cross-day trends · pulled from every Sold Counts entry and the Waste tab</p>`;
+  let html = `<p class="pb-subline">Cross-day trends · pulled from every Sold Counts entry and the Waste tab${esLine('Insights subline')}</p>`;
 
   // Sales over time: weekly totals + month / season averages for one item.
   const soldNames = {};
   prepSoldEntries.forEach(e => { if(e.date) Object.keys(pbBucketTotals(e)).forEach(b => { soldNames[b] = true; }); });
   const trendNames = Object.keys(soldNames).sort();
   if(!pbTrendItem || trendNames.indexOf(pbTrendItem) === -1) pbTrendItem = trendNames[0] || null;
-  html += `<section class="pb-category"><div class="pb-category-head"><h3>Sales over time</h3><span class="pb-count">weeks, months &amp; seasons</span></div>`;
+  html += `<section class="pb-category"><div class="pb-category-head"><h3>Sales over time${esHtml('Sales over time')}</h3><span class="pb-count">weeks, months &amp; seasons${esHtml('weeks, months & seasons')}</span></div>`;
   if(!pbTrendItem){
-    html += `<div class="pb-empty">Add dated Sold Counts to see sales trends.</div>`;
+    html += `<div class="pb-empty">Add dated Sold Counts to see sales trends.${esLine('Add dated Sold Counts to see sales trends.')}</div>`;
   } else {
-    html += `<div class="pb-insight-controls"><label>Item</label><select data-pb-trend-item>${trendNames.map(n => `<option value="${escapeHtml(n)}" ${n===pbTrendItem?'selected':''}>${escapeHtml(n)}</option>`).join('')}</select></div>`;
-    html += `<div class="pb-trend-wrap">${pbTrendSvg(pbWeeklySoldForBucket(pbTrendItem), {unit: 'sold that week', emptyText: 'No dated sales for this item yet.'})}</div>`;
+    html += `<div class="pb-insight-controls"><label>Item${esHtml('Item')}</label><select data-pb-trend-item>${trendNames.map(n => `<option value="${escapeHtml(n)}" ${n===pbTrendItem?'selected':''}>${escapeHtml(n)}</option>`).join('')}</select></div>`;
+    html += `<div class="pb-trend-wrap">${pbTrendSvg(pbWeeklySoldForBucket(pbTrendItem), {unit: 'sold that week', emptyText: 'No dated sales for this item yet.' + esLine('No dated sales for this item yet.')})}</div>`;
     const periods = pbPeriodAveragesForBucket(pbTrendItem);
     const periodTable = (title, rows) => `
       <div class="pb-period">
-        <div class="pb-period-title">${title}</div>
-        ${rows.map(r => `<div class="pb-period-row"><span>${escapeHtml(r.label)}</span><span class="pb-period-avg">${r.avg.toFixed(1)}<small>/day</small></span><span class="pb-period-days">${r.days} ${r.days === 1 ? 'day' : 'days'}</span></div>`).join('')}
+        <div class="pb-period-title">${title}${esHtml(title)}</div>
+        ${rows.map(r => `<div class="pb-period-row"><span>${escapeHtml(r.label)}</span><span class="pb-period-avg">${r.avg.toFixed(1)}<small>/day</small></span><span class="pb-period-days">${r.days} ${r.days === 1 ? 'day' : 'days'}${esHtml('N days', r.days)}</span></div>`).join('')}
       </div>`;
     html += `<div class="pb-period-grid">${periodTable('By month', periods.months)}${periodTable('By season', periods.seasons)}</div>`;
-    html += `<p class="pb-period-note">Average sold per open day. Build-To starts adjusting for the season automatically once a year of dated sales is on file.</p>`;
+    html += `<p class="pb-period-note">Average sold per open day. Build-To starts adjusting for the season automatically once a year of dated sales is on file.${esLine('Period note')}</p>`;
   }
   html += '</section>';
 
-  html += `<section class="pb-category"><div class="pb-category-head"><h3>Highest volatility</h3><span class="pb-count">day-to-day swing in sold counts</span></div>`;
+  html += `<section class="pb-category"><div class="pb-category-head"><h3>Highest volatility${esHtml('Highest volatility')}</h3><span class="pb-count">day-to-day swing in sold counts${esHtml('day-to-day swing in sold counts')}</span></div>`;
   html += pbHbarChart(pbComputeVolatility().slice(0, 10), {
-    emptyText: 'Add at least two days of Sold Counts for the same item to see volatility.',
+    emptyText: 'Add at least two days of Sold Counts for the same item to see volatility.' + esLine('Volatility empty'),
     valueFn: r => r.cv,
     valueLabel: (r,v) => Math.round(v*100) + '%',
-    subHtml: r => r.n + ' days',
+    subHtml: r => r.n + ' days' + esHtml('N days', r.n),
     fillColor: (r, v, max) => `color-mix(in srgb, var(--cfa-red) ${Math.round(30 + 70*(v/max))}%, transparent)`
   });
   html += '</section>';
 
-  html += `<section class="pb-category"><div class="pb-category-head"><h3>Waste vs. sold</h3><span class="pb-count">share of build thrown away</span></div>`;
+  html += `<section class="pb-category"><div class="pb-category-head"><h3>Waste vs. sold${esHtml('Waste vs. sold')}</h3><span class="pb-count">share of build thrown away${esHtml('share of build thrown away')}</span></div>`;
   html += pbHbarChart(pbComputeWasteRatios().slice(0, 10), {
-    emptyText: 'Log cold-side waste on the Waste tab to see which items run heaviest.',
+    emptyText: 'Log cold-side waste on the Waste tab to see which items run heaviest.' + esLine('Waste ratio empty'),
     valueFn: r => r.ratio,
     valueLabel: (r,v) => Math.round(v*100) + '%',
-    subHtml: r => { const st = pbRatioStatus(r.ratio); return `<span class="pb-status-pill ${st.cls}">${st.label}</span>`; },
+    subHtml: r => { const st = pbRatioStatus(r.ratio); return `<span class="pb-status-pill ${st.cls}">${st.label}${esHtml(st.label)}</span>`; },
     fillColor: (r) => {
       const s = pbRatioStatus(r.ratio).cls;
       const tok = s === 'high' ? '--cfa-red' : (s === 'good' ? '--success' : '#C97A1E');
@@ -957,27 +968,27 @@ function pbRenderInsights(){
   if(!pbInsightItem || names.indexOf(pbInsightItem) === -1){
     pbInsightItem = (pbComputeWasteRatios()[0] || {}).name || names[0] || null;
   }
-  html += `<section class="pb-category"><div class="pb-category-head"><h3>Waste over time</h3><span class="pb-count">per item</span></div>`;
+  html += `<section class="pb-category"><div class="pb-category-head"><h3>Waste over time${esHtml('Waste over time')}</h3><span class="pb-count">per item${esHtml('per item')}</span></div>`;
   if(names.length){
-    html += `<div class="pb-insight-controls"><label>Item</label><select data-pb-insight-item>${names.map(n => `<option value="${escapeHtml(n)}" ${n===pbInsightItem?'selected':''}>${escapeHtml(n)}</option>`).join('')}</select></div>`;
+    html += `<div class="pb-insight-controls"><label>Item${esHtml('Item')}</label><select data-pb-insight-item>${names.map(n => `<option value="${escapeHtml(n)}" ${n===pbInsightItem?'selected':''}>${escapeHtml(n)}</option>`).join('')}</select></div>`;
   }
-  html += `<div class="pb-trend-wrap">${pbInsightItem ? pbTrendSvg(pbWasteTrendForBucket(pbInsightItem)) : '<div class="pb-empty">No items logged yet.</div>'}</div>`;
+  html += `<div class="pb-trend-wrap">${pbInsightItem ? pbTrendSvg(pbWasteTrendForBucket(pbInsightItem)) : `<div class="pb-empty">No items logged yet.${esLine('No items logged yet.')}</div>`}</div>`;
   html += '</section>';
 
-  html += `<section class="pb-category"><div class="pb-category-head"><h3>Stockouts</h3><span class="pb-count">what ran out, and when</span></div>`;
+  html += `<section class="pb-category"><div class="pb-category-head"><h3>Stockouts${esHtml('Stockouts')}</h3><span class="pb-count">what ran out, and when${esHtml('what ran out, and when')}</span></div>`;
   const knownNames = names.length ? names : Object.keys(PB_CATEGORY_OF_BUCKET);
   const now = new Date();
   const nowVal = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
   html += `
     <div class="pb-stockout-add">
-      <div class="pb-field"><label>Item</label><select data-pb-stockout-item>${knownNames.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('')}</select></div>
-      <div class="pb-field"><label>Day</label><select data-pb-stockout-day>${PB_DAYS.map(d => `<option value="${d}" ${d===pbCurrentDay?'selected':''}>${d}</option>`).join('')}</select></div>
-      <div class="pb-field"><label>Time</label><input type="time" data-pb-stockout-time value="${nowVal}"></div>
-      <button class="btn btn-primary" style="width:auto;padding:9px 16px;" data-pb-log-stockout>Log stockout</button>
+      <div class="pb-field"><label>Item${esHtml('Item')}</label><select data-pb-stockout-item>${knownNames.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('')}</select></div>
+      <div class="pb-field"><label>Day${esHtml('Day')}</label><select data-pb-stockout-day>${PB_DAYS.map(d => `<option value="${d}" ${d===pbCurrentDay?'selected':''}>${d}</option>`).join('')}</select></div>
+      <div class="pb-field"><label>Time${esHtml('Time')}</label><input type="time" data-pb-stockout-time value="${nowVal}"></div>
+      <button class="btn btn-primary" style="width:auto;padding:9px 16px;" data-pb-log-stockout>Log stockout${esLine('Log stockout')}</button>
     </div>
   `;
   if(stockoutEventsIsEmpty()){
-    html += `<div class="pb-empty-day">No stockouts logged yet — add one above when an item runs out mid-shift.</div>`;
+    html += `<div class="pb-empty-day">No stockouts logged yet — add one above when an item runs out mid-shift.${esLine('No stockouts logged yet')}</div>`;
   } else {
     const byItem = {};
     prepStockoutEvents.forEach(ev => { (byItem[ev.item] = byItem[ev.item] || []).push(ev); });
@@ -987,7 +998,7 @@ function pbRenderInsights(){
       html += `
         <div class="pb-entry-card">
           <div class="pb-stockout-item">
-            <div><div class="pb-stockout-name">${escapeHtml(row.name)}</div><div class="pb-stockout-meta">${row.events.length} ${row.events.length===1?'time':'times'}${times.length ? ' · most recent ' + times[times.length-1] : ''}</div></div>
+            <div><div class="pb-stockout-name">${escapeHtml(row.name)}</div><div class="pb-stockout-meta">${row.events.length} ${row.events.length===1?'time':'times'}${times.length ? ' · most recent ' + times[times.length-1] : ''}${esLine('N times', row.events.length, times.length ? times[times.length-1] : '')}</div></div>
             <div class="pb-stockout-count">${row.events.length}</div>
           </div>
           <div class="pb-time-strip-wrap">
@@ -1034,10 +1045,10 @@ function renderPrepBoard(){
   ];
 
   let html = `
-    <div class="pb-header-row"><h2 class="pb-title">🥗 Prep Board</h2></div>
-    <p class="pb-subtitle">Cold-side build-to numbers — salads, wraps, fruit cups, parfaits</p>
+    <div class="pb-header-row"><h2 class="pb-title">🥗 Prep Board${esLine('Prep Board')}</h2></div>
+    <p class="pb-subtitle">Cold-side build-to numbers — salads, wraps, fruit cups, parfaits${esLine('Prep subtitle')}</p>
     <nav class="pb-pages">
-      ${pages.map(p => `<button class="pb-page-btn ${pbCurrentPage===p.id?'active':''}" data-pb-set-page="${p.id}">${p.label}</button>`).join('')}
+      ${pages.map(p => `<button class="pb-page-btn ${pbCurrentPage===p.id?'active':''}" data-pb-set-page="${p.id}">${p.label}${esLine(p.label)}</button>`).join('')}
     </nav>
   `;
 
