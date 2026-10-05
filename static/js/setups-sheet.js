@@ -140,6 +140,7 @@ function suSheetViewHtml(section, date, dp, dpIndex, m){
 
 const SU_ICON_PENCIL = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
 const SU_ICON_NOTE_MARK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v12H8l-4 4z"/></svg>';
+const SU_ICON_GRIP = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
 const SU_ICON_NOTE = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v12H8l-4 4z"/></svg>';
 
 function suNoteStampHtml(n){
@@ -230,7 +231,8 @@ function suRowSheetHtml(section, date, dp, m, slot){
       <button type="button" class="su-btn-line" data-su-note="${escapeHtml(slot)}">Note</button>
       <button type="button" class="su-btn-line" data-su-unassign="${escapeHtml(slot)}">Clear</button>
     </div>
-    <button type="button" class="su-sheet-coachlink" data-su-mode="coach" data-su-coach-slot="${escapeHtml(slot)}">See scores and Plan B in Coach →</button>`;
+    <button type="button" class="su-sheet-coachlink" data-su-mode="coach" data-su-coach-slot="${escapeHtml(slot)}">See scores and Plan B in Coach →</button>
+    <p class="su-drag-tip">${SU_ICON_GRIP}Hold a name and drag it to another spot to move, or onto someone to trade.</p>`;
   return suSheetFrame(`${slot} · #${t.rank}`, body);
 }
 

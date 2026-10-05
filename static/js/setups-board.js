@@ -673,7 +673,155 @@ document.getElementById('allDayparts').addEventListener('input', e=>{
 
 document.addEventListener('keydown', e=>{
   if(e.key === 'Escape' && suSheet && document.getElementById('positionsView').classList.contains('active')){
+    if(suDrag) suDragEnd();
     suSheet = null;
     renderAllDayparts();
   }
 });
+
+// ----- Drag to move -----
+// Hold a placed name (a mouse can just drag), then drop it on another spot in
+// the same daypart: an open spot takes the person, a filled spot trades with
+// them. Notes and resets stay with the spot; a coverage flag clears, as it
+// does when the picker places someone.
+const SU_DRAG_HOLD_MS = 350;
+let suDrag = null;          // {slot, x0, y0, x, y, pointerId, mouse, active, timer, ghost, over, raf, scroller}
+let suDragEndedAt = 0;
+
+function suDragKey(slot){
+  const date = document.getElementById('daySelect').value;
+  const {dp} = suCurrentDaypart(currentPosSection, date);
+  return suEvalKey(currentPosSection, date, dp.name) + '||' + slot;
+}
+
+const suFirstNames = v => suSplitNames(v).map(n => n.split(/\s+/)[0]).join('/');
+
+function suDragTileAt(x, y){
+  const el = document.elementFromPoint(x, y);
+  const tile = el && el.closest('#allDayparts [data-su-tile]');
+  return tile && tile.dataset.suTile !== suDrag.slot ? tile : null;
+}
+
+function suDragStart(){
+  const d = suDrag;
+  clearTimeout(d.timer);
+  const moving = posAssignments[suDragKey(d.slot)];
+  if(!moving){ suDragEnd(); return; }
+  d.active = true;
+  if(navigator.vibrate) navigator.vibrate(12);
+  const ghost = document.createElement('div');
+  ghost.className = 'su-drag-ghost';
+  ghost.setAttribute('aria-hidden', 'true');
+  ghost.innerHTML = `${SU_ICON_GRIP}<span>${escapeHtml(suFirstNames(moving))}</span>`;
+  document.body.appendChild(ghost);
+  d.ghost = ghost;
+  document.getElementById('allDayparts').classList.add('su-dragging');
+  suDragMove();
+  d.raf = requestAnimationFrame(suDragAutoScroll);
+}
+
+function suDragMove(){
+  const d = suDrag;
+  d.ghost.style.transform = `translate(${Math.round(d.x - 24)}px, ${Math.round(d.y - 56)}px)`;
+  // Marked afresh each move: a sync can redraw the list mid-drag.
+  const source = [...document.querySelectorAll('#allDayparts [data-su-tile]')].find(t => t.dataset.suTile === d.slot);
+  if(source) source.classList.add('is-drag-source');
+  const over = suDragTileAt(d.x, d.y);
+  if(over === d.over) return;
+  if(d.over) d.over.classList.remove('is-drop-target');
+  if(over) over.classList.add('is-drop-target');
+  d.over = over;
+}
+
+// Near the top or bottom of the screen the page scrolls, so a spot further
+// down the list can be reached in one drag. (The page scrolls inside body.)
+function suScrollParent(){
+  for(let el = document.getElementById('allDayparts'); el; el = el.parentElement){
+    if(/auto|scroll/.test(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight) return el;
+  }
+  return document.scrollingElement;
+}
+
+function suDragAutoScroll(){
+  const d = suDrag;
+  if(!d || !d.active) return;
+  const edge = 70, h = window.innerHeight;
+  const v = d.y < edge ? -Math.ceil((edge - d.y) / 5) : d.y > h - edge ? Math.ceil((d.y - (h - edge)) / 5) : 0;
+  if(v){ d.scroller = d.scroller || suScrollParent(); d.scroller.scrollTop += v; suDragMove(); }
+  d.raf = requestAnimationFrame(suDragAutoScroll);
+}
+
+function suDragEnd(){
+  const d = suDrag;
+  if(!d) return;
+  clearTimeout(d.timer);
+  cancelAnimationFrame(d.raf);
+  if(d.ghost) d.ghost.remove();
+  if(d.active) suDragEndedAt = Date.now();
+  document.querySelectorAll('#allDayparts .is-drag-source, #allDayparts .is-drop-target').forEach(t => t.classList.remove('is-drag-source', 'is-drop-target'));
+  document.getElementById('allDayparts').classList.remove('su-dragging');
+  suDrag = null;
+}
+
+// The person on one spot goes to another; whoever was there takes the first
+// spot. A handoff ("A/B") moves whole. Returns {moving, there}, or null.
+function suMoveSpot(from, to){
+  const moving = posAssignments[from], there = posAssignments[to] || null;
+  if(!moving || from === to) return null;
+  posAssignments[to] = moving;
+  if(there) posAssignments[from] = there;
+  else delete posAssignments[from];
+  delete posVacancyFlags[from];
+  delete posVacancyFlags[to];
+  return {moving, there};
+}
+
+function suDragDrop(fromSlot, toSlot){
+  const moved = suMoveSpot(suDragKey(fromSlot), suDragKey(toSlot));
+  if(!moved) return;
+  const {moving, there} = moved;
+  touchLastUpdated(document.getElementById('daySelect').value);
+  suSheet = null;
+  renderAllDayparts();
+  showToast(there ? `${suFirstNames(moving)} → ${toSlot} · ${suFirstNames(there)} → ${fromSlot}` : `${suFirstNames(moving)} → ${toSlot}`);
+  saveState();
+}
+
+document.getElementById('allDayparts').addEventListener('pointerdown', e=>{
+  if(suDrag || e.button > 0 || e.target.closest('.su-sheet')) return;
+  const tile = e.target.closest('[data-su-tile]');
+  if(!tile || !posAssignments[suDragKey(tile.dataset.suTile)]) return;
+  suDrag = {slot: tile.dataset.suTile, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, pointerId: e.pointerId, mouse: e.pointerType === 'mouse', active: false};
+  if(!suDrag.mouse) suDrag.timer = setTimeout(suDragStart, SU_DRAG_HOLD_MS);
+});
+
+document.addEventListener('pointermove', e=>{
+  const d = suDrag;
+  if(!d || e.pointerId !== d.pointerId) return;
+  d.x = e.clientX; d.y = e.clientY;
+  if(!d.active){
+    const moved = Math.hypot(d.x - d.x0, d.y - d.y0);
+    if(d.mouse && moved > 6) suDragStart();
+    else if(!d.mouse && moved > 10) suDragEnd();   // a scroll, not a hold
+    return;
+  }
+  e.preventDefault();
+  suDragMove();
+});
+
+document.addEventListener('pointerup', e=>{
+  const d = suDrag;
+  if(!d || e.pointerId !== d.pointerId) return;
+  const target = d.active && d.over ? d.over.dataset.suTile : null;
+  suDragEnd();
+  if(target) suDragDrop(d.slot, target);
+});
+
+document.addEventListener('pointercancel', e=>{ if(suDrag && e.pointerId === suDrag.pointerId) suDragEnd(); });
+// While a name is held the finger drags it, not the page.
+document.addEventListener('touchmove', e=>{ if(suDrag && suDrag.active) e.preventDefault(); }, {passive: false});
+document.getElementById('allDayparts').addEventListener('contextmenu', e=>{ if(suDrag) e.preventDefault(); });
+// A drag never ends by opening the spot it started or stopped on.
+document.getElementById('allDayparts').addEventListener('click', e=>{
+  if(Date.now() - suDragEndedAt < 400){ e.stopImmediatePropagation(); e.preventDefault(); }
+}, true);
