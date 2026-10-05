@@ -304,21 +304,35 @@ class KnowTheNumbersFeedTest(unittest.TestCase):
         self.assertIsNone(res['tue'])                                 # no Tuesdays on file
         self.assertIsNone(res['two'])                                 # under three weeks: not used
 
+    def test_boh_mid_is_lunch(self):
+        res, = run([{'op': '''c => {
+            posAssignments = {"boh||2026-10-06||Mid (10:30-2:00)||Breader1": "Mateo", "foh||2026-10-06||Mid (2:00-5:00)||Runner": "Noah"};
+            posVacancyFlags = {}; setupDayTypes = {"boh||2026-10-06||Mid (10:30-2:00)": "game"}; setupHistory = {slots: [], names: [], days: {}};
+            suMigrateDaypartNames();
+            return {a: posAssignments, t: setupDayTypes, names: bohDayparts.map(d => d.name)};
+        }'''}])
+        self.assertEqual(res['a'], {"boh||2026-10-06||Lunch (10:30-2:00)||Breader1": "Mateo", "foh||2026-10-06||Mid (2:00-5:00)||Runner": "Noah"})   # FOH's Mid stays
+        self.assertEqual(res['t'], {"boh||2026-10-06||Lunch (10:30-2:00)": "game"})
+        self.assertIn('Lunch (10:30-2:00)', res['names'])
+        self.assertNotIn('Mid (10:30-2:00)', res['names'])
+
     def test_renamed_foh_dayparts_move_saved_data_over(self):
         res, = run([{'op': '''c => {
             posAssignments = {"foh||2026-10-06||Lunch (11:00-2:00)||iPOS 1 (Captain)": "Ava", "boh||2026-10-06||Afternoon (2:00-5:00)||Breader 1": "Mateo", "foh||2026-10-06||Afternoon (2:00-5:00)||Runner": "Noah", "foh||2026-10-06||Mid (2:00-5:00)||Host 1": "Grace"};
             posVacancyFlags = {"foh||2026-10-06||Breakfast (8:00-11:00)||Drinks 1": true};
             setupDayTypes = {"foh||2026-10-06||Lunch (11:00-2:00)": "rush"};
             setupHistory = {slots: ["foh||Lunch (11:00-2:00)||iPOS 1 (Captain)", "boh||Mid (10:30-2:00)||Breader1"], names: [], days: {}};
+            posNotes = {"boh||2026-10-06||Mid (10:30-2:00)||Prep": [{text: "x", by: "JD", ts: 1}]};
             const changed = suMigrateDaypartNames();
-            return {changed, a: posAssignments, f: posVacancyFlags, t: setupDayTypes, h: setupHistory.slots, again: suMigrateDaypartNames()};
+            return {changed, a: posAssignments, f: posVacancyFlags, t: setupDayTypes, h: setupHistory.slots, n: Object.keys(posNotes), again: suMigrateDaypartNames()};
         }'''}])
         self.assertTrue(res['changed'])
         self.assertEqual(res['a'], {"foh||2026-10-06||Lunch (10:30-1:00)||iPOS 1 (Captain)": "Ava", "boh||2026-10-06||Afternoon (2:00-5:00)||Breader 1": "Mateo",
                                     "foh||2026-10-06||Mid (2:00-5:00)||Runner": "Noah", "foh||2026-10-06||Mid (2:00-5:00)||Host 1": "Grace"})   # BOH's Afternoon stays
         self.assertEqual(res['f'], {"foh||2026-10-06||Breakfast (8:00-10:30)||Drinks 1": True})
         self.assertEqual(res['t'], {"foh||2026-10-06||Lunch (10:30-1:00)": "rush"})
-        self.assertEqual(res['h'], ["foh||Lunch (10:30-1:00)||iPOS 1 (Captain)", "boh||Mid (10:30-2:00)||Breader1"])
+        self.assertEqual(res['h'], ["foh||Lunch (10:30-1:00)||iPOS 1 (Captain)", "boh||Lunch (10:30-2:00)||Breader1"])   # BOH's Mid is Lunch
+        self.assertEqual(res['n'], ["boh||2026-10-06||Lunch (10:30-2:00)||Prep"])
         self.assertFalse(res['again'])                                     # nothing left to move
 
     def test_sales_export_carries_last_year(self):

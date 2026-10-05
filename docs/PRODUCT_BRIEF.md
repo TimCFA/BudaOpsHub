@@ -63,7 +63,7 @@ Assign team members to positions for each daypart, FOH and BOH.
 
 - **Dayparts** — FOH (Analytics Hub's hours): Early Breakfast 6–8, Breakfast
   8–10:30, Lunch 10:30–1, Transition 1–2, Mid 2–5, Dinner 5–8, Close 8–10. BOH: Early Breakfast
-  6–8, Breakfast 8–10:30, Mid 10:30–2, Afternoon 2–5, Dinner 5–8, Close 8–10.
+  6–8, Breakfast 8–10:30, Lunch 10:30–2 (was "Mid"), Afternoon 2–5, Dinner 5–8, Close 8–10.
 - **Priority**: each daypart's position list is in priority order. With N people
   on shift, positions 1–N should be filled; an empty one in that range is
   "needed", extras fold away.
@@ -81,9 +81,9 @@ Assign team members to positions for each daypart, FOH and BOH.
   on Mid, Dinner → Late Night on Dinner, Close on Close) ends with a
   **Resets** strip: every zone with its owners, taken from the positions
   that work it (`ZONE_OWNER_RULES` in zone-reset.js: Drinks 1/2 and
-  Lemonades → Drinks Zone, DT Baggers → Bagging Station, OMD and FC Bagger →
-  Front Counter, Hosts → Dining Room and Restrooms, iPOS lanes → Outside,
-  Drinks 3 → Soda Room / Tea, Runner → The Spot, Lead Captain → Final Check).
+  Lemonades → Drinks Zone, DT Baggers → Bagging Station, FC Bagger → Front
+  Counter, Hosts → Dining Room and Restrooms, OMD → Outside, Drinks 3 → Soda
+  Room / Tea, Runner → The Spot, Lead Captain → Final Check; confirmed by Tim).
   The old "Drinks Zone" / "Bagging Zone" / "Front Counter Zone" / "Dinning
   Room" / "Restroom Zone" / "Outside Zone" spots are gone from Transition and
   Close (Lemonades, Pouches and Floors stay). A zone whose positions are all
