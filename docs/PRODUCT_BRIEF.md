@@ -98,6 +98,11 @@ Assign team members to positions for each daypart, FOH and BOH.
   the card: a spot with notes shows a navy comment marker in place of the
   pencil (with a count when there's more than one), and tapping it opens the
   note sheet that lists them. They print with the set up.
+- **Shift changes** since the schedule was posted (a swap, someone added or
+  off, changed hours) sit above the daypart cards as a drop-down, closed to
+  start, with a red count of changes and a red "still placed" flag when
+  someone who changed is still in a spot. Open, changed hours read "was"
+  (light grey) then "now" (bold). Open or closed is remembered on the device.
 - **Refresh** (beside Print): pulls the latest set up and roster from the
   server right away instead of waiting for the 30-second check, then says
   "Up to date" or how many spots changed, with the time. It asks for just

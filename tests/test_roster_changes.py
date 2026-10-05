@@ -70,9 +70,22 @@ class RosterChangesTest(unittest.TestCase):
         posted = [P('Avery Stone', '6:00a', '1:00p'), P('Riley Park', '10:30a', '3:00p')]
         now = [P('Riley Park', '10:30a', '3:00p')]
         place = "posAssignments['foh||2026-10-02||Lunch||iPOS 1'] = 'Avery Stone';"
-        [r] = run([scenario(posted, now, place)])
-        self.assertEqual([(c['kind'], c['name']) for c in r['changes']], [('off', 'Avery Stone')])
-        self.assertIn('still placed: iPOS 1 · Lunch', r['html'])
+        [closed, opened] = run([scenario(posted, now, place + 'rcOpen = false;'), scenario(posted, now, place + 'rcOpen = true;')])
+        self.assertEqual([(c['kind'], c['name']) for c in opened['changes']], [('off', 'Avery Stone')])
+        self.assertIn('still placed: iPOS 1 · Lunch', opened['html'])
+        # Closed, the header still flags it, with the count.
+        self.assertNotIn('<ul>', closed['html'])
+        self.assertIn('1 still placed', closed['html'])
+        self.assertIn('class="su-changes-count" aria-label="1 change">1<', closed['html'])
+
+    def test_changed_hours_read_was_then_now(self):
+        posted = [P('Casey Brooks', '6:00a', '2:00p')]
+        now = [P('Casey Brooks', '6:00a', '11:00a')]
+        [r] = run([scenario(posted, now, 'rcOpen = true;')])
+        html = r['html']
+        was, cur = html.index('su-changes-was">was 6:00a–2:00p'), html.index('su-changes-now">now 6:00a–11:00a')
+        self.assertLess(was, cur)
+        self.assertNotIn('1 still placed', html)
 
     def test_first_import_and_past_days_keep_nothing(self):
         [first, past] = run(["""function(){ rosterPosted = {}; rosterNotePosted('2026-10-02', 'foh', []); return rosterPosted; }""",
@@ -110,14 +123,15 @@ class RosterChangesTest(unittest.TestCase):
     def test_reset_buttons_only_for_managers(self):
         posted = [P('Avery Stone', '6:00a', '1:00p')]
         now = [P('Jordan Lee', '6:00a', '1:00p')]
-        [team, mgr] = run([scenario(posted, now), scenario(posted, now, 'launchManager = true;')])
+        [team, mgr] = run([scenario(posted, now, 'rcOpen = true;'), scenario(posted, now, 'rcOpen = true; launchManager = true;')])
         self.assertNotIn('data-rc-reset', team['html'])
         self.assertIn('data-rc-reset="week"', mgr['html'])
 
     def test_names_escaped(self):
         posted = [P('Avery Stone', '6:00a', '1:00p')]
         now = [P('<img src=x onerror=alert(1)> Lee', '6:00a', '1:00p')]
-        [r] = run([scenario(posted, now)])
+        [r] = run([scenario(posted, now, 'rcOpen = true;')])
+        self.assertIn('&#60;img', r['html'])            # shown, escaped (card open)
         self.assertNotIn('<img', r['html'])
 
 

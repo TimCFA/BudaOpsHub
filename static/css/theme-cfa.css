@@ -99,8 +99,35 @@ body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="z
 
 /* Shift changes: an amber edge, the serif for the title */
 .su-changes{border-radius:16px;box-shadow:inset 4px 0 0 #C47A00;background:var(--cfa-white);}
-.su-changes-head{font-family:var(--font-display);font-size:17px;font-weight:600;}
-.su-changes-head span{font-family:var(--font-ui);font-size:13px;}
+/* Shift changes: a drop-down, closed to start (roster-changes.js). */
+.su-changes{gap:0;padding:4px 12px 4px 16px;}
+.su-changes-head{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;width:100%;min-height:44px;padding:4px 0;border:0;background:transparent;text-align:left;cursor:pointer;color:var(--text-primary);font-family:var(--font-ui);}
+.su-changes-title{font-family:var(--font-display);font-size:17px;font-weight:600;}
+.su-changes-count{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 7px;box-sizing:border-box;border-radius:999px;background:var(--cfa-red);color:#fff;font-family:var(--font-ui);font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;}
+.su-changes-flag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:var(--cfa-red);}
+.su-changes-sub{flex:1 1 auto;font-size:13px;color:var(--text-secondary);}
+.su-changes-chev{flex:none;font-size:12px;color:var(--text-tertiary);transition:transform .2s ease;}
+/* main.css styles every span in the old header (muted, 500, left margin); undo that here. */
+.su-changes-head > span{margin-left:0;}
+.su-changes-head .su-changes-title{font-weight:600;color:var(--text-primary);}
+.su-changes-head .su-changes-count{color:#fff;font-weight:700;font-size:12px;}
+.su-changes-head .su-changes-flag{color:var(--cfa-red);font-weight:700;font-size:12px;}
+.su-changes-head .su-changes-sub{font-weight:500;color:var(--text-secondary);font-size:13px;}
+.su-changes-head .su-changes-chev{color:var(--text-tertiary);}
+.su-changes.is-open .su-changes-chev{transform:rotate(180deg);}
+.su-changes-body{display:flex;flex-direction:column;gap:8px;padding:8px 0 10px;border-top:1px solid var(--border);}
+.su-changes-ic{display:inline-flex;justify-content:center;color:var(--text-secondary);padding-top:1px;}
+.su-changes-ic.is-on{color:#2E7D45;}
+.su-changes-ic.is-off{color:var(--cfa-red);}
+.su-changes-ic.is-time,.su-changes-ic.is-swap{color:var(--cfa-navy);}
+.su-changes-times{display:inline-flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;margin-left:4px;}
+.su-changes-was{font-size:13px;font-weight:500;color:#9A9388;white-space:nowrap;margin-left:4px;}
+.su-changes-times .su-changes-was{margin-left:0;}
+.su-changes-now{font-weight:700;color:var(--text-primary);white-space:nowrap;margin-left:4px;}
+.su-changes-times .su-changes-now{margin-left:0;}
+.su-changes-warn{display:inline-flex;align-items:center;gap:4px;}
+.su-changes-warn svg,.su-changes-flag svg{flex:none;}
+@media (prefers-reduced-motion:reduce){ .su-changes-chev{transition:none;} }
 .su-changes-actions button{background:var(--cfa-soft);border-color:transparent;}
 
 /* Daypart cards: a sky swatch, the daypart in the serif, how full as a pill */
