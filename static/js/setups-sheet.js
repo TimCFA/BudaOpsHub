@@ -3,7 +3,8 @@
 // name, with arrival / departure / handoff notes and the Lead Captain — what
 // a leader needs on the floor. Scores, tier colors, reasons and the coaching
 // tools (Develop, Plan B, Evaluate) live behind the "Coach" switch, which
-// shows the full board (setups-board.js). Fill and Print stay in reach.
+// shows the full board (setups-board.js). Fill and Refresh stay in reach;
+// Print was taken out (Tim: set ups are never printed).
 
 const SU_MODE_KEY = 'cfaBudaSetupsMode';
 let suMode = 'sheet';   // 'sheet' | 'coach'
@@ -29,7 +30,6 @@ function suModeBarHtml(){
       <div class="su-modebar-actions">
         ${checked}
         <button type="button" class="su-print-btn su-refresh-btn ${suRefresh.busy ? 'is-busy' : ''}" data-su-refresh="1" aria-label="Refresh the set up" ${suRefresh.busy ? 'disabled' : ''}>${SU_ICON_REFRESH}<span>${suRefresh.busy ? 'Checking' : 'Refresh'}${esLine(suRefresh.busy ? 'Checking' : 'Refresh')}</span></button>
-        <button type="button" class="su-print-btn" data-su-print="1" aria-label="Print today’s set up"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="2"/><path d="M7 14h10v7H7z"/></svg><span>Print${esLine('Print')}</span></button>
       </div>
     </div>`;
 }
@@ -243,58 +243,6 @@ function suRowSheetHtml(section, date, dp, m, slot){
   return suSheetFrame(`${slot} · #${t.rank}`, body);
 }
 
-// ----- Print: every daypart of the day, like the Google Sheet -----
-
-function suPrintHtml(section, date){
-  const dayparts = suDaypartsFor(section);
-  const posMap = section === 'foh' ? fohPositions : bohPositions;
-  const d = new Date(date + 'T00:00:00');
-  const title = `${section === 'foh' ? 'FOH' : 'BOH'} Set Up · ${d.toLocaleDateString('en-US', {weekday: 'long', month: 'long', day: 'numeric'})}`;
-  suNameMap = null;
-  const blocks = dayparts.map((dp, i)=>{
-    const m = suDaypartModel(section, date, dp, i);
-    const lead = section === 'foh' ? posAssignments[m.key + '||' + SU_LEAD_CAPTAIN] : '';
-    const rows = m.tiles.filter(t => t.names.length || t.needed || posNotesFor(m.key + '||' + t.slot).length).map(t=>{
-      const who = t.names.length ? (t.names.length > 1 && t.timeNote ? suDisplayName(t.names[0]) : t.names.map(suDisplayName).join(' → ')) : '';
-      const note = t.timeNote ? ` ${t.timeNote.text}` : '';
-      const notes = posNotesFor(m.key + '||' + t.slot).map(n => `<div class="su-print-note">${escapeHtml(n.text)} <i>${escapeHtml(n.by)} ${escapeHtml(formatShortTime(n.ts))}</i></div>`).join('');
-      return `<tr><td>${escapeHtml(t.slot)}</td><td>${escapeHtml(who + note)}${notes}</td></tr>`;
-    }).join('');
-    const handoff = section === 'foh' ? zrHandoffForDaypart(dp.name) : null;
-    const resets = handoff ? ALL_ZONE_NAMES.map(z => { const o = zrZoneOwners(date, handoff.name, z); return `<tr><td>${escapeHtml(z)}</td><td>${o.all.length ? escapeHtml(o.all.map(suDisplayName).join(', ')) : '<i>no one yet</i>'}</td></tr>`; }).join('') : '';
-    if(!rows && !lead) return '';
-    return `
-      <section class="su-print-dp">
-        <h2>${escapeHtml(dp.name)}</h2>
-        ${lead ? `<div class="su-print-lead">Lead Captain: <b>${escapeHtml(suDisplayName(lead))}</b></div>` : ''}
-        <table>${rows}</table>
-        ${resets ? `<h3 class="su-print-sub">Resets · ${escapeHtml(zrHandoffParts(handoff.name).title)}</h3><table>${resets}</table>` : ''}
-      </section>`;
-  }).join('');
-  breakPlanReset();
-  const plan = breakPlanFor(section, date);
-  const brRows = plan.breaks.map(b => `<tr><td>${b.start !== null ? `${suClock(b.start)}–${suClock(b.end)}` : '—'}</td><td>${escapeHtml(suDisplayName(b.name))}${b.start === null ? ' (no time fits)' : ''}</td></tr>`).join('');
-  const breaksBlock = plan.breaks.length ? `<section class="su-print-dp"><h2>Breaks (30 min)</h2><table>${brRows}</table></section>` : '';
-  return `<h1>${escapeHtml(title)}</h1><div class="su-print-grid">${blocks || '<p>No positions placed yet.</p>'}${breaksBlock}</div>`;
-}
-
-function suPrint(){
-  const date = document.getElementById('daySelect').value;
-  if(!date) return;
-  let root = document.getElementById('suPrintRoot');
-  if(!root){
-    root = document.createElement('div');
-    root.id = 'suPrintRoot';
-    document.body.appendChild(root);
-  }
-  root.innerHTML = suPrintHtml(currentPosSection, date);
-  document.body.classList.add('su-printing');
-  const done = () => { document.body.classList.remove('su-printing'); window.removeEventListener('afterprint', done); };
-  window.addEventListener('afterprint', done);
-  window.print();
-  setTimeout(done, 1000);
-}
-
 document.getElementById('allDayparts').addEventListener('click', e=>{
   const mode = e.target.closest('[data-su-mode]');
   if(mode){
@@ -305,7 +253,6 @@ document.getElementById('allDayparts').addEventListener('click', e=>{
     renderAllDayparts();
     return;
   }
-  if(e.target.closest('[data-su-print]')){ e.stopPropagation(); suPrint(); return; }
   if(e.target.closest('[data-su-refresh]')){ e.stopPropagation(); suRunRefresh(); return; }
   const clear = e.target.closest('[data-su-unassign]');
   if(clear){

@@ -88,7 +88,8 @@ Assign team members to positions for each daypart, FOH and BOH.
 - **Names** show first name only; last initial only when first names collide;
   compound last names shown as initials where Tim asked.
 - **Views**: a quick sheet (default) and a coach board with zones, tiles,
-  person cards, and tools. Printable.
+  person cards, and tools. No Print button: Tim took it out (Oct 2026), set
+  ups are never printed.
 - **Pill layout** (Oct 2026, Tim trying it): the sheet view shows the
   dayparts as a row of pills (each with how full it is; the chosen one in
   navy) and only the chosen daypart's card, always open. Above its spots, a
@@ -125,7 +126,7 @@ Assign team members to positions for each daypart, FOH and BOH.
   (no initials, no note; `posNotes`, kept 60 days). The notes stay hidden on
   the card: a spot with notes shows a navy comment marker in place of the
   pencil (with a count when there's more than one), and tapping it opens the
-  note sheet that lists them. They print with the set up.
+  note sheet that lists them.
 - **Shift changes** since the schedule was posted (a swap, someone added or
   off, changed hours) sit above the daypart cards as a drop-down, closed to
   start, with a red count of changes and a red "still placed" flag when
@@ -154,7 +155,7 @@ Assign team members to positions for each daypart, FOH and BOH.
   different `BRIEFING_PEOPLE_TOKEN` also unlocks people. Never sent: safe
   counts, trainer and team lead progress, expressions of interest, notes.
   `?date=` (default today), `&topics=`, `&format=text`.
-- **Refresh** (beside Print): pulls the latest set up and roster from the
+- **Refresh** (top right): pulls the latest set up and roster from the
   server right away instead of waiting for the 30-second check, then says
   "Up to date" or how many spots changed, with the time. It asks for just
   those two sections, answered from the server's memory (no database read),

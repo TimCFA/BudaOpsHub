@@ -1709,23 +1709,6 @@
   .su-eval-more{margin-top:4px;font-size:12px;}
   .su-eval-more summary{cursor:pointer;font-weight:600;color:var(--text-secondary);padding:4px 0;}
 
-  /* Print: every daypart of the day on one landscape page, like the sheet. */
-  #suPrintRoot{display:none;}
-  @media print{
-    @page{size:landscape;margin:10mm;}
-    body.su-printing{background:#fff !important;}
-    body.su-printing > *:not(#suPrintRoot){display:none !important;}
-    body.su-printing #suPrintRoot{display:block;font-family:'DM Sans',Arial,sans-serif;color:#000;}
-    #suPrintRoot h1{font-size:16px;margin:0 0 8px;}
-    #suPrintRoot .su-print-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
-    #suPrintRoot .su-print-dp{border:1px solid #999;padding:4px 6px;break-inside:avoid;}
-    #suPrintRoot h2{font-size:11px;margin:0 0 3px;background:#eee;padding:2px 4px;}
-    #suPrintRoot .su-print-lead{font-size:10px;margin-bottom:2px;}
-    #suPrintRoot table{width:100%;border-collapse:collapse;font-size:10px;}
-    #suPrintRoot td{border-top:1px solid #ddd;padding:1px 3px;vertical-align:top;}
-    #suPrintRoot td:first-child{color:#444;width:45%;}
-  }
-
   /* ===== Breaks & tasks (TIM-44) ===== */
   .su-bt{background:var(--su-card);border-radius:16px;padding:10px 14px 12px;box-shadow:0 1px 0 var(--su-line);}
   .su-bt h3{font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--su-muted);padding:2px 0 6px;}

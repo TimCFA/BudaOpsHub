@@ -20,7 +20,6 @@ const ES = {
   'Coach': 'Entrenar',
   'Refresh': 'Actualizar',
   'Checking': 'Revisando',
-  'Print': 'Imprimir',
   'Up to date': 'Al día',
   'N spots updated': n => `${n} ${n === 1 ? 'lugar actualizado' : 'lugares actualizados'}`,
   'This Week': 'Esta semana',
