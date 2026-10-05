@@ -639,7 +639,8 @@ function rosterOwesBreak(person){
 
 function rosterViewHtml(all, left){
   const btn = (view, label, n) => `<button type="button" class="su-roster-filter-btn ${rosterView === view ? 'active' : ''}" aria-pressed="${rosterView === view}" data-roster-view="${view}">${label} · ${n}${esLine(label)}</button>`;
-  return `<div class="su-roster-filter" role="group" aria-label="Show">${btn('all', 'All', all)}${btn('breaks', 'Breaks left', left)}</div>`;
+  // In a bar that stays at the top of the roster list while it scrolls.
+  return `<div class="su-roster-bar"><div class="su-roster-filter" role="group" aria-label="Show">${btn('all', 'All', all)}${btn('breaks', 'Breaks left', left)}</div></div>`;
 }
 
 function renderRoster(){

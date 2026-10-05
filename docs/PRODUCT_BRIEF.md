@@ -341,7 +341,8 @@ Waste Tracking (limit, products), PEA Ratings, Backup & Data.
   with a count: Breaks left lists people on 6+ hours whose break isn't done,
   including anyone on break now (timer and all). Shorter shifts aren't owed a
   break, so they're left out; when everyone's done it says so. The choice is
-  remembered on the device and works in launch mode too.
+  remembered on the device and works in launch mode too. The switch stays
+  pinned to the top of the roster list as it scrolls (Tim).
 
 ### Recurring FOH tasks (Tim confirmed these times)
 8:00 restroom check · 9:30 lemonades for lunch · 10:00 restroom full reset ·
