@@ -41,6 +41,12 @@ class HandoffDaypart(unittest.TestCase):
             'Mid (2:00-5:00)': 'Mid to Dinner', 'Dinner (5:00-8:00)': 'Dinner to Late Night',
             'Close (8:00-10:00)': 'Close'})
 
+    def test_every_daypart_has_its_position_list(self):
+        got = run([{'op': "() => [fohDayparts.map(d => d.name), Object.keys(fohPositions), bohDayparts.map(d => d.name), Object.keys(bohPositions)]"}])[0]
+        self.assertEqual(got[0], got[1])
+        self.assertEqual(got[2], got[3])
+        self.assertIn('Lunch (10:30-2:00)', got[2])   # BOH's Mid is Lunch
+
     def test_zone_rows_are_gone_from_transition_and_close(self):
         got = run([{'op': "() => ['Transition (1:00-2:00)', 'Close (8:00-10:00)'].map(d => fohPositions[d].filter(p => /zone|din+ing/i.test(p)))"}])[0]
         self.assertEqual(got, [[], []])

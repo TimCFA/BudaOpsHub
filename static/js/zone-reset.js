@@ -364,19 +364,21 @@ const fohDayparts = [
 const bohDayparts = [
   {name: 'Early Breakfast (6:00-8:00)', time: '6:00'},
   {name: 'Breakfast (8:00-10:30)', time: '8:00'},
-  {name: 'Mid (10:30-2:00)', time: '10:30'},
+  {name: 'Lunch (10:30-2:00)', time: '10:30'},
   {name: 'Afternoon (2:00-5:00)', time: '14:00'},
   {name: 'Dinner (5:00-8:00)', time: '17:00'},
   {name: 'Close (8:00-10:00)', time: '20:00'},
 ];
 
-// FOH daypart names that changed (Oct 2026). Saved data keyed by the old
-// names — assignments, coverage flags, day types, the set-up history — moves
-// over when the state loads (storage.js). Keys read section||date||daypart||slot,
-// section||date||daypart, or section||daypart||slot; the section decides,
-// since BOH keeps an 'Afternoon (2:00-5:00)' of its own.
+// Daypart names that changed (Oct 2026). Saved data keyed by the old
+// names — assignments, coverage flags, day types, position notes, the set-up
+// history — moves over when the state loads (storage.js). Keys read
+// section||date||daypart||slot, section||date||daypart, or
+// section||daypart||slot; the section decides, since BOH keeps an
+// 'Afternoon (2:00-5:00)' of its own. BOH's Mid (10:30-2:00) is Lunch.
 const SU_DAYPART_RENAMES = {
-  foh: {'Breakfast (8:00-11:00)': 'Breakfast (8:00-10:30)', 'Lunch (11:00-2:00)': 'Lunch (10:30-1:00)', 'Afternoon (2:00-5:00)': 'Mid (2:00-5:00)'}
+  foh: {'Breakfast (8:00-11:00)': 'Breakfast (8:00-10:30)', 'Lunch (11:00-2:00)': 'Lunch (10:30-1:00)', 'Afternoon (2:00-5:00)': 'Mid (2:00-5:00)'},
+  boh: {'Mid (10:30-2:00)': 'Lunch (10:30-2:00)'}
 };
 function suRenamedKey(key){
   const parts = String(key).split('||');
@@ -402,6 +404,7 @@ function suMigrateDaypartNames(){
   if(typeof posAssignments !== 'undefined') remap(posAssignments);
   if(typeof posVacancyFlags !== 'undefined') remap(posVacancyFlags);
   if(typeof setupDayTypes !== 'undefined') remap(setupDayTypes);
+  if(typeof posNotes !== 'undefined') remap(posNotes);
   if(typeof setupHistory !== 'undefined' && setupHistory && Array.isArray(setupHistory.slots)){
     setupHistory.slots = setupHistory.slots.map(s => { const n = suRenamedKey(s); if(n !== s) changed = true; return n; });
   }
@@ -434,7 +437,7 @@ const fohPositions = {
 const bohPositions = {
   'Early Breakfast (6:00-8:00)': ['Breader', 'Primary/Machines', 'Secondary', 'Prep', 'Filters'],
   'Breakfast (8:00-10:30)': ['Breader', 'Primary/Machines', 'Secondary', 'Prep', 'Biscuit/Eggs', 'Prep 2', 'Breaks'],
-  'Mid (10:30-2:00)': ['Breader1', 'Breader 2', 'Machines', 'Primary 1', 'Fries', 'Secondari 1', 'Primary 2', 'Secondari 2', 'Prep', 'Primari 3'],
+  'Lunch (10:30-2:00)': ['Breader1', 'Breader 2', 'Machines', 'Primary 1', 'Fries', 'Secondari 1', 'Primary 2', 'Secondari 2', 'Prep', 'Primari 3'],
   'Afternoon (2:00-5:00)': ['Breader 1', 'Machines', 'Primary 1', 'Fries', 'Secondary 1', 'Breader 2', 'Prep'],
   'Dinner (5:00-8:00)': ['Breader 1', 'Breader 2', 'Machines', 'Primary 1', 'Fries', 'Secondary 1', 'Primary 2', 'Secondary 2', 'Prep'],
   'Close (8:00-10:00)': ['Breader 1', 'Breader 2', 'Machines', 'Primary 1', 'Fries', 'Secondary 1', 'Primary 2', 'Secondary 2', 'Prep', 'Floors', 'Prep/dishes'],
