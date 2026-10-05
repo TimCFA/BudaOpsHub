@@ -112,6 +112,16 @@ function suNoteStampHtml(n){
 // The Resets strip on a FOH card whose daypart carries a handoff (Lunch →
 // Mid sits on the Transition card): every zone with its owners from the
 // positions, a zone nobody owns in red with Pick. Tap a zone to hand it off.
+// It's a drop-down, closed to start so it takes little room; the header
+// still says how many zones nobody owns. Open or closed is remembered on the
+// device.
+const SU_RESETS_OPEN_KEY = 'cfaBudaResetsOpen';
+let suResetsOpen = false;
+try{ suResetsOpen = localStorage.getItem(SU_RESETS_OPEN_KEY) === '1'; }catch(e){}
+function suToggleResets(){
+  suResetsOpen = !suResetsOpen;
+  try{ localStorage.setItem(SU_RESETS_OPEN_KEY, suResetsOpen ? '1' : '0'); }catch(e){}
+}
 function suResetsStripHtml(section, date, dp){
   if(section !== 'foh') return '';
   const handoff = zrHandoffForDaypart(dp.name);
@@ -128,10 +138,14 @@ function suResetsStripHtml(section, date, dp){
       </button>`;
   }).join('');
   const unowned = zrUnownedZones(date, handoff.name).length;
+  const open = suResetsOpen;
   return `
-      <section class="su-resets" aria-label="Zone resets">
-        <div class="su-resets-head"><h3>Resets</h3><span>${escapeHtml(title)} handoff</span>${unowned ? `<em>${unowned} unowned</em>` : ''}</div>
-        ${rows}
+      <section class="su-resets ${open ? 'is-open' : ''}" aria-label="Zone resets">
+        <button type="button" class="su-resets-head" data-su-resets-toggle="1" aria-expanded="${open}">
+          <h3>Resets</h3><span>${escapeHtml(title)} handoff</span>${unowned ? `<em>${unowned} unowned</em>` : '<em class="is-ok">all owned</em>'}
+          <span class="su-resets-chev" aria-hidden="true">▾</span>
+        </button>
+        ${open ? `<div class="su-resets-body">${rows}</div>` : ''}
       </section>`;
 }
 

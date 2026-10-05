@@ -624,6 +624,7 @@ document.getElementById('allDayparts').addEventListener('click', e=>{
     saveState();
     return;
   }
+  if(t.closest('[data-su-resets-toggle]')){ suToggleResets(); renderAllDayparts(); return; }
   const reset = t.closest('[data-su-reset]');
   if(reset){
     const handoff = zrHandoffForDaypart(dp.name);

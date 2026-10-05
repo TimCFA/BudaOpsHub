@@ -796,14 +796,20 @@ body.launch-mode .su-row-notebtn{width:36px;height:36px;}
 .su-notes-sign b{color:var(--text-primary);}
 
 /* The Resets strip on a daypart card: zone → owners, unowned in red */
-.su-sheet-list .su-resets{margin:8px 0 0;border-top:1px solid var(--border);padding-top:10px;}
-.su-board:not(.is-sheet) .su-resets{background:var(--cfa-white);border:1px solid var(--border);border-radius:14px;padding:10px 12px 4px;margin:10px 0 0;}
-.su-resets-head{display:flex;align-items:baseline;gap:8px;margin-bottom:4px;padding:0 2px;}
+.su-sheet-list .su-resets{margin:8px 0 0;border-top:1px solid var(--border);padding-top:2px;}
+.su-board:not(.is-sheet) .su-resets{background:var(--cfa-white);border:1px solid var(--border);border-radius:14px;padding:2px 12px;margin:10px 0 0;}
+.su-resets-head{display:flex;align-items:center;gap:8px;width:100%;min-height:44px;padding:4px 2px;border:0;background:transparent;text-align:left;font-family:var(--font-ui);color:var(--text-primary);cursor:pointer;}
+.su-resets-head:hover h3{color:var(--cfa-navy);}
+.su-resets-chev{flex:none !important;font-size:12px !important;color:var(--text-tertiary) !important;transition:transform .2s ease;}
+.su-resets.is-open .su-resets-chev{transform:rotate(180deg);}
+.su-resets-body{padding-bottom:4px;}
+.su-resets-head em.is-ok{color:var(--success);}
+@media (prefers-reduced-motion:reduce){ .su-resets-chev{transition:none;} }
 .su-sheet-zone .su-resets-head h3,.su-resets-head h3{margin:0;font-family:var(--font-display);font-size:16px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--text-primary);}
 .su-resets-head span{flex:1;font-family:var(--font-ui);font-size:12px;color:var(--text-secondary);}
 .su-resets-head em{font-style:normal;font-family:var(--font-ui);font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--cfa-red);}
 .su-reset{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:8px;align-items:center;width:100%;min-height:40px;border:0;border-top:1px solid #EFE8DC;background:transparent;padding:7px 2px;text-align:left;font-family:var(--font-ui);color:var(--text-primary);cursor:pointer;}
-.su-reset:first-of-type{border-top:0;}
+.su-resets-body .su-reset:first-child{border-top:1px solid #EFE8DC;}
 .su-reset:hover{background:var(--cfa-light);}
 .su-reset-icon{display:inline-flex;color:var(--text-secondary);}
 .su-reset-icon svg{width:16px;height:16px;}
