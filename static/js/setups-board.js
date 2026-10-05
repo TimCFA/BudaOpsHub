@@ -68,6 +68,7 @@ function suCurrentDaypart(section, date){
     suDaypartClosed = {foh: true, boh: true};
     suExpandedZones.clear();
     suSheet = null;
+    suTrayPick = null;
   }
   const dayparts = suDaypartsFor(section);
   if(!dayparts.some(d => d.name === suSelectedDaypart[section])) suSelectedDaypart[section] = suDefaultDaypart(section, date);
@@ -243,7 +244,7 @@ function suFillAvailable(){
 // sales, the productivity goal, and any special event; once actual sales
 // are typed, the actual and how far off projection. Nothing when none are
 // entered.
-function suNumbersLineHtml(date, dp){
+function suNumbersLineHtml(date, dp, pill){
   const n = getNumbersForDaypart(date, dp);
   if(!n) return '';
   const money = v => { const x = parseMoney(v); return x == null ? '' : x >= 10000 ? `$${(x / 1000).toFixed(1)}k` : `$${Math.round(x).toLocaleString('en-US')}`; };
@@ -251,35 +252,86 @@ function suNumbersLineHtml(date, dp){
   const actual = money(n.actualSales), vs = knVersus(n.actualSales, n.projectedSales);
   if(!sales && !goal && !ev && !actual) return '';
   const off = vs && vs.pct !== null ? ` <span class="su-dp-vs ${vs.diff >= 0 ? 'is-up' : 'is-down'}">${vs.pct < 0 ? '−' : '+'}${Math.abs(vs.pct).toFixed(1)}%</span>` : '';
-  return `<div class="su-dp-nums" data-su-dp-toggle="${escapeHtml(dp.name)}">${sales ? `<span class="su-dp-num"><b>${escapeHtml(sales)}</b> projected${esHtml('projected')}</span>` : ''}${actual ? `<span class="su-dp-num"><b>${escapeHtml(actual)}</b> actual${esHtml('actual')}${off}</span>` : ''}${goal ? `<span class="su-dp-num"><b>${escapeHtml(goal)}</b>/labor hr${esHtml('per labor hour')}</span>` : ''}${ev ? `<span class="su-dp-num is-event" title="${escapeHtml(ev)}">${escapeHtml(ev)}</span>` : ''}</div>`;
+  return `<div class="su-dp-nums"${pill ? '' : ` data-su-dp-toggle="${escapeHtml(dp.name)}"`}>${sales ? `<span class="su-dp-num"><b>${escapeHtml(sales)}</b> projected${esHtml('projected')}</span>` : ''}${actual ? `<span class="su-dp-num"><b>${escapeHtml(actual)}</b> actual${esHtml('actual')}${off}</span>` : ''}${goal ? `<span class="su-dp-num"><b>${escapeHtml(goal)}</b>/labor hr${esHtml('per labor hour')}</span>` : ''}${ev ? `<span class="su-dp-num is-event" title="${escapeHtml(ev)}">${escapeHtml(ev)}</span>` : ''}</div>`;
 }
+
+// ----- Layout: daypart pills (Oct 2026) or the stacked cards -----
+// 'pills': a row of daypart pills across the top, the chosen daypart's card
+// below it (always open), with a tray of who's on shift and not placed yet:
+// tap a name, then a spot. 'cards': every daypart as a card down the page,
+// one open at a time (the layout before). Tim is trying the pills; to go
+// back, set this to 'cards'. Nothing about the set up's data differs between
+// the two: both read and write the same posAssignments.
+const SU_LAYOUT = 'pills';
 
 function suDaypartCardsHtml(section, date, current, openHtml, m){
   return `<div class="su-dp-list">${suDaypartsFor(section).map((dp, i)=>{
     const open = dp.name === current && !suDaypartClosed[section];
+    return suDaypartCardHtml(section, date, dp, i, open, openHtml, m, false);
+  }).join('')}</div>`;
+}
+
+// The pills: each daypart with how full it is; the chosen one in navy.
+function suDaypartPillsHtml(section, date, current){
+  return `<nav class="su-dpp" role="tablist" aria-label="Daypart">${suDaypartsFor(section).map((dp, i)=>{
+    const active = dp.name === current;
+    const fill = suDaypartFillText(section, date, dp, i);
+    const [n, of] = fill.split('/');
+    const done = of && +n >= +of;
+    return `<button type="button" role="tab" aria-selected="${active}" class="su-dpp-pill ${active ? 'active' : ''}" data-su-daypart="${escapeHtml(dp.name)}">
+      <span class="su-dpp-name">${escapeHtml(suShortDaypart(dp.name))}${esSpan(esDaypart(dp.name), true)}</span>
+      <span class="su-dpp-count ${done ? 'is-done' : ''}">${escapeHtml(fill)}</span>
+    </button>`;
+  }).join('')}</nav>`;
+}
+
+// The tray: who's on shift this daypart and not in a spot yet (handoff
+// partners and the Lead Captain count as placed). Tap a name to pick it,
+// then an open spot; tap it again to put it down.
+let suTrayPick = null;   // {key: daypart key, name}
+function suTrayHtml(section, date, dp, m){
+  if(!m.onShift) return '';
+  const pick = suTrayPick && suTrayPick.key === m.key ? suTrayPick.name : null;
+  const hint = pick ? `Now tap a spot for ${suDisplayName(pick)}${esLine('Now tap a spot for NAME', suDisplayName(pick))}` : `Tap a name, then a spot${esLine('Tap a name, then a spot')}`;
+  const pills = m.unplaced.map(name => {
+    const t = suTimingFor(m.timing, name);
+    const when = t && t.arrives !== null ? `in ${suClock(t.arrives)}` : t && t.leaves !== null ? `till ${suClock(t.leaves)}` : '';
+    const on = pick === name;
+    return `<button type="button" class="su-tray-pill ${on ? 'active' : ''}" aria-pressed="${on}" data-su-tray="${escapeHtml(name)}">${escapeHtml(suDisplayName(name))}${when ? `<span class="su-tray-when">${escapeHtml(when)}</span>` : ''}</button>`;
+  }).join('');
+  return `<section class="su-tray" aria-label="Not placed yet">
+      <div class="su-tray-head"><h3>Not placed yet${esHtml('Not placed yet')}</h3>${m.unplaced.length ? `<span>${hint}</span>` : ''}</div>
+      ${m.unplaced.length ? `<div class="su-tray-pills">${pills}</div>` : `<p class="su-tray-done">Everyone on shift is placed.${esLine('Everyone on shift is placed.')}</p>`}
+    </section>`;
+}
+
+// One daypart's card. `pill`: the pills layout, where the card stays open
+// and its banner doesn't toggle.
+function suDaypartCardHtml(section, date, dp, i, open, openHtml, m, pill){
+    const toggle = pill ? '' : ` data-su-dp-toggle="${escapeHtml(dp.name)}"`;
     const time = (dp.name.match(/\(([^)]*)\)/) || [])[1] || '';
     const lead = section === 'foh' ? posAssignments[suEvalKey(section, date, dp.name) + '||' + SU_LEAD_CAPTAIN] : '';
-    const working = lead ? suLeadWorkingSlot(date, dp) : null;
     // Only the Lead Captain's name opens the Lead picker; the rest of the
-    // banner opens and closes the card.
-    const leadBtn = section === 'foh' ? `<span class="su-dp-k">Lead</span><button type="button" class="su-dp-lead" data-su-lead-open="1" data-su-lead-dp="${escapeHtml(dp.name)}">${lead ? `<b>${escapeHtml(suDisplayName(lead))}</b>` : '<em>Choose</em>'}</button>${working ? `<span class="su-dp-where">· ${escapeHtml(working)}</span>` : ''}` : '';
+    // banner opens and closes the card. Just the name: the spot they also
+    // work is on its own row below (Tim dropped the "· iPOS 1" label).
+    const leadBtn = section === 'foh' ? `<span class="su-dp-k">Lead</span><button type="button" class="su-dp-lead" data-su-lead-open="1" data-su-lead-dp="${escapeHtml(dp.name)}">${lead ? `<b>${escapeHtml(suDisplayName(lead))}</b>` : '<em>Choose</em>'}</button>` : '';
     const needed = open && m ? m.tiles.filter(x => x.needed).length : 0;
     const fillBtn = needed && m.unplaced.length && suFillAvailable() ? `<button type="button" class="su-dp-fillbtn" data-su-tool="fill">Fill ${needed} open${esLine('Fill N open', needed)}</button>` : '';
     const sky = suDaypartSky(dp.name);
-    return `<section class="su-dp su-col-${suDaypartColor(dp.name)} ${open ? 'is-open' : ''}" aria-label="${escapeHtml(suShortDaypart(dp.name))}">
-      <div class="su-dp-banner">
-        <button type="button" class="su-dp-head" data-su-dp-toggle="${escapeHtml(dp.name)}" aria-expanded="${open}">
+    const headInner = `
           <span class="su-dp-art">${suSkyArt(sky)}</span>
           <span class="su-dp-name">${escapeHtml(suShortDaypart(dp.name))}${time ? ` <span class="su-dp-time">${escapeHtml(time)}</span>` : ''}${esSpan(esDaypart(dp.name), true)}</span>
-          <span class="su-dp-fill">${suDaypartFillText(section, date, dp, i)}</span>
+          <span class="su-dp-fill">${suDaypartFillText(section, date, dp, i)}</span>`;
+    return `<section class="su-dp su-col-${suDaypartColor(dp.name)} ${open ? 'is-open' : ''} ${pill ? 'is-pill' : ''}" aria-label="${escapeHtml(suShortDaypart(dp.name))}">
+      <div class="su-dp-banner">
+        ${pill ? `<div class="su-dp-head">${headInner}</div>` : `<button type="button" class="su-dp-head"${toggle} aria-expanded="${open}">${headInner}
           <span class="su-dp-chev" aria-hidden="true">▾</span>
-        </button>
-        ${suNumbersLineHtml(date, dp)}
-        ${leadBtn || fillBtn ? `<div class="su-dp-sub" data-su-dp-toggle="${escapeHtml(dp.name)}">${leadBtn}${fillBtn}</div>` : ''}
+        </button>`}
+        ${suNumbersLineHtml(date, dp, pill)}
+        ${leadBtn || fillBtn ? `<div class="su-dp-sub"${toggle}>${leadBtn}${fillBtn}</div>` : ''}
       </div>
       ${open ? `<div class="su-dp-body">${openHtml}</div>` : ''}
     </section>`;
-  }).join('')}</div>`;
 }
 
 function suDaypartChipsHtml(section, date, current){
@@ -516,7 +568,9 @@ function renderSetupsBoard(date){
     <div class="su-board is-sheet">
       ${suModeBarHtml()}
       ${rosterChangesHtml(section, date)}
-      ${suDaypartCardsHtml(section, date, dp.name, suSheetViewHtml(section, date, dp, dpIndex, m), m)}
+      ${SU_LAYOUT === 'pills'
+        ? suDaypartPillsHtml(section, date, dp.name) + suDaypartCardHtml(section, date, dp, dpIndex, true, suTrayHtml(section, date, dp, m) + suSheetViewHtml(section, date, dp, dpIndex, m), m, true)
+        : suDaypartCardsHtml(section, date, dp.name, suSheetViewHtml(section, date, dp, dpIndex, m), m)}
       ${suSheetHtml(section, date, dp, dpIndex, m)}
     </div>`;
   }
@@ -580,7 +634,7 @@ function setupsSlotsFor(dpName){
 document.getElementById('allDayparts').addEventListener('click', e=>{
   const t = e.target;
   const daypart = t.closest('[data-su-daypart]');
-  if(daypart){ suSelectedDaypart[currentPosSection] = daypart.dataset.suDaypart; suDaypartClosed[currentPosSection] = false; suExpandedZones.clear(); suSheet = null; renderAllDayparts(); return; }
+  if(daypart){ suSelectedDaypart[currentPosSection] = daypart.dataset.suDaypart; suDaypartClosed[currentPosSection] = false; suExpandedZones.clear(); suSheet = null; suTrayPick = null; renderAllDayparts(); return; }
   const dpToggle = t.closest('[data-su-dp-toggle]');
   if(dpToggle && !t.closest('[data-su-lead-open],[data-su-tool]')){
     const sec = currentPosSection, name = dpToggle.dataset.suDpToggle;
@@ -634,7 +688,20 @@ document.getElementById('allDayparts').addEventListener('click', e=>{
     if(handoff) zrOpenOwnerModal(date, handoff.name, reset.dataset.suReset, renderAllDayparts);
     return;
   }
+  const tray = t.closest('[data-su-tray]');
+  if(tray){
+    const key = suEvalKey(currentPosSection, date, dp.name), name = tray.dataset.suTray;
+    suTrayPick = suTrayPick && suTrayPick.key === key && suTrayPick.name === name ? null : {key, name};
+    renderAllDayparts();
+    return;
+  }
   const tile = t.closest('[data-su-tile]');
+  if(tile && suTrayPick && suTrayPick.key === suEvalKey(currentPosSection, date, dp.name)){
+    const slot = tile.dataset.suTile;
+    if(posAssignments[keyFor(slot)]){ showToast(`${slot} is taken: pick an open spot, or tap ${suDisplayName(suTrayPick.name)} again to cancel`); return; }
+    suTrayPlace(keyFor(slot), slot, dp.name);
+    return;
+  }
   if(tile){
     const slot = tile.dataset.suTile;
     if(posAssignments[keyFor(slot)]){ suSheet = {kind: suMode === 'coach' ? 'person' : 'row', slot}; renderAllDayparts(); }
@@ -666,6 +733,27 @@ document.getElementById('allDayparts').addEventListener('click', e=>{
   }
 });
 
+// Puts the tray's picked name in an open spot. A spot above still open asks
+// first, the same choice the picker gives (Put them in the open spot / Keep
+// them here); otherwise it's placed straight away.
+function suTrayPlace(key, slot, dpName){
+  const name = suTrayPick.name;
+  suTrayPick = null;
+  if(suFirstOpenAbove(key)){
+    openPosModal(key, slot, dpName);
+    suPickWasOpen = false;     // after the choice, close: don't walk on to the next spot
+    commitPosAssignment(name);
+    renderAllDayparts();
+    return;
+  }
+  posAssignments[key] = name;
+  delete posVacancyFlags[key];
+  touchLastUpdated(key.split('||')[1]);
+  renderAllDayparts();
+  showToast(`${name.split(/\s+/)[0]} → ${slot}`);
+  saveState();
+}
+
 document.getElementById('allDayparts').addEventListener('input', e=>{
   if(e.target.id === 'suNoteText' && suSheet && suSheet.kind === 'note'){
     const date = document.getElementById('daySelect').value;
@@ -675,6 +763,11 @@ document.getElementById('allDayparts').addEventListener('input', e=>{
 });
 
 document.addEventListener('keydown', e=>{
+  if(e.key === 'Escape' && suTrayPick && !suSheet && document.getElementById('positionsView').classList.contains('active')){
+    suTrayPick = null;
+    renderAllDayparts();
+    return;
+  }
   if(e.key === 'Escape' && suSheet && document.getElementById('positionsView').classList.contains('active')){
     if(suDrag) suDragEnd();
     suSheet = null;
