@@ -876,3 +876,12 @@ body.launch-mode .su-row-notebtn{width:36px;height:36px;}
 @keyframes su-spin{to{transform:rotate(360deg);}}
 @media (prefers-reduced-motion:reduce){ .su-refresh-btn.is-busy svg{animation:none;} }
 @media (max-width:380px){ .su-refresh-note{display:none;} }
+
+/* Set Ups picker: a spot above is still open (daypicker-and-positions.js suSkipChoiceHtml) */
+.su-skip{display:grid;gap:8px;padding:12px;}
+.su-skip-msg{margin:0 0 4px;font-family:var(--font-ui);font-size:14px;line-height:1.45;color:var(--text-primary);}
+.su-skip-msg b{color:var(--cfa-red);}
+.su-skip-btn{width:100%;min-height:48px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-white);font-family:var(--font-ui);font-size:15px;font-weight:700;color:var(--text-primary);cursor:pointer;text-align:center;padding:10px 14px;}
+.su-skip-btn.is-primary{background:var(--cfa-red);border-color:var(--cfa-red);color:#fff;}
+.su-skip-btn:not(.is-primary):hover{border-color:var(--text-secondary);}
+.su-skip-back{justify-self:start;border:0;background:none;padding:6px 2px;font-family:var(--font-ui);font-size:13px;font-weight:600;color:var(--text-secondary);cursor:pointer;}

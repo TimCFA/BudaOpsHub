@@ -66,7 +66,10 @@ Assign team members to positions for each daypart, FOH and BOH.
   6–8, Breakfast 8–10:30, Lunch 10:30–2 (was "Mid"), Afternoon 2–5, Dinner 5–8, Close 8–10.
 - **Priority**: each daypart's position list is in priority order. With N people
   on shift, positions 1–N should be filled; an empty one in that range is
-  "needed", extras fold away.
+  "needed", extras fold away. Placing someone below an open spot asks first,
+  in the picker: "Put them in [the open spot]" (the suggested choice) or
+  "Keep them in [this spot]". Skipping is discouraged, not blocked (Tim); the
+  skipped spot stays red until it's filled.
 - **Who's working** comes from the weekly HotSchedules roster (see Data
   Uploads). Shifts that start or end mid-daypart are handled (see handoffs).
 - **Names** show first name only; last initial only when first names collide;
