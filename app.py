@@ -132,7 +132,7 @@ STATE_SECTIONS = {
     'pea': ['peaRatings', 'peaNameAliases'],
     'rosters': ['fohRoster', 'bohRoster', 'rosterPosted'],
     'setups': ['posAssignments', 'posVacancyFlags', 'setupDayTypes', 'lastUpdated',
-               'breakCountdowns', 'completedBreaks'],
+               'breakCountdowns', 'completedBreaks', 'zoneOwners', 'posNotes'],
     'history': ['setupHistory', 'numbersHistory', 'wasteMonthlyHistory', 'zoneChecklistHistory'],
     'waste': ['entries', 'wasteDays', 'formDone', 'formDoneDate', 'wasteLogLastClosedOut'],
     'ops': ['foodSafetyDays', 'foodSafetyWalkthroughs', 'fohOEDays', 'fohOEChecked', 'fohOECheckedDate',

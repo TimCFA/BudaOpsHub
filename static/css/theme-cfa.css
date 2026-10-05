@@ -765,3 +765,72 @@ body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="z
   .fc-sum-stats{grid-template-columns:1fr 1fr;}
   .fc-kpi-value{font-size:22px;}
 }
+
+/* ---- Zone resets owned by positions, and signed position notes ---- */
+/* Set Ups rows: the spot, a pencil for a note, the notes under it. */
+.su-sheet-list .su-rowwrap{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:6px;}
+.su-sheet-list .su-rowwrap + .su-rowwrap{border-top:1px solid #EFE8DC;}
+.su-sheet-list .su-rowwrap .su-row{border-top:0;}
+.su-row-notebtn{width:32px;height:32px;margin-right:4px;border:1px solid var(--border);border-radius:999px;background:var(--cfa-white);color:var(--text-tertiary);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none;}
+.su-row-notebtn:hover{border-color:var(--cfa-navy);color:var(--cfa-navy);}
+.su-row-notebtn{position:relative;}
+.su-row-notebtn.has{border-color:var(--cfa-navy);color:var(--cfa-navy);background:#E3EEF4;}
+.su-row-notecount{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:999px;background:var(--cfa-navy);color:#F6F1E8;font-family:var(--font-ui);font-size:10px;font-weight:700;line-height:16px;text-align:center;}
+.su-note-stamp{display:inline-block;margin-left:4px;padding:1px 7px;border-radius:999px;background:var(--cfa-navy);color:#F6F1E8;font-family:var(--font-ui);font-size:10.5px;font-weight:700;letter-spacing:0.04em;white-space:nowrap;font-variant-numeric:tabular-nums;vertical-align:1px;}
+.su-note-stamp.is-mine{background:var(--text-primary);}
+.su-tile-noted{display:inline-flex;margin-right:4px;color:var(--cfa-navy);vertical-align:-2px;}
+body.launch-mode .su-row-notebtn{width:36px;height:36px;}
+
+/* The note sheet */
+.su-notes-who{font-family:var(--font-ui);font-size:13px;color:var(--text-secondary);margin-bottom:10px;}
+.su-notes{display:grid;gap:6px;margin-bottom:12px;}
+.su-notes-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start;background:var(--cfa-soft);border-radius:12px;padding:9px 12px;font-family:var(--font-ui);font-size:13.5px;line-height:1.35;}
+.su-notes-meta{margin-top:3px;font-size:11.5px;color:var(--text-tertiary);}
+.su-notes-meta .su-note-stamp{margin:0 4px 0 0;}
+.su-notes-rm{border:0;background:none;padding:2px 0;font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--text-tertiary);cursor:pointer;}
+.su-notes-rm:hover{color:var(--cfa-red);}
+.su-notes-empty{margin:0 0 10px;font-family:var(--font-ui);font-size:13px;color:var(--text-tertiary);}
+.su-notes-text{width:100%;box-sizing:border-box;min-height:76px;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font-family:var(--font-ui);font-size:14px;line-height:1.4;resize:vertical;background:var(--cfa-light);color:var(--text-primary);}
+.su-notes-text:focus{outline:2px solid var(--cfa-navy);outline-offset:1px;border-color:var(--cfa-navy);}
+.su-notes-sign{margin-top:8px;font-family:var(--font-ui);font-size:12.5px;color:var(--text-secondary);}
+.su-notes-sign b{color:var(--text-primary);}
+
+/* The Resets strip on a daypart card: zone → owners, unowned in red */
+.su-sheet-list .su-resets{margin:8px 0 0;border-top:1px solid var(--border);padding-top:10px;}
+.su-board:not(.is-sheet) .su-resets{background:var(--cfa-white);border:1px solid var(--border);border-radius:14px;padding:10px 12px 4px;margin:10px 0 0;}
+.su-resets-head{display:flex;align-items:baseline;gap:8px;margin-bottom:4px;padding:0 2px;}
+.su-sheet-zone .su-resets-head h3,.su-resets-head h3{margin:0;font-family:var(--font-display);font-size:16px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--text-primary);}
+.su-resets-head span{flex:1;font-family:var(--font-ui);font-size:12px;color:var(--text-secondary);}
+.su-resets-head em{font-style:normal;font-family:var(--font-ui);font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--cfa-red);}
+.su-reset{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:8px;align-items:center;width:100%;min-height:40px;border:0;border-top:1px solid #EFE8DC;background:transparent;padding:7px 2px;text-align:left;font-family:var(--font-ui);color:var(--text-primary);cursor:pointer;}
+.su-reset:first-of-type{border-top:0;}
+.su-reset:hover{background:var(--cfa-light);}
+.su-reset-icon{display:inline-flex;color:var(--text-secondary);}
+.su-reset-icon svg{width:16px;height:16px;}
+.su-reset-zone{font-size:13.5px;font-weight:600;}
+.su-reset-who{font-size:13px;font-weight:600;color:var(--cfa-navy);text-align:right;max-width:170px;line-height:1.25;}
+.su-reset-who i{display:block;font-style:normal;font-size:11px;font-weight:500;color:var(--text-tertiary);}
+.su-reset.is-none .su-reset-zone,.su-reset.is-none .su-reset-icon{color:var(--cfa-red);}
+.su-reset-pick{display:inline-flex;align-items:center;min-height:30px;padding:0 12px;border-radius:999px;background:var(--cfa-red);color:#fff;font-size:12px;font-weight:700;}
+
+/* Zone Reset page: owners on each zone, an unowned zone in red */
+.zone-acc-who{display:block;font-family:var(--font-ui);font-size:12.5px;font-weight:600;color:var(--cfa-navy);margin-top:1px;}
+.zone-acc-who.is-none{color:var(--cfa-red);}
+.zone-acc-item.is-unowned{border-color:var(--cfa-red);background:#FFF7F7;}
+.zone-acc-item.is-unowned .zone-acc-head{background:#FFF7F7;}
+.zone-acc-item.is-unowned .zone-acc-icon{background:#FBE3E4;color:var(--cfa-red);}
+.zr-owners{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:2px 2px 8px;font-family:var(--font-ui);font-size:12.5px;color:var(--text-secondary);}
+.zr-owner{background:#E3EEF4;color:var(--cfa-navy);border-radius:999px;padding:3px 10px;font-weight:600;}
+.zr-owner.is-added{background:transparent;border:1px dashed var(--cfa-navy);}
+.zr-owner-none{color:var(--cfa-red);font-weight:600;}
+.zr-owner-hand{margin-left:auto;min-height:32px;border:1px solid var(--border);background:var(--cfa-white);border-radius:999px;padding:4px 12px;font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;}
+.zr-owner-hand:hover{border-color:var(--cfa-navy);color:var(--cfa-navy);}
+.zr-dp-unowned{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;background:#FBE3E4;color:var(--cfa-red);font-family:var(--font-ui);font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;vertical-align:2px;}
+.zr-owner-note.is-none{background:#FBE3E4;color:#B3002A;}
+#zrOwnerModal .pos-option-tag{font-size:12px;color:var(--text-secondary);white-space:nowrap;}
+#zrOwnerModal .su-pick-foot:empty{display:none;}
+
+/* Print: notes under a spot, the resets under the daypart */
+#suPrintRoot .su-print-note{font-size:9px;color:#444;}
+#suPrintRoot .su-print-note i{color:#888;}
+#suPrintRoot .su-print-sub{font-size:10px;margin:6px 0 2px;}

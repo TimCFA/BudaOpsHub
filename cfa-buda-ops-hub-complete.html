@@ -138,6 +138,19 @@
     </div>
   </div>
 
+  <!-- Zone reset owner sheet: hand a zone's reset to someone (zone-reset.js zrOpenOwnerModal) -->
+  <div class="overlay su-pick" id="zrOwnerModal" role="dialog" aria-modal="true" aria-labelledby="zrOwnerZone">
+    <div class="sheet su-pick-sheet">
+      <div class="su-pick-head">
+        <div class="su-pick-titles"><span class="su-pick-kicker" id="zrOwnerKicker"></span><h2 id="zrOwnerZone"></h2></div>
+        <button type="button" id="zrOwnerClose" class="su-sheet-close" aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+      <div id="zrOwnerNote" class="su-pick-note zr-owner-note"></div>
+      <div id="zrOwnerOptions" class="pos-option-list"></div>
+      <div class="su-pick-foot" id="zrOwnerFoot"></div>
+    </div>
+  </div>
+
   <!-- Add Team Member to Roster Modal -->
   <div class="overlay" id="addTMModal">
     <div class="sheet">

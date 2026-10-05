@@ -74,19 +74,88 @@ function suSheetViewHtml(section, date, dp, dpIndex, m){
   const showAll = suExpandedZones.has('all');
   const upTo = showAll || !m.headcount ? m.tiles.length : Math.max(m.headcount, lastFilled);
   const shown = m.tiles.slice(0, upTo), hidden = m.tiles.slice(upTo);
-  const rows = shown.map(x => `
+  // Each row: the spot (tap to assign or open its sheet) and a pencil for a
+  // note. A spot with notes shows a comment marker instead; the notes
+  // themselves stay hidden until it's tapped (the note sheet lists them).
+  const rows = shown.map(x => {
+    const notes = posNotesFor(m.key + '||' + x.slot);
+    return `
+          <div class="su-rowwrap ${notes.length ? 'has-notes' : ''}">
           <button type="button" class="su-row su-z-${suZoneKeyOf(section, x.slot)} ${x.needed ? 'is-needed' : ''} ${!x.names.length ? 'is-open' : ''}" data-su-tile="${escapeHtml(x.slot)}" aria-label="${escapeHtml(`#${x.rank} ${x.slot}: ${x.names.length ? x.names.join(' then ') : x.needed ? 'needed' : 'open'}`)}">
             <span class="su-row-slot"><span class="su-row-rank">${x.rank}</span>${escapeHtml(x.slot)}</span>
             <span class="su-row-name">${suSheetNameHtml(x, rowBreak(x))}</span>
-          </button>`).join('');
+          </button>
+          <button type="button" class="su-row-notebtn ${notes.length ? 'has' : ''}" data-su-note="${escapeHtml(x.slot)}" aria-label="${escapeHtml(`${notes.length ? `Read ${notes.length} note${notes.length === 1 ? '' : 's'} on` : 'Add a note to'} ${x.slot}`)}" title="${notes.length ? `${notes.length} note${notes.length === 1 ? '' : 's'}` : 'Add a note'}">${notes.length ? SU_ICON_NOTE_MARK + (notes.length > 1 ? `<span class="su-row-notecount">${notes.length}</span>` : '') : SU_ICON_PENCIL}</button>
+          </div>`;
+  }).join('');
   const zones = `
       <section class="su-sheet-zone su-sheet-list" aria-label="Positions in priority order">
         ${rows}
         ${hidden.length ? `<button type="button" class="su-zone-more" data-su-zone-more="all">+ ${hidden.length} more spot${hidden.length === 1 ? '' : 's'} if you have extra people</button>` : ''}
         ${showAll && m.headcount && upTo > Math.max(m.headcount, lastFilled) ? `<button type="button" class="su-zone-more" data-su-zone-less="all">Hide open extras</button>` : ''}
+        ${suResetsStripHtml(section, date, dp)}
       </section>`;
 
   return `<div class="su-sheet-table">${zones}</div>${suTierKeyHtml()}`;
+}
+
+const SU_ICON_PENCIL = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+const SU_ICON_NOTE_MARK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v12H8l-4 4z"/></svg>';
+const SU_ICON_NOTE = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v12H8l-4 4z"/></svg>';
+
+function suNoteStampHtml(n){
+  const mine = n.by === getInitials();
+  return `<span class="su-note-stamp ${mine ? 'is-mine' : ''}" title="${escapeHtml(`${n.by}, ${formatShortTime(n.ts)}`)}">${escapeHtml(n.by)} · ${escapeHtml(formatShortTime(n.ts))}</span>`;
+}
+
+
+// The Resets strip on a FOH card whose daypart carries a handoff (Lunch →
+// Mid sits on the Transition card): every zone with its owners from the
+// positions, a zone nobody owns in red with Pick. Tap a zone to hand it off.
+function suResetsStripHtml(section, date, dp){
+  if(section !== 'foh') return '';
+  const handoff = zrHandoffForDaypart(dp.name);
+  if(!handoff) return '';
+  const {title} = zrHandoffParts(handoff.name);
+  const rows = ALL_ZONE_NAMES.map(zone => {
+    const o = zrZoneOwners(date, handoff.name, zone);
+    const none = !o.all.length;
+    const names = o.all.slice(0, 2).map(suDisplayName).map(escapeHtml).join(', ') + (o.all.length > 2 ? ` +${o.all.length - 2}` : '');
+    return `<button type="button" class="su-reset ${none ? 'is-none' : ''}" data-su-reset="${escapeHtml(zone)}">
+        <span class="su-reset-icon">${ZONE_ICONS[zone] || ''}</span>
+        <span class="su-reset-zone">${escapeHtml(zone)}</span>
+        ${none ? '<span class="su-reset-pick">+ Pick</span>' : `<span class="su-reset-who">${names}${o.added.length ? '<i>handed off</i>' : ''}</span>`}
+      </button>`;
+  }).join('');
+  const unowned = zrUnownedZones(date, handoff.name).length;
+  return `
+      <section class="su-resets" aria-label="Zone resets">
+        <div class="su-resets-head"><h3>Resets</h3><span>${escapeHtml(title)} handoff</span>${unowned ? `<em>${unowned} unowned</em>` : ''}</div>
+        ${rows}
+      </section>`;
+}
+
+// The note sheet for a spot: the notes so far (yours can be removed), and a
+// new one signed with your initials and the time. No initials, no note.
+let suNoteDraft = {key: '', text: ''};
+function suNoteSheetHtml(section, date, dp, m, slot){
+  const t = m.tiles.find(x => x.slot === slot);
+  const key = m.key + '||' + slot;
+  const notes = posNotesFor(key);
+  const ini = getInitials();
+  const draft = suNoteDraft.key === key ? suNoteDraft.text : '';
+  const list = notes.length ? `<div class="su-notes">${notes.map((n, i) => `<div class="su-notes-item"><div>${escapeHtml(n.text)}<div class="su-notes-meta">${suNoteStampHtml(n)} today</div></div>${n.by === ini ? `<button type="button" class="su-notes-rm" data-su-note-rm="${i}">Remove</button>` : ''}</div>`).join('')}</div>` : '<p class="su-notes-empty">No notes on this spot yet.</p>';
+  const who = t && t.names.length ? t.names.map(suDisplayName).join(' → ') : 'Open';
+  const body = `
+    <div class="su-notes-who">${escapeHtml(suShortDaypart(dp.name))} · ${escapeHtml(who)}</div>
+    ${list}
+    <textarea id="suNoteText" class="su-notes-text" rows="3" maxlength="500" placeholder="Something the next person needs to know">${escapeHtml(draft)}</textarea>
+    <div class="su-notes-sign">${ini ? `Signed <b>${escapeHtml(ini)}</b> at ${escapeHtml(formatShortTime(Date.now()))}` : 'Set your initials (top right) to sign a note'}</div>
+    <div class="su-person-actions">
+      <button type="button" class="su-btn-line" data-su-close-sheet="1">Cancel</button>
+      ${ini ? `<button type="button" class="su-btn-dark" data-su-note-save="1">Add note</button>` : `<button type="button" class="su-btn-dark" data-su-note-initials="1">Set initials</button>`}
+    </div>`;
+  return suSheetFrame(`Note · ${slot}`, body);
 }
 
 // A filled row in the sheet view: who, when, and the quick actions — no
@@ -102,9 +171,10 @@ function suRowSheetHtml(section, date, dp, m, slot){
   }).join('');
   const body = `
     <div class="su-pb">${lines}</div>
-    <div class="su-person-actions" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="su-person-actions" style="grid-template-columns:1fr 1fr 1fr 1fr">
       <button type="button" class="su-btn-line" data-su-change="${escapeHtml(slot)}">Change</button>
       <button type="button" class="su-btn-line" data-su-handoff="${escapeHtml(slot)}">Hand off</button>
+      <button type="button" class="su-btn-line" data-su-note="${escapeHtml(slot)}">Note</button>
       <button type="button" class="su-btn-line" data-su-unassign="${escapeHtml(slot)}">Clear</button>
     </div>
     <button type="button" class="su-sheet-coachlink" data-su-mode="coach" data-su-coach-slot="${escapeHtml(slot)}">See scores and Plan B in Coach →</button>`;
@@ -122,17 +192,21 @@ function suPrintHtml(section, date){
   const blocks = dayparts.map((dp, i)=>{
     const m = suDaypartModel(section, date, dp, i);
     const lead = section === 'foh' ? posAssignments[m.key + '||' + SU_LEAD_CAPTAIN] : '';
-    const rows = m.tiles.filter(t => t.names.length || t.needed).map(t=>{
+    const rows = m.tiles.filter(t => t.names.length || t.needed || posNotesFor(m.key + '||' + t.slot).length).map(t=>{
       const who = t.names.length ? (t.names.length > 1 && t.timeNote ? suDisplayName(t.names[0]) : t.names.map(suDisplayName).join(' → ')) : '';
       const note = t.timeNote ? ` ${t.timeNote.text}` : '';
-      return `<tr><td>${escapeHtml(t.slot)}</td><td>${escapeHtml(who + note)}</td></tr>`;
+      const notes = posNotesFor(m.key + '||' + t.slot).map(n => `<div class="su-print-note">${escapeHtml(n.text)} <i>${escapeHtml(n.by)} ${escapeHtml(formatShortTime(n.ts))}</i></div>`).join('');
+      return `<tr><td>${escapeHtml(t.slot)}</td><td>${escapeHtml(who + note)}${notes}</td></tr>`;
     }).join('');
+    const handoff = section === 'foh' ? zrHandoffForDaypart(dp.name) : null;
+    const resets = handoff ? ALL_ZONE_NAMES.map(z => { const o = zrZoneOwners(date, handoff.name, z); return `<tr><td>${escapeHtml(z)}</td><td>${o.all.length ? escapeHtml(o.all.map(suDisplayName).join(', ')) : '<i>no one yet</i>'}</td></tr>`; }).join('') : '';
     if(!rows && !lead) return '';
     return `
       <section class="su-print-dp">
         <h2>${escapeHtml(dp.name)}</h2>
         ${lead ? `<div class="su-print-lead">Lead Captain: <b>${escapeHtml(suDisplayName(lead))}</b></div>` : ''}
         <table>${rows}</table>
+        ${resets ? `<h3 class="su-print-sub">Resets · ${escapeHtml(zrHandoffParts(handoff.name).title)}</h3><table>${resets}</table>` : ''}
       </section>`;
   }).join('');
   breakPlanReset();

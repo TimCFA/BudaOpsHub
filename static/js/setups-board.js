@@ -146,6 +146,7 @@ function suDaypartModel(section, date, dp, dpIndex){
       tier: !first ? 'open' : !positions.length ? 'na' : cell ? cell.tier.key : 'unrated',
       develop: first ? devNames.has(first.toLowerCase()) : false,
       flagged: !!posVacancyFlags[key + '||' + slot],
+      notes: posNotesFor(key + '||' + slot).length,
       timeNote: suSlotTimeNote(timing, names)
     };
   });
@@ -359,10 +360,10 @@ function suTileHtml(t){
   // A handoff shows the first name; the time note under it names who's next.
   const name = t.names.length ? (t.names.length > 1 && t.timeNote ? suDisplayName(t.names[0]) : t.names.map(suDisplayName).join(' → ')) : t.needed ? 'Needed' : 'Open';
   const avatar = t.names.length ? suInitials(t.names[0]) : '+';
-  const label = `${t.slot}, priority ${t.rank}: ${t.names.length ? t.names.join(' then ') : (t.needed ? 'needed' : 'open')}${t.cell ? `, ${t.cell.tier.label} ${t.cell.avg.toFixed(2)}` : ''}`;
+  const label = `${t.slot}, priority ${t.rank}: ${t.names.length ? t.names.join(' then ') : (t.needed ? 'needed' : 'open')}${t.cell ? `, ${t.cell.tier.label} ${t.cell.avg.toFixed(2)}` : ''}${t.notes ? `, ${t.notes} note${t.notes === 1 ? '' : 's'}` : ''}`;
   return `
     <button type="button" class="su-tile ${t.needed ? 'is-needed' : ''} ${!t.names.length ? 'is-open' : ''} ${t.flagged ? 'is-flagged' : ''}" data-su-tile="${escapeHtml(t.slot)}" aria-label="${escapeHtml(label)}">
-      <span class="su-tile-top"><span class="su-tile-slot">${escapeHtml(t.slot)}</span><span class="su-tile-rank">#${t.rank}</span></span>
+      <span class="su-tile-top"><span class="su-tile-slot">${escapeHtml(t.slot)}</span><span class="su-tile-rank">${t.notes ? `<span class="su-tile-noted" title="Has a note">${SU_ICON_NOTE}</span>` : ''}#${t.rank}</span></span>
       <span class="su-tile-who">
         <span class="su-avatar su-av-${t.tier}" aria-hidden="true">${escapeHtml(avatar)}</span>
         <span class="su-tile-name">${escapeHtml(name)}${t.develop ? ' <span class="su-star" title="Development focus">★</span>' : ''}</span>
@@ -479,6 +480,7 @@ function suPersonSheetHtml(section, date, dp, dpIndex, m, slot){
     <div class="su-person-actions">
       <button type="button" class="su-btn-line" data-su-change="${escapeHtml(slot)}">Change person</button>
       <button type="button" class="su-btn-line" data-su-handoff="${escapeHtml(slot)}">${t.flagged ? 'Coverage / handoff' : 'Hand off / needs coverage'}</button>
+      <button type="button" class="su-btn-line" data-su-note="${escapeHtml(slot)}">${t.notes ? `Notes (${t.notes})` : 'Add a note'}</button>
     </div>`;
   return suSheetFrame(`${slot} · #${t.rank}`, body);
 }
@@ -487,6 +489,7 @@ function suSheetHtml(section, date, dp, dpIndex, m){
   if(!suSheet) return '';
   if(suSheet.kind === 'person') return suPersonSheetHtml(section, date, dp, dpIndex, m, suSheet.slot);
   if(suSheet.kind === 'row') return suRowSheetHtml(section, date, dp, m, suSheet.slot);
+  if(suSheet.kind === 'note') return suNoteSheetHtml(section, date, dp, m, suSheet.slot);
   if(suSheet.kind === 'fill') return suFillSheetHtml(section, date, dp, dpIndex);
   if(suSheet.kind === 'lead') return section === 'foh' ? suLeadCaptainSheetHtml(date, dp, dpIndex) : '';
   const titles = {develop: 'Develop this shift', evaluate: 'Evaluate', planb: 'Plan B'};
@@ -521,6 +524,7 @@ function renderSetupsBoard(date){
       ${suDaypartChipsHtml(section, date, dp.name)}
       ${suGamePlanHtml(section, date, dp, dpIndex, m)}
       ${suZonesHtml(m)}
+      ${suResetsStripHtml(section, date, dp)}
       ${suBreaksCardHtml(section, date, dpIndex)}
       ${suPeaTodoHtml(section, date, dp)}
       <div class="su-legend" aria-hidden="true">
@@ -596,6 +600,36 @@ document.getElementById('allDayparts').addEventListener('click', e=>{
   const date = document.getElementById('daySelect').value;
   const {dp} = suCurrentDaypart(currentPosSection, date);
   const keyFor = slot => suEvalKey(currentPosSection, date, dp.name) + '||' + slot;
+  const noteBtn = t.closest('[data-su-note]');
+  if(noteBtn){ suSheet = {kind: 'note', slot: noteBtn.dataset.suNote}; renderAllDayparts(); const ta = document.getElementById('suNoteText'); if(ta && window.matchMedia && window.matchMedia('(pointer: fine)').matches) ta.focus(); return; }
+  if(t.closest('[data-su-note-initials]')){ beginEditInitials(); return; }
+  if(t.closest('[data-su-note-save]') && suSheet && suSheet.kind === 'note'){
+    const ta = document.getElementById('suNoteText');
+    const text = ta ? ta.value.trim() : '';
+    const by = getInitials();
+    if(!by){ showToast('Set your initials first (top right)'); beginEditInitials(); return; }
+    if(!text){ showToast('Write the note first'); if(ta) ta.focus(); return; }
+    addPosNote(keyFor(suSheet.slot), text, by);
+    suNoteDraft = {key: '', text: ''};
+    suSheet = null;
+    renderAllDayparts();
+    showToast(`Note added, signed ${by}`);
+    saveState();
+    return;
+  }
+  const rm = t.closest('[data-su-note-rm]');
+  if(rm && suSheet && suSheet.kind === 'note'){
+    removePosNote(keyFor(suSheet.slot), parseInt(rm.dataset.suNoteRm, 10));
+    renderAllDayparts();
+    saveState();
+    return;
+  }
+  const reset = t.closest('[data-su-reset]');
+  if(reset){
+    const handoff = zrHandoffForDaypart(dp.name);
+    if(handoff) zrOpenOwnerModal(date, handoff.name, reset.dataset.suReset, renderAllDayparts);
+    return;
+  }
   const tile = t.closest('[data-su-tile]');
   if(tile){
     const slot = tile.dataset.suTile;
@@ -625,6 +659,14 @@ document.getElementById('allDayparts').addEventListener('click', e=>{
     if(suDayType(currentPosSection, date, dp).auto !== dayType.dataset.suToggleDaytype) setupDayTypes[key] = dayType.dataset.suToggleDaytype;
     renderAllDayparts();
     saveState();
+  }
+});
+
+document.getElementById('allDayparts').addEventListener('input', e=>{
+  if(e.target.id === 'suNoteText' && suSheet && suSheet.kind === 'note'){
+    const date = document.getElementById('daySelect').value;
+    const {dp} = suCurrentDaypart(currentPosSection, date);
+    suNoteDraft = {key: suEvalKey(currentPosSection, date, dp.name) + '||' + suSheet.slot, text: e.target.value};
   }
 });
 
