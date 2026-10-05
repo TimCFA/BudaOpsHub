@@ -821,23 +821,25 @@ const defaultTXData = {
 
 let txData = JSON.parse(JSON.stringify(defaultTXData));
 
-// Home screen quotes. Every one is checked against a published source
-// (Chick-fil-A's own pages, S. Truett Cathy's books, or the leadership team's
-// books); nothing is paraphrased. Add new ones only with a source.
+// Home screen quotes. Every one is checked word for word against a published
+// source (Chick-fil-A's own pages and press coverage, S. Truett Cathy's books,
+// the leadership team's books, or the authors' and publishers' own pages and
+// transcripts); nothing is paraphrased. Two passages of one source may be
+// joined with an ellipsis. Add new ones only with a source.
 const TRUETT = 'S. Truett Cathy';
 const homeQuotes = [
   {text: "Food is essential to life. Therefore, make it good.", author: TRUETT, source: "On the wall of Chick-fil-A restaurants"},
-  {text: "We should be about more than just selling chicken. We should be a part of our customers' lives and the communities in which we serve.", author: TRUETT, source: "Chick-fil-A, Who We Are"},
-  {text: "How do you know someone needs encouragement? If they're breathing.", author: TRUETT, source: "Chick-fil-A founder"},
-  {text: "If you're not having fun, you're not doing it right.", author: TRUETT, source: "Chick-fil-A founder"},
+  {text: "We should be about more than just selling chicken; we should be a part of our customers' lives and the communities in which we serve.", author: TRUETT, source: "Chick-fil-A, 2014 (as quoted by QSR Magazine)"},
+  {text: "How do you know someone needs encouragement? If they're breathing.", author: TRUETT, source: "Chick-fil-A, A Heartfelt Tribute to Our Founder"},
+  {text: "If you're not having fun, you're not doing it right.", author: TRUETT, source: "Chick-fil-A, A Heartfelt Tribute to Our Founder"},
   {text: "If we're willing to do that for the president, why not treat every customer that well?", author: TRUETT, source: "Eat Mor Chikin: Inspire More People"},
   {text: "Nearly every moment of every day we have the opportunity to give something to someone else – our time, our love, our resources.", author: TRUETT, source: "Eat Mor Chikin: Inspire More People"},
   {text: "I delivered each paper as if I were delivering it to the front door of the governor's mansion.", author: TRUETT, source: "On his first job, delivering newspapers"},
-  {text: "We built our business and made friends at the same time, always seeking to meet their needs wherever we could.", author: TRUETT, source: "Chick-fil-A founder"},
+  {text: "We built our business and made friends at the same time, always seeking to meet their needs wherever we could.", author: TRUETT, source: "Chick-fil-A, Humble Beginnings"},
   {text: "You expect that from a five-star hotel. But to have teenagers in a fast-food atmosphere saying it's their pleasure to serve—that's a real head-turner.", author: TRUETT, source: "On \u201cMy pleasure\u201d"},
   {text: "It's easier to build boys and girls than to mend men and women.", author: TRUETT, source: "It's Better to Build Boys Than Mend Men"},
-  {text: "I'd like to be remembered as one who kept my priorities in the right order.", author: TRUETT, source: "Chick-fil-A founder"},
-  {text: "We live in a changing world, but we need to be reminded that the important things have not changed.", author: TRUETT, source: "Chick-fil-A founder"},
+  {text: "I'd like to be remembered as one who kept my priorities in the right order.", author: TRUETT, source: "Chick-fil-A, 2014 (as quoted by NBC News)"},
+  {text: "We live in a changing world, but we need to be reminded that the important things have not changed.", author: TRUETT, source: "Chick-fil-A, 2014 (as quoted by NBC News)"},
 
   {text: "Others control our opportunities, we control our readiness.", author: "Mark Miller", source: "The Heart of Leadership"},
   {text: "When you expect the best from people, you will often see more in them than they see in themselves.", author: "Mark Miller", source: "The Heart of Leadership"},
@@ -845,22 +847,49 @@ const homeQuotes = [
   {text: "The best leaders don't blame others. They own their actions and their outcomes.", author: "Mark Miller", source: "The Heart of Leadership"},
   {text: "Getting the right plate to the right person at the right table is service. But genuinely engaging with the person you're serving, so you can make an authentic connection—that's hospitality.", author: "Will Guidara", source: "Unreasonable Hospitality"},
   {text: "A leader's responsibility is to identify the strengths of the people on their team, no matter how buried those strengths might be.", author: "Will Guidara", source: "Unreasonable Hospitality"},
+  {text: "The difference between good organizations and great ones is not the caliber of the ideas, but whether people are empowered to act on them.", author: "Will Guidara", source: "Unreasonable Hospitality, the lost chapter"},
   {text: "It is teamwork that remains the ultimate competitive advantage, both because it is so powerful and so rare.", author: "Patrick Lencioni", source: "The Five Dysfunctions of a Team"},
+  {text: "Successful teamwork is not about mastering subtle, sophisticated theories, but rather about embracing common sense with uncommon levels of discipline and persistence.", author: "Patrick Lencioni", source: "Conquer Team Dysfunction (The Table Group)"},
+  {text: "Ironically, teams succeed because they are exceedingly human.", author: "Patrick Lencioni", source: "Conquer Team Dysfunction (The Table Group)"},
+  {text: "Like it or not, all teams are potentially dysfunctional.", author: "Patrick Lencioni", source: "Conquer Team Dysfunction (The Table Group)"},
+  {text: "When it comes to work, we all have gifts.", author: "The Table Group", source: "What Is Your Working Genius?"},
+  {text: "Whether you're engaged in running a company, a department, a project, or even a family, all six are necessary ingredients for success. And no one person can embody them all, which is why teamwork is so important. … Imagine if every company, every organization, every team knew the areas of genius, competency and frustration of their people and organized them for success.", author: "The Table Group", source: "What Is Your Working Genius?"},
   {text: "Do what the customer loves, and the money will follow.", author: "Horst Schulze", source: "Excellence Wins"},
+  {text: "We are not servants. We are ladies and gentlemen serving ladies and gentlemen.", author: "Horst Schulze", source: "Interview with Chief Executive"},
+  {text: "Join me, don't come to work here. Join me to create the finest hotel company in the world.", author: "Horst Schulze", source: "Interview with Chief Executive"},
   {text: "If you want to change the world, start off by making your bed.", author: "Admiral William H. McRaven", source: "Make Your Bed"},
   {text: "If you want to change the world, get over being a sugar cookie and keep moving forward.", author: "Admiral William H. McRaven", source: "Make Your Bed"},
+  {text: "If you can't do the little things right, you will never do the big things right.", author: "Admiral William H. McRaven", source: "University of Texas commencement, 2014"},
+  {text: "If you want to change the world, find someone to help you paddle.", author: "Admiral William H. McRaven", source: "University of Texas commencement, 2014"},
+  {text: "If you want to change the world, measure a person by the size of their heart, not the size of their flippers.", author: "Admiral William H. McRaven", source: "University of Texas commencement, 2014"},
+  {text: "So, if you want to change the world, start singing when you're up to your neck in mud.", author: "Admiral William H. McRaven", source: "University of Texas commencement, 2014"},
+  {text: "Start each day with a task completed. Find someone to help you through life. Respect everyone.", author: "Admiral William H. McRaven", source: "University of Texas commencement, 2014"},
   {text: "Good is the enemy of great.", author: "Jim Collins", source: "Good to Great"},
+  {text: "They were seemingly ordinary people quietly producing extraordinary results.", author: "Jim Collins", source: "Good to Great"},
+  {text: "The good-to-great companies understood that doing what you are good at will only make you good; focusing solely on what you can potentially do better than any other organization is the only path to greatness.", author: "Jim Collins", source: "Good to Great"},
+  {text: "You must never confuse faith that you will prevail in the end—which you can never afford to lose—with the discipline to confront the most brutal facts of your current reality, whatever they might be.", author: "Admiral Jim Stockdale", source: "As told in Good to Great"},
   {text: "If you're not keeping score, you're just practicing.", author: "McChesney, Covey & Huling", source: "The 4 Disciplines of Execution"},
   {text: "To achieve a goal you've never achieved before, you must do things you've never done before.", author: "McChesney, Covey & Huling", source: "The 4 Disciplines of Execution"},
+  {text: "People play differently when they are keeping score.", author: "FranklinCovey", source: "The 4 Disciplines of Execution"},
+  {text: "Great teams know at every moment whether or not they are winning.", author: "FranklinCovey", source: "The 4 Disciplines of Execution"},
+  {text: "People are more likely to commit to their own ideas than to orders from above.", author: "FranklinCovey", source: "The 4 Disciplines of Execution"},
+  {text: "Where do you find people who are passionately committed to their work? You find them working for leaders who are passionately committed to them.", author: "FranklinCovey", source: "The 4 Disciplines of Execution"},
   {text: "Fix what bugs you.", author: "Paul Akers", source: "2 Second Lean"},
+  {text: "Lean is not as complicated as all the experts and textbooks make it out to be. In fact, as you learn to incorporate a Lean approach to your life, you will see that the more Lean thinking you have in your life, the more you will enjoy life.", author: "Paul Akers", source: "2 Second Lean"},
   {text: "Leadership is not a rank, it is a responsibility. Leadership is not about being in charge, it is about taking care of those in your charge.", author: "Simon Sinek", source: "Leaders Eat Last"},
   {text: "Leaders are not responsible for the results, leaders are responsible for the people who are responsible for the results.", author: "Simon Sinek", source: "The Infinite Game"},
   {text: "There is a difference between a group of people who work together and a group of people who trust each other.", author: "Simon Sinek", source: "The Infinite Game"},
   {text: "To ask, 'What's best for me' is finite thinking. To ask, 'What's best for us' is infinite thinking.", author: "Simon Sinek", source: "The Infinite Game"},
   {text: "You do not rise to the level of your goals. You fall to the level of your systems.", author: "James Clear", source: "Atomic Habits"},
   {text: "Every action you take is a vote for the type of person you wish to become.", author: "James Clear", source: "Atomic Habits"},
+  {text: "All big things come from small beginnings. The seed of every habit is a single, tiny decision.", author: "James Clear", source: "Atomic Habits"},
+  {text: "Ultimately, it is your commitment to the process that will determine your progress.", author: "James Clear", source: "Atomic Habits"},
   {text: "Leaders who refuse to listen will eventually be surrounded by people who have nothing helpful to say.", author: "Andy Stanley", source: "Andy Stanley Leadership Podcast"},
-  {text: "What we want to hear least is generally what we need to hear most.", author: "Andy Stanley", source: "Andy Stanley Leadership Podcast"}
+  {text: "What we want to hear least is generally what we need to hear most.", author: "Andy Stanley", source: "Andy Stanley Leadership Podcast"},
+  {text: "There are no neutral words.", author: "Andy Stanley", source: "Andy Stanley Leadership Podcast, May 2025 episode guide"},
+  {text: "What's rewarded is repeated and our words can be rewards.", author: "Andy Stanley", source: "Andy Stanley Leadership Podcast, May 2025 episode guide"},
+  {text: "Culture isn't built through policies, perks, or mission statements. It's built by the tone set through how we communicate with one another.", author: "Andy Stanley", source: "Andy Stanley Leadership Podcast, May 2025 episode guide"},
+  {text: "Many regrets start with an unwise, not necessarily immoral or illegal, decision.", author: "Andy Stanley", source: "Andy Stanley Leadership Podcast, August 2025 episode guide"}
 ];
 
 // A different quote every time the site is opened: each device remembers its
