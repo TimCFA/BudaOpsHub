@@ -81,9 +81,9 @@ Assign team members to positions for each daypart, FOH and BOH.
   on Mid, Dinner → Late Night on Dinner, Close on Close) ends with a
   **Resets** strip: every zone with its owners, taken from the positions
   that work it (`ZONE_OWNER_RULES` in zone-reset.js: Drinks 1/2 and
-  Lemonades → Drinks Zone, DT Baggers → Bagging Station, OMD and FC Bagger →
-  Front Counter, Hosts → Dining Room and Restrooms, iPOS lanes → Outside,
-  Drinks 3 → Soda Room / Tea, Runner → The Spot, Lead Captain → Final Check).
+  Lemonades → Drinks Zone, DT Baggers → Bagging Station, FC Bagger → Front
+  Counter, Hosts → Dining Room and Restrooms, OMD → Outside, Drinks 3 → Soda
+  Room / Tea, Runner → The Spot, Lead Captain → Final Check; confirmed by Tim).
   The old "Drinks Zone" / "Bagging Zone" / "Front Counter Zone" / "Dinning
   Room" / "Restroom Zone" / "Outside Zone" spots are gone from Transition and
   Close (Lemonades, Pouches and Floors stay). A zone whose positions are all

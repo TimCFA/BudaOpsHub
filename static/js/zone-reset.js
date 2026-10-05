@@ -450,10 +450,10 @@ const bohPositions = {
 const ZONE_OWNER_RULES = {
   'Dining Room': /^host/i,
   'Restrooms': /^host/i,
-  'Front Counter': /^(omd|fc bagger)/i,
+  'Front Counter': /^fc bagger/i,
   'Bagging Station': /^dt bagger/i,
   'Drinks Zone': /^(drinks? [12]\b|lemonade)/i,
-  'Outside': /^ipos/i,
+  'Outside': /^omd\b/i,
   'Soda Room / Tea Station': /^drinks? 3\b/i,
   'The Spot': /^runner/i,
   'Final Check': null   // the Lead Captain

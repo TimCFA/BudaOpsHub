@@ -55,10 +55,10 @@ class Owners(unittest.TestCase):
              T + 'iPOS 1 (Captain)': 'Noah Bennett', T + 'iPOS 2 LANE 2': 'Liam Patel', T + 'Lead Captain': 'Maya Torres'}
         self.assertEqual(owners(a, {}, 'Drinks Zone')['all'], ['Caleb Brooks'])
         self.assertEqual(owners(a, {}, 'Bagging Station')['all'], ['Priya Nair'])
-        self.assertEqual(owners(a, {}, 'Front Counter')['all'], ['Ava Morales', 'Grace Kim'])   # in set-up order
+        self.assertEqual(owners(a, {}, 'Front Counter')['all'], ['Ava Morales'])
         self.assertEqual(owners(a, {}, 'Dining Room')['all'], ['Sofia Alvarez'])
         self.assertEqual(owners(a, {}, 'Restrooms')['all'], ['Sofia Alvarez'])
-        self.assertEqual(owners(a, {}, 'Outside')['all'], ['Noah Bennett', 'Liam Patel'])
+        self.assertEqual(owners(a, {}, 'Outside')['all'], ['Grace Kim'])
         self.assertEqual(owners(a, {}, 'The Spot')['all'], ['Ethan Walsh'])
         self.assertEqual(owners(a, {}, 'Final Check')['all'], ['Maya Torres'])
         # Drink 3 is open, so nobody has the Soda Room.
@@ -98,6 +98,13 @@ class Owners(unittest.TestCase):
         self.assertEqual(owners(a, {}, 'Dining Room', 'Breakfast to Lunch (10:30am - 11:30am)')['all'], ['Sofia Alvarez'])
         self.assertEqual(owners(a, {}, 'Soda Room / Tea Station', 'Close')['all'], ['Ethan Walsh'])
         self.assertEqual(owners(a, {}, 'Dining Room')['all'], [])
+
+
+class OutsideIsOmd(unittest.TestCase):
+    def test_close_omd_owns_outside_and_ipos_owns_nothing(self):
+        a = {'foh||2026-10-06||Close (8:00-10:00)||OMD': 'Grace Kim', 'foh||2026-10-06||Close (8:00-10:00)||iPOS 1 LANE 1': 'Noah Bennett'}
+        self.assertEqual(owners(a, {}, 'Outside', 'Close')['all'], ['Grace Kim'])
+        self.assertEqual(owners(a, {}, 'Front Counter', 'Close')['all'], [])
 
 
 class SetupExists(unittest.TestCase):
