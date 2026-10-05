@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 from collections import Counter, defaultdict
 import gzip
+import hmac
 import json
 import os
 import secrets
@@ -17,6 +18,7 @@ from pea_parser import parse_pea_pdf, PeaParseError
 from reports_parser import parse_report_file, ReportParseError
 import levelset_sync
 from state_patch import PatchError, apply_ops, canon, check_ops, union_merge
+import setup_feed
 
 app = Flask(__name__)
 # The page is served from this same app, so it needs no cross-site access.
@@ -591,6 +593,61 @@ def safe_counts_today():
         return jsonify({'error': 'Could not read safe counts'}), 500
     counts = (sections.get('safe') or {}).get('safeCounts') or []
     return jsonify({'counts': [c for c in counts if isinstance(c, dict) and c.get('date') == day.isoformat()]})
+
+# ===== SET UP FEED (read-only, for the daily briefing) =====
+# A day's set up for an outside reader that can't sign in: each daypart, its
+# Lead Captain, and who is in which position, by the names Set Ups shows. It
+# is off unless SETUP_FEED_TOKEN (a long random secret, 32+ characters) is set
+# in Render's environment; until then, and for a wrong token, the route
+# answers like any unknown address. Changing the variable cuts off the old
+# link. Served from the server's memory: no database read on a normal day.
+# ?date=today|tomorrow|YYYY-MM-DD (default tomorrow, store time), &format=text
+# for plain text. The token can come as ?token= or "Authorization: Bearer".
+SETUP_FEED_MIN_TOKEN = 32
+SETUP_FEED_MAX_FAILURES = 10          # wrong tokens per address ...
+SETUP_FEED_WINDOW_SECONDS = 600       # ... per ten minutes
+_setup_feed_failures = defaultdict(list)
+_setup_feed_layout = None
+
+def _setup_feed_token_ok():
+    expected = os.environ.get('SETUP_FEED_TOKEN', '')
+    if len(expected) < SETUP_FEED_MIN_TOKEN:
+        return False
+    given = request.args.get('token', '')
+    auth = request.headers.get('Authorization', '')
+    if not given and auth.startswith('Bearer '):
+        given = auth[7:].strip()
+    return hmac.compare_digest(given.encode('utf-8'), expected.encode('utf-8'))
+
+@app.route('/api/setup-feed', methods=['GET'])
+def setup_feed_route():
+    global _setup_feed_layout
+    ip = _client_ip()
+    now = time.time()
+    _setup_feed_failures[ip] = [t for t in _setup_feed_failures[ip] if now - t < SETUP_FEED_WINDOW_SECONDS]
+    if len(_setup_feed_failures[ip]) >= SETUP_FEED_MAX_FAILURES:
+        return jsonify({'error': 'Too many attempts. Try again later.'}), 429
+    if not _setup_feed_token_ok():
+        if os.environ.get('SETUP_FEED_TOKEN'):
+            _setup_feed_failures[ip].append(now)
+        return jsonify({'error': 'Endpoint not found'}), 404
+    day = setup_feed.parse_day(request.args.get('date'))
+    if day is None:
+        return jsonify({'error': 'date must be today, tomorrow or YYYY-MM-DD'}), 400
+    try:
+        if _setup_feed_layout is None:
+            _setup_feed_layout = setup_feed.load_layout()
+        sections = _read_sections() or {}
+        feed = setup_feed.build_feed(sections, day, _setup_feed_layout)
+    except Exception as e:
+        print(f"[SETUP FEED ERROR] {e}")
+        return jsonify({'error': 'Could not read the set up'}), 500
+    if request.args.get('format') == 'text':
+        response = app.response_class(setup_feed.feed_text(feed), mimetype='text/plain')
+    else:
+        response = jsonify(feed)
+    response.headers['Cache-Control'] = 'no-store'
+    return response
 
 # What the one-time backup (appState, kept when saving moved to sections)
 # can put back: data that came in through uploads.
