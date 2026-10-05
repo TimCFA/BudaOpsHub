@@ -117,13 +117,17 @@ function suSheetViewHtml(section, date, dp, dpIndex, m){
   // Each row: the spot (tap to assign or open its sheet) and a pencil for a
   // note. A spot with notes shows a comment marker instead; the notes
   // themselves stay hidden until it's tapped (the note sheet lists them).
+  // A name picked in the tray (setups-board.js suTrayHtml): open spots light
+  // up as places to put them.
+  const pick = typeof suTrayPick !== 'undefined' && suTrayPick && suTrayPick.key === m.key ? suDisplayName(suTrayPick.name) : null;
   const rows = shown.map(x => {
     const notes = posNotesFor(m.key + '||' + x.slot);
+    const target = pick && !x.names.length;
     return `
           <div class="su-rowwrap ${notes.length ? 'has-notes' : ''}">
-          <button type="button" class="su-row su-z-${suZoneKeyOf(section, x.slot)} ${x.needed ? 'is-needed' : ''} ${!x.names.length ? 'is-open' : ''}" data-su-tile="${escapeHtml(x.slot)}" aria-label="${escapeHtml(`#${x.rank} ${x.slot}: ${x.names.length ? x.names.join(' then ') : x.needed ? 'needed' : 'open'}`)}">
+          <button type="button" class="su-row su-z-${suZoneKeyOf(section, x.slot)} ${x.needed ? 'is-needed' : ''} ${!x.names.length ? 'is-open' : ''} ${target ? 'is-target' : ''}" data-su-tile="${escapeHtml(x.slot)}" aria-label="${escapeHtml(target ? `Put ${pick} in ${x.slot}` : `#${x.rank} ${x.slot}: ${x.names.length ? x.names.join(' then ') : x.needed ? 'needed' : 'open'}`)}">
             <span class="su-row-slot"><span class="su-row-rank">${x.rank}</span><span class="su-row-slotname">${escapeHtml(x.slot)}${esSpan(esPlace(x.slot), true)}</span></span>
-            <span class="su-row-name">${suSheetNameHtml(x, rowBreak(x))}</span>
+            <span class="su-row-name">${target ? `<span class="su-row-put">Put ${escapeHtml(pick)} here${esLine('Put NAME here', pick)}</span>` : suSheetNameHtml(x, rowBreak(x))}</span>
           </button>
           <button type="button" class="su-row-notebtn ${notes.length ? 'has' : ''}" data-su-note="${escapeHtml(x.slot)}" aria-label="${escapeHtml(`${notes.length ? `Read ${notes.length} note${notes.length === 1 ? '' : 's'} on` : 'Add a note to'} ${x.slot}`)}" title="${notes.length ? `${notes.length} note${notes.length === 1 ? '' : 's'}` : 'Add a note'}">${notes.length ? SU_ICON_NOTE_MARK + (notes.length > 1 ? `<span class="su-row-notecount">${notes.length}</span>` : '') : SU_ICON_PENCIL}</button>
           </div>`;

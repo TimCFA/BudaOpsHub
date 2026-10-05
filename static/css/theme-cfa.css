@@ -933,3 +933,29 @@ body.es-off-waste :is(#wastelogView, #wasteCountModal) .es{display:none;}
 .su-row-slotname{display:flex;flex-direction:column;min-width:0;}
 .su-row-slotname .es-line{font-size:0.82em;font-weight:400;}
 .su-drag-tip > span{display:block;}
+
+/* Set Ups pill layout (setups-board.js SU_LAYOUT 'pills'): daypart pills
+   across the top, the chosen daypart's card below, and a tray of who's not
+   placed yet. */
+.su-dpp{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 12px;}
+.su-dpp-pill{display:flex;align-items:center;gap:8px;min-height:44px;padding:6px 10px 6px 14px;border:1px solid var(--border);border-radius:999px;background:var(--cfa-white);color:var(--text-primary);font-family:var(--font-ui);cursor:pointer;}
+.su-dpp-pill:hover{border-color:var(--text-tertiary);}
+.su-dpp-pill.active{background:var(--cfa-navy);border-color:var(--cfa-navy);color:#fff;}
+.su-dpp-name{display:flex;flex-direction:column;font-size:14px;font-weight:700;line-height:1.15;text-align:left;}
+.su-dpp-pill.active .es{color:inherit;opacity:0.78;}
+.su-dpp-count{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;border-radius:999px;padding:2px 8px;background:var(--cfa-bg);color:var(--text-secondary);}
+.su-dpp-count.is-done{background:#E3F0E6;color:var(--success);}
+.su-dpp-pill.active .su-dpp-count{background:rgba(255,255,255,0.18);color:#fff;}
+.su-dp.is-pill .su-dp-head{cursor:default;}
+.su-tray{margin:0 0 12px;padding:12px 14px;border:1px solid var(--border);border-radius:16px;background:var(--cfa-light);}
+.su-tray-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 10px;margin-bottom:10px;}
+.su-tray-head h3{margin:0;font-family:var(--font-display);font-size:17px;font-weight:600;}
+.su-tray-head > span{font-family:var(--font-ui);font-size:12px;color:var(--text-secondary);text-align:right;}
+.su-tray-pills{display:flex;flex-wrap:wrap;gap:8px;}
+.su-tray-pill{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:6px 16px;border:1px solid var(--border);border-radius:999px;background:#fff;color:var(--text-primary);font-family:var(--font-ui);font-size:15px;font-weight:700;cursor:pointer;}
+.su-tray-pill.active{background:var(--cfa-red);border-color:var(--cfa-red);color:#fff;}
+.su-tray-when{font-size:12px;font-weight:600;color:var(--cfa-navy);}
+.su-tray-pill.active .su-tray-when{color:rgba(255,255,255,0.85);}
+.su-tray-done{margin:0;font-family:var(--font-ui);font-size:14px;font-weight:600;color:var(--success);}
+.su-sheet-list .su-row.is-target{outline:2px dashed var(--cfa-red);outline-offset:-2px;background:#FCEBE9;}
+.su-row-put{font-family:var(--font-ui);font-size:14px;font-weight:700;color:var(--cfa-dark-red);}

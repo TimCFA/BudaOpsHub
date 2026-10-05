@@ -89,6 +89,16 @@ Assign team members to positions for each daypart, FOH and BOH.
   compound last names shown as initials where Tim asked.
 - **Views**: a quick sheet (default) and a coach board with zones, tiles,
   person cards, and tools. Printable.
+- **Pill layout** (Oct 2026, Tim trying it): the sheet view shows the
+  dayparts as a row of pills (each with how full it is; the chosen one in
+  navy) and only the chosen daypart's card, always open. Above its spots, a
+  **Not placed yet** tray lists who's on shift and not in a spot (with "in
+  11:00" / "till 1:00" for late arrivals and early leavers): tap a name,
+  every open spot lights up "Put Maya here", tap one to place them. A spot
+  below an open one asks first, as the picker does; a filled spot is left
+  alone; tapping the name again puts it down. **To go back to the stacked
+  cards**, set `SU_LAYOUT` to `'cards'` in setups-board.js: both layouts read
+  and write the same set up data, so switching loses nothing.
 - **Tools**: Fill (auto-assign), Develop this shift, Plan B, Evaluate, Lead
   Captain. See the rules in section 4.
 - **Breaks & tasks** per daypart (section 4).
