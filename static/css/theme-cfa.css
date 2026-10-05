@@ -919,6 +919,10 @@ body.launch-mode .su-row-notebtn{width:36px;height:36px;}
 .es{font-family:var(--font-display);font-style:italic;font-weight:400;font-size:0.92em;color:var(--text-tertiary);letter-spacing:0;text-transform:none;}
 .es-line{display:block;font-size:0.84em;line-height:1.25;margin-top:1px;}
 .su-btn-dark .es,.btn-primary .es,.su-dp-fillbtn .es,.su-skip-btn.is-primary .es,.su-mode-btn.active .es,.toggle-btn.active .es,.su-changes-count .es,.roster-leader-badge .es{color:inherit;opacity:0.78;}
+/* FOH stays English-only (spanish.js esSyncSides): no Spanish on the FOH
+   side of Set Ups or Waste, or in the sheets they open. */
+body.es-off-setups :is(#positionsView, #posModal, #vacancyModal, #addTMModal) .es,
+body.es-off-waste :is(#wastelogView, #wasteCountModal) .es{display:none;}
 .su-row-slotname{display:flex;flex-direction:column;min-width:0;}
 .su-row-slotname .es-line{font-size:0.82em;font-weight:400;}
 .su-drag-tip > span{display:block;}

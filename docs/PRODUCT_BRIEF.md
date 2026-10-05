@@ -366,8 +366,12 @@ overdue) and an upload button per report.
 - The manager PIN is stored hashed, can't be read or overwritten through the
   app, and login is rate-limited.
 - **Spanish next to the English on everything the kitchen (BOH) team sees**
-  (Tim, Oct 2026): Set Ups (both sides share it), Waste, Food Safety, the
-  Prep Board with its timers, and the header's initials prompt. All of it
+  (Tim, Oct 2026): the BOH side of Set Ups and Waste, Food Safety, the Prep
+  Board with its timers, and the header's initials prompt. **FOH stays
+  English-only** to keep it uncluttered (Tim): on the FOH side of Set Ups and
+  Waste, and the sheets they open, the Spanish is hidden (`esSyncSides` sets
+  `es-off-setups` / `es-off-waste` on the page). The tabs and the FOH/BOH
+  switch keep their small Spanish labels, as before. All of it
   comes from one glossary, `static/js/spanish.js` (informal "tú", as the
   Waste tab's help line was), so a bilingual leader can fix a word in one
   place. BOH stations translate word by word ("Breader 2" → "Empanizador

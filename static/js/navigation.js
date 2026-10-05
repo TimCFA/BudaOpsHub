@@ -94,6 +94,7 @@ document.querySelectorAll('.toggle-btn').forEach(t=>{
     t.classList.add('active');
     t.setAttribute('aria-pressed', 'true');
     currentSection = t.dataset.section;
+    if(typeof esSyncSides === 'function') esSyncSides();
     renderGrid();
     renderTape();
     renderScoreboardView();

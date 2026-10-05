@@ -204,7 +204,7 @@ function suNoteSheetHtml(section, date, dp, m, slot){
   const body = `
     <div class="su-notes-who">${escapeHtml(suShortDaypart(dp.name))} · ${escapeHtml(who)}</div>
     ${list}
-    <textarea id="suNoteText" class="su-notes-text" rows="3" maxlength="500" placeholder="Something the next person needs to know / ${escapeHtml(esText('Something the next person needs to know'))}">${escapeHtml(draft)}</textarea>
+    <textarea id="suNoteText" class="su-notes-text" rows="3" maxlength="500" placeholder="Something the next person needs to know${section === 'boh' ? ` / ${escapeHtml(esText('Something the next person needs to know'))}` : ''}">${escapeHtml(draft)}</textarea>
     <div class="su-notes-sign">${ini ? `Signed <b>${escapeHtml(ini)}</b> at ${escapeHtml(formatShortTime(Date.now()))}${esHtml('Signed')}` : `Set your initials (top right) to sign a note${esLine('Set your initials (top right) to sign a note')}`}</div>
     <div class="su-person-actions">
       <button type="button" class="su-btn-line" data-su-close-sheet="1">Cancel${esLine('Cancel')}</button>
