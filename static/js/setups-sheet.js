@@ -74,8 +74,9 @@ function suSheetViewHtml(section, date, dp, dpIndex, m){
   const showAll = suExpandedZones.has('all');
   const upTo = showAll || !m.headcount ? m.tiles.length : Math.max(m.headcount, lastFilled);
   const shown = m.tiles.slice(0, upTo), hidden = m.tiles.slice(upTo);
-  // Each row: the spot (tap to assign or open its sheet), a pencil for a
-  // note, and any notes under it, each signed with initials and a time.
+  // Each row: the spot (tap to assign or open its sheet) and a pencil for a
+  // note. A spot with notes shows a comment marker instead; the notes
+  // themselves stay hidden until it's tapped (the note sheet lists them).
   const rows = shown.map(x => {
     const notes = posNotesFor(m.key + '||' + x.slot);
     return `
@@ -84,8 +85,7 @@ function suSheetViewHtml(section, date, dp, dpIndex, m){
             <span class="su-row-slot"><span class="su-row-rank">${x.rank}</span>${escapeHtml(x.slot)}</span>
             <span class="su-row-name">${suSheetNameHtml(x, rowBreak(x))}</span>
           </button>
-          <button type="button" class="su-row-notebtn ${notes.length ? 'has' : ''}" data-su-note="${escapeHtml(x.slot)}" aria-label="${escapeHtml(`${notes.length ? `${notes.length} note${notes.length === 1 ? '' : 's'} on` : 'Add a note to'} ${x.slot}`)}" title="${notes.length ? 'Notes' : 'Add a note'}">${SU_ICON_PENCIL}</button>
-          ${suRowNotesHtml(notes)}
+          <button type="button" class="su-row-notebtn ${notes.length ? 'has' : ''}" data-su-note="${escapeHtml(x.slot)}" aria-label="${escapeHtml(`${notes.length ? `Read ${notes.length} note${notes.length === 1 ? '' : 's'} on` : 'Add a note to'} ${x.slot}`)}" title="${notes.length ? `${notes.length} note${notes.length === 1 ? '' : 's'}` : 'Add a note'}">${notes.length ? SU_ICON_NOTE_MARK + (notes.length > 1 ? `<span class="su-row-notecount">${notes.length}</span>` : '') : SU_ICON_PENCIL}</button>
           </div>`;
   }).join('');
   const zones = `
@@ -100,6 +100,7 @@ function suSheetViewHtml(section, date, dp, dpIndex, m){
 }
 
 const SU_ICON_PENCIL = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+const SU_ICON_NOTE_MARK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v12H8l-4 4z"/></svg>';
 const SU_ICON_NOTE = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v12H8l-4 4z"/></svg>';
 
 function suNoteStampHtml(n){
@@ -107,10 +108,6 @@ function suNoteStampHtml(n){
   return `<span class="su-note-stamp ${mine ? 'is-mine' : ''}" title="${escapeHtml(`${n.by}, ${formatShortTime(n.ts)}`)}">${escapeHtml(n.by)} · ${escapeHtml(formatShortTime(n.ts))}</span>`;
 }
 
-function suRowNotesHtml(notes){
-  if(!notes.length) return '';
-  return `<div class="su-row-notes">${notes.map(n => `<div class="su-row-note-line">${SU_ICON_NOTE}<span>${escapeHtml(n.text)} ${suNoteStampHtml(n)}</span></div>`).join('')}</div>`;
-}
 
 // The Resets strip on a FOH card whose daypart carries a handoff (Lunch →
 // Mid sits on the Transition card): every zone with its owners from the

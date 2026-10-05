@@ -92,8 +92,10 @@ Assign team members to positions for each daypart, FOH and BOH.
   same owners show on the Zone Reset page.
 - **Position notes**: the pencil on a row (or Note in a row's sheet) adds a
   note to that spot, always signed with the writer's initials and the time
-  (no initials, no note; `posNotes`, kept 60 days). Notes show under the row
-  and on the print.
+  (no initials, no note; `posNotes`, kept 60 days). The notes stay hidden on
+  the card: a spot with notes shows a navy comment marker in place of the
+  pencil (with a count when there's more than one), and tapping it opens the
+  note sheet that lists them. They print with the set up.
 - Assigning must feel instant (it once took ~2 seconds; that was unacceptable).
 
 ### Waste
