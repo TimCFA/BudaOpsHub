@@ -245,7 +245,7 @@ window.openPosModal = function(key, pos, daypart, note){
   currentPosName = pos;
   const slotRank = (setupsSlotsFor(daypart).indexOf(pos) + 1) || null;
   document.getElementById('posModalTitle').textContent = `${suShortDaypart(daypart)}${slotRank ? ` · #${slotRank}` : ''}`;
-  document.getElementById('posModalPos').textContent = pos;
+  document.getElementById('posModalPos').innerHTML = escapeHtml(pos) + esSpan(esPlace(pos), true);
   const search = document.getElementById('posModalSearch');
   search.value = '';
   const noteEl = document.getElementById('posModalNote');
@@ -297,8 +297,8 @@ window.openPosModal = function(key, pos, daypart, note){
     const t = timing ? suTimingFor(timing, name) : null;
     if(!t) return [];
     const parts = [];
-    if(t.arrives !== null) parts.push({kind: 'arrives', text: `arrives at ${suClock(t.arrives)}`});
-    if(t.leaves !== null) parts.push({kind: 'leaves', text: `leaves at ${suClock(t.leaves)}`});
+    if(t.arrives !== null) parts.push({kind: 'arrives', text: `arrives at ${suClock(t.arrives)}`, es: `${esText('arrives at')} ${suClock(t.arrives)}`});
+    if(t.leaves !== null) parts.push({kind: 'leaves', text: `leaves at ${suClock(t.leaves)}`, es: `${esText('leaves at')} ${suClock(t.leaves)}`});
     return parts;
   };
   // Fit for this spot: the PEA tier on the spot's position(s), best first;
@@ -326,7 +326,7 @@ window.openPosModal = function(key, pos, daypart, note){
   const left = document.getElementById('posModalLeft');
   const nextBtn = document.getElementById('posModalNext');
   const stillOpen = openSlots.length + (suPickWasOpen ? 1 : 0);
-  left.textContent = stillOpen ? `${stillOpen} left` : 'All filled';
+  left.innerHTML = stillOpen ? `${stillOpen} left${esLine('N left', stillOpen)}` : `All filled${esLine('All filled')}`;
   left.title = stillOpen ? `${stillOpen} spot${stillOpen === 1 ? '' : 's'} left in ${suShortDaypart(daypart)}` : `Every spot in ${suShortDaypart(daypart)} is filled`;
   nextBtn.hidden = !suPickNext.length;
   nextBtn.dataset.daypart = daypart;
@@ -354,22 +354,24 @@ function renderPosOptionList(eligible, filterText){
   const hasPea = peaRatings.rows.length > 0;
   let html = '';
   if(!filtered.length){
-    html += `<div class="pos-option-empty">${q ? 'No one by that name on this shift' : 'Nobody on the roster is free for this daypart'}</div>`;
+    const empty = q ? 'No one by that name on this shift' : 'Nobody on the roster is free for this daypart';
+    html += `<div class="pos-option-empty">${empty}${esLine(empty)}</div>`;
   } else {
     html += filtered.map(p => {
       const dot = hasPea && p.tier !== 'na' ? `<span class="su-tier-dot is-${p.tier}" aria-hidden="true"></span>` : '';
       const fit = p.offShift ? 'off shift now' : hasPea && p.tierLabel ? `${p.tierLabel}${p.avg != null ? ` · ${p.avg.toFixed(2)}` : ''}` : '';
       const sub = [fit, p.current ? 'here now' : ''].filter(Boolean).join(' · ');
-      const when = (p.when || []).map(w => `<span class="pos-option-when is-${w.kind}">${escapeHtml(w.text)}</span>`).join('');
+      const subEs = [p.offShift ? esText('off shift now') : '', p.current ? esText('here now') : ''].filter(Boolean).join(' · ');
+      const when = (p.when || []).map(w => `<span class="pos-option-when is-${w.kind}">${escapeHtml(w.text)}${esSpan(w.es)}</span>`).join('');
       return `<button type="button" class="pos-option ${p.current ? 'is-current' : ''} ${when ? 'has-when' : ''}" data-pos-pick="${escapeHtml(p.name)}">
           <span class="pos-option-who">${dot}<span class="pos-option-name">${escapeHtml(p.name)}</span>${when ? `<span class="pos-option-whens">${when}</span>` : ''}</span>
-          ${sub ? `<span class="pos-option-tag">${escapeHtml(sub)}</span>` : ''}
+          ${sub ? `<span class="pos-option-tag">${escapeHtml(sub)}${esSpan(subEs)}</span>` : ''}
         </button>`;
     }).join('');
   }
   if(posAssignments[currentPosKey]){
-    html += `<button type="button" class="pos-option split-option" data-pos-split="1">Hand off / split this spot →</button>`;
-    html += `<button type="button" class="pos-option unassign-option" data-pos-pick="">Clear this spot</button>`;
+    html += `<button type="button" class="pos-option split-option" data-pos-split="1">Hand off / split this spot →${esLine('Hand off / split this spot →')}</button>`;
+    html += `<button type="button" class="pos-option unassign-option" data-pos-pick="">Clear this spot${esLine('Clear this spot')}</button>`;
   }
   container.innerHTML = html;
 }
@@ -398,10 +400,10 @@ function suSkipChoiceHtml(name, above){
   const rank = s => slots.indexOf(s) + 1;
   const first = escapeHtml(name.split(/\s+/)[0]);
   return `<div class="su-skip">
-      <p class="su-skip-msg"><b>${escapeHtml(above)} (#${rank(above)})</b> is still open above ${escapeHtml(slot)} (#${rank(slot)}). Spots fill in priority order.</p>
-      <button type="button" class="su-skip-btn is-primary" data-pos-moveup="${escapeHtml(name)}">Put ${first} in ${escapeHtml(above)}</button>
-      <button type="button" class="su-skip-btn" data-pos-keep="${escapeHtml(name)}">Keep ${first} in ${escapeHtml(slot)}</button>
-      <button type="button" class="su-skip-back" data-pos-back="1">← Back to names</button>
+      <p class="su-skip-msg"><b>${escapeHtml(above)} (#${rank(above)})</b> is still open above ${escapeHtml(slot)} (#${rank(slot)}). Spots fill in priority order.${esLine('Skip choice', slot, above)}</p>
+      <button type="button" class="su-skip-btn is-primary" data-pos-moveup="${escapeHtml(name)}">Put ${first} in ${escapeHtml(above)}${esLine('Put NAME in SPOT', name.split(/\s+/)[0], above)}</button>
+      <button type="button" class="su-skip-btn" data-pos-keep="${escapeHtml(name)}">Keep ${first} in ${escapeHtml(slot)}${esLine('Keep NAME in SPOT', name.split(/\s+/)[0], slot)}</button>
+      <button type="button" class="su-skip-back" data-pos-back="1">← Back to names${esLine('← Back to names')}</button>
     </div>`;
 }
 
@@ -502,12 +504,13 @@ window.openVacancyModal = function(key, pos, daypart){
 
   document.getElementById('vacancyModalTitle').textContent = daypart;
   document.getElementById('vacancyModalPos').textContent = pos;
-  document.getElementById('vacancyModalCurrent').textContent = 'Currently assigned: ' + (posAssignments[key] || '—');
+  document.getElementById('vacancyModalCurrent').innerHTML = `Currently assigned:${esHtml('Currently assigned:')} ${escapeHtml(posAssignments[key] || '—')}`;
   document.getElementById('vacancyModalSearch').value = '';
 
   const isFlagged = !!posVacancyFlags[key];
   document.getElementById('btnResolveNoSplit').style.display = isFlagged ? 'block' : 'none';
-  document.getElementById('btnFlagOnly').textContent = isFlagged ? 'Keep Flagged (Still Looking)' : 'Flag Only — Find Coverage Later';
+  const flagLabel = isFlagged ? 'Keep Flagged (Still Looking)' : 'Flag Only — Find Coverage Later';
+  document.getElementById('btnFlagOnly').innerHTML = `${flagLabel}${esLine(flagLabel)}`;
 
   const dayName = document.getElementById('daySelect').value;
   const roster = currentPosSection === 'foh' ? fohRoster : bohRoster;
@@ -659,22 +662,22 @@ function renderRoster(){
     const isCompleted = !!completedBreaks[key] && !onBreak;
     const name = escapeHtml(person.name);
     const tags = [
-      person.leader ? '<span class="roster-leader-badge">Team Leader</span>' : '',
+      person.leader ? `<span class="roster-leader-badge">Team Leader${esHtml('Team Leader')}</span>` : '',
       person.source === 'manual' ? `<span class="su-roster-tag" title="Added by hand">Added${person.addedBy ? ` · ${escapeHtml(person.addedBy)}` : ''}</span>` : ''
     ].join('');
     const plan = !simplified && !isCompleted && !onBreak ? breakFor(currentPosSection, dayName, person.name) : null;
     const planNote = plan && plan.start !== null ? ` <span class="roster-break-plan">· break ${suClock(plan.start)}–${suClock(plan.end)}</span>` : '';
     const control = onBreak ? `
           <div class="su-break-live" role="timer" aria-live="off">
-            <span class="su-break-k">On break</span>
+            <span class="su-break-k">On break${esLine('On break')}</span>
             <b class="su-break-clock" data-break-timer="${name}">${breakClockText(remaining)}</b>
-            <span class="su-break-back">back at ${escapeHtml(breakBackAt(breakCountdowns[key]))}</span>
-            <button type="button" class="su-break-done" data-break-done="${name}">Done</button>
+            <span class="su-break-back">back at ${escapeHtml(breakBackAt(breakCountdowns[key]))}${esSpan(`${esText('back at')} ${breakBackAt(breakCountdowns[key])}`, true)}</span>
+            <button type="button" class="su-break-done" data-break-done="${name}">Done${esLine('Done')}</button>
           </div>`
       : isCompleted ? `
-          <button type="button" class="su-break-complete" data-break-undo="${name}" title="Tap to undo">${SU_ICON_CHECK}<span>Break done</span><em>undo</em></button>`
+          <button type="button" class="su-break-complete" data-break-undo="${name}" title="Tap to undo">${SU_ICON_CHECK}<span>Break done${esLine('Break done')}</span><em>undo${esHtml('undo')}</em></button>`
       : `
-          <button type="button" class="su-break-start" data-break-start="${name}">${SU_ICON_CUP}<span>Start break</span></button>`;
+          <button type="button" class="su-break-start" data-break-start="${name}">${SU_ICON_CUP}<span>Start break${esLine('Start break')}</span></button>`;
     return `
       <div class="su-roster-row ${onBreak ? 'is-break' : ''} ${isCompleted ? 'is-done' : ''}">
         <div class="su-roster-main">
@@ -687,7 +690,7 @@ function renderRoster(){
   }).join('');
 
   if(roster.length === 0){
-    panel.innerHTML = '<div class="su-roster-empty">No roster for ' + escapeHtml(formatVerboseDate(dayName)) + ' yet. Import the weekly HotSchedules CSV in Manage to populate.</div>';
+    panel.innerHTML = '<div class="su-roster-empty">No roster for ' + escapeHtml(formatVerboseDate(dayName)) + ' yet. Import the weekly HotSchedules CSV in Manage to populate.' + esLine('No roster yet') + '</div>';
   } else {
     panel.innerHTML = html;
     breakTickStart();

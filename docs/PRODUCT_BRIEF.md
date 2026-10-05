@@ -365,6 +365,17 @@ overdue) and an upload button per report.
   the server, not just hidden in the page.
 - The manager PIN is stored hashed, can't be read or overwritten through the
   app, and login is rate-limited.
+- **Spanish next to the English on everything the kitchen (BOH) team sees**
+  (Tim, Oct 2026): Set Ups (both sides share it), Waste, Food Safety, the
+  Prep Board with its timers, and the header's initials prompt. All of it
+  comes from one glossary, `static/js/spanish.js` (informal "tú", as the
+  Waste tab's help line was), so a bilingual leader can fix a word in one
+  place. BOH stations translate word by word ("Breader 2" → "Empanizador
+  2"); FOH spots stay English-only rather than half-translated. Spanish
+  shows as a quiet italic line under the English (`.es`, `.es-line`).
+  `tests/test_spanish.py` fails if a screen asks for a phrase the glossary
+  doesn't have, or a BOH station or daypart has no Spanish. Home quotes stay
+  English: they must be verbatim and sourced, and a translation isn't.
 - **Every change goes through a pull request; Tim says "merge".** Linear
   project "CFA Ops Hub" (team "Tim Lane") holds the backlog.
 
@@ -392,6 +403,11 @@ overdue) and an upload button per report.
 ## 8. Open items
 
 - Food-safety temperature targets (TIM-5) — waiting on Tim.
+- Spanish: a bilingual leader to read over `static/js/spanish.js`, the BOH
+  station words especially ("Empanizador", "Primario", "Papas"), and the
+  food safety zone "Boards Zone" = "Zona de Pantillas" (not a Spanish word;
+  "Zona de Tablas"?). Zone Resets, Safe Count, Home and Manage aren't
+  translated yet (FOH or leader screens).
 - Hire dates for tenure in Develop (TIM-38) — waiting on the employee list.
 - Firebase: confirm the plan, add a budget alert, turn on 2-step verification
   before Oct 20, 2026.

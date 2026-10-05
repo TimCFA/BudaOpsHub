@@ -27,6 +27,7 @@ const ctx = {
   isoAddDays(iso, n){ const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); },
 };
 vm.createContext(ctx);
+vm.runInContext(fs.readFileSync(process.argv[1].replace('roster-changes.js', 'spanish.js'), 'utf8'), ctx);
 vm.runInContext(fs.readFileSync(process.argv[1], 'utf8'), ctx);
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 const out = input.map(c => vm.runInContext(`(${c})()`, ctx));

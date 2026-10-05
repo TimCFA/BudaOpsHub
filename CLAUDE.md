@@ -33,6 +33,13 @@ Home screen quotes (`homeQuotes` in static/js/zone-reset.js) must be verbatim an
 checked against a published source; each carries its author and source. Never
 paraphrase or add an unsourced quote.
 
+## Spanish
+
+Everything the kitchen (BOH) team sees carries Spanish next to the English. New
+or changed text on those screens (Set Ups, Waste, Food Safety, Prep Board) gets
+its Spanish from the glossary in `static/js/spanish.js` (`esHtml` / `esLine`,
+`data-es` in the page); `tests/test_spanish.py` fails if a phrase is missing.
+
 ## Theme
 
 `static/css/theme-cfa.css` loads after `main.css` and carries the look: Chick-fil-A

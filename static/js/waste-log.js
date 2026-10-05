@@ -56,7 +56,7 @@ function wasteRemove(item, qty){
 
 function wasteRequireInitials(){
   const who = getInitials();
-  if(!who){ showToast('Set your initials first (top right)'); beginEditInitials(); }
+  if(!who){ showToast(`Set your initials first (top right) · ${esText('Set your initials first (top right)')}`); beginEditInitials(); }
   return who;
 }
 
@@ -114,15 +114,15 @@ function renderWasteMeters(){
   document.getElementById('wasteTodayAmt').textContent = money(total);
   document.getElementById('wasteTodaySub').innerHTML = `wasted today of the <b>${money(limit)}</b> limit <i>· desperdicio de hoy</i>`;
   const pill = document.getElementById('wasteTrackPill');
-  pill.textContent = state.pill;
+  pill.innerHTML = escapeHtml(state.pill) + esHtml(state.pill);
   pill.className = 'waste-status-pill is-' + state.key;
   fill(card.querySelector('.hw-tube'), 'is-big');
   document.getElementById('wasteTrackTicks').innerHTML = WT_TICKS.map(f =>
     `<span class="${f === 1 ? 'is-limit' : ''}" style="left:${f / WT_SCALE_MAX * 100}%">${f === 1 ? 'Limit ' : ''}$${Math.round(limit * f)}</span>`).join('');
   document.getElementById('wasteTrackLeft').innerHTML = total > limit
-    ? `<b>${money(total - limit)}</b> over the limit`
-    : total === limit ? '<b>Right at</b> the limit'
-    : `<b>${money(limit - total)}</b> of room left · lower is better`;
+    ? `<b>${money(total - limit)}</b> over the limit${esLine('over the limit', money(total - limit))}`
+    : total === limit ? `<b>Right at</b> the limit${esLine('Right at the limit')}`
+    : `<b>${money(limit - total)}</b> of room left · lower is better${esLine('of room left', money(limit - total))}`;
   document.getElementById('wasteTrackSides').innerHTML = [['foh', 'FOH', foh], ['boh', 'BOH', boh]]
     .map(([k, l, v]) => `<span class="${k === currentSection ? 'is-on' : ''}">${l} ${money(v)}</span>`).join('');
 }
@@ -138,7 +138,7 @@ function wasteTileHtml(p, n){
   const c = wasteItemColor(p), ink = wasteTextOn(c);
   const over = p.ceil > 0 && n >= p.ceil;
   return `<div class="wt-tile ${n ? '' : 'is-zero'} ${over ? 'is-over' : ''} ${ink !== '#ffffff' ? 'is-light' : ''}" data-wt-id="${escapeHtml(p.id)}" style="--c:${c};--t:${ink}" role="button" tabindex="0" aria-label="${escapeHtml(p.name)}: ${n} today">
-    <span class="wt-flag">At ceiling</span>
+    <span class="wt-flag">At ceiling${esHtml('At ceiling')}</span>
     <button type="button" class="wt-minus" data-wt-minus="${escapeHtml(p.id)}" aria-label="Remove one ${escapeHtml(p.name)}">−</button>
     <div class="wt-n">${n}</div><div class="wt-u">${escapeHtml(p.unit)}</div>
     <div class="wt-nm">${escapeHtml(p.name)}</div>
@@ -162,18 +162,18 @@ function renderGrid(){
   const cats = wasteCategories(products.filter(p => p.active !== false && wasteItemShows(p, currentSection)));
   if(wasteCat !== 'All' && !cats.includes(wasteCat)) wasteCat = 'All';
   const chips = document.getElementById('wasteChips');
-  if(chips) chips.innerHTML = ['All', ...cats].map(c => `<button type="button" class="wt-chip ${wasteCat === c ? 'is-on' : ''}" data-wt-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
+  if(chips) chips.innerHTML = ['All', ...cats].map(c => `<button type="button" class="wt-chip ${wasteCat === c ? 'is-on' : ''}" data-wt-cat="${escapeHtml(c)}">${escapeHtml(c)}${esHtml(c)}</button>`).join('');
   const search = document.getElementById('wasteSearch');
   if(search && search.value !== wasteQuery) search.value = wasteQuery;
   renderWasteMeters();
 
   const counts = wasteTodayCounts(currentSection);
   const items = wasteVisibleItems();
-  if(!items.length){ grid.innerHTML = `<div class="empty-state"><b>No items match</b></div>`; return; }
+  if(!items.length){ grid.innerHTML = `<div class="empty-state"><b>No items match</b>${esLine('No items match')}</div>`; return; }
   if(wasteCat === 'All'){
     grid.innerHTML = cats.map(c => {
       const list = items.filter(p => p.cat === c);
-      return list.length ? `<div class="wt-cat-h">${escapeHtml(c)}</div><div class="wt-grid">${list.map(p => wasteTileHtml(p, counts[p.id] || 0)).join('')}</div>` : '';
+      return list.length ? `<div class="wt-cat-h">${escapeHtml(c)}${esHtml(c)}</div><div class="wt-grid">${list.map(p => wasteTileHtml(p, counts[p.id] || 0)).join('')}</div>` : '';
     }).join('');
   } else {
     grid.innerHTML = `<div class="wt-grid">${items.map(p => wasteTileHtml(p, counts[p.id] || 0)).join('')}</div>`;
@@ -213,8 +213,8 @@ function wasteCountModal(id){
           </div>
           <div class="wt-quick"><button type="button" data-wt-step="5">+5</button><button type="button" data-wt-step="10">+10</button><button type="button" data-wt-step="20">+20</button></div>
           <div class="cost-preview" id="wasteCountCost"></div>
-          <button type="button" id="wasteCountSave" class="btn btn-primary">Save count</button>
-          <button type="button" id="wasteCountCancel" class="btn btn-ghost">Cancel</button>
+          <button type="button" id="wasteCountSave" class="btn btn-primary">Save count${esLine('Save count')}</button>
+          <button type="button" id="wasteCountCancel" class="btn btn-ghost">Cancel${esLine('Cancel')}</button>
         </div>
       </div>`);
     modal = document.getElementById('wasteCountModal');
@@ -222,7 +222,7 @@ function wasteCountModal(id){
     const preview = () => {
       const item = products.find(x => x.id === modal.dataset.id) || {};
       const n = Math.max(0, parseInt(input.value, 10) || 0);
-      document.getElementById('wasteCountCost').innerHTML = `Today: <b>${wasteMoney(n * (Number(item.cost) || 0))}</b>`;
+      document.getElementById('wasteCountCost').innerHTML = `Today${esHtml('Today')}: <b>${wasteMoney(n * (Number(item.cost) || 0))}</b>`;
     };
     modal.addEventListener('click', e => {
       if(e.target === modal || e.target.id === 'wasteCountCancel'){ modal.classList.remove('active'); return; }
@@ -245,8 +245,8 @@ function wasteCountModal(id){
     });
   }
   modal.dataset.id = id;
-  document.getElementById('wasteCountTitle').textContent = p.name;
-  document.getElementById('wasteCountSub').textContent = `Today's count at ${currentSection.toUpperCase()} · ${wasteMoney(p.cost)} per ${p.unit}`;
+  document.getElementById('wasteCountTitle').innerHTML = escapeHtml(p.name) + (p.es ? esSpan(p.es, true) : '');
+  document.getElementById('wasteCountSub').innerHTML = `${escapeHtml(`Today's count at ${currentSection.toUpperCase()} · ${wasteMoney(p.cost)} per ${p.unit}`)}${esLine("Today's count")}`;
   const input = document.getElementById('wasteCountN');
   input.value = wasteTodayCounts(currentSection)[id] || 0;
   input.dispatchEvent(new Event('input'));
@@ -319,7 +319,7 @@ function renderTape(){
   const cutoff = Date.now() - RECENT_ENTRIES_WINDOW_MS;
   const filtered = entries.filter(e=>e.section===currentSection && e.ts >= cutoff);
   if(filtered.length===0){
-    tape.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:12px;">No entries in the last 15 minutes</div>`;
+    tape.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:12px;">No entries in the last 15 minutes${esLine('No entries in the last 15 minutes')}</div>`;
     return;
   }
   tape.innerHTML = [...filtered].sort((a,b)=>b.ts-a.ts).map(e=>`
@@ -371,7 +371,7 @@ function renderScoreboardView(){
         <div class="bar-fill" style="width:${(cost/maxVal)*100}%"></div>
       </div>
     </div>
-  `).join('') : '<div style="text-align:center;color:var(--text-secondary);font-size:12px;padding:12px 0;">No waste logged yet today</div>';
+  `).join('') : '<div style="text-align:center;color:var(--text-secondary);font-size:12px;padding:12px 0;">No waste logged yet today' + esLine('No waste logged yet today') + '</div>';
 
   document.getElementById('wasteTodayDate').textContent = formatVerboseDate(today);
   renderWasteThermo(total);

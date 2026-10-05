@@ -64,7 +64,10 @@ function renderInitialsBadge(){
   const badge = document.getElementById('initialsBadge');
   if(!badge) return;
   const current = getInitials();
-  badge.textContent = (current || 'Set initials') + ' ▾';
+  // No initials yet: the prompt in Spanish too (spanish.js loads after this
+  // file and draws the badge again).
+  if(current || typeof esLine !== 'function') badge.textContent = (current || 'Set initials') + ' ▾';
+  else badge.innerHTML = `Set initials ▾${esLine('Set initials')}`;
 }
 
 function beginEditInitials(){
