@@ -286,7 +286,8 @@ Waste Tracking (limit, products), PEA Ratings, Backup & Data.
 - **Lead Captain** (FOH): a Team Lead; rotates (whoever hasn't led longest
   goes first); never also a zone captain; works Runner if staffing reaches it,
   else Drinks 3 or FC Bagger (whichever zone needs a leader more); DT Bagger 2 in
-  the Afternoon.
+  the Afternoon. The daypart banner shows just the Lead Captain's name; the
+  spot they work shows on its own row (Tim dropped the "· iPOS 1" label).
 - **Rotation**: don't put someone (especially a leader) in the same zone as
   their last worked day.
 - **Outside time**: iPOS and OMD are outside; nobody outside more than **3.5

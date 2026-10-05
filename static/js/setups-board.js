@@ -259,10 +259,10 @@ function suDaypartCardsHtml(section, date, current, openHtml, m){
     const open = dp.name === current && !suDaypartClosed[section];
     const time = (dp.name.match(/\(([^)]*)\)/) || [])[1] || '';
     const lead = section === 'foh' ? posAssignments[suEvalKey(section, date, dp.name) + '||' + SU_LEAD_CAPTAIN] : '';
-    const working = lead ? suLeadWorkingSlot(date, dp) : null;
     // Only the Lead Captain's name opens the Lead picker; the rest of the
-    // banner opens and closes the card.
-    const leadBtn = section === 'foh' ? `<span class="su-dp-k">Lead</span><button type="button" class="su-dp-lead" data-su-lead-open="1" data-su-lead-dp="${escapeHtml(dp.name)}">${lead ? `<b>${escapeHtml(suDisplayName(lead))}</b>` : '<em>Choose</em>'}</button>${working ? `<span class="su-dp-where">· ${escapeHtml(working)}</span>` : ''}` : '';
+    // banner opens and closes the card. Just the name: the spot they also
+    // work is on its own row below (Tim dropped the "· iPOS 1" label).
+    const leadBtn = section === 'foh' ? `<span class="su-dp-k">Lead</span><button type="button" class="su-dp-lead" data-su-lead-open="1" data-su-lead-dp="${escapeHtml(dp.name)}">${lead ? `<b>${escapeHtml(suDisplayName(lead))}</b>` : '<em>Choose</em>'}</button>` : '';
     const needed = open && m ? m.tiles.filter(x => x.needed).length : 0;
     const fillBtn = needed && m.unplaced.length && suFillAvailable() ? `<button type="button" class="su-dp-fillbtn" data-su-tool="fill">Fill ${needed} open${esLine('Fill N open', needed)}</button>` : '';
     const sky = suDaypartSky(dp.name);
