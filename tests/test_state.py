@@ -260,6 +260,20 @@ class PatchTest(unittest.TestCase):
         self.assertEqual(json.loads(news['sections']['setups'])['posAssignments'], {})
         self.assertEqual(self.b.post('/api/state/sync', json={'versions': 'x'}).status_code, 400)
 
+    def test_sync_only_checks_the_sections_asked_for(self):
+        # Set Ups' Refresh: just the set up and roster, nothing else.
+        have = dict(self.loaded['versions'])
+        self.b.post('/api/state/save', json={'sections': {'waste': json.dumps({'entries': [{'ts': 99}]})}})
+        only = {'versions': have, 'only': ['setups', 'rosters']}
+        quiet = self.a.post('/api/state/sync', json=only).get_json()
+        self.assertEqual(quiet['sections'], {})                       # waste changed, but wasn't asked for
+        self.patch(self.b, 'setups', have['setups'], [{'o': 'set', 'p': ['posAssignments', 'foh||d||Lunch||Runner'], 'v': 'Ava'}])
+        news = self.a.post('/api/state/sync', json=only).get_json()
+        self.assertEqual(list(news['sections']), ['setups'])
+        self.assertEqual(json.loads(news['sections']['setups'])['posAssignments']['foh||d||Lunch||Runner'], 'Ava')
+        self.assertEqual(self.a.post('/api/state/sync', json={'versions': have, 'only': 'setups'}).status_code, 400)
+        self.assertEqual(self.a.post('/api/state/sync', json={'versions': have, 'only': [1]}).status_code, 400)
+
     def test_old_page_saves_show_up_in_sync(self):
         have = dict(self.loaded['versions'])
         self.b.post('/api/state/save', json={'sections': {'waste': json.dumps({'entries': [{'ts': 99}]})}})

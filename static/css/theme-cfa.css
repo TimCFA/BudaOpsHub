@@ -840,3 +840,12 @@ body.launch-mode .su-row-notebtn{width:36px;height:36px;}
 #suPrintRoot .su-print-note{font-size:9px;color:#444;}
 #suPrintRoot .su-print-note i{color:#888;}
 #suPrintRoot .su-print-sub{font-size:10px;margin:6px 0 2px;}
+
+/* Set Ups: Refresh beside Print, with when it last checked */
+.su-modebar-actions{display:flex;align-items:center;gap:2px;margin-left:auto;min-width:0;}
+.su-refresh-note{font-family:var(--font-ui);font-size:12px;color:var(--text-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-right:4px;font-variant-numeric:tabular-nums;}
+.su-refresh-btn.is-busy svg{animation:su-spin .8s linear infinite;}
+.su-refresh-btn:disabled{opacity:.7;cursor:default;}
+@keyframes su-spin{to{transform:rotate(360deg);}}
+@media (prefers-reduced-motion:reduce){ .su-refresh-btn.is-busy svg{animation:none;} }
+@media (max-width:380px){ .su-refresh-note{display:none;} }

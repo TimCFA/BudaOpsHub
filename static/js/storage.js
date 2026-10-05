@@ -445,6 +445,21 @@ async function syncState(){
   }
 }
 
+// Set Ups' Refresh: a leader checking their set up is the latest. Asks the
+// server for just the set up and roster sections (a tiny reply when nothing
+// changed, and served from the server's memory, so no database read), after
+// any save of this page's own has gone out. Resolves to {ok, changed}.
+const SETUP_REFRESH_SECTIONS = ['setups', 'rosters'];
+async function refreshSetups(){
+  if(saveInFlight){ try{ await saveInFlight; }catch(e){} }
+  if(!Object.keys(stateVersions).length) return {ok: false, changed: false};
+  const reply = await statePost('/api/state/sync', {versions: stateVersions, only: SETUP_REFRESH_SECTIONS});
+  if(!reply) return {ok: false, changed: false};
+  stateNoteBuild(reply.build);
+  const changed = stateAdoptServer(reply.sections, reply.versions, null);
+  return {ok: true, changed};
+}
+
 function stateStartSync(){
   if(stateStartSync.started) return;
   stateStartSync.started = true;
