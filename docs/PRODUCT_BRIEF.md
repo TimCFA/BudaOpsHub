@@ -79,7 +79,9 @@ Assign team members to positions for each daypart, FOH and BOH.
 - **Zone resets ride on positions.** A FOH card whose daypart carries a
   handoff (Breakfast → Lunch on Lunch, Lunch → Mid on Transition, Mid → Dinner
   on Mid, Dinner → Late Night on Dinner, Close on Close) ends with a
-  **Resets** strip: every zone with its owners, taken from the positions
+  **Resets** drop-down (closed to start, its header counts unowned zones or
+  says "all owned"; open or closed is remembered on the device): every zone
+  with its owners, taken from the positions
   that work it (`ZONE_OWNER_RULES` in zone-reset.js: Drinks 1/2 and
   Lemonades → Drinks Zone, DT Baggers → Bagging Station, FC Bagger → Front
   Counter, Hosts → Dining Room and Restrooms, OMD → Outside, Drinks 3 → Soda
