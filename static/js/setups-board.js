@@ -32,7 +32,10 @@ const SU_ZONES = {
 const SU_EXTRA_ZONE = {key: 'extra', name: 'Extra hands'};
 
 let suSelectedDaypart = {foh: '', boh: ''};   // daypart name per section
-let suDaypartClosed = {foh: true, boh: true};     // Set up view: every daypart card starts closed; a tap opens the one the leader wants (Tim, Oct 2026)
+// Set up view: every daypart card starts closed; a tap opens one, and any
+// number can be open at once so leaders can compare dayparts (Tim, Oct
+// 2026). suSelectedDaypart is the one being worked on: the card last tapped.
+let suOpenCards = {foh: new Set(), boh: new Set()};
 let suSelectedDate = '';
 let suExpandedZones = new Set();              // zones showing their optional slots
 let suSheet = null;                           // {kind: 'develop'|'fill'|'evaluate'|'planb'|'person'|'lead', slot}
@@ -65,7 +68,7 @@ function suCurrentDaypart(section, date){
   if(suSelectedDate !== date){
     suSelectedDate = date;
     suSelectedDaypart = {foh: '', boh: ''};
-    suDaypartClosed = {foh: true, boh: true};
+    suOpenCards = {foh: new Set(), boh: new Set()};
     suExpandedZones.clear();
     suSheet = null;
     suTrayPick = null;
@@ -262,12 +265,15 @@ function suNumbersLineHtml(date, dp, pill){
 // one open at a time (the layout before). Tim is trying the pills; to go
 // back, set this to 'cards'. Nothing about the set up's data differs between
 // the two: both read and write the same posAssignments.
-const SU_LAYOUT = 'pills';
+const SU_LAYOUT = 'cards';
 
-function suDaypartCardsHtml(section, date, current, openHtml, m){
+// Every open card gets its own spots, worked out for its own daypart.
+function suDaypartCardsHtml(section, date){
+  const open = suOpenCards[section];
   return `<div class="su-dp-list">${suDaypartsFor(section).map((dp, i)=>{
-    const open = dp.name === current && !suDaypartClosed[section];
-    return suDaypartCardHtml(section, date, dp, i, open, openHtml, m, false);
+    if(!open.has(dp.name)) return suDaypartCardHtml(section, date, dp, i, false, '', null, false);
+    const m = suDaypartModel(section, date, dp, i);
+    return suDaypartCardHtml(section, date, dp, i, true, suSheetViewHtml(section, date, dp, i, m), m, false);
   }).join('')}</div>`;
 }
 
@@ -322,7 +328,7 @@ function suDaypartCardHtml(section, date, dp, i, open, openHtml, m, pill){
           <span class="su-dp-art">${suSkyArt(sky)}</span>
           <span class="su-dp-name">${escapeHtml(suShortDaypart(dp.name))}${time ? ` <span class="su-dp-time">${escapeHtml(time)}</span>` : ''}${esSpan(esDaypart(dp.name), true)}</span>
           <span class="su-dp-fill">${suDaypartFillText(section, date, dp, i)}</span>`;
-    return `<section class="su-dp su-col-${suDaypartColor(dp.name)} ${open ? 'is-open' : ''} ${pill ? 'is-pill' : ''}" aria-label="${escapeHtml(suShortDaypart(dp.name))}">
+    return `<section class="su-dp su-col-${suDaypartColor(dp.name)} ${open ? 'is-open' : ''} ${pill ? 'is-pill' : ''}" data-su-card="${escapeHtml(dp.name)}" aria-label="${escapeHtml(suShortDaypart(dp.name))}">
       <div class="su-dp-banner">
         ${pill ? `<div class="su-dp-head">${headInner}</div>` : `<button type="button" class="su-dp-head"${toggle} aria-expanded="${open}">${headInner}
           <span class="su-dp-chev" aria-hidden="true">▾</span>
@@ -570,7 +576,7 @@ function renderSetupsBoard(date){
       ${rosterChangesHtml(section, date)}
       ${SU_LAYOUT === 'pills'
         ? suDaypartPillsHtml(section, date, dp.name) + suDaypartCardHtml(section, date, dp, dpIndex, true, suTrayHtml(section, date, dp, m) + suSheetViewHtml(section, date, dp, dpIndex, m), m, true)
-        : suDaypartCardsHtml(section, date, dp.name, suSheetViewHtml(section, date, dp, dpIndex, m), m)}
+        : suDaypartCardsHtml(section, date)}
       ${suSheetHtml(section, date, dp, dpIndex, m)}
     </div>`;
   }
@@ -631,20 +637,32 @@ function setupsSlotsFor(dpName){
   return (currentPosSection === 'foh' ? fohPositions : bohPositions)[dpName] || [];
 }
 
+// With several cards open, a tap, hold or drag inside one makes its daypart
+// the one worked on before anything else handles it, so the picker, notes,
+// Fill, the Lead sheet and drag all act on the card that was touched. (A
+// capture listener: it runs ahead of every other handler on the board.)
+function suTakeCard(e){
+  const card = e.target.closest && e.target.closest('#allDayparts [data-su-card]');
+  if(card && !e.target.closest('[data-su-dp-toggle]')) suSelectedDaypart[currentPosSection] = card.dataset.suCard;
+}
+document.getElementById('allDayparts').addEventListener('pointerdown', suTakeCard, true);
+document.getElementById('allDayparts').addEventListener('click', suTakeCard, true);
+
 document.getElementById('allDayparts').addEventListener('click', e=>{
   const t = e.target;
   const daypart = t.closest('[data-su-daypart]');
-  if(daypart){ suSelectedDaypart[currentPosSection] = daypart.dataset.suDaypart; suDaypartClosed[currentPosSection] = false; suExpandedZones.clear(); suSheet = null; suTrayPick = null; renderAllDayparts(); return; }
+  if(daypart){ suSelectedDaypart[currentPosSection] = daypart.dataset.suDaypart; suOpenCards[currentPosSection].add(daypart.dataset.suDaypart); suExpandedZones.clear(); suSheet = null; suTrayPick = null; renderAllDayparts(); return; }
   const dpToggle = t.closest('[data-su-dp-toggle]');
   if(dpToggle && !t.closest('[data-su-lead-open],[data-su-tool]')){
-    const sec = currentPosSection, name = dpToggle.dataset.suDpToggle;
-    if(name === suSelectedDaypart[sec] && !suDaypartClosed[sec]) suDaypartClosed[sec] = true;
-    else { suSelectedDaypart[sec] = name; suDaypartClosed[sec] = false; suExpandedZones.clear(); }
+    // Opens or closes just this card; the others stay as they are.
+    const sec = currentPosSection, name = dpToggle.dataset.suDpToggle, open = suOpenCards[sec];
+    if(open.has(name)){ open.delete(name); suExpandedZones.delete('all|' + name); }
+    else { open.add(name); suSelectedDaypart[sec] = name; }
     suSheet = null;
     renderAllDayparts();
     // Keep the tapped card where the finger is.
     const head = [...document.querySelectorAll('#allDayparts .su-dp-head')].find(b => b.dataset.suDpToggle === name);
-    if(head && !suDaypartClosed[sec]) head.scrollIntoView({block: 'nearest'});
+    if(head && open.has(name)) head.scrollIntoView({block: 'nearest'});
     return;
   }
   const more = t.closest('[data-su-zone-more]');
@@ -792,10 +810,14 @@ function suDragKey(slot){
 
 const suFirstNames = v => suSplitNames(v).map(n => n.split(/\s+/)[0]).join('/');
 
+// A spot under the finger in the same card (a name moves within its own
+// daypart, even with other cards open).
 function suDragTileAt(x, y){
   const el = document.elementFromPoint(x, y);
   const tile = el && el.closest('#allDayparts [data-su-tile]');
-  return tile && tile.dataset.suTile !== suDrag.slot ? tile : null;
+  if(!tile || tile.dataset.suTile === suDrag.slot) return null;
+  const card = tile.closest('[data-su-card]');
+  return !suDrag.card || (card && card.dataset.suCard === suDrag.card) ? tile : null;
 }
 
 function suDragStart(){
@@ -887,7 +909,8 @@ document.getElementById('allDayparts').addEventListener('pointerdown', e=>{
   if(suDrag || e.button > 0 || e.target.closest('.su-sheet')) return;
   const tile = e.target.closest('[data-su-tile]');
   if(!tile || !posAssignments[suDragKey(tile.dataset.suTile)]) return;
-  suDrag = {slot: tile.dataset.suTile, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, pointerId: e.pointerId, mouse: e.pointerType === 'mouse', active: false};
+  const card = tile.closest('[data-su-card]');
+  suDrag = {slot: tile.dataset.suTile, card: card ? card.dataset.suCard : null, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, pointerId: e.pointerId, mouse: e.pointerType === 'mouse', active: false};
   if(!suDrag.mouse) suDrag.timer = setTimeout(suDragStart, SU_DRAG_HOLD_MS);
 });
 

@@ -111,7 +111,9 @@ function suSheetViewHtml(section, date, dp, dpIndex, m){
   // past the headcount at the bottom fold away; nothing above a filled spot
   // is ever hidden, so a skipped spot always shows.
   const lastFilled = m.tiles.reduce((n, x) => x.names.length ? x.rank : n, 0);
-  const showAll = suExpandedZones.has('all');
+  // Per card: "more spots" on one open card doesn't open them on the others.
+  const moreKey = 'all|' + dp.name;
+  const showAll = suExpandedZones.has(moreKey);
   const upTo = showAll || !m.headcount ? m.tiles.length : Math.max(m.headcount, lastFilled);
   const shown = m.tiles.slice(0, upTo), hidden = m.tiles.slice(upTo);
   // Each row: the spot (tap to assign or open its sheet) and a pencil for a
@@ -135,8 +137,8 @@ function suSheetViewHtml(section, date, dp, dpIndex, m){
   const zones = `
       <section class="su-sheet-zone su-sheet-list" aria-label="Positions in priority order">
         ${rows}
-        ${hidden.length ? `<button type="button" class="su-zone-more" data-su-zone-more="all">+ ${hidden.length} more spot${hidden.length === 1 ? '' : 's'} if you have extra people${esLine('N more spots', hidden.length)}</button>` : ''}
-        ${showAll && m.headcount && upTo > Math.max(m.headcount, lastFilled) ? `<button type="button" class="su-zone-more" data-su-zone-less="all">Hide open extras${esLine('Hide open extras')}</button>` : ''}
+        ${hidden.length ? `<button type="button" class="su-zone-more" data-su-zone-more="${escapeHtml(moreKey)}">+ ${hidden.length} more spot${hidden.length === 1 ? '' : 's'} if you have extra people${esLine('N more spots', hidden.length)}</button>` : ''}
+        ${showAll && m.headcount && upTo > Math.max(m.headcount, lastFilled) ? `<button type="button" class="su-zone-more" data-su-zone-less="${escapeHtml(moreKey)}">Hide open extras${esLine('Hide open extras')}</button>` : ''}
         ${suResetsStripHtml(section, date, dp)}
       </section>`;
 
