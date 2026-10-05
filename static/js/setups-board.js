@@ -240,15 +240,18 @@ function suFillAvailable(){
 }
 
 // Know the Numbers for the daypart, as a short line on the card: projected
-// sales, the productivity goal, and any special event. Nothing when none
-// are entered.
+// sales, the productivity goal, and any special event; once actual sales
+// are typed, the actual and how far off projection. Nothing when none are
+// entered.
 function suNumbersLineHtml(date, dp){
   const n = getNumbersForDaypart(date, dp);
   if(!n) return '';
   const money = v => { const x = parseMoney(v); return x == null ? '' : x >= 10000 ? `$${(x / 1000).toFixed(1)}k` : `$${Math.round(x).toLocaleString('en-US')}`; };
   const sales = money(n.projectedSales), goal = money(n.productivityGoal), ev = String(n.specialEvents || '').trim();
-  if(!sales && !goal && !ev) return '';
-  return `<div class="su-dp-nums" data-su-dp-toggle="${escapeHtml(dp.name)}">${sales ? `<span class="su-dp-num"><b>${escapeHtml(sales)}</b> projected</span>` : ''}${goal ? `<span class="su-dp-num"><b>${escapeHtml(goal)}</b>/labor hr</span>` : ''}${ev ? `<span class="su-dp-num is-event" title="${escapeHtml(ev)}">${escapeHtml(ev)}</span>` : ''}</div>`;
+  const actual = money(n.actualSales), vs = knVersus(n.actualSales, n.projectedSales);
+  if(!sales && !goal && !ev && !actual) return '';
+  const off = vs && vs.pct !== null ? ` <span class="su-dp-vs ${vs.diff >= 0 ? 'is-up' : 'is-down'}">${vs.pct < 0 ? '−' : '+'}${Math.abs(vs.pct).toFixed(1)}%</span>` : '';
+  return `<div class="su-dp-nums" data-su-dp-toggle="${escapeHtml(dp.name)}">${sales ? `<span class="su-dp-num"><b>${escapeHtml(sales)}</b> projected</span>` : ''}${actual ? `<span class="su-dp-num"><b>${escapeHtml(actual)}</b> actual${off}</span>` : ''}${goal ? `<span class="su-dp-num"><b>${escapeHtml(goal)}</b>/labor hr</span>` : ''}${ev ? `<span class="su-dp-num is-event" title="${escapeHtml(ev)}">${escapeHtml(ev)}</span>` : ''}</div>`;
 }
 
 function suDaypartCardsHtml(section, date, current, openHtml, m){

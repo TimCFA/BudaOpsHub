@@ -875,9 +875,14 @@ function renderNumbersContent(){
   if(!numbersData[dayName]) numbersData[dayName] = {};
   knNormalizeDay(numbersData[dayName]);
 
-  container.innerHTML = numbersDayparts.map(dp=>{
+  container.innerHTML = numbersDayparts.map((dp, i)=>{
     const entry = numbersData[dayName][dp.name] || {};
     const dayArg = jsArg(dayName), dpArg = jsArg(dp.name);
+    const money = (field, label) => `
+          <div class="field">
+            <label>${label}</label>
+            <input type="text" inputmode="decimal" value="${escapeHtml(entry[field] || '')}" placeholder="$0.00" onchange="formatAndUpdateCurrency(this,${dayArg},${dpArg},${jsArg(field)})">
+          </div>`;
     return `
       <div class="standup-card" style="margin-bottom:14px;">
         <h3 style="margin-bottom:12px;">${escapeHtml(dp.name)}</h3>
@@ -895,6 +900,11 @@ function renderNumbersContent(){
           <label>Special Events</label>
           <input type="text" value="${escapeHtml(entry.specialEvents || '')}" placeholder="e.g. Football watch party, large catering pickup at 2pm" onchange="updateNumbersField(${dayArg},${dpArg},'specialEvents',this.value)" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
         </div>
+        <div class="kn-actuals">
+          <div class="kn-actuals-head">Actuals <span>after the daypart</span></div>
+          <div class="kn-actuals-grid">${money('actualSales', 'Actual Sales')}${money('actualProductivity', 'Actual Productivity')}</div>
+          <div class="kn-vs" id="knVs${i}">${knActualsHtml(entry)}</div>
+        </div>
       </div>
     `;
   }).join('');
@@ -905,6 +915,10 @@ window.updateNumbersField = async function(dayName, dpName, field, value){
   if(!numbersData[dayName][dpName]) numbersData[dayName][dpName] = {};
   numbersData[dayName][dpName][field] = value.trim();
   touchLastUpdated(dayName);
+  // Planned vs actual, redrawn in place so the next box keeps its focus.
+  const i = numbersDayparts.findIndex(d => d.name === dpName);
+  const vs = document.getElementById('knVs' + i);
+  if(vs && document.getElementById('numbersDaySelect').value === dayName) vs.innerHTML = knActualsHtml(numbersData[dayName][dpName]);
   await saveState();
   updateSelectedDayInfo('numbersDaySelect', 'numbersSelectedInfo');
 };

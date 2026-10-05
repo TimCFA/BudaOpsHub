@@ -50,7 +50,12 @@ for the full site. Managers turn launch mode off for everyone in Manage.
 
 ### Set Ups (positioning) — the most-used, most rule-heavy area
 - Daypart cards show their Know the Numbers line (projected sales, $/labor
-  hour goal, special event) in both the Set up and Coach views. Numbers are
+  hour goal, special event; once typed, the actual sales and how far off
+  projection, e.g. "$4,061 actual −3.7%") in both the Set up and Coach views.
+  **Actuals** are typed by hand on Manage → Know the Numbers under each
+  daypart (Actual Sales, Actual Productivity in $/labor hour), and the card
+  shows sales vs projected (dollars and percent) and productivity vs goal
+  (dollars). They're kept for a year with the plan (numbersHistory). Numbers are
   kept for the **four major dayparts only, on Analytics Hub's hours**
   (Breakfast 6–10:30, Lunch 10:30–2, Afternoon 2–5, Dinner 5–close), so
   projections line up with the actuals; the Early Breakfast, Transition and
@@ -88,8 +93,10 @@ Assign team members to positions for each daypart, FOH and BOH.
   Captain. See the rules in section 4.
 - **Breaks & tasks** per daypart (section 4).
 - **Zone resets ride on positions.** A FOH card whose daypart carries a
-  handoff (Breakfast → Lunch on Lunch, Lunch → Mid on Transition, Mid → Dinner
-  on Mid, Dinner → Late Night on Dinner, Close on Close) ends with a
+  handoff (Breakfast → Lunch on Breakfast, since the breakfast crew resets
+  their zones before they leave, not the lunch crew coming on (Tim); Lunch →
+  Mid on Transition, Mid → Dinner on Mid, Dinner → Late Night on Dinner,
+  Close on Close) ends with a
   **Resets** drop-down (closed to start, its header counts unowned zones or
   says "all owned"; open or closed is remembered on the device): every zone
   with its owners, taken from the positions
@@ -331,6 +338,7 @@ overdue) and an upload button per report.
 |---|---|---|
 | Weekly roster (CSV) | HotSchedules | Who works when, FOH/BOH, Team Leader shifts |
 | Projected sales & goals | The Forecast tab (Send to Know the Numbers), or a spreadsheet | Know the Numbers, Set Ups game plan; no file needed with the forecast |
+| Actual sales & productivity per daypart | Typed into Manage → Know the Numbers after the daypart (Analytics Hub's figures) | Plan vs actual on Know the Numbers and the Set Ups card; kept a year with the plan |
 | PEA ratings (PDF) | Levelset | Position strength, all green, Set Ups tools |
 | CEM (xlsx) | Guest survey reports | Guest Obsession scoreboard, CEM trends |
 | Productivity (CSV) | Daypart productivity report | Busy hours for breaks |

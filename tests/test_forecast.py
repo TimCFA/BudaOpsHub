@@ -347,6 +347,25 @@ class KnowTheNumbersFeedTest(unittest.TestCase):
         self.assertEqual(res, [None, 'Breakfast (6:00-10:30)', 'Lunch (10:30-2:00)', None, 'Afternoon (2:00-5:00)', 'Dinner (5:00-10:00)', None,
                                'Breakfast (6:00-10:30)', 'Lunch (10:30-2:00)', 'Afternoon (2:00-5:00)', 'Lunch (10:30-2:00)'])
 
+    def test_actuals_against_the_plan(self):
+        res, = run([{'op': '''c => [knVersus("$4,061.00", "$4,216.00"), knVersus("$172.00", "$185.00"), knVersus("", "$4,216.00"), knVersus("$4,061.00", "")]'''}])
+        self.assertEqual(res[0]['diff'], -155)
+        self.assertAlmostEqual(res[0]['pct'], -3.676, places=2)
+        self.assertEqual((res[1]['actual'], res[1]['plan'], res[1]['diff']), (172, 185, -13))
+        self.assertEqual(res[2:], [None, None])                      # nothing to compare until both are typed
+
+    def test_actuals_lines(self):
+        res, = run([{'op': '''c => [
+            knActualsHtml({projectedSales: "$4,216.00", actualSales: "$4,061.00", productivityGoal: "$185.00", actualProductivity: "$191.00"}),
+            knActualsHtml({projectedSales: "$4,216.00", productivityGoal: "$185.00"}),
+            knActualsHtml({projectedSales: "$4,216.00", actualSales: "$4,216.00"})]'''}])
+        self.assertIn('<b>$4,061</b> vs $4,216 projected', res[0])
+        self.assertIn('is-down">−$155 (−3.7%)', res[0])
+        self.assertIn('<b>$191</b> vs $185 goal', res[0])
+        self.assertIn('is-up">+$6<', res[0])                           # productivity: dollars, no percent
+        self.assertEqual(res[1], '')                                   # no actuals yet: no lines
+        self.assertIn('is-even">on target', res[2])
+
     def test_numbers_typed_under_the_seven_dayparts_fold_into_the_four(self):
         day = {
             'Early Breakfast (6:00-8:00)': {'projectedSales': '$1,000.00', 'productivityGoal': '$80.00', 'specialEvents': 'Bus group'},

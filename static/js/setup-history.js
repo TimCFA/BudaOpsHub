@@ -150,8 +150,9 @@ function setupHistoryStatusText(){
 // Know the Numbers (numbersData) is also pruned after two weeks. Game Day
 // detection needs to know what a daypart's projected sales and productivity
 // goal usually are, so each finished day's numbers are kept for a year:
-//   {'2026-09-20': {'Lunch (11:00-2:00)': [projectedSales, productivityGoal, specialEvents]}}
-// with sales/goal as numbers (null when blank).
+//   {'2026-09-20': {'Lunch (11:00-2:00)': [projectedSales, productivityGoal, specialEvents, actualSales, actualProductivity]}}
+// with sales/goal as numbers (null when blank); the two actuals are only
+// there when one was typed.
 let numbersHistory = {};
 
 function parseMoney(v){
@@ -164,7 +165,9 @@ function numbersDayRecord(dayNums){
   Object.keys(dayNums || {}).forEach(dp=>{
     const e = dayNums[dp] || {};
     const rec = [parseMoney(e.projectedSales), parseMoney(e.productivityGoal), String(e.specialEvents || '').trim()];
-    if(rec[0] !== null || rec[1] !== null || rec[2]) out[dp] = rec;
+    const actual = [parseMoney(e.actualSales), parseMoney(e.actualProductivity)];
+    if(actual[0] !== null || actual[1] !== null) rec.push(...actual);
+    if(rec.some(v => v !== null && v !== '')) out[dp] = rec;
   });
   return out;
 }
