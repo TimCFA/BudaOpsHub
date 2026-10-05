@@ -15,13 +15,52 @@ function suSetMode(mode){
   suSheet = null;
 }
 
+// Refresh: pull the latest set up and roster from the server (storage.js
+// refreshSetups) and say whether anything changed, with the time checked.
+let suRefresh = {busy: false, at: 0, text: ''};
+const SU_ICON_REFRESH = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 21v-5h-5"/></svg>';
+
 function suModeBarHtml(){
   const btn = (mode, label) => `<button type="button" class="su-mode-btn ${suMode === mode ? 'active' : ''}" aria-pressed="${suMode === mode}" data-su-mode="${mode}">${label}</button>`;
+  const checked = suRefresh.at ? `<span class="su-refresh-note" role="status">${escapeHtml(suRefresh.text)} · ${escapeHtml(formatShortTime(suRefresh.at))}</span>` : '<span class="su-refresh-note" role="status"></span>';
   return `
     <div class="su-modebar">
       <div class="su-mode" role="group" aria-label="View">${btn('sheet', 'Set up')}${btn('coach', 'Coach')}</div>
-      <button type="button" class="su-print-btn" data-su-print="1" aria-label="Print today’s set up"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="2"/><path d="M7 14h10v7H7z"/></svg><span>Print</span></button>
+      <div class="su-modebar-actions">
+        ${checked}
+        <button type="button" class="su-print-btn su-refresh-btn ${suRefresh.busy ? 'is-busy' : ''}" data-su-refresh="1" aria-label="Refresh the set up" ${suRefresh.busy ? 'disabled' : ''}>${SU_ICON_REFRESH}<span>${suRefresh.busy ? 'Checking' : 'Refresh'}</span></button>
+        <button type="button" class="su-print-btn" data-su-print="1" aria-label="Print today’s set up"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="2"/><path d="M7 14h10v7H7z"/></svg><span>Print</span></button>
+      </div>
     </div>`;
+}
+
+// The set up's spots for one day, to count what a refresh changed.
+function suDaySpots(date){
+  const out = {};
+  Object.keys(posAssignments).forEach(k => { if(k.split('||')[1] === date) out[k] = posAssignments[k]; });
+  return out;
+}
+
+async function suRunRefresh(){
+  if(suRefresh.busy) return;
+  const date = document.getElementById('daySelect').value;
+  const before = suDaySpots(date);
+  suRefresh.busy = true;
+  renderAllDayparts();
+  let result = {ok: false, changed: false};
+  try{ result = await refreshSetups(); }finally{ suRefresh.busy = false; }
+  if(!result.ok){
+    renderAllDayparts();
+    showToast('Couldn’t reach the hub. Check the connection and try again.');
+    return;
+  }
+  const after = suDaySpots(date);
+  const moved = new Set([...Object.keys(before), ...Object.keys(after)].filter(k => before[k] !== after[k])).size;
+  suRefresh.at = Date.now();
+  suRefresh.text = moved ? `${moved} spot${moved === 1 ? '' : 's'} updated` : 'Up to date';
+  if(result.changed) suNameMap = null;
+  renderAllDayparts();
+  showToast(moved ? `Set up refreshed: ${moved} spot${moved === 1 ? '' : 's'} changed` : result.changed ? 'Set up refreshed' : 'Your set up is up to date');
 }
 
 // "Josh → Lauren @ 7:30", "Avah (arrives 11:30)", "Dan (leaves 6:00)".
@@ -258,6 +297,7 @@ document.getElementById('allDayparts').addEventListener('click', e=>{
     return;
   }
   if(e.target.closest('[data-su-print]')){ e.stopPropagation(); suPrint(); return; }
+  if(e.target.closest('[data-su-refresh]')){ e.stopPropagation(); suRunRefresh(); return; }
   const clear = e.target.closest('[data-su-unassign]');
   if(clear){
     e.stopPropagation();

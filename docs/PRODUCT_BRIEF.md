@@ -98,6 +98,11 @@ Assign team members to positions for each daypart, FOH and BOH.
   the card: a spot with notes shows a navy comment marker in place of the
   pencil (with a count when there's more than one), and tapping it opens the
   note sheet that lists them. They print with the set up.
+- **Refresh** (beside Print): pulls the latest set up and roster from the
+  server right away instead of waiting for the 30-second check, then says
+  "Up to date" or how many spots changed, with the time. It asks for just
+  those two sections, answered from the server's memory (no database read),
+  so the reply is a few hundred bytes when nothing changed.
 - Assigning must feel instant (it once took ~2 seconds; that was unacceptable).
 
 ### Waste

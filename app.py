@@ -478,15 +478,23 @@ def state_load():
 @app.route('/api/state/sync', methods=['POST'])
 def state_sync():
     """What changed since the page last heard: only the sections whose
-    version differs from the ones the page has."""
-    have = (request.get_json(silent=True) or {}).get('versions')
+    version differs from the ones the page has. With "only" (a list of
+    section names), just those sections are checked, e.g. Set Ups' Refresh
+    asking for the set up and roster alone. Served from memory: no
+    Firebase read."""
+    body = request.get_json(silent=True) or {}
+    have = body.get('versions')
     if not isinstance(have, dict):
         return jsonify({'error': 'versions required'}), 400
+    only = body.get('only')
+    if only is not None and (not isinstance(only, list) or not all(isinstance(n, str) for n in only)):
+        return jsonify({'error': 'only must be a list of section names'}), 400
     try:
         with _state_lock:
             if _read_sections() is None:
                 return jsonify({'sections': {}, 'versions': {}, 'build': BUILD})
-            return jsonify(_state_reply([n for n in _cache if have.get(n) != _cache[n]['ver']]))
+            names = [n for n in _cache if have.get(n) != _cache[n]['ver'] and (only is None or n in only)]
+            return jsonify(_state_reply(names))
     except Exception as e:
         print(f"[STATE SYNC ERROR] {e}")
         return jsonify({'error': 'Sync failed'}), 500
