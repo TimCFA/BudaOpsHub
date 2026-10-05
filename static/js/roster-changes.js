@@ -125,35 +125,71 @@ function rosterPlacedAt(date, side, name){
   return out;
 }
 
+// The card is a drop-down, closed to start so it takes one line on Set Ups.
+// The header carries how many changes there are, and flags in red when
+// someone who changed is still placed in a spot. Open or closed is
+// remembered on the device. Changed hours read "was" (light) then "now"
+// (bold), so the current time is the one that stands out.
+const RC_OPEN_KEY = 'cfaBudaShiftChangesOpen';
+let rcOpen = false;
+try{ rcOpen = localStorage.getItem(RC_OPEN_KEY) === '1'; }catch(e){}
+function rcToggleOpen(){
+  rcOpen = !rcOpen;
+  try{ localStorage.setItem(RC_OPEN_KEY, rcOpen ? '1' : '0'); }catch(e){}
+}
+const RC_SVG = d => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const RC_ICONS = {
+  swap: RC_SVG('<path d="M7 7h11l-3-3"/><path d="M17 17H6l3 3"/>'),
+  on: RC_SVG('<path d="M12 5v14M5 12h14"/>'),
+  off: RC_SVG('<path d="M5 12h14"/>'),
+  time: RC_SVG('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
+  warn: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5M12 17.5v.01"/></svg>'
+};
+
 function rosterChangesHtml(side, date){
   const changes = rosterDayChanges(date, side);
   const other = side === 'foh' ? 'boh' : 'foh';
   const otherN = rosterDayChanges(date, other).length;
   if(!changes.length && !otherN) return '';
   const nm = n => `<b>${escapeHtml(suDisplayName(n))}</b>`;
+  const placedAt = n => rosterPlacedAt(date, side, n);
   const placed = n => {
-    const at = rosterPlacedAt(date, side, n);
-    return at.length ? `<span class="su-changes-warn">⚠️ still placed: ${escapeHtml(at.join(', '))}</span>` : '';
+    const at = placedAt(n);
+    return at.length ? `<span class="su-changes-warn">${RC_ICONS.warn}still placed: ${escapeHtml(at.join(', '))}</span>` : '';
   };
+  const stillPlaced = changes.filter(c => (c.kind === 'swap' && placedAt(c.for).length) || (c.kind === 'off' && placedAt(c.name).length)).length;
+  const was = t => `<span class="su-changes-was">was ${escapeHtml(t)}</span>`;
+  const now = t => `<span class="su-changes-now">now ${escapeHtml(t)}</span>`;
   const line = c => {
-    if(c.kind === 'swap') return `<li><span class="su-changes-ic" aria-hidden="true">🔁</span><span>${nm(c.name)} for ${nm(c.for)} <em>${escapeHtml(c.span)}</em>${placed(c.for)}</span></li>`;
-    if(c.kind === 'on') return `<li><span class="su-changes-ic" aria-hidden="true">➕</span><span>${nm(c.name)} added <em>${escapeHtml(c.span)}</em></span></li>`;
-    if(c.kind === 'off') return `<li><span class="su-changes-ic" aria-hidden="true">➖</span><span>${nm(c.name)} off <em>was ${escapeHtml(c.span)}</em>${placed(c.name)}</span></li>`;
-    return `<li><span class="su-changes-ic" aria-hidden="true">🕒</span><span>${nm(c.name)} now <em>${escapeHtml(c.span)}</em> <em class="su-changes-was">was ${escapeHtml(c.was)}</em></span></li>`;
+    const ic = `<span class="su-changes-ic is-${c.kind}">${RC_ICONS[c.kind] || RC_ICONS.time}</span>`;
+    if(c.kind === 'swap') return `<li>${ic}<span>${nm(c.name)} for ${nm(c.for)} <span class="su-changes-now">${escapeHtml(c.span)}</span>${placed(c.for)}</span></li>`;
+    if(c.kind === 'on') return `<li>${ic}<span>${nm(c.name)} added <span class="su-changes-now">${escapeHtml(c.span)}</span></span></li>`;
+    if(c.kind === 'off') return `<li>${ic}<span>${nm(c.name)} off ${was(c.span)}${placed(c.name)}</span></li>`;
+    return `<li>${ic}<span>${nm(c.name)} <span class="su-changes-times">${was(c.was)} ${now(c.span)}</span></span></li>`;
   };
-  return `<div class="su-changes" role="note">
-    <div class="su-changes-head">Shift changes <span>since the schedule was posted</span></div>
-    ${changes.length ? `<ul>${changes.map(line).join('')}</ul>` : ''}
+  const n = changes.length;
+  return `<div class="su-changes ${rcOpen ? 'is-open' : ''}" role="note">
+    <button type="button" class="su-changes-head" data-rc-toggle="1" aria-expanded="${rcOpen}">
+      <span class="su-changes-title">Shift changes</span>
+      ${n ? `<span class="su-changes-count" aria-label="${n} change${n === 1 ? '' : 's'}">${n}</span>` : ''}
+      ${stillPlaced ? `<span class="su-changes-flag">${RC_ICONS.warn}${stillPlaced} still placed</span>` : ''}
+      <span class="su-changes-sub">${n ? 'since the schedule was posted' : `none on ${side.toUpperCase()}`}</span>
+      <span class="su-changes-chev" aria-hidden="true">▾</span>
+    </button>
+    ${rcOpen ? `<div class="su-changes-body">
+    ${n ? `<ul>${changes.map(line).join('')}</ul>` : ''}
     ${otherN ? `<div class="su-changes-other">${otherN} ${other.toUpperCase()} change${otherN === 1 ? '' : 's'} — switch to ${other.toUpperCase()} to see ${otherN === 1 ? 'it' : 'them'}</div>` : ''}
     ${typeof launchManager !== 'undefined' && launchManager ? `<div class="su-changes-actions">
       <button type="button" data-rc-reset="day" data-rc-date="${escapeHtml(date)}">Reset day</button>
       <button type="button" data-rc-reset="week" data-rc-date="${escapeHtml(date)}">Reset week</button>
       <span>Managers: make the roster as it is now the posted schedule</span>
     </div>` : ''}
+    </div>` : ''}
   </div>`;
 }
 
 document.getElementById('allDayparts').addEventListener('click', async e=>{
+  if(e.target.closest('[data-rc-toggle]')){ rcToggleOpen(); renderAllDayparts(); return; }
   const btn = e.target.closest('[data-rc-reset]');
   if(!btn) return;
   const date = btn.dataset.rcDate;
