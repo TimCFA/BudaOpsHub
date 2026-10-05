@@ -322,6 +322,11 @@ Waste Tracking (limit, products), PEA Ratings, Backup & Data.
   break → 30-minute countdown with the time they're back → Break done, undo).
   The simplified site (launch mode) has the timer too; the **planned break
   times stay off it** until Tim is ready to roll them out to the team.
+- The roster card switches between **All** and **Breaks left** (Tim), each
+  with a count: Breaks left lists people on 6+ hours whose break isn't done,
+  including anyone on break now (timer and all). Shorter shifts aren't owed a
+  break, so they're left out; when everyone's done it says so. The choice is
+  remembered on the device and works in launch mode too.
 
 ### Recurring FOH tasks (Tim confirmed these times)
 8:00 restroom check · 9:30 lemonades for lunch · 10:00 restroom full reset ·

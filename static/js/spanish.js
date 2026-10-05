@@ -105,6 +105,9 @@ const ES = {
   'End Time': 'Hora de salida',
   'Add to Roster': 'Agregar al horario',
   'No roster yet': 'Todavía no hay horario para este día.',
+  'Breaks left': 'Descansos pendientes',
+  'Every break is done.': 'Todos los descansos están hechos.',
+  'No breaks owed': 'Nadie trabaja 6 horas o más hoy, así que no hay descansos pendientes.',
   'Search team members': 'Buscar miembros del equipo',
   'Full name': 'Nombre completo',
 
