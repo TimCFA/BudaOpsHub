@@ -19,6 +19,7 @@ from reports_parser import parse_report_file, ReportParseError
 import levelset_sync
 from state_patch import PatchError, apply_ops, canon, check_ops, union_merge
 import setup_feed
+import briefing_feed
 
 app = Flask(__name__)
 # The page is served from this same app, so it needs no cross-site access.
@@ -609,36 +610,48 @@ SETUP_FEED_WINDOW_SECONDS = 600       # ... per ten minutes
 _setup_feed_failures = defaultdict(list)
 _setup_feed_layout = None
 
-def _setup_feed_token_ok():
-    expected = os.environ.get('SETUP_FEED_TOKEN', '')
-    if len(expected) < SETUP_FEED_MIN_TOKEN:
-        return False
+def _feed_given_token():
     given = request.args.get('token', '')
     auth = request.headers.get('Authorization', '')
     if not given and auth.startswith('Bearer '):
         given = auth[7:].strip()
-    return hmac.compare_digest(given.encode('utf-8'), expected.encode('utf-8'))
+    return given
+
+def _feed_token_matches(env_name):
+    expected = os.environ.get(env_name, '')
+    if len(expected) < SETUP_FEED_MIN_TOKEN:
+        return False
+    return hmac.compare_digest(_feed_given_token().encode('utf-8'), expected.encode('utf-8'))
+
+def _setup_feed_token_ok():
+    return _feed_token_matches('SETUP_FEED_TOKEN')
+
+def _feed_throttled(ip):
+    now = time.time()
+    _setup_feed_failures[ip] = [t for t in _setup_feed_failures[ip] if now - t < SETUP_FEED_WINDOW_SECONDS]
+    return len(_setup_feed_failures[ip]) >= SETUP_FEED_MAX_FAILURES
+
+def _feed_layout():
+    global _setup_feed_layout
+    if _setup_feed_layout is None:
+        _setup_feed_layout = setup_feed.load_layout()
+    return _setup_feed_layout
 
 @app.route('/api/setup-feed', methods=['GET'])
 def setup_feed_route():
-    global _setup_feed_layout
     ip = _client_ip()
-    now = time.time()
-    _setup_feed_failures[ip] = [t for t in _setup_feed_failures[ip] if now - t < SETUP_FEED_WINDOW_SECONDS]
-    if len(_setup_feed_failures[ip]) >= SETUP_FEED_MAX_FAILURES:
+    if _feed_throttled(ip):
         return jsonify({'error': 'Too many attempts. Try again later.'}), 429
     if not _setup_feed_token_ok():
         if os.environ.get('SETUP_FEED_TOKEN'):
-            _setup_feed_failures[ip].append(now)
+            _setup_feed_failures[ip].append(time.time())
         return jsonify({'error': 'Endpoint not found'}), 404
     day = setup_feed.parse_day(request.args.get('date'))
     if day is None:
         return jsonify({'error': 'date must be today, tomorrow or YYYY-MM-DD'}), 400
     try:
-        if _setup_feed_layout is None:
-            _setup_feed_layout = setup_feed.load_layout()
         sections = _read_sections() or {}
-        feed = setup_feed.build_feed(sections, day, _setup_feed_layout)
+        feed = setup_feed.build_feed(sections, day, _feed_layout())
     except Exception as e:
         print(f"[SETUP FEED ERROR] {e}")
         return jsonify({'error': 'Could not read the set up'}), 500
@@ -646,6 +659,55 @@ def setup_feed_route():
         response = app.response_class(setup_feed.feed_text(feed), mimetype='text/plain')
     else:
         response = jsonify(feed)
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+# ===== DAILY BRIEFING FEED (read-only) =====
+# Ready-to-read summaries for the daily briefing (briefing_feed.py): set up,
+# sales, projections, guest scores, waste, and people (names: the roster and
+# recent PEA ratings). Off unless BRIEFING_TOPICS lists the topics it may
+# serve (comma-separated); a topic not listed stays off for every token.
+# Two tokens: SETUP_FEED_TOKEN unlocks the store topics; BRIEFING_PEOPLE_TOKEN
+# (also 32+ characters, different) unlocks those plus people. Same "not
+# found" and guess limit as the set up feed.
+# ?date=today|tomorrow|YYYY-MM-DD (default today, store time),
+# &topics=sales,waste (default: every topic the token may read), &format=text.
+@app.route('/api/briefing', methods=['GET'])
+def briefing_route():
+    ip = _client_ip()
+    if _feed_throttled(ip):
+        return jsonify({'error': 'Too many attempts. Try again later.'}), 429
+    allowed = [t.strip() for t in os.environ.get('BRIEFING_TOPICS', '').split(',') if t.strip() in briefing_feed.TOPICS]
+    # The people token only counts when it differs from the store one, so the
+    # store link can never unlock names by accident.
+    people_ok = (os.environ.get('BRIEFING_PEOPLE_TOKEN', '') != os.environ.get('SETUP_FEED_TOKEN', '')
+                 and _feed_token_matches('BRIEFING_PEOPLE_TOKEN'))
+    if people_ok:
+        granted = [t for t in briefing_feed.TOPICS if t in allowed]
+    elif _feed_token_matches('SETUP_FEED_TOKEN'):
+        granted = [t for t in briefing_feed.STORE_TOPICS if t in allowed]
+    else:
+        if os.environ.get('SETUP_FEED_TOKEN') or os.environ.get('BRIEFING_PEOPLE_TOKEN'):
+            _setup_feed_failures[ip].append(time.time())
+        return jsonify({'error': 'Endpoint not found'}), 404
+    if not granted:
+        return jsonify({'error': 'Endpoint not found'}), 404
+    day = setup_feed.parse_day(request.args.get('date') or 'today')
+    if day is None:
+        return jsonify({'error': 'date must be today, tomorrow or YYYY-MM-DD'}), 400
+    asked = [t.strip() for t in request.args.get('topics', '').split(',') if t.strip()]
+    topics = [t for t in granted if not asked or t in asked]
+    try:
+        sections = _read_sections() or {}
+        brief = briefing_feed.build(sections, day, topics, _feed_layout())
+    except Exception as e:
+        print(f"[BRIEFING FEED ERROR] {e}")
+        return jsonify({'error': 'Could not build the briefing'}), 500
+    brief['topics'] = topics
+    if request.args.get('format') == 'text':
+        response = app.response_class(briefing_feed.text(brief), mimetype='text/plain')
+    else:
+        response = jsonify(brief)
     response.headers['Cache-Control'] = 'no-store'
     return response
 

@@ -17,6 +17,15 @@ services:
       # characters. Leave unset to keep the feed off.
       - key: SETUP_FEED_TOKEN
         sync: false
+      # The daily briefing feed (/api/briefing): which topics it may serve,
+      # comma-separated (setup, sales, projections, guest, waste, people).
+      # Leave unset to keep it off.
+      - key: BRIEFING_TOPICS
+        sync: false
+      # A second, different secret (32+ characters) that also unlocks the
+      # people topic (names: roster and PEA ratings). Leave unset for none.
+      - key: BRIEFING_PEOPLE_TOKEN
+        sync: false
     routes:
       - path: /
         matchType: prefix

@@ -378,9 +378,11 @@ function renderPosOptionList(eligible, filterText){
 // name (or Unassign) commits immediately and closes the modal. The board
 // updates first; the save to the server runs behind it (it takes a second or
 // two, and the header's sync status reports how it went).
-// The set up fills in priority order: placing someone lower on the list
-// while a spot above is open puts them in that open spot instead (FOH and
-// BOH lists are in the Google Sheet's priority order).
+// The set up fills in priority order (FOH and BOH lists are in the Google
+// Sheet's priority order). Placing someone lower on the list while a spot
+// above is open asks first, in the picker: "Put them in the open spot"
+// (the suggested choice) or "Keep them here". Skipping is discouraged, not
+// blocked (Tim); a skipped spot stays red on the card until it's filled.
 function suFirstOpenAbove(posKey){
   const [section, date, dpName, slot] = posKey.split('||');
   const slots = ((section === 'foh' ? fohPositions : bohPositions)[dpName]) || [];
@@ -389,11 +391,30 @@ function suFirstOpenAbove(posKey){
   return slots.slice(0, at).find(s => !posAssignments[[section, date, dpName, s].join('||')]) || null;
 }
 
-window.commitPosAssignment = function(name){
+// The choice shown in place of the name list when a spot above is open.
+function suSkipChoiceHtml(name, above){
+  const [, , dpName, slot] = currentPosKey.split('||');
+  const slots = setupsSlotsFor(dpName);
+  const rank = s => slots.indexOf(s) + 1;
+  const first = escapeHtml(name.split(/\s+/)[0]);
+  return `<div class="su-skip">
+      <p class="su-skip-msg"><b>${escapeHtml(above)} (#${rank(above)})</b> is still open above ${escapeHtml(slot)} (#${rank(slot)}). Spots fill in priority order.</p>
+      <button type="button" class="su-skip-btn is-primary" data-pos-moveup="${escapeHtml(name)}">Put ${first} in ${escapeHtml(above)}</button>
+      <button type="button" class="su-skip-btn" data-pos-keep="${escapeHtml(name)}">Keep ${first} in ${escapeHtml(slot)}</button>
+      <button type="button" class="su-skip-back" data-pos-back="1">← Back to names</button>
+    </div>`;
+}
+
+// how: undefined = ask if a spot above is open; 'up' = move to that spot;
+// 'keep' = place here anyway (the skip stays visible as an open red spot).
+window.commitPosAssignment = function(name, how){
   const above = name && !posAssignments[currentPosKey] ? suFirstOpenAbove(currentPosKey) : null;
-  if(above){
+  if(above && !how){
+    document.getElementById('posModalOptions').innerHTML = suSkipChoiceHtml(name, above);
+    return;
+  }
+  if(above && how === 'up'){
     const parts = currentPosKey.split('||');
-    if(!confirm(`${above} is still open above ${parts[3]}. Spots fill in priority order, so ${name.split(/\s+/)[0]} goes in ${above}. OK?`)) return;
     parts[3] = above;
     currentPosKey = parts.join('||');
   }
@@ -427,6 +448,14 @@ document.getElementById('posModalOptions').addEventListener('click', e => {
     const [, , dpName, slot] = currentPosKey.split('||');
     document.getElementById('posModal').classList.remove('active');
     openVacancyModal(currentPosKey, slot, dpName);
+    return;
+  }
+  const up = e.target.closest('[data-pos-moveup]');
+  if(up){ commitPosAssignment(up.dataset.posMoveup, 'up'); return; }
+  const keep = e.target.closest('[data-pos-keep]');
+  if(keep){ commitPosAssignment(keep.dataset.posKeep, 'keep'); return; }
+  if(e.target.closest('[data-pos-back]')){
+    renderPosOptionList(window.currentPosModalEligible || [], document.getElementById('posModalSearch').value);
     return;
   }
   const opt = e.target.closest('[data-pos-pick]');

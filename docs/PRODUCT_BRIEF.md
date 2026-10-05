@@ -66,7 +66,10 @@ Assign team members to positions for each daypart, FOH and BOH.
   6–8, Breakfast 8–10:30, Lunch 10:30–2 (was "Mid"), Afternoon 2–5, Dinner 5–8, Close 8–10.
 - **Priority**: each daypart's position list is in priority order. With N people
   on shift, positions 1–N should be filled; an empty one in that range is
-  "needed", extras fold away.
+  "needed", extras fold away. Placing someone below an open spot asks first,
+  in the picker: "Put them in [the open spot]" (the suggested choice) or
+  "Keep them in [this spot]". Skipping is discouraged, not blocked (Tim); the
+  skipped spot stays red until it's filled.
 - **Who's working** comes from the weekly HotSchedules roster (see Data
   Uploads). Shifts that start or end mid-daypart are handled (see handoffs).
 - **Names** show first name only; last initial only when first names collide;
@@ -113,6 +116,19 @@ Assign team members to positions for each daypart, FOH and BOH.
   (default tomorrow, store time), `&format=text` for plain text. A token in
   the link can land in request logs, so change the variable to cut off an old
   link.
+- **Daily briefing feed** (`/api/briefing`, briefing_feed.py): ready-to-read
+  summaries for the daily briefing, by topic — set up; sales (the last day
+  with sales: vs last year, vs the forecast sent, labor %, $/labor hour,
+  check average, month to date); projections (the day's projected sales and
+  goals by daypart, special events); guest scores (only once uploaded — the
+  page's built-in sample figures are never sent); waste (the day before
+  against the limit, by side, top items, month to date); and people (names:
+  the day's roster with shift times, and PEA ratings from the last 7 days
+  with position, score and rater). Off unless `BRIEFING_TOPICS` lists the
+  topics it may serve. `SETUP_FEED_TOKEN` unlocks the store topics; a second,
+  different `BRIEFING_PEOPLE_TOKEN` also unlocks people. Never sent: safe
+  counts, trainer and team lead progress, expressions of interest, notes.
+  `?date=` (default today), `&topics=`, `&format=text`.
 - **Refresh** (beside Print): pulls the latest set up and roster from the
   server right away instead of waiting for the 30-second check, then says
   "Up to date" or how many spots changed, with the time. It asks for just
