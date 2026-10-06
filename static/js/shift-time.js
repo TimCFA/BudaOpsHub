@@ -77,15 +77,10 @@ function shiftTimesRead(startText, endText){
 // The form: tidy each box when the leader moves on, and say under the boxes
 // how the shift reads ("5:30a – 1:30p · 8 h") so a wrong guess shows before
 // it's saved.
-// A pair of time boxes with a hint line under them: Add Team Member
-// (addTM…) and the truck form (truck…).
-const SHIFT_FORMS = [['addTMStart', 'addTMEnd', 'addTMHint'], ['truckStart', 'truckEnd', 'truckHint']];
-
-function shiftFormHint(prefix){
-  const ids = SHIFT_FORMS.find(f => f[0].startsWith(prefix || 'addTM')) || SHIFT_FORMS[0];
-  const hint = document.getElementById(ids[2]);
+function shiftFormHint(){
+  const hint = document.getElementById('addTMHint');
   if(!hint) return;
-  const r = shiftTimesRead(document.getElementById(ids[0]).value, document.getElementById(ids[1]).value);
+  const r = shiftTimesRead(document.getElementById('addTMStart').value, document.getElementById('addTMEnd').value);
   hint.classList.toggle('is-bad', !!r.error);
   if(r.error){ hint.innerHTML = escapeHtml(r.error) + esLine(r.error); return; }
   if(r.start === null || r.end === null){ hint.textContent = r.start ? `${r.start} –` : ''; return; }
@@ -93,23 +88,18 @@ function shiftFormHint(prefix){
   hint.textContent = `${r.start} – ${r.end} · ${hrs} h`;
 }
 
-function shiftFormTidy(prefix){
-  const ids = SHIFT_FORMS.find(f => f[0].startsWith(prefix || 'addTM')) || SHIFT_FORMS[0];
-  const startEl = document.getElementById(ids[0]), endEl = document.getElementById(ids[1]);
+function shiftFormTidy(){
+  const startEl = document.getElementById('addTMStart'), endEl = document.getElementById('addTMEnd');
   const r = shiftTimesRead(startEl.value, endEl.value);
   if(r.start !== null && !(r.bad === 'start')) startEl.value = r.start;
   if(r.end !== null && !(r.bad === 'end')) endEl.value = r.end;
-  shiftFormHint(prefix);
+  shiftFormHint();
 }
 
-if(typeof document !== 'undefined'){
-  SHIFT_FORMS.forEach(([startId, endId]) => {
-    const prefix = startId.replace(/Start$/, '');
-    [startId, endId].forEach(id => {
-      const el = document.getElementById(id);
-      if(!el) return;
-      el.addEventListener('input', () => shiftFormHint(prefix));
-      el.addEventListener('blur', () => shiftFormTidy(prefix));
-    });
+if(typeof document !== 'undefined' && document.getElementById('addTMStart')){
+  ['addTMStart', 'addTMEnd'].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener('input', shiftFormHint);
+    el.addEventListener('blur', shiftFormTidy);
   });
 }

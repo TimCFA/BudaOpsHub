@@ -277,7 +277,7 @@ function showWeeklyImportPreview(){
     ${renderList(dayData.boh)}
     ${existingBoh.length ? `<div style="margin-top:8px;font-size:10px;color:#1565C0;font-weight:600;">Preserved (manually added, not overwritten):</div>${renderList(existingBoh)}` : ''}
     <div style="font-weight:700;font-size:12px;color:var(--cfa-navy);margin:14px 0 6px;">Truck</div>
-    ${(weeklyImportTruck[day] || []).length ? renderList(weeklyImportTruck[day]) : `<div style="font-size:11px;padding:4px 0;color:${wd && truckIsTruckDay(wd.date) ? 'var(--cfa-dark-red);font-weight:700' : 'var(--text-tertiary)'};">${wd && truckIsTruckDay(wd.date) ? 'No one scheduled for truck' : 'None'}</div>`}
+    ${(weeklyImportTruck[day] || []).length ? renderList(weeklyImportTruck[day]) : `<div style="font-size:11px;padding:4px 0;color:${wd && truckIsTruckDay(wd.date) ? 'var(--cfa-dark-red);font-weight:700' : 'var(--text-tertiary)'};">${wd && truckIsTruckDay(wd.date) ? 'No truck shift on the schedule' : 'None'}</div>`}
   `;
 
   document.getElementById('weeklyImportPreviewModal').classList.add('active');
@@ -296,8 +296,9 @@ async function confirmWeeklyImport(){
     rosterNotePosted(dateISO, 'boh', bohRoster[dateISO]);
     fohRoster[dateISO] = mergeImportedDayRoster(fohRoster[dateISO], dayData.foh);
     bohRoster[dateISO] = mergeImportedDayRoster(bohRoster[dateISO], dayData.boh);
-    const truck = truckMergeImported(truckShifts[dateISO], weeklyImportTruck[hsDay]);
-    if(truck.length) truckShifts[dateISO] = truck; else delete truckShifts[dateISO];
+    // Who has the Truck shift: the schedule's, replacing the day's (truck.js).
+    const truck = weeklyImportTruck[hsDay] || [];
+    if(truck.length) truckShifts[dateISO] = truck.map(t => ({name: t.name, start: t.start, end: t.end})); else delete truckShifts[dateISO];
     touchLastUpdated(dateISO);
   });
   rosterPrunePosted();

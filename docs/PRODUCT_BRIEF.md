@@ -50,17 +50,15 @@ for the full site. Managers turn launch mode off for everyone in Manage.
 
 ### Set Ups (positioning) — the most-used, most rule-heavy area
 - **Truck** (`static/js/truck.js`, Tim, Oct 2026, after a morning with
-  nobody on it): a line at the top of Set Ups says who's on truck that day
-  (name and time, × to take someone off), or a red "No one on truck yet"
-  with an Assign button on a truck day. On today's page a second line does
-  the same for the next open day, so the closing leader catches it the
-  night before. HotSchedules schedules truck as an off-floor shift
-  (Schedule "Other", Job "Truck"); the roster import keeps those as
-  `truckShifts` instead of dropping them (still off the floor roster), and
-  its preview shows each day's truck or "No one scheduled for truck".
-  Anyone can assign (name from the day's roster or typed, times read like
-  Add Team Member, initials kept); a re-import keeps hand-assigned ones.
-  Truck days (`truckDays`, manager-only) are set in Manage → Truck Days,
+  nobody on it): the scheduler assigns truck in HotSchedules as an
+  off-floor shift (Schedule "Other", Job "Truck"); the hub only shows it.
+  Leaders don't assign truck in the hub (Tim). The roster import keeps those
+  shifts as `truckShifts` (replaced on each import; still off the floor
+  roster), and its preview shows each day's truck. A line at the top of Set
+  Ups says who has the Truck shift and when, or, on a truck day with none,
+  a red "No truck shift on the schedule"; on today's page a second line does
+  the same for the next open day, so a gap is seen the night before. Truck
+  days (`truckDays`, manager-only) are set in Manage → Truck Days,
   defaulting to Mon, Tue, Thu, Fri, Sat (the days with a truck shift on the
   Sept 20–26 2026 schedule). Spanish on the BOH side.
 - **Add Team Member** takes times however they're typed (`static/js/shift-time.js`):
