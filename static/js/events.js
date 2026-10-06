@@ -1,31 +1,36 @@
 // ===== STORE EVENTS CALENDAR =====
 // The store's marketing / events calendar (Tim, Oct 2026): promos, samples,
-// community outreach, family nights and heads-ups like "No School". Shown on
-// Home (this week), on Set Ups (each event on the daypart cards it overlaps)
-// and edited in Manage. Saved as storeEvents in the manager section
-// (manager-only, like the scoreboards).
+// community outreach, family nights and heads-ups like "No School". Its own
+// Calendar tab, drawn like the store's printed calendar and edited there;
+// Set Ups shows each event on the daypart cards it overlaps. Managers only
+// for now (Tim): the tab and the chips show once the PIN is entered. Saved
+// as storeEvents in the manager section (manager-only, like the
+// scoreboards).
 //
 // An event: {id, title, detail, kind, date, end, days, from, to, notes}
 //   date / end  'YYYY-MM-DD', end inclusive (a one-day event has no end)
 //   days        weekdays it runs on within date..end (0 = Sunday), or none
 //               for every day
 //   from / to   'HH:MM' (24-hour) when it runs; none for all day
-//   kind        the calendar's color key (EVENT_KINDS); 'goal' is the
-//               month's focus and 'note' a heads-up
+//   kind        the calendar's color key (EVENT_KINDS); 'note' is a
+//               heads-up, and 'goal' / 'checklist' belong to the month (the
+//               goals box and the Pre-Checklist), never a day
 //   notes       bullet lines
 
 let storeEvents = null;   // null until a manager first edits: EVENTS_SEED shows
 
 const EVENT_KINDS = {
-  app: {label: 'App', color: '#C8102E'},
-  food: {label: 'Food Distribution', color: '#2A9FB8'},
-  cow: {label: 'Cow in Community', color: '#7A3E8E'},
-  instore: {label: 'In-Store Event', color: '#D9531E'},
-  drivethru: {label: 'Drive Thru Event', color: '#2E8B57'},
-  social: {label: 'Social', color: '#1C1B19'},
-  note: {label: 'Heads-up', color: '#7C766C'},
-  goal: {label: 'Monthly goal', color: '#004F71'},
+  app: {label: 'App', color: '#C8102E', name: 'Red'},
+  food: {label: 'Food Distribution', color: '#2A9FB8', name: 'Blue'},
+  cow: {label: 'Cow in Community', color: '#8E4A8F', name: 'Purple'},
+  instore: {label: 'In-Store Event', color: '#D9531E', name: 'Orange'},
+  drivethru: {label: 'Drive Thru Event', color: '#2E8B57', name: 'Green'},
+  social: {label: 'Social', color: '#1C1B19', name: 'Black'},
+  note: {label: 'Heads-up', color: '#4A4640'},
+  goal: {label: 'Monthly goals', color: '#004F71'},
+  checklist: {label: 'Pre-Checklist (the month)', color: '#7C766C'},
 };
+const EVENT_MONTH_KINDS = ['goal', 'checklist'];
 
 // October 2026, typed in from the store's calendar (Tim, Oct 6 2026): its
 // wording kept as written. Shown until a manager edits the calendar, when
@@ -34,6 +39,9 @@ const EVENTS_FREE_BREAKFAST_NOTES = ['DT Only (all Drive Thru)', 'Mobile Thru or
 const EVENTS_DT_PUSH_NOTES = ['Every Friday from 12-1 PM only', 'Stores alternate dates!', 'Mobile Thru Bonus Points 12-1 PM', 'CFA Sandwich added to bag for ALL Drive Thru orders (1 per transaction)'];
 const EVENTS_SEED = [
   {id: 'oct26-goals', kind: 'goal', title: 'Monthly Goals', detail: 'Catering · CFA One App Usage · Drive Thru', date: '2026-10-01', end: '2026-10-31'},
+  {id: 'oct26-checklist', kind: 'checklist', title: 'Pre-Checklist', date: '2026-10-01', end: '2026-10-31',
+    notes: ['Internal Calendar', 'Guest Facing Calendar', 'Spotlight Emails Scheduled', 'Bag stuffers for BIG 3 in restaurant', 'Banners in restaurant and ready for rotation']},
+  {id: 'sep26-outreach-30', kind: 'food', title: 'Community Outreach', date: '2026-09-30'},
   {id: 'oct26-sample', kind: 'food', title: 'Sample: Chicken & Waffles, S’mores Milkshake, Coffee Platform', date: '2026-10-05', end: '2026-10-31', days: [1, 2, 3, 4, 5, 6]},
   ...['2026-10-07', '2026-10-14', '2026-10-21', '2026-10-28'].map(d => ({id: `oct26-outreach-${d.slice(8)}`, kind: 'food', title: 'Community Outreach', date: d})),
   ...[['2026-10-06', 'Chicken Biscuit'], ['2026-10-13', '4ct Minis'], ['2026-10-20', 'Sausage Biscuit'], ['2026-10-27', 'Chicken Biscuit']].map(([d, item]) => ({
@@ -65,8 +73,8 @@ function eventOnDate(ev, iso){
 }
 
 function eventsOn(iso, opts){
-  // The month's goals only when asked (Home's header line), never as an event.
-  const all = eventsList().filter(ev => eventOnDate(ev, iso) && ((opts && opts.goals) || ev.kind !== 'goal'));
+  // The month's goals and Pre-Checklist only when asked, never as a day's event.
+  const all = eventsList().filter(ev => eventOnDate(ev, iso) && ((opts && opts.goals) || !EVENT_MONTH_KINDS.includes(ev.kind)));
   return all.sort((a, b) => (evMinutes(a.from) ?? -1) - (evMinutes(b.from) ?? -1) || String(a.title).localeCompare(String(b.title)));
 }
 
@@ -101,11 +109,23 @@ function eventChipHtml(ev){
   return `<span class="ev-chip ev-${escapeHtml(ev.kind || 'note')}">${evDot(ev)}<b>${escapeHtml(ev.title)}</b>${ev.from ? `<span class="ev-chip-time">${escapeHtml(evTimeText(ev))}</span>` : ''}${ev.detail ? `<span class="ev-chip-detail">${escapeHtml(ev.detail)}</span>` : ''}</span>`;
 }
 
-// ----- Home: this week -----
+// ----- The Calendar tab -----
+// Drawn like the store's printed calendar: the month in big coral type, the
+// week grid (Sundays shaded, closed), each event in its key color, events
+// that run several days as a bar across the week, the month's goals in the
+// first Sunday, the Pre-Checklist and the events' notes beside the grid and
+// the key under it. Tap a day for everything on it, and to add or edit.
 
-function evDayLabel(iso){
-  if(iso === today) return 'Today';
-  return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric'});
+let calMonth = null;   // 'YYYY-MM' on screen
+let calDay = null;     // the day picked: its events (and the editor) under the grid
+let evEditId = null;   // the event open in the form ('new' for a new one)
+
+const EV_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+// Managers only for now (Tim, Oct 2026): the tab and the Set Ups chips show
+// with the PIN session (launch-mode.js).
+function evCalendarShown(){
+  return typeof launchManager === 'undefined' || !!launchManager;
 }
 
 function evAddDays(iso, n){
@@ -113,124 +133,181 @@ function evAddDays(iso, n){
   d.setDate(d.getDate() + n);
   return toLocalISODate(d);
 }
-
-let evOpenId = null;   // the event whose notes are showing on Home
-
-function renderHomeEvents(){
-  const root = document.getElementById('homeEvents');
-  if(!root) return;
-  const goals = eventsOn(today, {goals: true}).filter(ev => ev.kind === 'goal');
-  // Something that runs for days (the month's samples, Halloween week) shows
-  // once, under "Running now", not again under every day.
-  const multi = ev => ev.end && ev.end !== ev.date;
-  const running = new Map();
-  const days = [];
-  for(let i = 0; i < 7; i++){
-    const iso = evAddDays(today, i);
-    if(evWeekday(iso) === 0) continue;   // closed Sundays
-    const all = eventsOn(iso);
-    all.filter(multi).forEach(ev => { if(!running.has(ev.id)) running.set(ev.id, {ev, iso}); });
-    const list = all.filter(ev => !multi(ev));
-    if(list.length) days.push({iso, list});
-  }
-  const span = ev => {
-    const d = x => new Date(x + 'T00:00:00').toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
-    const wk = Array.isArray(ev.days) && ev.days.length && ev.days.length < 7 ? (ev.days.join() === '1,2,3,4,5,6' ? ' · Mon–Sat' : ` · ${ev.days.map(n => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][n]).join(', ')}`) : '';
-    return `${ev.date <= today ? 'through' : `${d(ev.date)} –`} ${d(ev.end)}${wk}`;
-  };
-  const item = (ev, iso) => {
-    const key = `${ev.id}|${iso}`, open = evOpenId === key, notes = Array.isArray(ev.notes) ? ev.notes : [];
-    return `<li class="ev-item ${open ? 'is-open' : ''}">
-        <button type="button" class="ev-item-head" ${notes.length ? `data-ev-open="${escapeHtml(key)}" aria-expanded="${open}"` : 'disabled'}>
-          ${evDot(ev)}<span class="ev-item-title">${escapeHtml(ev.title)}${ev.detail ? ` <span class="ev-item-detail">${escapeHtml(ev.detail)}</span>` : ''}</span>
-          ${ev.from ? `<span class="ev-item-time">${escapeHtml(evTimeText(ev))}</span>` : ''}
-          ${notes.length ? '<span class="ev-item-chev" aria-hidden="true">▾</span>' : ''}
-        </button>
-        ${open ? `<ul class="ev-notes">${notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : ''}
-      </li>`;
-  };
-  root.innerHTML = `
-    ${goals.length ? `<div class="ev-goals">${goals.map(g => `<span class="ev-goals-k">${escapeHtml(g.title)}</span><span>${escapeHtml(g.detail || '')}</span>`).join('')}</div>` : ''}
-    ${running.size ? `<section class="ev-day ev-running"><h3>Running now</h3><ul class="ev-list">${[...running.values()].map(({ev, iso}) => item({...ev, detail: [ev.detail, span(ev)].filter(Boolean).join(' · ')}, iso)).join('')}</ul></section>` : ''}
-    ${days.length ? days.map(d => `
-      <section class="ev-day ${d.iso === today ? 'is-today' : ''}">
-        <h3>${escapeHtml(evDayLabel(d.iso))}</h3>
-        <ul class="ev-list">${d.list.map(ev => item(ev, d.iso)).join('')}</ul>
-      </section>`).join('') : running.size ? '' : '<p class="ev-empty">Nothing on the calendar this week.</p>'}
-    <div class="ev-key">${Object.entries(EVENT_KINDS).filter(([k]) => k !== 'goal' && k !== 'note').map(([, k]) => `<span><i style="background:${k.color}"></i>${escapeHtml(k.label)}</span>`).join('')}</div>`;
-}
-
-document.addEventListener('click', e => {
-  const open = e.target.closest && e.target.closest('#homeEvents [data-ev-open]');
-  if(!open) return;
-  evOpenId = evOpenId === open.dataset.evOpen ? null : open.dataset.evOpen;
-  renderHomeEvents();
-});
-
-// ----- Home: guest focus, from the Guest Obsession scoreboard -----
-// What the team should work on, from the scoreboard's latest numbers
-// (gxData, filled by the CEM upload and Manage). Only once real numbers are
-// in: the scoreboard's sample figures never show.
-function renderHomeGuestFocus(){
-  const root = document.getElementById('homeGuestFocus'), wrap = document.getElementById('homeGuestFocusWrap');
-  if(!root || !wrap) return;
-  const gx = typeof gxData !== 'undefined' ? gxData : null;
-  if(!gx || !gx.lastUpdated){ root.innerHTML = ''; wrap.hidden = true; return; }
-  wrap.hidden = false;
-  const list = arr => (Array.isArray(arr) ? arr : []).filter(x => String(x || '').trim());
-  const coaching = list(gx.teamMembers && gx.teamMembers.coachingFocus);
-  const second = list(gx.secondMile && gx.secondMile.opportunities);
-  const sat = gx.satisfaction && gx.satisfaction.highlySatisfied ? gx.satisfaction.highlySatisfied.value : '';
-  const updated = new Date(gx.lastUpdated).toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
-  root.innerHTML = `
-    <div class="gf-top">
-      ${sat ? `<div class="gf-stat"><b>${escapeHtml(sat)}</b><span>Highly Satisfied</span></div>` : ''}
-      <span class="gf-updated">Guest Obsession scoreboard · ${escapeHtml(updated)}</span>
-    </div>
-    <div class="gf-grid">
-      ${coaching.length ? `<div class="gf-col"><h3>Top coaching focus</h3><ul>${coaching.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul></div>` : ''}
-      ${second.length ? `<div class="gf-col"><h3>Second Mile opportunities</h3><ul>${second.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul></div>` : ''}
-    </div>`;
-}
-
-// ----- Manage: the editor -----
-
-let evEditId = null;     // the event open in the form ('new' for a new one)
-let evManageMonth = null; // 'YYYY-MM' shown in the list
-
 function evMonthOf(iso){ return String(iso || '').slice(0, 7); }
 function evMonthLabel(ym){ return new Date(ym + '-01T00:00:00').toLocaleDateString('en-US', {month: 'long', year: 'numeric'}); }
+function evMonthEnd(ym){
+  const d = new Date(ym + '-01T00:00:00');
+  d.setMonth(d.getMonth() + 1);
+  d.setDate(0);
+  return toLocalISODate(d);
+}
 
 function evEnsureOwnList(){
   if(!Array.isArray(storeEvents)) storeEvents = JSON.parse(JSON.stringify(EVENTS_SEED));
 }
 
-function renderEventsManage(){
-  const root = document.getElementById('eventsManageRoot');
+// The month's own items of a kind (goals, Pre-Checklist): any that touch it.
+function eventsForMonth(ym, kind){
+  const first = ym + '-01', last = evMonthEnd(ym);
+  return eventsList().filter(ev => ev.kind === kind && ev.date <= last && (ev.end || ev.date) >= first);
+}
+
+// The weeks on the page: the Sunday on or before the 1st through the
+// Saturday on or after the last day.
+function evMonthWeeks(ym){
+  let iso = evAddDays(ym + '-01', -evWeekday(ym + '-01'));
+  const last = evMonthEnd(ym), weeks = [];
+  while(iso <= last){
+    const week = [];
+    for(let i = 0; i < 7; i++){ week.push(iso); iso = evAddDays(iso, 1); }
+    weeks.push(week);
+  }
+  return weeks;
+}
+
+// One week laid out. An event running several days in a row becomes a bar
+// across them (the shorter ones on top, like the printed calendar); the rest
+// sit in their day.
+function evWeekLayout(week){
+  const multi = new Map();
+  week.forEach((iso, c) => eventsOn(iso).forEach(ev => {
+    if(!ev.end || ev.end === ev.date) return;
+    if(!multi.has(ev.id)) multi.set(ev.id, {ev, cols: []});
+    multi.get(ev.id).cols.push(c);
+  }));
+  const bars = [...multi.values()]
+    .filter(m => m.cols.length > 1 && m.cols[m.cols.length - 1] - m.cols[0] === m.cols.length - 1)
+    .sort((x, y) => x.cols.length - y.cols.length || x.ev.date.localeCompare(y.ev.date))
+    .map(m => ({ev: m.ev, a: m.cols[0], b: m.cols[m.cols.length - 1]}));
+  const lanes = [];
+  bars.forEach(bar => {
+    let lane = lanes.findIndex(l => l.every(o => o.b < bar.a || o.a > bar.b));
+    if(lane < 0){ lanes.push([]); lane = lanes.length - 1; }
+    lanes[lane].push(bar);
+    bar.lane = lane;
+  });
+  const inBars = new Set(bars.map(b => b.ev.id));
+  return {bars, lanes: lanes.length, days: week.map(iso => eventsOn(iso).filter(ev => !inBars.has(ev.id)))};
+}
+
+// The events with notes this month, once each (the four Free Breakfast
+// Tuesdays share one list): the Notes box.
+function evNotesForMonth(ym){
+  const first = ym + '-01', last = evMonthEnd(ym), seen = new Set();
+  return eventsList()
+    .filter(ev => !EVENT_MONTH_KINDS.includes(ev.kind) && Array.isArray(ev.notes) && ev.notes.length && ev.date <= last && (ev.end || ev.date) >= first)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .filter(ev => { const k = `${ev.kind}|${ev.title}|${ev.notes.join('|')}`; if(seen.has(k)) return false; seen.add(k); return true; });
+}
+
+function evWhenText(ev){
+  const d = x => new Date(x + 'T00:00:00').toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric'});
+  const days = Array.isArray(ev.days) && ev.days.length && ev.days.length < 7 ? ` (${ev.days.map(n => EV_WEEKDAYS[n]).join(', ')})` : '';
+  return `${d(ev.date)}${ev.end && ev.end !== ev.date ? ` – ${d(ev.end)}` : ''}${days} · ${ev.from ? evTimeText(ev) : 'all day'}`;
+}
+
+function evKind(ev){ return EVENT_KINDS[ev.kind] || EVENT_KINDS.note; }
+
+// An event in its day, as the printed calendar writes it: the title, the
+// time, then the detail a line at a time.
+function evCellHtml(ev){
+  const lines = [ev.from ? evTimeText(ev).replace('–', ' - ') : '', ...String(ev.detail || '').split(' · ')].map(s => s.trim()).filter(Boolean);
+  return `<div class="cal-ev ${ev.kind === 'note' ? 'is-note' : ''}" style="color:${evKind(ev).color}">${escapeHtml(ev.title)}${lines.map(l => `<span>${escapeHtml(l)}</span>`).join('')}</div>`;
+}
+
+function evWeekHtml(week, w, goals){
+  const L = evWeekLayout(week);
+  const rows = `minmax(var(--cal-day-h),auto)${L.lanes ? ` repeat(${L.lanes},auto)` : ''} 4px`;
+  const goalLines = goals.flatMap(g => String(g.detail || '').split(' · ')).map(s => s.trim()).filter(Boolean);
+  const cells = week.map((iso, c) => {
+    const titles = eventsOn(iso).map(ev => ev.title);
+    const label = new Date(iso + 'T00:00:00').toLocaleDateString('en-US', {weekday: 'long', month: 'long', day: 'numeric'}) + (titles.length ? ': ' + titles.join(', ') : '');
+    return `<button type="button" class="cal-cell ${c === 0 ? 'is-sun' : ''} ${iso === calDay ? 'is-sel' : ''}" style="grid-column:${c + 1};grid-row:1 / -1" data-cal-day="${iso}" aria-label="${escapeHtml(label)}" aria-pressed="${iso === calDay}"></button>`;
+  }).join('');
+  const days = week.map((iso, c) => `<div class="cal-day ${evMonthOf(iso) !== calMonth ? 'is-out' : ''}" style="grid-column:${c + 1};grid-row:1">
+      <span class="cal-num ${c === 0 || c === 6 ? 'is-wkend' : ''} ${iso === today ? 'is-today' : ''}">${+iso.slice(8)}</span>
+      ${w === 0 && c === 0 && goals.length ? `<div class="cal-goals"><b>${escapeHtml(goals[0].title)}</b>${goalLines.map(l => `${escapeHtml(l)}<br>`).join('')}</div>` : ''}
+      ${L.days[c].map(evCellHtml).join('')}
+    </div>`).join('');
+  const bars = L.bars.map(bar => `<div class="cal-bar" style="grid-column:${bar.a + 1} / ${bar.b + 2};grid-row:${bar.lane + 2};background:${evKind(bar.ev).color}">${escapeHtml(bar.ev.title + (bar.ev.detail ? ': ' + bar.ev.detail : ''))}</div>`).join('');
+  return `<div class="cal-week" style="grid-template-rows:${rows}">${cells}${days}${bars}</div>`;
+}
+
+function evDayPanelHtml(){
+  const editing = evEditId === 'new' ? {id: 'new', kind: 'instore', date: calDay} : evEditId ? eventsList().find(ev => ev.id === evEditId) : null;
+  if(editing){
+    return `<section class="cal-dayp" id="calDayPanel">
+        <div class="cal-dayp-head"><h3>${evEditId === 'new' ? 'New event' : 'Edit event'}</h3></div>
+        ${evFormHtml(editing)}
+      </section>`;
+  }
+  const label = new Date(calDay + 'T00:00:00').toLocaleDateString('en-US', {weekday: 'long', month: 'long', day: 'numeric'});
+  const list = eventsOn(calDay);
+  const month = [...eventsForMonth(calMonth, 'goal'), ...eventsForMonth(calMonth, 'checklist')];
+  return `<section class="cal-dayp" id="calDayPanel">
+      <div class="cal-dayp-head"><h3>${escapeHtml(label)}</h3><button type="button" class="btn btn-primary" data-ev-edit="new">+ Add event</button></div>
+      ${list.length ? `<ul class="cal-dayp-list">${list.map(ev => `
+        <li class="cal-dayp-item">
+          ${evDot(ev)}
+          <div class="cal-dayp-main">
+            <b>${escapeHtml(ev.title)}</b>
+            ${ev.detail ? `<small>${escapeHtml(ev.detail)}</small>` : ''}
+            <small>${escapeHtml(evWhenText(ev))}</small>
+            ${Array.isArray(ev.notes) && ev.notes.length ? `<ul>${ev.notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : ''}
+          </div>
+          <button type="button" class="btn btn-ghost" data-ev-edit="${escapeHtml(ev.id)}">Edit</button>
+        </li>`).join('')}</ul>` : `<p class="ev-empty">${evWeekday(calDay) === 0 ? 'Closed Sunday. ' : ''}Nothing on the calendar this day.</p>`}
+      <p class="cal-dayp-month">${escapeHtml(evMonthLabel(calMonth))}: ${month.length ? month.map(m => `${escapeHtml(m.title)}<button type="button" data-ev-edit="${escapeHtml(m.id)}">Edit</button>`).join(' · ') : 'no monthly goals or Pre-Checklist yet (add one with the type "Monthly goals" or "Pre-Checklist").'}</p>
+    </section>`;
+}
+
+function renderCalendarView(){
+  const root = document.getElementById('calendarRoot');
   if(!root) return;
-  if(!evManageMonth) evManageMonth = evMonthOf(today);
-  const list = eventsList().filter(ev => evMonthOf(ev.date) === evManageMonth || (ev.end && evMonthOf(ev.end) === evManageMonth) || (ev.date < evManageMonth && (ev.end || ev.date) > evManageMonth + '-31'))
-    .sort((a, b) => a.date.localeCompare(b.date) || (evMinutes(a.from) ?? -1) - (evMinutes(b.from) ?? -1));
-  const editing = evEditId === 'new' ? {id: 'new', kind: 'instore', date: today} : eventsList().find(ev => ev.id === evEditId);
-  const range = ev => {
-    const d = x => new Date(x + 'T00:00:00').toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric'});
-    const days = Array.isArray(ev.days) && ev.days.length && ev.days.length < 7 ? ` (${ev.days.map(n => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][n]).join(', ')})` : '';
-    return `${d(ev.date)}${ev.end && ev.end !== ev.date ? ` – ${d(ev.end)}` : ''}${days}`;
-  };
+  if(!evCalendarShown()){ root.innerHTML = ''; return; }
+  if(!calMonth) calMonth = evMonthOf(today);
+  if(!calDay || evMonthOf(calDay) !== calMonth) calDay = evMonthOf(today) === calMonth ? today : calMonth + '-01';
+  const goals = eventsForMonth(calMonth, 'goal');
+  const checklist = eventsForMonth(calMonth, 'checklist');
+  const notes = evNotesForMonth(calMonth);
+  const goalText = goals.flatMap(g => String(g.detail || '').split(' · ')).map(s => s.trim()).filter(Boolean).join(' · ');
   root.innerHTML = `
-    <div class="ev-m-bar">
-      <button type="button" class="btn btn-ghost ev-m-step" data-ev-month="-1" aria-label="Previous month">‹</button>
-      <b>${escapeHtml(evMonthLabel(evManageMonth))}</b>
-      <button type="button" class="btn btn-ghost ev-m-step" data-ev-month="1" aria-label="Next month">›</button>
-      <button type="button" class="btn btn-primary ev-m-add" data-ev-edit="new">+ Add event</button>
+    <div class="cal-head">
+      <h2 class="cal-title">${escapeHtml(evMonthLabel(calMonth))}</h2>
+      <div class="cal-nav">
+        <button type="button" class="btn btn-ghost cal-step" data-cal-month="-1" aria-label="Previous month">‹</button>
+        ${calMonth !== evMonthOf(today) ? '<button type="button" class="btn btn-ghost" data-cal-today="1">This month</button>' : ''}
+        <button type="button" class="btn btn-ghost cal-step" data-cal-month="1" aria-label="Next month">›</button>
+        <button type="button" class="btn btn-primary" data-ev-edit="new">+ Add event</button>
+      </div>
     </div>
-    ${editing ? evFormHtml(editing) : ''}
-    ${list.length ? `<ul class="ev-m-list">${list.map(ev => `
-      <li class="ev-m-row">
-        ${evDot(ev)}
-        <div class="ev-m-main"><b>${escapeHtml(ev.title)}</b>${ev.detail ? `<span>${escapeHtml(ev.detail)}</span>` : ''}<small>${escapeHtml(range(ev))}${ev.from ? ` · ${escapeHtml(evTimeText(ev))}` : ' · all day'}</small></div>
-        <button type="button" class="btn btn-ghost ev-m-btn" data-ev-edit="${escapeHtml(ev.id)}">Edit</button>
-      </li>`).join('')}</ul>` : '<p class="ev-empty">No events this month yet.</p>'}`;
+    <div class="cal-body">
+      <div class="cal-main">
+        ${goals.length ? `<p class="cal-goals-line"><b>${escapeHtml(goals[0].title)}</b>${escapeHtml(goalText)}</p>` : ''}
+        <div class="cal-wdays" aria-hidden="true">${EV_WEEKDAYS.map((d, i) => `<span class="${i === 0 || i === 6 ? 'is-wkend' : ''}">${d}</span>`).join('')}</div>
+        <div class="cal-grid">${evMonthWeeks(calMonth).map((week, w) => evWeekHtml(week, w, goals)).join('')}</div>
+        <div class="cal-key"><b>Key:</b>${Object.values(EVENT_KINDS).filter(k => k.name).map(k => `<span style="color:${k.color}">${escapeHtml(k.name)} = ${escapeHtml(k.label)}</span>`).join('')}</div>
+        ${evDayPanelHtml()}
+      </div>
+      <aside class="cal-side">
+        ${checklist.length ? `<h3 class="cal-side-h">${escapeHtml(checklist[0].title)}</h3>
+          <div class="cal-box"><ol>${checklist.flatMap(c => c.notes || []).map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ol></div>` : ''}
+        ${notes.length ? `<h3 class="cal-side-h">Notes</h3>
+          <div class="cal-box">${notes.map(ev => `<div class="cal-note" style="color:${evKind(ev).color}"><b>${escapeHtml(ev.title)}</b><ul>${ev.notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul></div>`).join('')}</div>` : ''}
+      </aside>
+    </div>`;
+}
+
+// New data from another device: redraw, unless the form is open.
+function evRerender(){
+  const view = document.getElementById('calendarView');
+  if(view && view.classList.contains('active') && !evEditId) renderCalendarView();
+}
+
+// On a phone the day's panel sits under the grid: bring it up.
+function evShowDayPanel(){
+  const p = document.getElementById('calDayPanel');
+  if(p && p.getBoundingClientRect().top > window.innerHeight - 120) p.scrollIntoView({behavior: 'smooth', block: 'start'});
 }
 
 function evFormHtml(ev){
@@ -279,30 +356,48 @@ function evReadForm(form){
   return {ev};
 }
 
-function evAfterChange(msg){
+function evAfterChange(msg, date){
   evEditId = null;
-  renderEventsManage();
-  renderHomeEvents();
+  if(date){ calDay = date; calMonth = evMonthOf(date); }
+  renderCalendarView();
   if(typeof renderAllDayparts === 'function') renderAllDayparts();
   showToast(msg);
   saveState();
 }
 
 document.addEventListener('click', e => {
-  const t = e.target.closest ? e.target : null;
-  if(!t || !t.closest('#eventsManageRoot')) return;
-  const step = t.closest('[data-ev-month]');
+  const t = e.target && e.target.closest ? e.target : null;
+  if(!t || !t.closest('#calendarRoot')) return;
+  const step = t.closest('[data-cal-month]');
   if(step){
-    const d = new Date(evManageMonth + '-01T00:00:00');
-    d.setMonth(d.getMonth() + +step.dataset.evMonth);
-    evManageMonth = toLocalISODate(d).slice(0, 7);
+    const d = new Date(calMonth + '-01T00:00:00');
+    d.setMonth(d.getMonth() + +step.dataset.calMonth);
+    calMonth = toLocalISODate(d).slice(0, 7);
+    calDay = null;
     evEditId = null;
-    renderEventsManage();
+    renderCalendarView();
+    return;
+  }
+  if(t.closest('[data-cal-today]')){ calMonth = evMonthOf(today); calDay = today; evEditId = null; renderCalendarView(); return; }
+  const day = t.closest('[data-cal-day]');
+  if(day){
+    calDay = day.dataset.calDay;
+    calMonth = evMonthOf(calDay);
+    evEditId = null;
+    renderCalendarView();
+    evShowDayPanel();
     return;
   }
   const edit = t.closest('[data-ev-edit]');
-  if(edit){ evEditId = edit.dataset.evEdit; renderEventsManage(); const f = document.getElementById('evTitle'); if(f) f.focus(); return; }
-  if(t.closest('[data-ev-cancel]')){ evEditId = null; renderEventsManage(); return; }
+  if(edit){
+    evEditId = edit.dataset.evEdit;
+    renderCalendarView();
+    evShowDayPanel();
+    const f = document.getElementById('evTitle');
+    if(f) f.focus({preventScroll: true});
+    return;
+  }
+  if(t.closest('[data-ev-cancel]')){ evEditId = null; renderCalendarView(); return; }
   if(t.closest('[data-ev-delete]')){
     const ev = eventsList().find(x => x.id === evEditId);
     if(!ev || !confirm(`Delete "${ev.title}" (${ev.date}${ev.end ? ` to ${ev.end}` : ''}) from the calendar?`)) return;
@@ -321,10 +416,9 @@ document.addEventListener('submit', e => {
   const id = e.target.dataset.evId;
   if(id === 'new'){
     storeEvents.push({id: 'ev-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ...ev});
-    evManageMonth = evMonthOf(ev.date);
-    evAfterChange('Event added');
+    evAfterChange('Event added', ev.date);
   } else {
     storeEvents = storeEvents.map(x => x.id === id ? {id, ...ev} : x);
-    evAfterChange('Event saved');
+    evAfterChange('Event saved', ev.date);
   }
 });

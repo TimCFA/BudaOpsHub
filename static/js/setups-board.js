@@ -250,15 +250,16 @@ function suFillAvailable(){
 // The store's events (events.js) that run during this daypart, as chips on
 // its banner: Free Breakfast Tuesday on Breakfast, the Friday drive thru
 // push on Lunch, Family Night on Dinner. All-day ones sit above the cards.
+// Managers only while the Calendar is (evCalendarShown).
 function suEventsLineHtml(section, date, dp, i){
-  if(typeof eventsInWindow !== 'function' || i < 0) return '';
+  if(typeof eventsInWindow !== 'function' || i < 0 || !evCalendarShown()) return '';
   const {startMin, endMin} = daypartTimeWindow(suDaypartsFor(section), i);
   const list = eventsInWindow(date, startMin, endMin);
   return list.length ? `<div class="su-dp-events">${list.map(eventChipHtml).join('')}</div>` : '';
 }
 
 function suAllDayEventsHtml(date){
-  if(typeof eventsAllDay !== 'function') return '';
+  if(typeof eventsAllDay !== 'function' || !evCalendarShown()) return '';
   const list = eventsAllDay(date);
   return list.length ? `<div class="su-day-events" aria-label="Today's events"><span class="su-day-events-k">Events${esHtml('Events')}</span>${list.map(eventChipHtml).join('')}</div>` : '';
 }

@@ -39,24 +39,6 @@ during service. Clear at a glance. Never a moment of "did that save?"
 ### Home
 A landing page with the day's key info (content set in Manage → Home Page).
 
-**This Week** (store events calendar, `static/js/events.js`): the month's goals
-(e.g. Catering · CFA One App Usage · Drive Thru), a "Running now" line for
-multi-day events (shown once, not under every day), then the next 7 open days
-with their events; tap an event for its notes. Colors follow the store
-calendar's key (CFA One App, food, Community Outreach, in-store, drive thru,
-social, heads-up). The same events show on **Set Ups**: an Events strip above
-the cards for all-day ones, and a chip on each daypart card whose window the
-event overlaps (Free Breakfast on Breakfast, Pack the Drive Thru on Lunch).
-October 2026 is built in, typed verbatim from the store's calendar image
-(including "-WB (200)" and "Buda (300)"); managers add, edit and delete events
-in **Manage → Events Calendar** (the first edit copies October into the saved
-list). Saved as `storeEvents` in the manager section, manager-only on the
-server: team devices see it but can't change it.
-
-**Guest Focus**: once the Guest Obsession scoreboard has real numbers (CEM
-upload or Manage), Home shows % highly satisfied, the top coaching focus and
-the Second Mile opportunities. Hidden until then; never sample numbers.
-
 ### Simplified site (launch mode)
 While the team is getting started, a device without the manager PIN sees
 only Home, Set Ups, Waste and Lists. Lists opens Zone Resets in one tap; the
@@ -275,6 +257,28 @@ how many adjusted days the adjustment helped, and which way the sent
 forecast leans.
 No sample data, ever — an empty history shows an empty page.
 
+### Calendar (managers only, for now)
+The store's events calendar (`static/js/events.js`), its own tab, drawn like
+the printed calendar the store hands out: the month in big coral type, the
+week grid with Sundays shaded, each event in its key color (Red = App, Blue =
+Food Distribution, Purple = Cow in Community, Orange = In-Store Event, Green =
+Drive Thru Event, Black = Social; heads-ups like "No School" in dark gray),
+events that run several days as a bar across the week, the month's goals in
+the first Sunday, the Pre-Checklist and each event's notes beside the grid,
+the key underneath. Tap a day for everything on it; add, edit and delete
+right there (the month's goals and Pre-Checklist are items too, edited from
+the day panel). On a phone the grid shows titles only and the goals sit above
+it. Set Ups shows the same events: an Events strip above the cards for
+all-day ones and a chip on each daypart card an event overlaps.
+
+Tim wants it hidden while it's being shaped (Oct 2026): the tab and the Set
+Ups chips show only on a device signed in with the manager PIN (the body's
+`is-manager` class, `.manager-only`), whether launch mode is on or off; Home
+shows none of it. October 2026 is built in, typed verbatim from the store's
+calendar (including "-WB (200)", "Buda (300)" and the Pre-Checklist); the
+first edit copies it into the saved list. Saved as `storeEvents` in the
+manager section, manager-only on the server.
+
 ### Talent
 - **Trainer trial** (30 days) and **Team Lead trial** (90 days) trackers, built
   from the store's Leadership Playbook.
@@ -283,7 +287,7 @@ No sample data, ever — an empty history shows an empty page.
   Tracker**.
 
 ### Manage (PIN)
-Data Uploads, Events Calendar, Know the Numbers, Talent Development, Scoreboards, Home Page,
+Data Uploads, Know the Numbers, Talent Development, Scoreboards, Home Page,
 Waste Tracking (limit, products), PEA Ratings, Backup & Data.
 
 **Full Backup** (Backup & Data): one tap downloads everything the hub has

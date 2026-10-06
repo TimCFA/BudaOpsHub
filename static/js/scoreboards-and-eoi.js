@@ -343,7 +343,6 @@ function renderHomeScoreboard(){
   const dateEl = document.getElementById('homeDate');
   if(dateEl) dateEl.textContent = formatVerboseDate(today);
   renderHomeQuote();
-  if(typeof renderHomeEvents === 'function'){ renderHomeEvents(); renderHomeGuestFocus(); }
   
   const vmvContainer = document.getElementById('homeVMVContainer');
   

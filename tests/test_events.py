@@ -64,5 +64,40 @@ class Calendar(unittest.TestCase):
         self.assertEqual(len(ids), len(set(ids)))
 
 
+class CalendarPage(unittest.TestCase):
+    """The Calendar tab's layout, drawn like the store's printed calendar."""
+
+    def test_october_weeks_run_sunday_to_saturday(self):
+        weeks = run("c => evMonthWeeks('2026-10').map(w => [w[0], w[6]])")[0]
+        self.assertEqual(weeks, [['2026-09-27', '2026-10-03'], ['2026-10-04', '2026-10-10'], ['2026-10-11', '2026-10-17'],
+                                 ['2026-10-18', '2026-10-24'], ['2026-10-25', '2026-10-31']])
+
+    def test_multi_day_events_are_bars_shorter_on_top(self):
+        got = run("c => evWeekLayout(evMonthWeeks('2026-10')[4]).bars.map(b => [b.ev.title.slice(0, 14), b.a, b.b, b.lane])")[0]
+        self.assertEqual(got, [['Halloween Week', 3, 6, 0], ['Sample: Chicke', 1, 6, 1]])
+        # The bars aren't repeated inside the days
+        days = run("c => evWeekLayout(evMonthWeeks('2026-10')[4]).days.map(d => d.map(e => e.title))")[0]
+        self.assertEqual(days[2], ['Free Breakfast Tuesday'])
+        self.assertEqual(days[6], ['Halloween'])
+
+    def test_first_week_has_september_30_outreach_and_no_bars(self):
+        lay = run("c => { const l = evWeekLayout(evMonthWeeks('2026-10')[0]); return [l.bars.length, l.days.map(d => d.map(e => e.title))]; }")[0]
+        self.assertEqual(lay[0], 0)
+        self.assertEqual(lay[1][3], ['Community Outreach'])
+
+    def test_month_items_never_land_on_a_day(self):
+        self.assertNotIn('Pre-Checklist', titles("eventsOn('2026-10-15')"))
+        got = run("c => [eventsForMonth('2026-10', 'checklist').map(e => e.notes.length), eventsForMonth('2026-10', 'goal').map(e => e.detail), eventsForMonth('2026-11', 'goal').length]")[0]
+        self.assertEqual(got, [[5], ['Catering · CFA One App Usage · Drive Thru'], 0])
+
+    def test_notes_box_lists_each_event_once(self):
+        got = run("c => evNotesForMonth('2026-10').map(e => e.title)")[0]
+        self.assertEqual(got, ['Free Breakfast Tuesday', 'Pack the Drive Thru', 'Family Night: Pumpkins & Play', 'Halloween Week Promo'])
+
+    def test_hidden_without_a_manager_session(self):
+        got = run("c => { const a = evCalendarShown(); launchManager = false; const b = evCalendarShown(); launchManager = true; return [a, b, evCalendarShown()]; }")[0]
+        self.assertEqual(got, [True, False, True])
+
+
 if __name__ == '__main__':
     unittest.main()

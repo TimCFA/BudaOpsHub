@@ -398,6 +398,7 @@ function applyStateData(data){
   txData = data.txData || JSON.parse(JSON.stringify(defaultTXData));
   homeData = data.homeData || JSON.parse(JSON.stringify(defaultHomeData));
   storeEvents = Array.isArray(data.storeEvents) ? data.storeEvents : null;   // null: October's calendar as typed in (events.js)
+  if(typeof evRerender === 'function') evRerender();
   if(data.fohRoster) Object.assign(fohRoster, data.fohRoster);
   if(data.bohRoster) Object.assign(bohRoster, data.bohRoster);
   rosterPosted = (data.rosterPosted && typeof data.rosterPosted === 'object' && !Array.isArray(data.rosterPosted)) ? data.rosterPosted : {};

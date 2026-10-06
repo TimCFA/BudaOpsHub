@@ -90,7 +90,6 @@ async function renderManage(){
   renderPeaManage();
   if(document.getElementById('manageContent').style.display === 'block'){ peaAutoSync(); duCheckBackup(); }
   renderNumbersTab();
-  if(typeof renderEventsManage === 'function') renderEventsManage();
   refreshManage(true);
 }
 
@@ -110,7 +109,6 @@ function refreshManage(opening){
   if(opening || clean('pillarsManageList', 'metricsManageList')) renderLXManage();
   if(opening || clean('gxManageList')) renderGXManage();
   if(opening || clean('homeManageList')) renderHomeManage();
-  if(typeof renderEventsManage === 'function' && (opening || !evEditId)) renderEventsManage();
   renderTXManage();
   renderEOISubmissions();
   renderScoreboardManage(opening);
