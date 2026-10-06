@@ -396,13 +396,15 @@ function fcMedian(arr){
 }
 
 // The special event(s) typed into Know the Numbers for a day, from the
-// current fortnight or the year of finished days it keeps; null if none.
+// current fortnight or the year of finished days it keeps, and the
+// calendar's short events that count as one (events.js); null if none.
 function fcEventFor(iso){
   const texts = [];
   const cur = typeof numbersData !== 'undefined' && numbersData ? numbersData[iso] : null;
   if(cur && typeof cur === 'object') Object.values(cur).forEach(e => { const t = e && String(e.specialEvents || '').trim(); if(t) texts.push(t); });
   const past = typeof numbersHistory !== 'undefined' && numbersHistory ? numbersHistory[iso] : null;
   if(past && typeof past === 'object') Object.values(past).forEach(rec => { const t = Array.isArray(rec) ? String(rec[2] || '').trim() : ''; if(t) texts.push(t); });
+  if(typeof eventsForNumbers === 'function') eventsForNumbers(iso).forEach(t => { if(!texts.some(x => x.toLowerCase().includes(t.toLowerCase()))) texts.push(t); });
   return texts.length ? [...new Set(texts)].join(' · ') : null;
 }
 

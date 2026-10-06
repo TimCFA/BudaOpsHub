@@ -279,10 +279,22 @@ looking: events are added, changed and deleted in **Manage → Events
 Calendar** (behind the PIN; Tim, Oct 2026), including the month's goals and
 Pre-Checklist. On a phone the grid shows titles only and the goals sit above
 it. Set Ups shows the same events by itself, nothing retyped: an Events strip
-above the cards for all-day ones and a chip on each daypart card an event overlaps. These are
-separate from Know the Numbers' "Special events" text, which is still typed
-or uploaded per daypart and is what Game Day / Practice Day and the
-forecast's unusual-day rule read.
+above the cards for all-day ones and a chip on each daypart card an event overlaps.
+
+**Calendar → Know the Numbers** (Tim, Oct 2026): the short events held at the
+store (In-Store, Drive Thru and App events of a week or less: Free Breakfast
+Tuesday, Pack the Drive Thru, Family Night, Halloween Week Promo) count as
+the special event of each daypart they overlap, beside whatever's typed in
+Know the Numbers (`knSpecialEventsText`, typed text first, no repeats).
+That reaches the Set Ups numbers line and game plan on every device, Game
+Day / Practice Day (a special event is one point toward Game Day), and the
+forecast's unusual-day rule (`fcEventFor`). Month-long events (the samples),
+Community Outreach, Cow in Community, social posts and heads-ups don't count.
+A manager can tick or untick any one event in Manage → Events Calendar
+(saved as `kn` only when it differs from the rule); Manage → Know the
+Numbers shows "From the calendar: …" under each daypart's Special Events box
+without writing it into the typed field. The chips on Set Ups skip events
+already on the numbers line.
 
 Tim wants it hidden while it's being shaped (Oct 2026): the tab and the Set
 Ups chips show only on a device signed in with the manager PIN (the body's

@@ -1061,6 +1061,11 @@ body:not(.is-manager) .manager-only{display:none !important;}
 .ev-m-main{flex:1;min-width:0;display:flex;flex-direction:column;font-family:var(--font-ui);font-size:14px;}
 .ev-m-main span{color:var(--text-secondary);font-size:13px;}
 .ev-m-main small{color:var(--text-tertiary);font-size:12px;}
+.kn-cal-events{margin:6px 0 0;font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--cfa-navy);}
+.ev-m-kn{font-weight:700;color:var(--cfa-navy);}
+.ev-kn{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid var(--border);border-radius:12px;font-family:var(--font-ui);font-size:13px;line-height:1.4;color:var(--text-secondary);}
+.ev-kn input{margin-top:3px;flex:0 0 auto;}
+.ev-kn b{color:var(--text-primary);}
 .ev-m-btn{width:auto !important;margin:0 !important;padding:6px 12px !important;}
 .ev-form{display:grid;gap:10px;margin:0 0 14px;padding:12px;border:1px solid var(--border);border-radius:14px;background:var(--cfa-light);}
 .ev-form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;}

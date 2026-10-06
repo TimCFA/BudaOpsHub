@@ -99,5 +99,39 @@ class CalendarPage(unittest.TestCase):
         self.assertEqual(got, [True, False, True])
 
 
+class KnowTheNumbers(unittest.TestCase):
+    """The calendar's short store events count as Know the Numbers special events."""
+
+    def test_which_october_events_count(self):
+        got = run("c => [...new Set(eventsList().filter(evCountsForNumbers).map(e => e.title))]")[0]
+        self.assertEqual(got, ['Free Breakfast Tuesday', 'Pack the Drive Thru', 'Family Night: Pumpkins & Play', 'Halloween Week Promo'])
+
+    def test_by_daypart_window(self):
+        got = run("""c => [eventsForNumbers('2026-10-06', 390, 630), eventsForNumbers('2026-10-06', 630, 840),
+            eventsForNumbers('2026-10-09', 630, 840), eventsForNumbers('2026-10-22', 1020, 1260),
+            eventsForNumbers('2026-10-29', 390, 630), eventsForNumbers('2026-10-30'), eventsForNumbers('2026-10-07')]""")[0]
+        self.assertEqual(got, [['Free Breakfast Tuesday'], [], ['Pack the Drive Thru'], ['Family Night: Pumpkins & Play'],
+                               ['Halloween Week Promo'], ['Halloween Week Promo', 'Pack the Drive Thru'], []])
+
+    def test_a_manager_can_tick_or_untick_one(self):
+        got = run("""c => { storeEvents = JSON.parse(JSON.stringify(EVENTS_SEED));
+            storeEvents.find(e => e.id === 'oct26-freebkfst-06').kn = false;
+            storeEvents.find(e => e.id === 'oct26-outreach-07').kn = true;
+            return [eventsForNumbers('2026-10-06'), eventsForNumbers('2026-10-07'), eventsForNumbers('2026-10-13')]; }""")[0]
+        self.assertEqual(got, [[], ['Community Outreach'], ['Free Breakfast Tuesday']])
+
+    def test_typed_text_comes_first_without_repeats(self):
+        got = run("""c => { knDaypartOf = dp => dp; knWindowOf = dp => dp.w;
+            const bk = {name: 'Breakfast', w: {start: 390, end: 630}}, ln = {name: 'Lunch', w: {start: 630, end: 840}};
+            return [knSpecialEventsText('Catering pickup 7am', '2026-10-06', bk), knSpecialEventsText('free breakfast tuesday', '2026-10-06', bk),
+                    knSpecialEventsText('', '2026-10-06', ln), knSpecialEventsText('', '2026-10-09', ln)]; }""")[0]
+        self.assertEqual(got, ['Catering pickup 7am · Free Breakfast Tuesday', 'free breakfast tuesday', '', 'Pack the Drive Thru'])
+
+    def test_rule(self):
+        got = run("""c => [evCountsByRule({kind: 'instore', date: '2026-11-01', end: '2026-11-07'}), evCountsByRule({kind: 'instore', date: '2026-11-01', end: '2026-11-08'}),
+            evCountsByRule({kind: 'app', date: '2026-11-03'}), evCountsByRule({kind: 'food', date: '2026-11-03'}), evCountsForNumbers({kind: 'goal', date: '2026-11-01', kn: true})]""")[0]
+        self.assertEqual(got, [True, False, True, False, False])
+
+
 if __name__ == '__main__':
     unittest.main()
