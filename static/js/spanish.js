@@ -103,6 +103,8 @@ const ES = {
   'Start Time': 'Hora de entrada',
   'End Time': 'Hora de salida',
   'Add to Roster': 'Agregar al horario',
+  'Try 5:30a, 530 or 17:30': 'Pruebe 5:30a, 530 o 17:30',
+  'End time is before the start time': 'La hora de salida es antes de la entrada',
   'No roster yet': 'Todavía no hay horario para este día.',
   'Breaks left': 'Descansos pendientes',
   'Not placed yet': 'Sin asignar',
