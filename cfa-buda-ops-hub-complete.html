@@ -164,13 +164,14 @@
       <div style="display:flex;gap:12px;">
         <div class="field" style="flex:1;">
           <label data-es="Start Time" data-es-inline>Start Time</label>
-          <input type="text" id="addTMStart" placeholder="e.g. 5:30a" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+          <input type="text" id="addTMStart" placeholder="e.g. 5:30a" autocomplete="off" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
         </div>
         <div class="field" style="flex:1;">
           <label data-es="End Time" data-es-inline>End Time</label>
-          <input type="text" id="addTMEnd" placeholder="e.g. 1:30p" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+          <input type="text" id="addTMEnd" placeholder="e.g. 1:30p" autocomplete="off" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
         </div>
       </div>
+      <p class="shift-hint" id="addTMHint" aria-live="polite"></p>
       <button id="btnConfirmAddTM" class="btn btn-primary" data-es="Add to Roster">Add to Roster</button>
       <button id="btnCancelAddTM" class="btn btn-ghost" data-es="Cancel">Cancel</button>
     </div>
@@ -848,6 +849,21 @@
         </div>
       </div>
 
+      <!-- GROUP: Events Calendar (events.js): the only place the calendar changes -->
+      <div class="manage-group">
+        <div class="manage-group-header" onclick="toggleManageGroup(this)">
+          <span class="manage-group-title">Events Calendar</span>
+          <span class="manage-group-chevron">▾</span>
+        </div>
+        <div class="manage-group-body">
+          <div class="standup-card">
+            <h3>Store events</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Promos, samples, outreach, family nights, heads-ups, the month's goals and Pre-Checklist. They show on the Calendar tab and on the Set Ups daypart they fall in.</p>
+            <div id="eventsManageRoot"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- GROUP: Know the Numbers -->
       <div class="manage-group">
         <div class="manage-group-header" onclick="toggleManageGroup(this)">
@@ -1072,6 +1088,7 @@
 <script src="/static/js/waste-dash.js"></script>
 <script src="/static/js/fohoe-and-safecount.js"></script>
 <script src="/static/js/food-safety.js"></script>
+<script src="/static/js/shift-time.js"></script>
 <script src="/static/js/daypicker-and-positions.js"></script>
 <script src="/static/js/custom-scoreboards.js"></script>
 <script src="/static/js/operational-intelligence.js"></script>

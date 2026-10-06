@@ -1,11 +1,12 @@
 // ===== STORE EVENTS CALENDAR =====
 // The store's marketing / events calendar (Tim, Oct 2026): promos, samples,
 // community outreach, family nights and heads-ups like "No School". Its own
-// Calendar tab, drawn like the store's printed calendar and edited there;
-// Set Ups shows each event on the daypart cards it overlaps. Managers only
-// for now (Tim): the tab and the chips show once the PIN is entered. Saved
-// as storeEvents in the manager section (manager-only, like the
-// scoreboards).
+// Calendar tab, drawn like the store's printed calendar, to look at only;
+// it's added to and changed in Manage → Events Calendar, behind the PIN
+// (Tim). Set Ups shows each event on the daypart cards it overlaps. Managers
+// only for now: the tab and the chips show once the PIN is entered. Saved
+// as storeEvents in the manager section (manager-only on the server, like
+// the scoreboards).
 //
 // An event: {id, title, detail, kind, date, end, days, from, to, notes}
 //   date / end  'YYYY-MM-DD', end inclusive (a one-day event has no end)
@@ -114,11 +115,13 @@ function eventChipHtml(ev){
 // week grid (Sundays shaded, closed), each event in its key color, events
 // that run several days as a bar across the week, the month's goals in the
 // first Sunday, the Pre-Checklist and the events' notes beside the grid and
-// the key under it. Tap a day for everything on it, and to add or edit.
+// the key under it. Tap a day for everything on it. Nothing is changed
+// here: that's Manage → Events Calendar.
 
 let calMonth = null;   // 'YYYY-MM' on screen
-let calDay = null;     // the day picked: its events (and the editor) under the grid
-let evEditId = null;   // the event open in the form ('new' for a new one)
+let calDay = null;     // the day picked: its events under the grid
+let evEditId = null;   // Manage: the event open in the form ('new' for a new one)
+let evManageMonth = null; // Manage: 'YYYY-MM' listed
 
 const EV_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -234,18 +237,10 @@ function evWeekHtml(week, w, goals){
 }
 
 function evDayPanelHtml(){
-  const editing = evEditId === 'new' ? {id: 'new', kind: 'instore', date: calDay} : evEditId ? eventsList().find(ev => ev.id === evEditId) : null;
-  if(editing){
-    return `<section class="cal-dayp" id="calDayPanel">
-        <div class="cal-dayp-head"><h3>${evEditId === 'new' ? 'New event' : 'Edit event'}</h3></div>
-        ${evFormHtml(editing)}
-      </section>`;
-  }
   const label = new Date(calDay + 'T00:00:00').toLocaleDateString('en-US', {weekday: 'long', month: 'long', day: 'numeric'});
   const list = eventsOn(calDay);
-  const month = [...eventsForMonth(calMonth, 'goal'), ...eventsForMonth(calMonth, 'checklist')];
   return `<section class="cal-dayp" id="calDayPanel">
-      <div class="cal-dayp-head"><h3>${escapeHtml(label)}</h3><button type="button" class="btn btn-primary" data-ev-edit="new">+ Add event</button></div>
+      <div class="cal-dayp-head"><h3>${escapeHtml(label)}</h3></div>
       ${list.length ? `<ul class="cal-dayp-list">${list.map(ev => `
         <li class="cal-dayp-item">
           ${evDot(ev)}
@@ -255,9 +250,8 @@ function evDayPanelHtml(){
             <small>${escapeHtml(evWhenText(ev))}</small>
             ${Array.isArray(ev.notes) && ev.notes.length ? `<ul>${ev.notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : ''}
           </div>
-          <button type="button" class="btn btn-ghost" data-ev-edit="${escapeHtml(ev.id)}">Edit</button>
         </li>`).join('')}</ul>` : `<p class="ev-empty">${evWeekday(calDay) === 0 ? 'Closed Sunday. ' : ''}Nothing on the calendar this day.</p>`}
-      <p class="cal-dayp-month">${escapeHtml(evMonthLabel(calMonth))}: ${month.length ? month.map(m => `${escapeHtml(m.title)}<button type="button" data-ev-edit="${escapeHtml(m.id)}">Edit</button>`).join(' · ') : 'no monthly goals or Pre-Checklist yet (add one with the type "Monthly goals" or "Pre-Checklist").'}</p>
+      <p class="cal-dayp-month">To add or change events: Manage → Events Calendar.</p>
     </section>`;
 }
 
@@ -278,7 +272,6 @@ function renderCalendarView(){
         <button type="button" class="btn btn-ghost cal-step" data-cal-month="-1" aria-label="Previous month">‹</button>
         ${calMonth !== evMonthOf(today) ? '<button type="button" class="btn btn-ghost" data-cal-today="1">This month</button>' : ''}
         <button type="button" class="btn btn-ghost cal-step" data-cal-month="1" aria-label="Next month">›</button>
-        <button type="button" class="btn btn-primary" data-ev-edit="new">+ Add event</button>
       </div>
     </div>
     <div class="cal-body">
@@ -298,16 +291,43 @@ function renderCalendarView(){
     </div>`;
 }
 
-// New data from another device: redraw, unless the form is open.
+// New data from another device: redraw the Calendar (Manage redraws itself
+// in refreshManage, unless the form is open).
 function evRerender(){
   const view = document.getElementById('calendarView');
-  if(view && view.classList.contains('active') && !evEditId) renderCalendarView();
+  if(view && view.classList.contains('active')) renderCalendarView();
 }
 
 // On a phone the day's panel sits under the grid: bring it up.
 function evShowDayPanel(){
   const p = document.getElementById('calDayPanel');
   if(p && p.getBoundingClientRect().top > window.innerHeight - 120) p.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+// ----- Manage → Events Calendar: the only place events change -----
+
+function renderEventsManage(){
+  const root = document.getElementById('eventsManageRoot');
+  if(!root) return;
+  if(!evManageMonth) evManageMonth = evMonthOf(today);
+  const first = evManageMonth + '-01', last = evMonthEnd(evManageMonth);
+  const list = eventsList().filter(ev => ev.date <= last && (ev.end || ev.date) >= first)
+    .sort((a, b) => EVENT_MONTH_KINDS.includes(b.kind) - EVENT_MONTH_KINDS.includes(a.kind) || a.date.localeCompare(b.date) || (evMinutes(a.from) ?? -1) - (evMinutes(b.from) ?? -1));
+  const editing = evEditId === 'new' ? {id: 'new', kind: 'instore', date: evMonthOf(today) === evManageMonth ? today : first} : evEditId ? eventsList().find(ev => ev.id === evEditId) : null;
+  root.innerHTML = `
+    <div class="ev-m-bar">
+      <button type="button" class="btn btn-ghost ev-m-step" data-ev-month="-1" aria-label="Previous month">‹</button>
+      <b>${escapeHtml(evMonthLabel(evManageMonth))}</b>
+      <button type="button" class="btn btn-ghost ev-m-step" data-ev-month="1" aria-label="Next month">›</button>
+      <button type="button" class="btn btn-primary ev-m-add" data-ev-edit="new">+ Add event</button>
+    </div>
+    ${editing ? evFormHtml(editing) : ''}
+    ${list.length ? `<ul class="ev-m-list">${list.map(ev => `
+      <li class="ev-m-row">
+        ${evDot(ev)}
+        <div class="ev-m-main"><b>${escapeHtml(ev.title)}</b>${ev.detail ? `<span>${escapeHtml(ev.detail)}</span>` : ''}<small>${EVENT_MONTH_KINDS.includes(ev.kind) ? escapeHtml(evKind(ev).label) + (ev.notes ? ` · ${ev.notes.length} items` : '') : escapeHtml(evWhenText(ev))}</small></div>
+        <button type="button" class="btn btn-ghost ev-m-btn" data-ev-edit="${escapeHtml(ev.id)}">Edit</button>
+      </li>`).join('')}</ul>` : '<p class="ev-empty">No events this month yet.</p>'}`;
 }
 
 function evFormHtml(ev){
@@ -358,13 +378,15 @@ function evReadForm(form){
 
 function evAfterChange(msg, date){
   evEditId = null;
-  if(date){ calDay = date; calMonth = evMonthOf(date); }
+  if(date){ evManageMonth = evMonthOf(date); calMonth = evMonthOf(date); calDay = date; }
+  renderEventsManage();
   renderCalendarView();
   if(typeof renderAllDayparts === 'function') renderAllDayparts();
   showToast(msg);
   saveState();
 }
 
+// The Calendar tab: look only.
 document.addEventListener('click', e => {
   const t = e.target && e.target.closest ? e.target : null;
   if(!t || !t.closest('#calendarRoot')) return;
@@ -374,30 +396,35 @@ document.addEventListener('click', e => {
     d.setMonth(d.getMonth() + +step.dataset.calMonth);
     calMonth = toLocalISODate(d).slice(0, 7);
     calDay = null;
-    evEditId = null;
     renderCalendarView();
     return;
   }
-  if(t.closest('[data-cal-today]')){ calMonth = evMonthOf(today); calDay = today; evEditId = null; renderCalendarView(); return; }
+  if(t.closest('[data-cal-today]')){ calMonth = evMonthOf(today); calDay = today; renderCalendarView(); return; }
   const day = t.closest('[data-cal-day]');
   if(day){
     calDay = day.dataset.calDay;
     calMonth = evMonthOf(calDay);
-    evEditId = null;
     renderCalendarView();
     evShowDayPanel();
+  }
+});
+
+// Manage → Events Calendar.
+document.addEventListener('click', e => {
+  const t = e.target && e.target.closest ? e.target : null;
+  if(!t || !t.closest('#eventsManageRoot')) return;
+  const step = t.closest('[data-ev-month]');
+  if(step){
+    const d = new Date(evManageMonth + '-01T00:00:00');
+    d.setMonth(d.getMonth() + +step.dataset.evMonth);
+    evManageMonth = toLocalISODate(d).slice(0, 7);
+    evEditId = null;
+    renderEventsManage();
     return;
   }
   const edit = t.closest('[data-ev-edit]');
-  if(edit){
-    evEditId = edit.dataset.evEdit;
-    renderCalendarView();
-    evShowDayPanel();
-    const f = document.getElementById('evTitle');
-    if(f) f.focus({preventScroll: true});
-    return;
-  }
-  if(t.closest('[data-ev-cancel]')){ evEditId = null; renderCalendarView(); return; }
+  if(edit){ evEditId = edit.dataset.evEdit; renderEventsManage(); const f = document.getElementById('evTitle'); if(f) f.focus(); return; }
+  if(t.closest('[data-ev-cancel]')){ evEditId = null; renderEventsManage(); return; }
   if(t.closest('[data-ev-delete]')){
     const ev = eventsList().find(x => x.id === evEditId);
     if(!ev || !confirm(`Delete "${ev.title}" (${ev.date}${ev.end ? ` to ${ev.end}` : ''}) from the calendar?`)) return;
