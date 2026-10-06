@@ -49,6 +49,18 @@ sheet with the roster's break timer; Coach and the planned break times wait
 for the full site. Managers turn launch mode off for everyone in Manage.
 
 ### Set Ups (positioning) — the most-used, most rule-heavy area
+- **Truck** (`static/js/truck.js`, Tim, Oct 2026, after a morning with
+  nobody on it): the scheduler assigns truck in HotSchedules as an
+  off-floor shift (Schedule "Other", Job "Truck"); the hub only shows it.
+  Leaders don't assign truck in the hub (Tim). The roster import keeps those
+  shifts as `truckShifts` (replaced on each import; still off the floor
+  roster), and its preview shows each day's truck. A line at the top of Set
+  Ups says who has the Truck shift and when, or, on a truck day with none,
+  a red "No truck shift on the schedule"; on today's page a second line does
+  the same for the next open day, so a gap is seen the night before. Truck
+  days (`truckDays`, manager-only) are set in Manage → Truck Days,
+  defaulting to Mon, Tue, Thu, Fri, Sat (the days with a truck shift on the
+  Sept 20–26 2026 schedule). Spanish on the BOH side.
 - **Add Team Member** takes times however they're typed (`static/js/shift-time.js`):
   5:30a, 5:30 am, 530, 5.30, 5, 17:30, 1730, noon, or the whole shift in the
   start box ("5:30-1:30", "11 to 7"). Each box tidies itself to the

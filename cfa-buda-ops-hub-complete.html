@@ -864,6 +864,21 @@
         </div>
       </div>
 
+      <!-- GROUP: Truck days (truck.js) -->
+      <div class="manage-group">
+        <div class="manage-group-header" onclick="toggleManageGroup(this)">
+          <span class="manage-group-title">Truck Days</span>
+          <span class="manage-group-chevron">▾</span>
+        </div>
+        <div class="manage-group-body">
+          <div class="standup-card">
+            <h3>Days the truck comes</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Set Ups shows who has the Truck shift from HotSchedules. On these days, a day with no Truck shift on the schedule shows in red.</p>
+            <div id="truckDaysRoot"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- GROUP: Know the Numbers -->
       <div class="manage-group">
         <div class="manage-group-header" onclick="toggleManageGroup(this)">
@@ -1090,6 +1105,7 @@
 <script src="/static/js/food-safety.js"></script>
 <script src="/static/js/shift-time.js"></script>
 <script src="/static/js/daypicker-and-positions.js"></script>
+<script src="/static/js/truck.js"></script>
 <script src="/static/js/custom-scoreboards.js"></script>
 <script src="/static/js/operational-intelligence.js"></script>
 <script src="/static/js/weekly-roster-import.js"></script>

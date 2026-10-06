@@ -593,6 +593,7 @@ function renderSetupsBoard(date){
     return `
     <div class="su-board is-sheet">
       ${suModeBarHtml()}
+      ${typeof truckStripHtml === 'function' ? truckStripHtml(date) : ''}
       ${rosterChangesHtml(section, date)}
       ${suAllDayEventsHtml(date)}
       ${SU_LAYOUT === 'pills'
@@ -604,6 +605,7 @@ function renderSetupsBoard(date){
   return `
     <div class="su-board">
       ${suModeBarHtml()}
+      ${typeof truckStripHtml === 'function' ? truckStripHtml(date) : ''}
       ${rosterChangesHtml(section, date)}
       ${suDaypartChipsHtml(section, date, dp.name)}
       ${suGamePlanHtml(section, date, dp, dpIndex, m)}
