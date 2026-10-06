@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from collections import Counter, defaultdict
 import gzip
 import hmac
@@ -729,6 +729,33 @@ def state_backup():
     if not legacy:
         return jsonify({'exists': False, 'data': {}})
     return jsonify({'exists': True, 'data': {k: legacy[k] for k in BACKUP_RESTORABLE if k in legacy}})
+
+@app.route('/api/state/export', methods=['POST'])
+def state_export():
+    """The full backup: every saved section, read fresh from Firebase (so it
+    has what other devices saved a moment ago and the sections a page only
+    loads for managers), as one JSON file to keep. Managers only. The
+    manager PIN hash lives outside state/ and is never in it."""
+    if not session.get('manager'):
+        return jsonify({'error': 'Manager sign-in required'}), 403
+    try:
+        with _state_lock:
+            if not _refresh_cache():
+                return jsonify({'error': 'Nothing has been saved yet'}), 404
+            sections = {name: _cache[name]['data'] for name in STATE_SECTIONS}
+    except Exception as e:
+        print(f"[STATE EXPORT ERROR] {e}")
+        return jsonify({'error': 'Could not read the saved data'}), 500
+    day = setup_feed.store_today().isoformat()   # the store's date (Central)
+    body = _dumps({
+        'app': 'BudaOpsHub', 'kind': 'full-backup', 'version': 1,
+        'exportedAt': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+        'build': BUILD, 'sections': sections,
+    })
+    response = app.response_class(body, mimetype='application/json')
+    response.headers['Content-Disposition'] = f'attachment; filename="budaopshub-full-backup-{day}.json"'
+    response.headers['Cache-Control'] = 'no-store'
+    return response
 
 @app.route('/api/state/save', methods=['POST'])
 def state_save():

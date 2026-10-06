@@ -471,3 +471,55 @@ class WasteHistoryTest(unittest.TestCase):
         self.assertEqual([e['id'] for e in section('waste')['entries']], ['w1', 'w2', 'w3'])
         # The section it gets back is trimmed too.
         self.assertEqual(self.ids(r), ['w2', 'w3'])
+
+
+class ExportTest(unittest.TestCase):
+    """The full backup (/api/state/export): managers only, every section
+    read fresh from Firebase, never the PIN hash."""
+
+    def setUp(self):
+        appmod.db.reference = lambda path: FakeRef(path)
+        appmod._cache.clear()
+        appmod._cache_ready = False
+        store.clear()
+        for name in appmod.STATE_SECTIONS:
+            store[f'state/{name}'] = json.dumps({'_mark': name})
+        store['state/setups'] = json.dumps({'posAssignments': {'foh||2026-10-06||Lunch||iPOS 1': 'Maya Torres'}})
+        store['state/safe'] = json.dumps({'safeCounts': [{'date': '2026-10-06', 'total': 4500}]})
+        store['secure/managerPinHash'] = 'pbkdf2:sha256:secret-hash'
+        self.c = appmod.app.test_client()
+
+    def manager(self):
+        with self.c.session_transaction() as sess:
+            sess['manager'] = True
+
+    def test_managers_only(self):
+        self.assertEqual(self.c.post('/api/state/export').status_code, 403)
+
+    def test_every_section_as_a_file(self):
+        self.manager()
+        r = self.c.post('/api/state/export')
+        self.assertEqual(r.status_code, 200)
+        self.assertRegex(r.headers['Content-Disposition'], r'attachment; filename="budaopshub-full-backup-\d{4}-\d{2}-\d{2}\.json"')
+        self.assertEqual(r.headers['Cache-Control'], 'no-store')
+        body = json.loads(r.get_data(as_text=True))
+        self.assertEqual((body['app'], body['kind'], body['version']), ('BudaOpsHub', 'full-backup', 1))
+        self.assertEqual(sorted(body['sections']), sorted(appmod.STATE_SECTIONS))
+        self.assertEqual(body['sections']['setups']['posAssignments'], {'foh||2026-10-06||Lunch||iPOS 1': 'Maya Torres'})
+        self.assertEqual(body['sections']['safe']['safeCounts'][0]['total'], 4500)     # private sections too
+        self.assertNotIn('secret-hash', r.get_data(as_text=True))
+
+    def test_reads_fresh_from_firebase(self):
+        self.manager()
+        self.c.post('/api/state/export')
+        # Another device (or a change outside the app) saves meanwhile.
+        store['state/setups'] = json.dumps({'posAssignments': {'foh||2026-10-06||Lunch||iPOS 1': 'Noah Bennett'}})
+        body = json.loads(self.c.post('/api/state/export').get_data(as_text=True))
+        self.assertEqual(body['sections']['setups']['posAssignments']['foh||2026-10-06||Lunch||iPOS 1'], 'Noah Bennett')
+
+    def test_whole_waste_log_not_the_team_trim(self):
+        self.manager()
+        old = {'ts': 1000, 'name': 'Nuggets'}
+        store['state/waste'] = json.dumps({'entries': [old]})
+        body = json.loads(self.c.post('/api/state/export').get_data(as_text=True))
+        self.assertEqual(body['sections']['waste']['entries'], [old])

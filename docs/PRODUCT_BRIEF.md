@@ -268,6 +268,17 @@ No sample data, ever — an empty history shows an empty page.
 Data Uploads, Know the Numbers, Talent Development, Scoreboards, Home Page,
 Waste Tracking (limit, products), PEA Ratings, Backup & Data.
 
+**Full Backup** (Backup & Data): one tap downloads everything the hub has
+saved as one JSON file (`budaopshub-full-backup-<date>.json`). It comes from
+the server (`/api/state/export`, managers only), read fresh from Firebase:
+every section, including the private ones (PEA, safe counts, people, forecast)
+and the whole waste log, plus what other devices saved a moment ago. Never the
+manager PIN hash, which lives outside the saved state. If the server can't be
+reached it downloads nothing rather than a partial file. The card shows when
+this device last downloaded one. (Before Oct 2026 the button saved the page's
+own copy, which could miss sections the page hadn't loaded.) There's no
+restore button yet; a backup file can be put back by hand if ever needed.
+
 ## 4. Rules Tim has decided (keep these unless he changes them)
 
 ### PEA tiers and "all green"
