@@ -152,6 +152,32 @@
     </div>
   </div>
 
+  <!-- Truck: who's doing it (truck.js) -->
+  <div class="overlay" id="truckModal">
+    <div class="sheet">
+      <h2 data-es="Assign truck">Assign truck</h2>
+      <div class="sub" id="truckContext"></div>
+      <div class="field">
+        <label data-es="Name" data-es-inline>Name</label>
+        <input type="text" id="truckName" list="truckNames" placeholder="Full name" data-es-placeholder="Full name" autocomplete="off" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+        <datalist id="truckNames"></datalist>
+      </div>
+      <div style="display:flex;gap:12px;">
+        <div class="field" style="flex:1;">
+          <label data-es="Start Time" data-es-inline>Start Time</label>
+          <input type="text" id="truckStart" autocomplete="off" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+        </div>
+        <div class="field" style="flex:1;">
+          <label data-es="End Time" data-es-inline>End Time</label>
+          <input type="text" id="truckEnd" autocomplete="off" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+        </div>
+      </div>
+      <p class="shift-hint" id="truckHint" aria-live="polite"></p>
+      <button id="btnTruckSave" class="btn btn-primary" data-es="Assign truck">Assign truck</button>
+      <button id="btnTruckCancel" class="btn btn-ghost" data-es="Cancel">Cancel</button>
+    </div>
+  </div>
+
   <!-- Add Team Member to Roster Modal -->
   <div class="overlay" id="addTMModal">
     <div class="sheet">
@@ -864,6 +890,21 @@
         </div>
       </div>
 
+      <!-- GROUP: Truck days (truck.js) -->
+      <div class="manage-group">
+        <div class="manage-group-header" onclick="toggleManageGroup(this)">
+          <span class="manage-group-title">Truck Days</span>
+          <span class="manage-group-chevron">▾</span>
+        </div>
+        <div class="manage-group-body">
+          <div class="standup-card">
+            <h3>Days the truck comes</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">On these days Set Ups shows a red "No one on truck yet" until someone is on truck, from the schedule or assigned there.</p>
+            <div id="truckDaysRoot"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- GROUP: Know the Numbers -->
       <div class="manage-group">
         <div class="manage-group-header" onclick="toggleManageGroup(this)">
@@ -1090,6 +1131,7 @@
 <script src="/static/js/food-safety.js"></script>
 <script src="/static/js/shift-time.js"></script>
 <script src="/static/js/daypicker-and-positions.js"></script>
+<script src="/static/js/truck.js"></script>
 <script src="/static/js/custom-scoreboards.js"></script>
 <script src="/static/js/operational-intelligence.js"></script>
 <script src="/static/js/weekly-roster-import.js"></script>

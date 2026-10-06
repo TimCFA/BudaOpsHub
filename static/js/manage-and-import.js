@@ -91,6 +91,7 @@ async function renderManage(){
   if(document.getElementById('manageContent').style.display === 'block'){ peaAutoSync(); duCheckBackup(); }
   renderNumbersTab();
   if(typeof renderEventsManage === 'function') renderEventsManage();
+  if(typeof renderTruckDaysManage === 'function') renderTruckDaysManage();
   refreshManage(true);
 }
 
@@ -111,6 +112,7 @@ function refreshManage(opening){
   if(opening || clean('gxManageList')) renderGXManage();
   if(opening || clean('homeManageList')) renderHomeManage();
   if(typeof renderEventsManage === 'function' && (opening || !evEditId)) renderEventsManage();
+  if(typeof renderTruckDaysManage === 'function') renderTruckDaysManage();
   renderTXManage();
   renderEOISubmissions();
   renderScoreboardManage(opening);

@@ -1082,3 +1082,24 @@ body:not(.is-manager) .manager-only{display:none !important;}
 /* Set Ups "Add Team Member": how the typed shift reads (shift-time.js) */
 .shift-hint{min-height:1.4em;margin:-4px 0 12px;font-family:var(--font-ui);font-size:14px;font-weight:600;color:var(--cfa-navy);font-variant-numeric:tabular-nums;}
 .shift-hint.is-bad{color:var(--cfa-dark-red);}
+
+/* Set Ups: who's on truck (truck.js). Red when a truck day has nobody. */
+.su-truck{margin:0 0 12px;padding:10px 14px;border:1px solid var(--border);border-radius:14px;background:var(--cfa-white);font-family:var(--font-ui);font-size:14px;color:var(--text-primary);}
+.su-truck.is-missing{border-color:var(--cfa-red);background:#FCEBE9;}
+.su-truck-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;}
+.su-truck-row + .su-truck-row{margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
+.su-truck-icon{flex:0 0 auto;color:var(--cfa-navy);}
+.su-truck.is-missing > .su-truck-row:first-child .su-truck-icon{color:var(--cfa-red);}
+.su-truck-k{font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-secondary);}
+.su-truck-k .es{text-transform:none;letter-spacing:0;}
+.su-truck-who{display:inline-flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums;}
+.su-truck-x{width:28px;height:28px;padding:0;border:0;border-radius:14px;background:none;font-size:18px;line-height:1;color:var(--text-tertiary);cursor:pointer;}
+.su-truck-x:hover{background:var(--cfa-light);color:var(--cfa-dark-red);}
+.su-truck-miss{font-weight:700;color:var(--cfa-dark-red);}
+.su-truck-none{color:var(--text-tertiary);}
+.su-truck-next.is-missing .su-truck-miss{color:var(--cfa-dark-red);}
+.su-truck-btn{margin-left:auto;min-height:36px;padding:6px 14px;border:1px solid var(--cfa-red);border-radius:18px;background:var(--cfa-white);font-family:var(--font-ui);font-size:13px;font-weight:700;color:var(--cfa-red);cursor:pointer;}
+.su-truck.is-missing .su-truck-row:first-child .su-truck-btn,.su-truck-next.is-missing .su-truck-btn{background:var(--cfa-red);color:#fff;}
+.su-truck-btn .es{color:inherit;opacity:0.8;}
+.truck-days{display:flex;flex-wrap:wrap;gap:8px 16px;font-family:var(--font-ui);font-size:14px;}
+.truck-days label{display:inline-flex;align-items:center;gap:6px;}

@@ -7,7 +7,9 @@
 //   Leadership shifts from the Job ("FOH - Team Leader"). Team Leader shifts
 //   mark the person as a leader for that day (Lead Captain, leader coverage).
 // - Off-floor shifts (Other: Administrative/Truck/Maintenance, Training, and
-//   Leadership · Administrative) are left out; the preview counts them.
+//   Leadership · Administrative) are left out of the floor roster; the
+//   preview counts them. Truck shifts are kept apart, as who's on truck
+//   that day (truck.js).
 // - A split shift keeps its separate blocks, so a 5:30–8:00 + 10:00–3:30 day
 //   doesn't count someone on the floor during their 8–10 admin time.
 // - Sunday is skipped (closed). The week comes from the file name
@@ -21,6 +23,7 @@ let weeklyImportUnrecognized = [];
 let weeklyImportActiveDay = 'Mon';
 let weeklyImportFileStart = null;   // Sunday ISO from the file name, if any
 let weeklyImportOffFloor = {};
+let weeklyImportTruck = {};   // {Mon: [{name, start, end}], ...}
 
 function parseCsv(text){
   const rows = [];
@@ -85,6 +88,8 @@ function parseWeeklyRosterCsv(text){
   HS_DAY_ORDER.forEach(day => { result[day] = {foh: [], boh: []}; });
   const unrecognized = [];
   const offFloor = {};
+  const truck = {};
+  HS_DAY_ORDER.forEach(day => { truck[day] = []; });
 
   for(let r = 1; r < rows.length; r++){
     const row = rows[r];
@@ -109,6 +114,7 @@ function parseWeeklyRosterCsv(text){
       else if(schedule === 'Other' || schedule === 'Training' || schedule === 'Leadership'){
         const kind = job || schedule;
         offFloor[kind] = (offFloor[kind] || 0) + 1;
+        if(/truck/i.test(job) && !truck[day].some(t => t.name.toLowerCase() === name.toLowerCase())) truck[day].push({name, start: range.start, end: range.end});
         return;
       }
 
@@ -143,7 +149,7 @@ function parseWeeklyRosterCsv(text){
     else p.blocks = merged;
   })));
 
-  return {result, unrecognized, offFloor};
+  return {result, unrecognized, offFloor, truck};
 }
 
 // "Weekly_Roster_09202026_09262026.csv" → the Sunday it starts on, as ISO.
@@ -270,6 +276,8 @@ function showWeeklyImportPreview(){
     <div style="font-weight:700;font-size:12px;color:#FF6600;margin:14px 0 6px;">BOH (${dayData.boh.length} from file)</div>
     ${renderList(dayData.boh)}
     ${existingBoh.length ? `<div style="margin-top:8px;font-size:10px;color:#1565C0;font-weight:600;">Preserved (manually added, not overwritten):</div>${renderList(existingBoh)}` : ''}
+    <div style="font-weight:700;font-size:12px;color:var(--cfa-navy);margin:14px 0 6px;">Truck</div>
+    ${(weeklyImportTruck[day] || []).length ? renderList(weeklyImportTruck[day]) : `<div style="font-size:11px;padding:4px 0;color:${wd && truckIsTruckDay(wd.date) ? 'var(--cfa-dark-red);font-weight:700' : 'var(--text-tertiary)'};">${wd && truckIsTruckDay(wd.date) ? 'No one scheduled for truck' : 'None'}</div>`}
   `;
 
   document.getElementById('weeklyImportPreviewModal').classList.add('active');
@@ -288,6 +296,8 @@ async function confirmWeeklyImport(){
     rosterNotePosted(dateISO, 'boh', bohRoster[dateISO]);
     fohRoster[dateISO] = mergeImportedDayRoster(fohRoster[dateISO], dayData.foh);
     bohRoster[dateISO] = mergeImportedDayRoster(bohRoster[dateISO], dayData.boh);
+    const truck = truckMergeImported(truckShifts[dateISO], weeklyImportTruck[hsDay]);
+    if(truck.length) truckShifts[dateISO] = truck; else delete truckShifts[dateISO];
     touchLastUpdated(dateISO);
   });
   rosterPrunePosted();
