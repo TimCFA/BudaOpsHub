@@ -49,6 +49,15 @@ sheet with the roster's break timer; Coach and the planned break times wait
 for the full site. Managers turn launch mode off for everyone in Manage.
 
 ### Set Ups (positioning) — the most-used, most rule-heavy area
+- **Add Team Member** takes times however they're typed (`static/js/shift-time.js`):
+  5:30a, 5:30 am, 530, 5.30, 5, 17:30, 1730, noon, or the whole shift in the
+  start box ("5:30-1:30", "11 to 7"). Each box tidies itself to the
+  schedule's spelling ("5:30a") when the leader moves on, and a line under
+  the boxes reads the shift back ("5:30a – 1:30p · 8 h") before it's saved.
+  Without a.m./p.m., an end is the reading that makes a 1-14 hour shift; a
+  start of 5-11 is morning and 12-4 afternoon (Buda's shifts start 5:30a to
+  8p, closers at 4p), unless only the other fits the end. An end before the
+  start is refused.
 - Daypart cards show their Know the Numbers line (projected sales, $/labor
   hour goal, special event; once typed, the actual sales and how far off
   projection, e.g. "$4,061 actual −3.7%") in both the Set up and Coach views.
@@ -257,6 +266,32 @@ how many adjusted days the adjustment helped, and which way the sent
 forecast leans.
 No sample data, ever — an empty history shows an empty page.
 
+### Calendar (managers only, for now)
+The store's events calendar (`static/js/events.js`), its own tab, drawn like
+the printed calendar the store hands out: the month in big coral type, the
+week grid with Sundays shaded, each event in its key color (Red = App, Blue =
+Food Distribution, Purple = Cow in Community, Orange = In-Store Event, Green =
+Drive Thru Event, Black = Social; heads-ups like "No School" in dark gray),
+events that run several days as a bar across the week, the month's goals in
+the first Sunday, the Pre-Checklist and each event's notes beside the grid,
+the key underneath. Tap a day for everything on it. The tab is only for
+looking: events are added, changed and deleted in **Manage → Events
+Calendar** (behind the PIN; Tim, Oct 2026), including the month's goals and
+Pre-Checklist. On a phone the grid shows titles only and the goals sit above
+it. Set Ups shows the same events by itself, nothing retyped: an Events strip
+above the cards for all-day ones and a chip on each daypart card an event overlaps. These are
+separate from Know the Numbers' "Special events" text, which is still typed
+or uploaded per daypart and is what Game Day / Practice Day and the
+forecast's unusual-day rule read.
+
+Tim wants it hidden while it's being shaped (Oct 2026): the tab and the Set
+Ups chips show only on a device signed in with the manager PIN (the body's
+`is-manager` class, `.manager-only`), whether launch mode is on or off; Home
+shows none of it. October 2026 is built in, typed verbatim from the store's
+calendar (including "-WB (200)", "Buda (300)" and the Pre-Checklist); the
+first edit copies it into the saved list. Saved as `storeEvents` in the
+manager section, manager-only on the server.
+
 ### Talent
 - **Trainer trial** (30 days) and **Team Lead trial** (90 days) trackers, built
   from the store's Leadership Playbook.
@@ -265,8 +300,19 @@ No sample data, ever — an empty history shows an empty page.
   Tracker**.
 
 ### Manage (PIN)
-Data Uploads, Know the Numbers, Talent Development, Scoreboards, Home Page,
+Data Uploads, Events Calendar, Know the Numbers, Talent Development, Scoreboards, Home Page,
 Waste Tracking (limit, products), PEA Ratings, Backup & Data.
+
+**Full Backup** (Backup & Data): one tap downloads everything the hub has
+saved as one JSON file (`budaopshub-full-backup-<date>.json`). It comes from
+the server (`/api/state/export`, managers only), read fresh from Firebase:
+every section, including the private ones (PEA, safe counts, people, forecast)
+and the whole waste log, plus what other devices saved a moment ago. Never the
+manager PIN hash, which lives outside the saved state. If the server can't be
+reached it downloads nothing rather than a partial file. The card shows when
+this device last downloaded one. (Before Oct 2026 the button saved the page's
+own copy, which could miss sections the page hadn't loaded.) There's no
+restore button yet; a backup file can be put back by hand if ever needed.
 
 ## 4. Rules Tim has decided (keep these unless he changes them)
 

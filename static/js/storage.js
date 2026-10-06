@@ -12,7 +12,7 @@ const STATE_SECTIONS = {
   manager: ['wasteTarget', 'safeTarget', 'products', 'deletedProductIds', 'productFixesVersion',
             'productCategoryOrder', 'lxPillars', 'lxMetrics', 'lxLastUpdated', 'gxData', 'txData',
             'homeData', 'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData',
-            'launchMode'],
+            'launchMode', 'storeEvents'],
   pea: ['peaRatings', 'peaNameAliases'],
   rosters: ['fohRoster', 'bohRoster', 'rosterPosted'],
   setups: ['posAssignments', 'posVacancyFlags', 'setupDayTypes', 'lastUpdated',
@@ -68,7 +68,7 @@ function stateSnapshot(){
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
     prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, launchMode, prepTimes, prepTimers,
-    salesHistory, forecastSettings, forecastLog, daypartWeeks, zoneOwners, posNotes
+    salesHistory, forecastSettings, forecastLog, daypartWeeks, zoneOwners, posNotes, storeEvents
   };
 }
 
@@ -208,21 +208,57 @@ function saveState(){
   return saveInFlight;
 }
 
-function exportBackup(){
-  const snapshot = stateSnapshot();
-  const blob = new Blob([JSON.stringify(snapshot, null, 2)], {type: 'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `cfa-buda-ops-backup-${today}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  showToast('✓ Backup downloaded');
+// The full backup comes from the server, read fresh from the database:
+// every section, including what other devices saved a moment ago and the
+// manager-only ones this page may not have loaded. If the server can't be
+// reached it says so and downloads nothing, rather than a partial file that
+// looks complete. When it was last downloaded is remembered on this device.
+const FULL_BACKUP_KEY = 'cfaBudaLastFullBackup';
+
+function fullBackupStatusText(){
+  let at = null;
+  try{ at = Number(localStorage.getItem(FULL_BACKUP_KEY)) || null; }catch(e){}
+  return at ? `Last full backup on this device: ${new Date(at).toLocaleString('en-US', {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'})}` : 'No full backup downloaded on this device yet.';
+}
+
+function renderFullBackupStatus(){
+  const el = document.getElementById('fullBackupStatus');
+  if(el) el.textContent = fullBackupStatusText();
+}
+
+async function exportBackup(){
+  const btn = document.getElementById('btnExportBackup');
+  btn.disabled = true;
+  const label = btn.textContent;
+  btn.textContent = 'Preparing backup…';
+  try{
+    const res = await fetch(`${API_BASE}/api/state/export`, {method: 'POST'});
+    if(res.status === 403){ showToast('Sign in to Manage again, then download the backup'); return; }
+    if(!res.ok){ showToast('Couldn’t get the backup from the server. Nothing was downloaded; try again.'); return; }
+    const blob = await res.blob();
+    const name = ((res.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/) || [])[1] || `budaopshub-full-backup-${today}.json`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    try{ localStorage.setItem(FULL_BACKUP_KEY, String(Date.now())); }catch(e){}
+    renderFullBackupStatus();
+    showToast(`✓ Full backup downloaded (${Math.max(1, Math.round(blob.size / 1024)).toLocaleString('en-US')} KB)`);
+  }catch(e){
+    console.warn('Full backup failed:', e);
+    showToast('Couldn’t reach the server. Nothing was downloaded; check the connection and try again.');
+  }finally{
+    btn.disabled = false;
+    btn.textContent = label;
+  }
 }
 
 document.getElementById('btnExportBackup').addEventListener('click', exportBackup);
+renderFullBackupStatus();
 
 async function loadState(){
   // Every script must have run first: the data goes into variables some of
@@ -361,6 +397,8 @@ function applyStateData(data){
   }
   txData = data.txData || JSON.parse(JSON.stringify(defaultTXData));
   homeData = data.homeData || JSON.parse(JSON.stringify(defaultHomeData));
+  storeEvents = Array.isArray(data.storeEvents) ? data.storeEvents : null;   // null: October's calendar as typed in (events.js)
+  if(typeof evRerender === 'function') evRerender();
   if(data.fohRoster) Object.assign(fohRoster, data.fohRoster);
   if(data.bohRoster) Object.assign(bohRoster, data.bohRoster);
   rosterPosted = (data.rosterPosted && typeof data.rosterPosted === 'object' && !Array.isArray(data.rosterPosted)) ? data.rosterPosted : {};

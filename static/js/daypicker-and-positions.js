@@ -831,6 +831,7 @@ document.getElementById('btnAddTeamMember').addEventListener('click', ()=>{
   document.getElementById('addTMName').value = '';
   document.getElementById('addTMStart').value = '';
   document.getElementById('addTMEnd').value = '';
+  if(typeof shiftFormHint === 'function') shiftFormHint();
   document.getElementById('addTMModal').classList.add('active');
 });
 
@@ -845,17 +846,20 @@ document.getElementById('addTMModal').addEventListener('click', (e)=>{
 document.getElementById('btnConfirmAddTM').addEventListener('click', async ()=>{
   const dayName = document.getElementById('daySelect').value;
   const name = document.getElementById('addTMName').value.trim();
-  const start = document.getElementById('addTMStart').value.trim();
-  const end = document.getElementById('addTMEnd').value.trim();
-  
-  if(!name || !start || !end){
-    showToast('Fill in name, start, and end time');
+  // Times typed any reasonable way (shift-time.js): "530", "5:30 am",
+  // "1:30", "17:30", or the whole shift in the start box.
+  const times = shiftTimesRead(document.getElementById('addTMStart').value, document.getElementById('addTMEnd').value);
+  if(!name || times.start === null || times.end === null){
+    showToast(times.error || 'Fill in name, start, and end time');
     return;
   }
-  if(parseShiftTimeToMinutes(start) === null || parseShiftTimeToMinutes(end) === null){
-    showToast('Times should look like 5:30a or 1:30p');
+  if(times.error){
+    showToast(times.error);
     return;
   }
+  const {start, end} = times;
+  document.getElementById('addTMStart').value = start;
+  document.getElementById('addTMEnd').value = end;
 
   const initials = getInitials();
   if(!initials){
