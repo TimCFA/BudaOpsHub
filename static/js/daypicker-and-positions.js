@@ -620,7 +620,11 @@ const SU_ICON_CUP = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"
 const SU_ICON_CHECK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>';
 const SU_ICON_X = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
-function breakKeyFor(name){ return name + today; }
+// A break is kept under the person and the day it was taken ("Maya
+// Torres2026-10-05"). The roster shows any day of the week, so it must look
+// up the day it's showing: keyed by today alone, every other day of someone's
+// week read as "Break done" once they'd had today's break.
+function breakKeyFor(name, day){ return name + (day || today); }
 function breakClockText(secs){ return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`; }
 function breakBackAt(endMs){ return new Date(endMs).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'}); }
 
@@ -666,8 +670,11 @@ function renderRoster(){
   });
 
   // Who still has a break to take (on break now counts): for the filter.
+  // Breaks run on the day itself: only today's roster has the buttons; a
+  // past day shows the breaks that were taken, a later day nothing yet.
+  const isToday = dayName === today;
   const breakLeft = person => {
-    const key = breakKeyFor(person.name);
+    const key = breakKeyFor(person.name, dayName);
     const running = breakCountdowns[key] && breakCountdowns[key] > Date.now();
     return rosterOwesBreak(person) && (running || !completedBreaks[key]);
   };
@@ -675,7 +682,7 @@ function renderRoster(){
   const shown = rosterView === 'breaks' ? sortedRoster.filter(breakLeft) : sortedRoster;
 
   const html = shown.map(person=>{
-    const key = breakKeyFor(person.name);
+    const key = breakKeyFor(person.name, dayName);
     let remaining = 0;
     if(breakCountdowns[key]){
       remaining = Math.round((breakCountdowns[key] - Date.now()) / 1000);
@@ -695,7 +702,9 @@ function renderRoster(){
     ].join('');
     const plan = !simplified && !isCompleted && !onBreak ? breakFor(currentPosSection, dayName, person.name) : null;
     const planNote = plan && plan.start !== null ? ` <span class="roster-break-plan">· break ${suClock(plan.start)}–${suClock(plan.end)}</span>` : '';
-    const control = onBreak ? `
+    const control = !isToday ? (isCompleted ? `
+          <span class="su-break-complete is-past">${SU_ICON_CHECK}<span>Break done${esLine('Break done')}</span></span>` : '')
+      : onBreak ? `
           <div class="su-break-live" role="timer" aria-live="off">
             <span class="su-break-k">On break${esLine('On break')}</span>
             <b class="su-break-clock" data-break-timer="${name}">${breakClockText(remaining)}</b>
@@ -786,7 +795,7 @@ window.removeFromRoster = async function(name){
   if(roster[dayName]){
     roster[dayName] = roster[dayName].filter(p => p.name !== name);
   }
-  const breakKey = breakKeyFor(name);
+  const breakKey = breakKeyFor(name, dayName);   // that day's break, not today's
   delete breakCountdowns[breakKey];
   delete completedBreaks[breakKey];
   Object.keys(posAssignments).forEach(k=>{
