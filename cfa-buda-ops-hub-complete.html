@@ -382,6 +382,16 @@
       </button>
     </div>
 
+    <div class="home-ev-wrap">
+      <h2 class="home-section-header">This Week</h2>
+      <div class="home-ev-card" id="homeEvents"></div>
+    </div>
+
+    <div class="home-ev-wrap" id="homeGuestFocusWrap" hidden>
+      <h2 class="home-section-header">Guest Focus</h2>
+      <div class="home-gf-card" id="homeGuestFocus"></div>
+    </div>
+
     <div style="margin-bottom:32px;">
       <h2 class="home-section-header">Vision, Mission & Values</h2>
       <div class="home-vmv-grid" id="homeVMVContainer"></div>
@@ -841,6 +851,21 @@
         </div>
       </div>
 
+      <!-- GROUP: Events Calendar (events.js) -->
+      <div class="manage-group">
+        <div class="manage-group-header" onclick="toggleManageGroup(this)">
+          <span class="manage-group-title">Events Calendar</span>
+          <span class="manage-group-chevron">▾</span>
+        </div>
+        <div class="manage-group-body">
+          <div class="standup-card">
+            <h3>Store events</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Promos, samples, outreach, family nights and heads-ups. They show on Home (this week) and on the Set Ups daypart they fall in.</p>
+            <div id="eventsManageRoot"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- GROUP: Know the Numbers -->
       <div class="manage-group">
         <div class="manage-group-header" onclick="toggleManageGroup(this)">
@@ -1055,6 +1080,7 @@
 <script src="/static/js/zone-reset.js"></script>
 <script src="/static/js/know-numbers.js"></script>
 <script src="/static/js/training-guides.js"></script>
+<script src="/static/js/events.js"></script>
 <script src="/static/js/state-patch.js"></script>
 <script src="/static/js/storage.js"></script>
 <script src="/static/js/management-views.js"></script>

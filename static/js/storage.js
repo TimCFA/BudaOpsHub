@@ -12,7 +12,7 @@ const STATE_SECTIONS = {
   manager: ['wasteTarget', 'safeTarget', 'products', 'deletedProductIds', 'productFixesVersion',
             'productCategoryOrder', 'lxPillars', 'lxMetrics', 'lxLastUpdated', 'gxData', 'txData',
             'homeData', 'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData',
-            'launchMode'],
+            'launchMode', 'storeEvents'],
   pea: ['peaRatings', 'peaNameAliases'],
   rosters: ['fohRoster', 'bohRoster', 'rosterPosted'],
   setups: ['posAssignments', 'posVacancyFlags', 'setupDayTypes', 'lastUpdated',
@@ -68,7 +68,7 @@ function stateSnapshot(){
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
     prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, launchMode, prepTimes, prepTimers,
-    salesHistory, forecastSettings, forecastLog, daypartWeeks, zoneOwners, posNotes
+    salesHistory, forecastSettings, forecastLog, daypartWeeks, zoneOwners, posNotes, storeEvents
   };
 }
 
@@ -397,6 +397,7 @@ function applyStateData(data){
   }
   txData = data.txData || JSON.parse(JSON.stringify(defaultTXData));
   homeData = data.homeData || JSON.parse(JSON.stringify(defaultHomeData));
+  storeEvents = Array.isArray(data.storeEvents) ? data.storeEvents : null;   // null: October's calendar as typed in (events.js)
   if(data.fohRoster) Object.assign(fohRoster, data.fohRoster);
   if(data.bohRoster) Object.assign(bohRoster, data.bohRoster);
   rosterPosted = (data.rosterPosted && typeof data.rosterPosted === 'object' && !Array.isArray(data.rosterPosted)) ? data.rosterPosted : {};

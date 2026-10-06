@@ -247,6 +247,22 @@ function suFillAvailable(){
 // sales, the productivity goal, and any special event; once actual sales
 // are typed, the actual and how far off projection. Nothing when none are
 // entered.
+// The store's events (events.js) that run during this daypart, as chips on
+// its banner: Free Breakfast Tuesday on Breakfast, the Friday drive thru
+// push on Lunch, Family Night on Dinner. All-day ones sit above the cards.
+function suEventsLineHtml(section, date, dp, i){
+  if(typeof eventsInWindow !== 'function' || i < 0) return '';
+  const {startMin, endMin} = daypartTimeWindow(suDaypartsFor(section), i);
+  const list = eventsInWindow(date, startMin, endMin);
+  return list.length ? `<div class="su-dp-events">${list.map(eventChipHtml).join('')}</div>` : '';
+}
+
+function suAllDayEventsHtml(date){
+  if(typeof eventsAllDay !== 'function') return '';
+  const list = eventsAllDay(date);
+  return list.length ? `<div class="su-day-events" aria-label="Today's events"><span class="su-day-events-k">Events${esHtml('Events')}</span>${list.map(eventChipHtml).join('')}</div>` : '';
+}
+
 function suNumbersLineHtml(date, dp, pill){
   const n = getNumbersForDaypart(date, dp);
   if(!n) return '';
@@ -334,6 +350,7 @@ function suDaypartCardHtml(section, date, dp, i, open, openHtml, m, pill){
           <span class="su-dp-chev" aria-hidden="true">▾</span>
         </button>`}
         ${suNumbersLineHtml(date, dp, pill)}
+        ${suEventsLineHtml(section, date, dp, i)}
         ${leadBtn || fillBtn ? `<div class="su-dp-sub"${toggle}>${leadBtn}${fillBtn}</div>` : ''}
       </div>
       ${open ? `<div class="su-dp-body">${openHtml}</div>` : ''}
@@ -574,6 +591,7 @@ function renderSetupsBoard(date){
     <div class="su-board is-sheet">
       ${suModeBarHtml()}
       ${rosterChangesHtml(section, date)}
+      ${suAllDayEventsHtml(date)}
       ${SU_LAYOUT === 'pills'
         ? suDaypartPillsHtml(section, date, dp.name) + suDaypartCardHtml(section, date, dp, dpIndex, true, suTrayHtml(section, date, dp, m) + suSheetViewHtml(section, date, dp, dpIndex, m), m, true)
         : suDaypartCardsHtml(section, date)}

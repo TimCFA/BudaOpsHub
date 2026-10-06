@@ -523,3 +523,48 @@ class ExportTest(unittest.TestCase):
         store['state/waste'] = json.dumps({'entries': [old]})
         body = json.loads(self.c.post('/api/state/export').get_data(as_text=True))
         self.assertEqual(body['sections']['waste']['entries'], [old])
+
+
+class EventsGateTest(unittest.TestCase):
+    """The events calendar (storeEvents) is manager-only, like the scoreboards."""
+
+    def setUp(self):
+        appmod.db.reference = lambda path: FakeRef(path)
+        appmod._cache.clear()
+        appmod._cache_ready = False
+        store.clear()
+        for name in appmod.STATE_SECTIONS:
+            store[f'state/{name}'] = json.dumps({})
+        store['state/manager'] = json.dumps({'storeEvents': [{'id': 'a', 'title': 'Family Night'}]})
+        self.c = appmod.app.test_client()
+        self.c.post('/api/state/load', json={})
+
+    def save(self, sections):
+        return self.c.post('/api/state/save', json={'sections': {k: json.dumps(v) for k, v in sections.items()}})
+
+    def test_in_the_manager_section(self):
+        self.assertEqual(appmod.SECTION_OF_KEY['storeEvents'], 'manager')
+        self.assertIn('storeEvents', appmod.MANAGER_ONLY_KEYS)
+
+    def test_team_device_cannot_change_it(self):
+        r = self.save({'manager': {'storeEvents': [{'id': 'b', 'title': 'Hacked'}]}})
+        self.assertIn('storeEvents', r.get_json().get('managerFieldsIgnored', []))
+        self.assertEqual(section('manager')['storeEvents'], [{'id': 'a', 'title': 'Family Night'}])
+
+    def test_manager_can_edit_and_delete(self):
+        # The page saves through /api/state/patch: an edit or a delete is a
+        # change to the list, and it sticks.
+        with self.c.session_transaction() as sess:
+            sess['manager'] = True
+        ver = self.c.post('/api/state/load', json={}).get_json()['versions']['manager']
+        r = self.c.post('/api/state/patch', json={'patches': {'manager': {'ver': ver, 'ops': [
+            {'o': 'arr', 'p': ['storeEvents'], 'rm': [{'v': {'id': 'a', 'title': 'Family Night'}, 'n': 0}],
+             'add': [{'v': {'id': 'b', 'title': 'Spirit Night'}, 'n': 1, 'i': 0, 'end': True}]}]}}})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(section('manager')['storeEvents'], [{'id': 'b', 'title': 'Spirit Night'}])
+
+    def test_team_patch_is_refused(self):
+        ver = self.c.post('/api/state/load', json={}).get_json()['versions']['manager']
+        self.c.post('/api/state/patch', json={'patches': {'manager': {'ver': ver, 'ops': [
+            {'o': 'set', 'p': ['storeEvents'], 'v': []}]}}})
+        self.assertEqual(section('manager')['storeEvents'], [{'id': 'a', 'title': 'Family Night'}])

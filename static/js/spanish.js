@@ -106,6 +106,7 @@ const ES = {
   'No roster yet': 'Todavía no hay horario para este día.',
   'Breaks left': 'Descansos pendientes',
   'Not placed yet': 'Sin asignar',
+  'Events': 'Eventos',
   'Tap a name, then a spot': 'Toca un nombre y luego un lugar',
   'Now tap a spot for NAME': name => `Ahora toca un lugar para ${name}`,
   'Everyone on shift is placed.': 'Todos los del turno están asignados.',

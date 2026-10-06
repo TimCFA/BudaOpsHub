@@ -39,6 +39,24 @@ during service. Clear at a glance. Never a moment of "did that save?"
 ### Home
 A landing page with the day's key info (content set in Manage → Home Page).
 
+**This Week** (store events calendar, `static/js/events.js`): the month's goals
+(e.g. Catering · CFA One App Usage · Drive Thru), a "Running now" line for
+multi-day events (shown once, not under every day), then the next 7 open days
+with their events; tap an event for its notes. Colors follow the store
+calendar's key (CFA One App, food, Community Outreach, in-store, drive thru,
+social, heads-up). The same events show on **Set Ups**: an Events strip above
+the cards for all-day ones, and a chip on each daypart card whose window the
+event overlaps (Free Breakfast on Breakfast, Pack the Drive Thru on Lunch).
+October 2026 is built in, typed verbatim from the store's calendar image
+(including "-WB (200)" and "Buda (300)"); managers add, edit and delete events
+in **Manage → Events Calendar** (the first edit copies October into the saved
+list). Saved as `storeEvents` in the manager section, manager-only on the
+server: team devices see it but can't change it.
+
+**Guest Focus**: once the Guest Obsession scoreboard has real numbers (CEM
+upload or Manage), Home shows % highly satisfied, the top coaching focus and
+the Second Mile opportunities. Hidden until then; never sample numbers.
+
 ### Simplified site (launch mode)
 While the team is getting started, a device without the manager PIN sees
 only Home, Set Ups, Waste and Lists. Lists opens Zone Resets in one tap; the
@@ -265,7 +283,7 @@ No sample data, ever — an empty history shows an empty page.
   Tracker**.
 
 ### Manage (PIN)
-Data Uploads, Know the Numbers, Talent Development, Scoreboards, Home Page,
+Data Uploads, Events Calendar, Know the Numbers, Talent Development, Scoreboards, Home Page,
 Waste Tracking (limit, products), PEA Ratings, Backup & Data.
 
 **Full Backup** (Backup & Data): one tap downloads everything the hub has
