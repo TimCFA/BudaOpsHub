@@ -17,6 +17,8 @@
 //               heads-up, and 'goal' / 'checklist' belong to the month (the
 //               goals box and the Pre-Checklist), never a day
 //   notes       bullet lines
+//   kn          true / false: counts as a Know the Numbers special event,
+//               when a manager overrode the rule (evCountsForNumbers)
 
 let storeEvents = null;   // null until a manager first edits: EVENTS_SEED shows
 
@@ -77,6 +79,56 @@ function eventsOn(iso, opts){
   // The month's goals and Pre-Checklist only when asked, never as a day's event.
   const all = eventsList().filter(ev => eventOnDate(ev, iso) && ((opts && opts.goals) || !EVENT_MONTH_KINDS.includes(ev.kind)));
   return all.sort((a, b) => (evMinutes(a.from) ?? -1) - (evMinutes(b.from) ?? -1) || String(a.title).localeCompare(String(b.title)));
+}
+
+// ----- Know the Numbers: the calendar's short events count as special events -----
+// (Tim, Oct 2026.) The short events held at the store (In-Store, Drive Thru
+// and App events of a week or less: Free Breakfast Tuesday, Pack the Drive
+// Thru, Family Night, Halloween Week Promo) count as a daypart's special
+// event, beside whatever's typed in Know the Numbers: on the Set Ups numbers
+// line and game plan, toward Game Day, and in the forecast's unusual-day
+// rule. Month-long ones (the samples), outreach, Cow in Community, social
+// posts and heads-ups don't. A manager can tick or untick any one event
+// (kn) in Manage → Events Calendar.
+const EVENT_KN_KINDS = ['app', 'instore', 'drivethru'];
+const EVENT_KN_MAX_DAYS = 7;
+
+function evSpanDays(ev){
+  if(!ev.end || ev.end === ev.date) return 1;
+  return Math.round((new Date(ev.end + 'T00:00:00') - new Date(ev.date + 'T00:00:00')) / 86400000) + 1;
+}
+
+function evCountsByRule(ev){
+  return EVENT_KN_KINDS.includes(ev.kind) && evSpanDays(ev) <= EVENT_KN_MAX_DAYS;
+}
+
+function evCountsForNumbers(ev){
+  if(!ev || EVENT_MONTH_KINDS.includes(ev.kind)) return false;
+  return typeof ev.kn === 'boolean' ? ev.kn : evCountsByRule(ev);
+}
+
+// The counting events' titles on a date: those in [startMin, endMin) when a
+// window is given (an all-day one is in every window), else the whole day.
+function eventsForNumbers(iso, startMin, endMin){
+  return eventsOn(iso).filter(evCountsForNumbers).filter(ev => {
+    const s = evMinutes(ev.from), e = evMinutes(ev.to);
+    return s === null || startMin == null || (s < endMin && e > startMin);
+  }).map(ev => ev.title);
+}
+
+// A daypart's special events: what's typed in Know the Numbers, then the
+// calendar's, without repeating one already typed. Works for a Set Ups
+// daypart or a Know the Numbers one (its numbers daypart's window, else its
+// own).
+function knSpecialEventsText(typed, date, dp){
+  const own = String(typed || '').trim();
+  let w = null;
+  if(dp && typeof knWindowOf === 'function'){
+    const n = typeof knDaypartOf === 'function' ? knDaypartOf(dp) : null;
+    w = knWindowOf(n || dp);
+  }
+  const cal = eventsForNumbers(date, w ? w.start : null, w ? w.end : null).filter(t => !own.toLowerCase().includes(t.toLowerCase()));
+  return [own, ...new Set(cal)].filter(Boolean).join(' · ');
 }
 
 // Timed events overlapping [startMin, endMin) on a date (a daypart's window).
@@ -325,7 +377,7 @@ function renderEventsManage(){
     ${list.length ? `<ul class="ev-m-list">${list.map(ev => `
       <li class="ev-m-row">
         ${evDot(ev)}
-        <div class="ev-m-main"><b>${escapeHtml(ev.title)}</b>${ev.detail ? `<span>${escapeHtml(ev.detail)}</span>` : ''}<small>${EVENT_MONTH_KINDS.includes(ev.kind) ? escapeHtml(evKind(ev).label) + (ev.notes ? ` · ${ev.notes.length} items` : '') : escapeHtml(evWhenText(ev))}</small></div>
+        <div class="ev-m-main"><b>${escapeHtml(ev.title)}</b>${ev.detail ? `<span>${escapeHtml(ev.detail)}</span>` : ''}<small>${EVENT_MONTH_KINDS.includes(ev.kind) ? escapeHtml(evKind(ev).label) + (ev.notes ? ` · ${ev.notes.length} items` : '') : escapeHtml(evWhenText(ev))}${evCountsForNumbers(ev) ? ' · <span class="ev-m-kn">Know the Numbers</span>' : ''}</small></div>
         <button type="button" class="btn btn-ghost ev-m-btn" data-ev-edit="${escapeHtml(ev.id)}">Edit</button>
       </li>`).join('')}</ul>` : '<p class="ev-empty">No events this month yet.</p>'}`;
 }
@@ -346,6 +398,7 @@ function evFormHtml(ev){
         <div class="field"><label for="evTo">To</label><input type="time" id="evTo" value="${escapeHtml(ev.to || '')}"></div>
       </div>
       <fieldset class="ev-days"><legend>Only on (for a date range; none = every day)</legend>${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => `<label><input type="checkbox" data-ev-day="${i}" ${days.includes(i) ? 'checked' : ''}>${d}</label>`).join('')}</fieldset>
+      <label class="ev-kn"><input type="checkbox" id="evKn" ${evCountsForNumbers(ev.id === 'new' ? {...ev, kn: undefined} : ev) ? 'checked' : ''} ${typeof ev.kn === 'boolean' ? 'data-touched="1"' : ''}><span><b>Special event in Know the Numbers</b> — shows on Set Ups' numbers line, counts toward Game Day and the forecast's unusual days. On by itself for In-Store, Drive Thru and App events of a week or less.</span></label>
       <div class="field"><label for="evNotes">Notes (one per line)</label><textarea id="evNotes" rows="4" maxlength="2000">${escapeHtml((ev.notes || []).join('\n'))}</textarea></div>
       <div class="ev-form-actions">
         <button type="submit" class="btn btn-primary">Save</button>
@@ -373,6 +426,10 @@ function evReadForm(form){
   if(from) { ev.from = from; ev.to = to; }
   const notes = val('evNotes').split('\n').map(s => s.trim()).filter(Boolean);
   if(notes.length) ev.notes = notes;
+  // Kept only when it differs from the rule, so the rule still decides
+  // after a change of type or dates.
+  const kn = document.getElementById('evKn');
+  if(kn && !EVENT_MONTH_KINDS.includes(ev.kind) && kn.checked !== evCountsByRule(ev)) ev.kn = kn.checked;
   return {ev};
 }
 
@@ -432,6 +489,19 @@ document.addEventListener('click', e => {
     storeEvents = storeEvents.filter(x => x.id !== ev.id);
     evAfterChange('Event deleted');
   }
+});
+
+// The Know the Numbers box follows the rule as the type and dates change,
+// until the manager ticks or unticks it.
+document.addEventListener('change', e => {
+  const form = e.target.closest && e.target.closest('#evForm');
+  if(!form) return;
+  const kn = document.getElementById('evKn');
+  if(!kn) return;
+  if(e.target === kn){ kn.dataset.touched = '1'; return; }
+  if(kn.dataset.touched || !['evKind', 'evDate', 'evEnd'].includes(e.target.id)) return;
+  const val = id => (document.getElementById(id).value || '').trim();
+  kn.checked = evCountsByRule({kind: val('evKind'), date: val('evDate'), end: val('evEnd') || undefined});
 });
 
 document.addEventListener('submit', e => {

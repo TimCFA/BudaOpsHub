@@ -953,6 +953,7 @@ function renderNumbersContent(){
         <div class="field">
           <label>Special Events</label>
           <input type="text" value="${escapeHtml(entry.specialEvents || '')}" placeholder="e.g. Football watch party, large catering pickup at 2pm" onchange="updateNumbersField(${dayArg},${dpArg},'specialEvents',this.value)" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+          ${(() => { const cal = typeof knSpecialEventsText === 'function' ? knSpecialEventsText('', dayName, dp) : ''; return cal ? `<p class="kn-cal-events">From the calendar: ${escapeHtml(cal)}</p>` : ''; })()}
         </div>
         <div class="kn-actuals">
           <div class="kn-actuals-head">Actuals <span>after the daypart</span></div>

@@ -254,7 +254,8 @@ function suFillAvailable(){
 function suEventsLineHtml(section, date, dp, i){
   if(typeof eventsInWindow !== 'function' || i < 0 || !evCalendarShown()) return '';
   const {startMin, endMin} = daypartTimeWindow(suDaypartsFor(section), i);
-  const list = eventsInWindow(date, startMin, endMin);
+  // The ones counting for Know the Numbers are on the numbers line already.
+  const list = eventsInWindow(date, startMin, endMin).filter(ev => !evCountsForNumbers(ev));
   return list.length ? `<div class="su-dp-events">${list.map(eventChipHtml).join('')}</div>` : '';
 }
 
@@ -265,10 +266,10 @@ function suAllDayEventsHtml(date){
 }
 
 function suNumbersLineHtml(date, dp, pill){
-  const n = getNumbersForDaypart(date, dp);
-  if(!n) return '';
+  const n = getNumbersForDaypart(date, dp) || {};
   const money = v => { const x = parseMoney(v); return x == null ? '' : x >= 10000 ? `$${(x / 1000).toFixed(1)}k` : `$${Math.round(x).toLocaleString('en-US')}`; };
-  const sales = money(n.projectedSales), goal = money(n.productivityGoal), ev = String(n.specialEvents || '').trim();
+  const ev = typeof knSpecialEventsText === 'function' ? knSpecialEventsText(n.specialEvents, date, dp) : String(n.specialEvents || '').trim();
+  const sales = money(n.projectedSales), goal = money(n.productivityGoal);
   const actual = money(n.actualSales), vs = knVersus(n.actualSales, n.projectedSales);
   if(!sales && !goal && !ev && !actual) return '';
   const off = vs && vs.pct !== null ? ` <span class="su-dp-vs ${vs.diff >= 0 ? 'is-up' : 'is-down'}">${vs.pct < 0 ? '−' : '+'}${Math.abs(vs.pct).toFixed(1)}%</span>` : '';
@@ -375,7 +376,8 @@ function suDaypartChipsHtml(section, date, current){
 function suGamePlanHtml(section, date, dp, dpIndex, m){
   const t = suDayType(section, date, dp);
   const nums = getNumbersForDaypart(date, dp) || {};
-  const facts = [nums.projectedSales ? `${nums.projectedSales} projected` : '', nums.productivityGoal ? `goal ${nums.productivityGoal}` : '', nums.specialEvents || '', `${m.onShift} on shift`, m.timing.pairs.length ? `${m.timing.pairs.length} handoff${m.timing.pairs.length === 1 ? '' : 's'} = ${m.headcount} spots` : ''].filter(Boolean);
+  const specials = typeof knSpecialEventsText === 'function' ? knSpecialEventsText(nums.specialEvents, date, dp) : (nums.specialEvents || '');
+  const facts = [nums.projectedSales ? `${nums.projectedSales} projected` : '', nums.productivityGoal ? `goal ${nums.productivityGoal}` : '', specials, `${m.onShift} on shift`, m.timing.pairs.length ? `${m.timing.pairs.length} handoff${m.timing.pairs.length === 1 ? '' : 's'} = ${m.headcount} spots` : ''].filter(Boolean);
 
   const dev = setupDevelopResults[m.key];
   const devStale = dev && dev.signature !== suDevelopSignature(section, date, dp, dpIndex);

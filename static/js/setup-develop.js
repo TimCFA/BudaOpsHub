@@ -30,8 +30,16 @@ function pruneSetupDayTypes(){
 
 // Numbers for a daypart on any date: live (last two weeks) or from history.
 // Numbers are kept for the four major dayparts (know-numbers.js); a Set Ups
-// daypart reads the one its middle falls in.
+// daypart reads the one its middle falls in. The special event includes the
+// calendar's short events (events.js), even on a day with no numbers.
 function suNumbersFor(date, dp){
+  const rec = suNumbersTyped(date, dp);
+  const ev = typeof knSpecialEventsText === 'function' ? knSpecialEventsText(rec ? rec[2] : '', date, dp) : (rec ? String(rec[2] || '').trim() : '');
+  if(!rec) return ev ? [null, null, ev] : null;
+  return [rec[0], rec[1], ev, ...rec.slice(3)];
+}
+
+function suNumbersTyped(date, dp){
   const live = numbersData[date];
   if(live && Object.keys(live).length){
     const e = getNumbersForDaypart(date, dp);
