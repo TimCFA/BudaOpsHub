@@ -205,6 +205,7 @@ body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="z
 .su-break-start:hover{border-color:var(--cfa-red);color:var(--cfa-red);}
 .su-break-complete{border:1px solid transparent;background:#E6F2EA;color:#1E7B34;}
 .su-break-complete em{font-style:normal;font-weight:600;color:#1E7B34;opacity:0.7;}
+.su-break-complete.is-past{cursor:default;}   /* a past day's break: shown, not changed */
 .su-break-complete:hover{background:#D4E9DB;}
 .su-break-live{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"k done" "clock done" "back done";column-gap:14px;align-items:center;background:var(--cfa-navy);color:#F6F1E8;border-radius:16px;padding:12px 14px 12px 16px;}
 .su-break-k{grid-area:k;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(246,241,232,0.78);}

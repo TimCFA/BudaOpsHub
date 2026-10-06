@@ -343,6 +343,13 @@ Waste Tracking (limit, products), PEA Ratings, Backup & Data.
   break, so they're left out; when everyone's done it says so. The choice is
   remembered on the device and works in launch mode too. The switch stays
   pinned to the top of the roster list as it scrolls (Tim).
+- **Breaks belong to their day.** A break is kept under the person and the
+  date it was taken. Only today's roster has the break buttons; another day
+  shows "Break done" (read-only) only for a break actually taken that day.
+  (Fixed Oct 2026: the roster looked breaks up under today's date whatever
+  day it showed, so a later day of someone's week read "Break done" once
+  they'd had today's, and removing someone from another day cleared today's
+  break. The saved breaks were never wrong, only how they were read.)
 
 ### Recurring FOH tasks (Tim confirmed these times)
 8:00 restroom check · 9:30 lemonades for lunch · 10:00 restroom full reset ·
