@@ -309,29 +309,15 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// The months with entries, newest first (for the export picker).
-function wasteExportMonths(){
-  const months = new Set(entries.map(e => wasteEntryDay(e).slice(0, 7)));
-  return [...months].sort().reverse();
-}
-function wasteMonthLabel(key){
-  const [y, m] = key.split('-').map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString('en-US', {month: 'long', year: 'numeric'});
-}
 function wasteExportStatus(){
   const el = document.getElementById('monthCloseStatus');
-  const sel = document.getElementById('wasteExportMonth');
-  if(sel){
-    const months = wasteExportMonths();
-    const prev = sel.value;
-    sel.innerHTML = months.map(k => `<option value="${k}" ${k === prev ? 'selected' : ''}>${escapeHtml(wasteMonthLabel(k))}</option>`).join('') || '<option value="">No entries yet</option>';
-  }
+  if(typeof renderWasteExport === 'function') renderWasteExport();
   if(el) el.textContent = wasteLogLastClosedOut
     ? `Last export: ${new Date(wasteLogLastClosedOut).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})} · ${entries.length} entries on file (the last ${WASTE_KEEP_DAYS} days)`
     : `${entries.length} entries on file (the last ${WASTE_KEEP_DAYS} days)`;
 }
 
-function generateWastePdf(list, label){
+function generateWastePdf(list, label, fileName){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
@@ -376,59 +362,16 @@ function generateWastePdf(list, label){
   doc.setFont(undefined, 'bold');
   doc.text(`Total Waste: $${total.toFixed(2)}`, 14, y);
   doc.text(`Entries: ${list.length}`, 110, y);
-
-  doc.save(`cfa-buda-waste-log-${label.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.pdf`);
-}
-
-// Export one month as CSV + PDF. Nothing is cleared: the log keeps the last
-// 90 days on its own, and the month's summary (wasteMonthlyHistory) is
-// refreshed so month-over-month comparisons outlive the raw entries.
-document.getElementById('btnCloseOutMonth').addEventListener('click', async ()=>{
-  const sel = document.getElementById('wasteExportMonth');
-  const monthKey = sel ? sel.value : '';
-  const list = entries.filter(e => wasteEntryDay(e).slice(0, 7) === monthKey);
-  if(!monthKey || !list.length){
-    showToast('No waste entries for that month');
-    return;
+  const side = s => list.filter(e => e.section === s).reduce((sum, e) => sum + (Number(e.cost) || 0), 0);
+  if(list.some(e => e.section === 'foh') && list.some(e => e.section === 'boh')){
+    y += 6;
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text(`FOH $${side('foh').toFixed(2)} · BOH $${side('boh').toFixed(2)}`, 14, y);
   }
-  const label = wasteMonthLabel(monthKey);
-  const blob = new Blob([wdCsv(list)], {type: 'text/csv'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `cfa-buda-waste-log-${monthKey}.csv`;
-  document.body.appendChild(a); a.click();
-  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
-  generateWastePdf(list, label);
 
-  const sumCost = l => l.reduce((s, e) => s + (Number(e.cost) || 0), 0);
-  const byProduct = {};
-  list.forEach(e => { const n = wasteItemFor(e).name; byProduct[n] = (byProduct[n] || 0) + (Number(e.cost) || 0); });
-  wasteMonthlyHistory[monthKey] = {
-    total: sumCost(list),
-    fohTotal: sumCost(list.filter(e => e.section === 'foh')),
-    bohTotal: sumCost(list.filter(e => e.section === 'boh')),
-    entryCount: list.length,
-    topProducts: Object.entries(byProduct).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, cost]) => ({name, cost})),
-    closedOutAt: Date.now()
-  };
-  wasteLogLastClosedOut = Date.now();
-  await saveState();
-  wasteExportStatus();
-  showToast(`✓ ${label} exported`);
-});
-
-document.getElementById('btnExportCsv').addEventListener('click',()=>{
-  const rows = [['Date/Time','Product','Qty','Unit','Unit Cost','Total Cost','Logged By','Section']];
-  [...entries].sort((a,b)=>b.ts-a.ts).forEach(e=>{
-    rows.push([toLocalDateTime(e.ts), e.name, e.qty, e.unit, e.unitCost.toFixed(2), e.cost.toFixed(2), e.who, e.section.toUpperCase()]);
-  });
-  const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv],{type:'text/csv'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'cfa-buda-operational-log.csv';
-  a.click();
-});
+  doc.save(fileName || `cfa-buda-waste-log-${label.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.pdf`);
+}
 
 function setSyncStatus(msg, cls){
   const el = document.getElementById('syncStatus');

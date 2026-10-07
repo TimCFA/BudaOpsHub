@@ -152,6 +152,15 @@
     </div>
   </div>
 
+  <!-- Waste export: today, last week, the month or picked days (waste-export.js) -->
+  <div class="overlay" id="wasteExportModal">
+    <div class="sheet">
+      <h2 data-es="Export waste">Export waste</h2>
+      <div id="wasteExportRoot"></div>
+      <button id="btnWasteExportDone" class="btn btn-ghost" type="button" data-es="Done">Done</button>
+    </div>
+  </div>
+
   <!-- Add Team Member to Roster Modal -->
   <div class="overlay" id="addTMModal">
     <div class="sheet">
@@ -426,7 +435,7 @@
     <div class="tape-wrap">
       <div class="tape-head">
         <span>Recent Entries <span class="sub"><i>Entradas Recientes</i></span></span>
-        <button id="btnExportCsv" style="background:none;border:none;color:var(--cfa-red);cursor:pointer;font-size:11px;text-transform:uppercase;font-weight:600;letter-spacing:0.05em;" data-es="Export CSV" data-es-inline>Export CSV</button>
+        <button id="btnWasteExport" class="wx-open" type="button"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg><span data-es="Export" data-es-inline>Export</span></button>
       </div>
       <div class="tape" id="tape"></div>
     </div>
@@ -1052,12 +1061,9 @@
         </div>
         <div class="manage-group-body">
           <div class="standup-card">
-            <h3>Monthly Waste Export</h3>
-            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Downloads a CSV and a PDF of one month's waste entries. Nothing is cleared: the log keeps the last 90 days on its own, and the Waste Dashboard on the Scoreboard tab covers any date range.</p>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-              <select id="wasteExportMonth" aria-label="Month" style="flex:1;min-width:160px;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font:inherit;"></select>
-              <button id="btnCloseOutMonth" class="btn btn-primary" style="flex:0;width:auto;padding:10px 16px;">Export month</button>
-            </div>
+            <h3>Waste Export</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Today, last week, the month or any days, as a CSV or a PDF (the same as Export on the Waste page). Nothing is cleared: the log keeps the last 90 days on its own, and exporting a whole month saves its summary for month-over-month comparisons.</p>
+            <div id="wasteExportManageRoot"></div>
             <div id="monthCloseStatus" style="font-size:11px;color:var(--text-secondary);margin-top:8px;"></div>
           </div>
 
@@ -1101,6 +1107,7 @@
 <script src="/static/js/navigation.js"></script>
 <script src="/static/js/waste-log.js"></script>
 <script src="/static/js/waste-dash.js"></script>
+<script src="/static/js/waste-export.js"></script>
 <script src="/static/js/fohoe-and-safecount.js"></script>
 <script src="/static/js/food-safety.js"></script>
 <script src="/static/js/shift-time.js"></script>

@@ -68,7 +68,7 @@ class Glossary(unittest.TestCase):
         with open(os.path.join(ROOT, 'static', 'css', 'theme-cfa.css'), encoding='utf-8') as f:
             css = f.read()
         self.assertIn('body.es-off-setups :is(#positionsView, #posModal, #vacancyModal, #addTMModal) .es', css)
-        self.assertIn('body.es-off-waste :is(#wastelogView, #wasteCountModal) .es{display:none;}', css)
+        self.assertIn('body.es-off-waste :is(#wastelogView, #wasteCountModal, #wasteExportModal) .es{display:none;}', css)
         for name in ('fohoe-and-safecount.js', 'navigation.js'):
             with open(os.path.join(JS, name), encoding='utf-8') as f:
                 self.assertIn('esSyncSides()', f.read(), name)

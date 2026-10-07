@@ -49,6 +49,15 @@ sheet with the roster's break timer; Coach and the planned break times wait
 for the full site. Managers turn launch mode off for everyone in Manage.
 
 ### Set Ups (positioning) — the most-used, most rule-heavy area
+- **The picker shows everyone working today** (Oct 2026, after a swapped-in
+  Team Leader couldn't be found): under the people free for the spot, "Show N
+  more from today's roster" (or any search) lists the rest with why they
+  aren't above: "at OMD 1 now" (picking them moves them, their old spot
+  keeping whoever handed off to them), "works 6:00a–2:00p" (hours outside the
+  daypart) or "on the BOH roster" (the other side). Any of them can be
+  placed. A search for a name on neither roster points to Add Team Member.
+  Shifts ending at or after midnight ("4:00p–12:00a") count as running to
+  the end of the day.
 - **Truck** (`static/js/truck.js`, Tim, Oct 2026, after a morning with
   nobody on it): the scheduler assigns truck in HotSchedules as an
   off-floor shift (Schedule "Other", Job "Truck"); the hub only shows it.
@@ -193,7 +202,14 @@ Assign team members to positions for each daypart, FOH and BOH.
   limit** (default $100, set in Manage). **Waste is bad: lower is better**, so
   it reads as a ceiling to stay under — green, amber from 75% of the limit, red
   over it. FOH/BOH split, top items, under-limit streak.
-- **Monthly close-out** (Manage): export CSV + PDF of the month, then reset.
+- **Export** (`static/js/waste-export.js`, Tim, Oct 2026): the Export button over
+  Recent Entries on the Waste page opens a panel (the same one is in Manage →
+  Backup & Data): Today, Last week (Monday–Saturday of the week before),
+  This month, Last month or Pick days; FOH + BOH, FOH or BOH; the total,
+  entries and FOH/BOH split for those days; Download CSV / Download PDF.
+  Nothing is cleared (the log keeps 90 days). Exporting a whole month (both
+  sides) saves that month's summary (`wasteMonthlyHistory`) for
+  month-over-month comparisons. Spanish beside it on the BOH side.
 
 ### Prep Board (cold-side prep: salads, wraps, fruit cups, parfaits)
 Build-To sheet, sold counts, prep waste log, insights (stockouts etc.), buffers,
