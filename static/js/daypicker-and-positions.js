@@ -176,12 +176,14 @@ function rosterTimeText(p){
 }
 
 // Does this roster entry work any part of [startMin, endMin)? A split shift
-// counts only its on-floor blocks.
+// counts only its on-floor blocks. A shift ending at or after midnight
+// ("4:00p - 12:00a") runs past the end of the day, not backwards.
 function rosterOverlaps(p, startMin, endMin){
   return (p.blocks && p.blocks.length ? p.blocks : [p]).some(b=>{
     const s = parseShiftTimeToMinutes(b.start);
-    const e = parseShiftTimeToMinutes(b.end);
+    let e = parseShiftTimeToMinutes(b.end);
     if(s === null || e === null) return true;
+    if(e <= s) e += 1440;
     return s < endMin && e > startMin;
   });
 }
@@ -240,6 +242,8 @@ let currentPosName = '';
 let suPickNext = [];        // open spots after this one, in priority order
 let suPickPrev = null;      // the spot before this one in priority order (filled or not), for stepping back
 let suPickWasOpen = false;  // the spot was empty when the picker opened
+let suPickShowOthers = false; // the "also on today's roster" list is open
+let suPickMoveFrom = null;  // {name, key}: picking someone placed elsewhere in this daypart moves them
 window.openPosModal = function(key, pos, daypart, note){
   currentPosKey = key;
   currentPosName = pos;
@@ -252,6 +256,8 @@ window.openPosModal = function(key, pos, daypart, note){
   noteEl.textContent = note || '';
   noteEl.hidden = !note;
   suPickWasOpen = !posAssignments[key];
+  suPickShowOthers = false;
+  suPickMoveFrom = null;
   
   const dayName = document.getElementById('daySelect').value;
   const roster = currentPosSection === 'foh' ? fohRoster : bohRoster;
@@ -283,6 +289,35 @@ window.openPosModal = function(key, pos, daypart, note){
     }
   });
   eligible = eligible.filter(p => !takenElsewhere.has(p.name));
+
+  // Everyone else working today, and why they aren't in the list above: in
+  // another spot this daypart (picking them moves them), hours outside this
+  // daypart, or on the other side's roster. Shown under the list (and by a
+  // search), so a leader can always place someone on the roster (Tim, Oct
+  // 2026: a swapped-in Team Leader couldn't be found).
+  const placedKeyOf = {};
+  Object.keys(posAssignments).forEach(k=>{
+    if(k !== key && k.startsWith(daypartPrefix) && posAssignments[k] && !k.endsWith('||' + SU_LEAD_CAPTAIN)){
+      const names = posAssignments[k].split('/').map(n => n.trim());
+      placedKeyOf[names[names.length - 1].toLowerCase()] = k;
+    }
+  });
+  const listed = new Set(eligible.map(p => p.name.toLowerCase()));
+  const others = [];
+  const otherSide = currentPosSection === 'foh' ? 'boh' : 'foh';
+  [[dayRoster, null], [(otherSide === 'foh' ? fohRoster : bohRoster)[dayName] || [], otherSide]].forEach(([list, side]) => list.forEach(p=>{
+    const lo = p.name.toLowerCase();
+    if(listed.has(lo)) return;
+    listed.add(lo);
+    const at = placedKeyOf[lo];
+    const time = rosterTimeText(p);
+    others.push(at
+      ? {name: p.name, why: `at ${at.split('||')[3]} now`, es: esText('at SPOT now', esPlace(at.split('||')[3]) || at.split('||')[3]), from: at}
+      : side
+        ? {name: p.name, why: `on the ${side.toUpperCase()} roster · ${time}`, es: `${esText('on the SIDE roster', side.toUpperCase())} · ${time}`}
+        : {name: p.name, why: `works ${time}`, es: `${esText('works')} ${time}`});
+  }));
+  window.currentPosModalOthers = others;
   
   const currentlyAssigned = posAssignments[key];
   if(currentlyAssigned && !eligible.some(p=>p.name === currentlyAssigned)){
@@ -351,10 +386,15 @@ function renderPosOptionList(eligible, filterText){
   const container = document.getElementById('posModalOptions');
   const q = (filterText || '').trim().toLowerCase();
   const filtered = q ? eligible.filter(p => p.name.toLowerCase().includes(q)) : eligible;
+  const others = (window.currentPosModalOthers || []).filter(p => !q || p.name.toLowerCase().includes(q));
   const hasPea = peaRatings.rows.length > 0;
   let html = '';
-  if(!filtered.length){
-    const empty = q ? 'No one by that name on this shift' : 'Nobody on the roster is free for this daypart';
+  if(!filtered.length && !others.length){
+    const empty = q ? 'No one by that name on today’s roster' : 'Nobody on the roster is free for this daypart';
+    html += `<div class="pos-option-empty">${empty}${esLine(empty)}</div>`;
+    if(q) html += `<div class="pos-option-empty pos-option-hint">Add them with Add Team Member under the roster.${esLine('Add them with Add Team Member under the roster.')}</div>`;
+  } else if(!filtered.length){
+    const empty = q ? 'No one by that name free for this daypart' : 'Nobody on the roster is free for this daypart';
     html += `<div class="pos-option-empty">${empty}${esLine(empty)}</div>`;
   } else {
     html += filtered.map(p => {
@@ -368,6 +408,18 @@ function renderPosOptionList(eligible, filterText){
           ${sub ? `<span class="pos-option-tag">${escapeHtml(sub)}${esSpan(subEs)}</span>` : ''}
         </button>`;
     }).join('');
+  }
+  // The rest of today's roster: open on a search, else behind a button.
+  if(others.length){
+    if(q || suPickShowOthers){
+      html += `<div class="pos-option-group">Also on today’s roster${esLine('Also on today’s roster')}</div>`;
+      html += others.map(p => `<button type="button" class="pos-option is-other" data-pos-pick="${escapeHtml(p.name)}"${p.from ? ` data-pos-from="${escapeHtml(p.from)}"` : ''}>
+          <span class="pos-option-who"><span class="pos-option-name">${escapeHtml(p.name)}</span></span>
+          <span class="pos-option-tag">${escapeHtml(p.why)}${esSpan(p.es)}</span>
+        </button>`).join('');
+    } else {
+      html += `<button type="button" class="pos-option more-option" data-pos-more="1">Show ${others.length} more from today’s roster${esLine('Show N more from today’s roster', others.length)}</button>`;
+    }
   }
   if(posAssignments[currentPosKey]){
     html += `<button type="button" class="pos-option split-option" data-pos-split="1">Hand off / split this spot →${esLine('Hand off / split this spot →')}</button>`;
@@ -421,6 +473,14 @@ window.commitPosAssignment = function(name, how){
     currentPosKey = parts.join('||');
   }
   if(name){
+    // Someone placed elsewhere in this daypart moves here: their old spot
+    // keeps whoever handed off to them, else it opens up.
+    if(suPickMoveFrom && suPickMoveFrom.name === name && suPickMoveFrom.key !== currentPosKey && posAssignments[suPickMoveFrom.key]){
+      const rest = posAssignments[suPickMoveFrom.key].split('/').map(n => n.trim()).filter(n => n && n.toLowerCase() !== name.toLowerCase());
+      if(rest.length) posAssignments[suPickMoveFrom.key] = rest.join('/');
+      else delete posAssignments[suPickMoveFrom.key];
+    }
+    suPickMoveFrom = null;
     posAssignments[currentPosKey] = name;
     delete posVacancyFlags[currentPosKey];
   } else {
@@ -457,11 +517,20 @@ document.getElementById('posModalOptions').addEventListener('click', e => {
   const keep = e.target.closest('[data-pos-keep]');
   if(keep){ commitPosAssignment(keep.dataset.posKeep, 'keep'); return; }
   if(e.target.closest('[data-pos-back]')){
+    suPickMoveFrom = null;
+    renderPosOptionList(window.currentPosModalEligible || [], document.getElementById('posModalSearch').value);
+    return;
+  }
+  if(e.target.closest('[data-pos-more]')){
+    suPickShowOthers = true;
     renderPosOptionList(window.currentPosModalEligible || [], document.getElementById('posModalSearch').value);
     return;
   }
   const opt = e.target.closest('[data-pos-pick]');
-  if(opt) commitPosAssignment(opt.dataset.posPick);
+  if(opt){
+    suPickMoveFrom = opt.dataset.posFrom ? {name: opt.dataset.posPick, key: opt.dataset.posFrom} : null;
+    commitPosAssignment(opt.dataset.posPick);
+  }
 });
 document.getElementById('posModalPrev').addEventListener('click', () => {
   if(!suPickPrev) return;
