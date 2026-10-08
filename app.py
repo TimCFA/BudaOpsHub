@@ -61,6 +61,8 @@ MANAGER_ONLY_KEYS = {
     'teamLeadProgress', 'scoreboardItems',
     # Sales and labor history (below): private, so only a manager session changes it.
     'salesHistory', 'forecastSettings', 'forecastLog', 'daypartWeeks',
+    # Uniform orders (below): names and paycheck deductions, so only a manager session.
+    'uniformOrders', 'uniformCatalog',
 }
 
 # Sections sent only to a manager session: PEA ratings, people data
@@ -69,7 +71,7 @@ MANAGER_ONLY_KEYS = {
 # every other section. The keys in pea, people and forecast are manager-only
 # above; safe counts are append-only below, since leaders log them from any
 # device.
-PRIVATE_SECTIONS = ('pea', 'people', 'safe', 'forecast')
+PRIVATE_SECTIONS = ('pea', 'people', 'safe', 'forecast', 'orders')
 
 # Keys a device without a manager session may add to but never change or
 # remove. It isn't sent these (they're private), so what it sends can only be
@@ -148,6 +150,7 @@ STATE_SECTIONS = {
     'prepTimes': ['prepTimes', 'prepTimers'],
     'cem': ['cemEntries'],
     'forecast': ['salesHistory', 'forecastSettings', 'forecastLog', 'daypartWeeks'],
+    'orders': ['uniformOrders', 'uniformCatalog'],
     'misc': [],
 }
 SECTION_OF_KEY = {key: name for name, keys in STATE_SECTIONS.items() for key in keys}

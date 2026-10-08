@@ -293,6 +293,27 @@ how many adjusted days the adjustment helped, and which way the sent
 forecast leans.
 No sample data, ever — an empty history shows an empty page.
 
+### Uniforms (managers only, for now)
+The uniform order form (`static/js/uniform-orders.js`), moved in from
+Connecteam (Tim, Oct 2026). Same questions as the Connecteam form: full name
+(typed, or picked from this week's schedule), role (Team Member, Trainer, Team
+Leader), split payment between two checks, then the items by section
+(Outerwear for Women, Outerwear for Men, Pants/Shorts/Skirts, Accessories,
+Shoes) with color, size and quantity. Buda FSU only, so no store question.
+The order comes out of the team member's paycheck once it's placed; the
+total shows, and the two-check split when asked for (the first check takes
+the odd cent).
+
+Leaders only for now (the tab is `.manager-only`): a leader fills it in with
+the team member. The Orders side lists them New → Ordered → Handed out, with
+Undo and Delete and a CSV (one row per item) for placing the order and for
+payroll. The items, prices, colors and sizes are edited in **Manage →
+Uniforms**; until then the list is the six women's outerwear items
+Connecteam's form showed (Tim's PDF), and the rest are added there, never
+guessed. Each order keeps the item names and prices as ordered.
+`uniformOrders` and `uniformCatalog` are in the private `orders` section:
+only a manager session is sent them or can change them.
+
 ### Calendar (managers only, for now)
 The store's events calendar (`static/js/events.js`), its own tab, drawn like
 the printed calendar the store hands out: the month in big coral type, the
