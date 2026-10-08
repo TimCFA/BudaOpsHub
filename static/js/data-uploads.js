@@ -34,7 +34,7 @@ const DU_SOURCES = [
   },
   {
     key: 'numbers', short: 'numbers file', icon: '', name: 'Projected sales & productivity goals', freq: 'weekly', accept: '.csv,.xlsx,.xls,.txt',
-    how: 'Easiest: the Forecast tab → Send to Know the Numbers fills the days ahead from the forecast — no file needed. Or a spreadsheet (Excel or CSV) with a Date column, a Daypart column (Breakfast, Lunch, Afternoon, Dinner), and Projected Sales / Productivity Goal columns, or one row per day with a column per daypart; the template is in Know the Numbers. Special events stay typed in there.',
+    how: 'Easiest: the Forecast tab → Send to Know the Numbers fills the days ahead from the forecast — no file needed. Or a spreadsheet (Excel or CSV) with a Date column, a Daypart column (Breakfast, Lunch, Afternoon, Dinner), and Projected Sales / Productivity Goal columns, or one row per day with a column per daypart; the template is here. Special events come from the Events calendar; actuals are typed in Manage → Numbers.',
     feeds: 'Know the Numbers · Set Ups game plan · Game Day / Practice Day'
   },
   {

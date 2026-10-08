@@ -81,8 +81,15 @@ for the full site. Managers turn launch mode off for everyone in Manage.
 - Daypart cards show their Know the Numbers line (projected sales, $/labor
   hour goal, special event; once typed, the actual sales and how far off
   projection, e.g. "$4,061 actual −3.7%") in both the Set up and Coach views.
-  **Actuals** are typed by hand on Manage → Know the Numbers under each
-  daypart (Actual Sales, Actual Productivity in $/labor hour), and the card
+  **Actuals** are the only numbers typed by hand (Tim, Oct 2026): Manage →
+  Numbers is a month calendar (Monday–Saturday) where each day shows whether
+  its actuals are in (green check), still needed (dashed, for a day with a
+  projection whose dayparts are over), or its projected total ahead. Tapping a
+  day opens its four dayparts: projected sales and goal shown, not typed (they
+  come from the Forecast or the numbers file), special events from the Events
+  calendar, and two boxes, Actual Sales and Actual Productivity ($/labor
+  hour). The last two weeks can be typed in; older days show what was saved
+  (numbersHistory) read-only. The card
   shows sales vs projected (dollars and percent) and productivity vs goal
   (dollars). They're kept for a year with the plan (numbersHistory). Numbers are
   kept for the **four major dayparts only, on Analytics Hub's hours**
@@ -340,8 +347,8 @@ forecast's unusual-day rule (`fcEventFor`). Month-long events (the samples),
 Community Outreach, Cow in Community, social posts and heads-ups don't count.
 A manager can tick or untick any one event in Manage → Events Calendar
 (saved as `kn` only when it differs from the rule); Manage → Know the
-Numbers shows "From the calendar: …" under each daypart's Special Events box
-without writing it into the typed field. The chips on Set Ups skip events
+Numbers shows each daypart's special events (anything typed earlier plus the
+calendar's) under its projection; nothing is typed there any more. The chips on Set Ups skip events
 already on the numbers line.
 
 Tim wants it hidden while it's being shaped (Oct 2026): the tab and the Set

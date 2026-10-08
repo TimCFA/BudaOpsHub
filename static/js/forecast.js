@@ -949,7 +949,7 @@ async function fcApplyNumbers(plan){
     fcLogPlan(plan, forecastLog, today);
   }
   await saveState();
-  if(document.getElementById('numbersContent') && document.getElementById('numbersDaySelect') && document.getElementById('numbersDaySelect').value) renderNumbersContent();
+  if(document.getElementById('numbersContent')) renderNumbersContent();
   return cells;
 }
 

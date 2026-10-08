@@ -33,24 +33,6 @@ function updateSelectedDayInfo(selectId, infoContainerId, skipDate){
   el.innerHTML = `${dateHtml}${stamp ? `<span class="day-info-updated">Updated ${stamp}</span>` : ''}`;
 }
 
-function setWeekOffset(offset){
-  currentWeekOffset = offset;
-  document.querySelectorAll('.week-toggle-btn').forEach(b=>{
-    const isActive = parseInt(b.dataset.offset, 10) === offset;
-    b.classList.toggle('active', isActive);
-    b.setAttribute('aria-pressed', String(isActive));
-  });
-  renderDayPicker('numbersDayPicker', 'numbersDaySelect', offset, ()=>{ renderNumbersContent(); updateSelectedDayInfo('numbersDaySelect', 'numbersSelectedInfo'); });
-  renderNumbersContent();
-  updateSelectedDayInfo('numbersDaySelect', 'numbersSelectedInfo');
-}
-
-document.querySelectorAll('.week-toggle-btn').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    setWeekOffset(parseInt(btn.dataset.offset, 10));
-  });
-});
-
 // ===== SET UPS WEEK NAVIGATION =====
 let setupsWeekOffset = 0;
 
@@ -984,69 +966,21 @@ window.undoBreakComplete = async function(name){
 };
 
 // KNOW THE NUMBERS
-function renderNumbersTab(){
-  renderDayPicker('numbersDayPicker', 'numbersDaySelect', currentWeekOffset, ()=>{ renderNumbersContent(); updateSelectedDayInfo('numbersDaySelect', 'numbersSelectedInfo'); });
-  renderNumbersContent();
-  updateSelectedDayInfo('numbersDaySelect', 'numbersSelectedInfo');
-}
-
-function renderNumbersContent(){
-  const dayName = document.getElementById('numbersDaySelect').value;
-  const container = document.getElementById('numbersContent');
-  if(!dayName){
-    container.innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:40px 0;">Select a day to view or edit numbers</div>';
-    return;
-  }
-  if(!numbersData[dayName]) numbersData[dayName] = {};
-  knNormalizeDay(numbersData[dayName]);
-
-  container.innerHTML = numbersDayparts.map((dp, i)=>{
-    const entry = numbersData[dayName][dp.name] || {};
-    const dayArg = jsArg(dayName), dpArg = jsArg(dp.name);
-    const money = (field, label) => `
-          <div class="field">
-            <label>${label}</label>
-            <input type="text" inputmode="decimal" value="${escapeHtml(entry[field] || '')}" placeholder="$0.00" onchange="formatAndUpdateCurrency(this,${dayArg},${dpArg},${jsArg(field)})">
-          </div>`;
-    return `
-      <div class="standup-card" style="margin-bottom:14px;">
-        <h3 style="margin-bottom:12px;">${escapeHtml(dp.name)}</h3>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
-          <div class="field">
-            <label>Projected Sales</label>
-            <input type="text" inputmode="decimal" value="${escapeHtml(entry.projectedSales || '')}" placeholder="$0.00" onchange="formatAndUpdateCurrency(this,${dayArg},${dpArg},'projectedSales')" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
-          </div>
-          <div class="field">
-            <label>Productivity Goal</label>
-            <input type="text" inputmode="decimal" value="${escapeHtml(entry.productivityGoal || '')}" placeholder="$0.00" onchange="formatAndUpdateCurrency(this,${dayArg},${dpArg},'productivityGoal')" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
-          </div>
-        </div>
-        <div class="field">
-          <label>Special Events</label>
-          <input type="text" value="${escapeHtml(entry.specialEvents || '')}" placeholder="e.g. Football watch party, large catering pickup at 2pm" onchange="updateNumbersField(${dayArg},${dpArg},'specialEvents',this.value)" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
-          ${(() => { const cal = typeof knSpecialEventsText === 'function' ? knSpecialEventsText('', dayName, dp) : ''; return cal ? `<p class="kn-cal-events">From the calendar: ${escapeHtml(cal)}</p>` : ''; })()}
-        </div>
-        <div class="kn-actuals">
-          <div class="kn-actuals-head">Actuals <span>after the daypart</span></div>
-          <div class="kn-actuals-grid">${money('actualSales', 'Actual Sales')}${money('actualProductivity', 'Actual Productivity')}</div>
-          <div class="kn-vs" id="knVs${i}">${knActualsHtml(entry)}</div>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
+// Manage → Numbers is a month calendar now (know-numbers.js, knRenderManage):
+// tap a day for its actuals. The projections come from the Forecast or the
+// numbers file only (Tim, Oct 2026).
+function renderNumbersTab(){ knRenderManage(); }
+function renderNumbersContent(){ knRenderManage(); }
 
 window.updateNumbersField = async function(dayName, dpName, field, value){
   if(!numbersData[dayName]) numbersData[dayName] = {};
   if(!numbersData[dayName][dpName]) numbersData[dayName][dpName] = {};
   numbersData[dayName][dpName][field] = value.trim();
   touchLastUpdated(dayName);
-  // Planned vs actual, redrawn in place so the next box keeps its focus.
-  const i = numbersDayparts.findIndex(d => d.name === dpName);
-  const vs = document.getElementById('knVs' + i);
-  if(vs && document.getElementById('numbersDaySelect').value === dayName) vs.innerHTML = knActualsHtml(numbersData[dayName][dpName]);
+  // Planned vs actual and the day's square, redrawn in place so the next
+  // box keeps its focus.
+  if(typeof knAfterEdit === 'function') knAfterEdit(dayName, dpName);
   await saveState();
-  updateSelectedDayInfo('numbersDaySelect', 'numbersSelectedInfo');
 };
 
 function formatAsCurrency(raw){

@@ -874,18 +874,11 @@
         <div class="manage-group-body">
 <div class="standup-card">
             <h3>Know the Numbers</h3>
-            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Projected sales, productivity goal, special events and the actuals, by daypart. Saves as you go.</p>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Tap a day to type its actual sales and productivity. Saves as you go.</p>
             <div class="kn-upload">
               <button type="button" id="knFromForecast" class="btn btn-ghost full-only">Fill from the Forecast</button>
-              <p class="kn-help">Projected sales and productivity goals come in through <b>Uploads</b> (the numbers file) or the Forecast. Special events and the actuals are typed in here.</p>
+              <p class="kn-help">Projected sales and productivity goals come from the Forecast or the numbers file in <b>Uploads</b>; special events from the Events calendar.</p>
             </div>
-            <div class="week-toggle">
-              <button type="button" class="week-toggle-btn active" aria-pressed="true" data-offset="0">This Week</button>
-              <button type="button" class="week-toggle-btn" aria-pressed="false" data-offset="1">Next Week</button>
-            </div>
-            <div class="day-picker" id="numbersDayPicker"></div>
-            <select id="numbersDaySelect" style="display:none;"></select>
-            <div id="numbersSelectedInfo" class="day-info-bar"></div>
             <div id="numbersContent"></div>
           </div>
         </div>

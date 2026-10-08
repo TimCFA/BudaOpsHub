@@ -7,7 +7,7 @@ const vm = require('vm');
 const js = n => fs.readFileSync(path.join(__dirname, '..', 'static', 'js', n), 'utf8');
 
 // Globals the modules expect from the page.
-const ctx = {console, today: '2026-10-04', escapeHtml: s => String(s), duParseTsv: null, dataUploadLog: {}, numbersData: {},
+const ctx = {console, today: '2026-10-04', escapeHtml: s => String(s), duParseTsv: null, document: {addEventListener(){}, getElementById(){ return null; }}, dataUploadLog: {}, numbersData: {},
   parseMoney: v => { const n = parseFloat(String(v == null ? '' : v).replace(/[^0-9.\-]/g, '')); return isNaN(n) ? null : n; },
   formatAsCurrency: n => n === '' || n == null ? '' : (+n).toLocaleString('en-US', {style: 'currency', currency: 'USD'})};
 vm.createContext(ctx);
