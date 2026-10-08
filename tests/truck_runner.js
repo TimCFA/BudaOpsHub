@@ -9,7 +9,7 @@ const ctx = {console, today: '2026-10-06', escapeHtml: s => String(s).replace(/&
   esHtml: () => '', esLine: () => '', document: {addEventListener(){}, getElementById(){ return el(); }},
   toLocalISODate: d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`};
 vm.createContext(ctx);
-vm.runInContext('let truckShifts = {}; let truckDays = null; let fohRoster = {}; let bohRoster = {};', ctx);
+vm.runInContext('let truckShifts = {}; let fohRoster = {}; let bohRoster = {};', ctx);
 vm.runInContext(js('daypicker-and-positions.js').match(/function parseShiftTimeToMinutes[\s\S]*?\n}\n/)[0], ctx);
 vm.runInContext(js('truck.js'), ctx);
 const imp = js('weekly-roster-import.js');

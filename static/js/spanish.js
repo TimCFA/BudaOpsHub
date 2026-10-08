@@ -107,6 +107,7 @@ const ES = {
   'End time is before the start time': 'La hora de salida es antes de la entrada',
   'Truck': 'Camión',
   'No truck shift on the schedule': 'No hay turno de camión en el horario',
+  'off the floor': 'fuera del piso',
   'at SPOT now': spot => `en ${spot} ahora`,
   'on the SIDE roster': side => `en el horario de ${side === 'BOH' ? 'cocina' : 'el frente'}`,
   'works': 'trabaja',

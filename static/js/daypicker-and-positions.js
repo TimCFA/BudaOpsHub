@@ -801,7 +801,9 @@ function renderRoster(){
     const empty = !shown.length
       ? `<div class="su-roster-empty">${leftCount === 0 && sortedRoster.some(rosterOwesBreak) ? `Every break is done.${esLine('Every break is done.')}` : `No one today works 6 hours or more, so no breaks are owed.${esLine('No breaks owed')}`}</div>`
       : '';
-    panel.innerHTML = rosterViewHtml(sortedRoster.length, leftCount) + (html || empty);
+    // Who has the Truck shift, apart from the people on the floor (truck.js).
+    const truck = typeof truckRosterHtml === 'function' ? truckRosterHtml(dayName) : '';
+    panel.innerHTML = rosterViewHtml(sortedRoster.length, leftCount) + truck + (html || empty);
     breakTickStart();
   }
 
