@@ -1129,3 +1129,39 @@ body:not(.is-manager) .manager-only{display:none !important;}
 .pos-option.is-other .pos-option-name{color:var(--text-secondary);}
 .pos-option.more-option{justify-content:center;font-weight:700;color:var(--cfa-navy);}
 .pos-option-hint{font-size:13px;}
+
+/* Manage (Tim, Oct 2026): one section at a time, picked by the chips, which
+   stay put while the section scrolls. */
+.manage-tabs{position:sticky;top:0;z-index:3;display:flex;gap:8px;overflow-x:auto;padding:8px 0 12px;margin:0 0 4px;background:var(--cfa-bg);scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+.manage-tabs::-webkit-scrollbar{display:none;}
+.manage-tab{flex:0 0 auto;min-height:40px;padding:8px 16px;border:1px solid var(--border);border-radius:20px;background:var(--cfa-white);font-family:var(--font-ui);font-size:14px;font-weight:600;color:var(--text-primary);cursor:pointer;white-space:nowrap;}
+.manage-tab.active{background:var(--cfa-navy);border-color:var(--cfa-navy);color:#fff;}
+.manage-group{display:none;border:0;background:transparent;margin:0;overflow:visible;}
+.manage-group.is-active{display:block;}
+.manage-group .manage-group-body{display:block;padding:0;background:transparent;}
+.manage-group-body .standup-card{margin-bottom:14px;}
+/* Saves as you go: each card says when it last did */
+.mv-saved{margin:10px 0 0;font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--text-tertiary);}
+.mv-more{margin-top:10px;font-family:var(--font-ui);font-size:13px;color:var(--text-secondary);}
+.mv-more summary{cursor:pointer;font-weight:600;color:var(--cfa-navy);}
+.mv-more p{margin:6px 0 0;line-height:1.5;}
+#manageContent .launch-setting{margin-bottom:0;}
+/* LX pillars: a short list; tap one to edit it */
+.lx-h4{margin:0 0 10px;font-family:var(--font-display);font-size:16px;font-weight:600;}
+.lx-pillars{margin-bottom:16px;}
+.lx-pillar{border:1px solid var(--border);border-radius:14px;background:var(--cfa-white);margin-bottom:8px;overflow:hidden;}
+.lx-pillar-head{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:10px 12px;border:0;background:none;text-align:left;font-family:var(--font-ui);cursor:pointer;}
+.lx-pillar-n{flex:0 0 28px;height:28px;border-radius:14px;background:var(--cfa-navy);color:#fff;font-size:13px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;}
+.lx-pillar-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.lx-pillar-main b{font-size:14px;color:var(--text-primary);}
+.lx-pillar-main span{font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lx-pillar-chev{color:var(--text-tertiary);font-size:12px;}
+.lx-pillar.is-open .lx-pillar-head{border-bottom:1px solid var(--border);}
+.lx-field{padding:10px 12px 0;}
+.lx-field:last-child{padding-bottom:12px;}
+.lx-field label{display:block;font-family:var(--font-ui);font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:4px;}
+.lx-field textarea{width:100%;box-sizing:border-box;min-height:64px;padding:10px;border:1px solid var(--border);border-radius:10px;font-family:var(--font-ui);font-size:14px;resize:vertical;}
+/* Guest Obsession: figures that come from the uploads read as figures, not boxes */
+#gxManageList input.gx-auto{border-color:transparent;background:transparent;padding-left:0;font-weight:700;color:var(--text-primary);}
+/* Lists that start short */
+.du-showall,.wi-more{display:block;width:100%;margin:10px 0 0;padding:10px;border:1px dashed var(--border);border-radius:12px;background:var(--cfa-white);font-family:var(--font-ui);font-size:13px;font-weight:600;color:var(--cfa-navy);cursor:pointer;}

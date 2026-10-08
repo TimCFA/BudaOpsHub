@@ -68,34 +68,26 @@ window.togglePillar = function(idx){
   toggle.classList.toggle('open');
 };
 
+// The pillars as a short list; tap one to edit its focus, goal and
+// initiatives (Tim, Oct 2026: every box open at once made Manage enormous).
+let lxOpenPillar = null;
 function renderLXManage(){
   const pillarsManageList = document.getElementById('pillarsManageList');
-  pillarsManageList.innerHTML = `
-    <div style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
-      <h4 style="font-family:'Outfit';font-weight:600;margin:0 0 16px;font-size:13px;color:var(--text-primary);">How We Build Momentum - Edit Pillars</h4>
-      ${lxPillars.map((p, idx) => `
-        <div style="background:var(--cfa-white);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;">
-          <div style="font-weight:600;font-size:12px;color:var(--text-primary);margin-bottom:10px;">Pillar ${idx + 1}: ${escapeHtml(p.title)}</div>
-          
-          <div style="margin-bottom:10px;">
-            <label style="display:block;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);margin-bottom:4px;font-weight:600;">Focus</label>
-            <textarea id="pillar-focus-${idx}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:'Inter';font-size:12px;resize:vertical;min-height:50px;">${escapeHtml(p.focus)}</textarea>
-          </div>
-          
-          <div style="margin-bottom:10px;">
-            <label style="display:block;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);margin-bottom:4px;font-weight:600;">Goal</label>
-            <textarea id="pillar-goal-${idx}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:'Inter';font-size:12px;resize:vertical;min-height:50px;">${escapeHtml(p.goal)}</textarea>
-          </div>
-          
-          <div>
-            <label style="display:block;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);margin-bottom:4px;font-weight:600;">Initiatives</label>
-            <textarea id="pillar-initiatives-${idx}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:'Inter';font-size:12px;resize:vertical;min-height:50px;">${escapeHtml(p.initiatives)}</textarea>
-          </div>
-        </div>
-      `).join('')}
-      <button id="btnSavePillars" class="btn btn-primary" style="margin-top:12px;">Save Pillars</button>
-    </div>
-  `;
+  const field = (id, label, val) => `<div class="lx-field"><label for="${id}">${label}</label><textarea id="${id}">${escapeHtml(val || '')}</textarea></div>`;
+  pillarsManageList.innerHTML = `<div class="lx-pillars">
+    <h4 class="lx-h4">How We Build Momentum — pillars</h4>
+    ${lxPillars.map((p, idx) => {
+      const open = lxOpenPillar === idx;
+      return `<div class="lx-pillar ${open ? 'is-open' : ''}">
+        <button type="button" class="lx-pillar-head" data-lx-pillar="${idx}" aria-expanded="${open}">
+          <span class="lx-pillar-n">${idx + 1}</span>
+          <span class="lx-pillar-main"><b>${escapeHtml(p.title)}</b>${open ? '' : `<span>${escapeHtml(p.focus || 'No focus yet')}</span>`}</span>
+          <span class="lx-pillar-chev" aria-hidden="true">${open ? '▴' : '▾'}</span>
+        </button>
+        ${open ? field(`pillar-focus-${idx}`, 'Focus', p.focus) + field(`pillar-goal-${idx}`, 'Goal', p.goal) + field(`pillar-initiatives-${idx}`, 'Initiatives', p.initiatives) : ''}
+      </div>`;
+    }).join('')}
+  </div>`;
 
   const metricsManageList = document.getElementById('metricsManageList');
   metricsManageList.innerHTML = lxMetrics.map((m, idx) => `
@@ -122,6 +114,17 @@ function renderLXManage(){
     el.parentElement.insertAdjacentHTML('afterend', `<div class="lx-link-note">${escapeHtml(kind === 'dt' ? 'Automatic from the chain ranking upload — the status follows the Top 100 standard.' : 'Follows the Food Safety score in Guest Obsession — type it there. The status follows the standard of 1: a 1 meets it, higher is Below.')}</div>`);
   });
 }
+
+document.addEventListener('click', async e=>{
+  const head = e.target.closest && e.target.closest('[data-lx-pillar]');
+  if(!head) return;
+  const idx = +head.dataset.lxPillar;
+  if(lxOpenPillar !== null) await savePillars(true);
+  lxOpenPillar = lxOpenPillar === idx ? null : idx;
+  renderLXManage();
+  const f = document.getElementById(`pillar-focus-${idx}`);
+  if(f && lxOpenPillar === idx) f.focus({preventScroll: true});
+});
 
 // Guest Obsession fields the CEM upload fills (data-uploads.js
 // cemSyncScoreboard) — shown read-only once a CEM report is in, so the
@@ -161,7 +164,7 @@ function gxMarkCemFields(){
   ].filter(Boolean);
   const summary = typeof rpGxSummaryHtml === 'function' ? rpGxSummaryHtml() : '';
   list.insertAdjacentHTML('afterbegin', `<div class="gx-source-note">
-    ${src ? `<b>Automatic from CEM — ${escapeHtml(src.label)}</b> and the Analytics Hub uploads: ${n} fields (shaded) update with each upload in Data Uploads.` : n ? `<b>Automatic from uploads:</b> ${n} fields (shaded) update with each upload in Data Uploads. Upload a CEM report too and satisfaction, taste, temperature, service and cleanliness fill in on their own.` : '<b>Upload a CEM report in Data Uploads</b> and satisfaction, taste, temperature, service and cleanliness fill in on their own.'}
+    ${src ? `<b>Automatic from CEM — ${escapeHtml(src.label)}</b> and the Analytics Hub uploads: ${n} fields (shaded) update with each upload in Uploads.` : n ? `<b>Automatic from uploads:</b> ${n} fields (shaded) update with each upload in Uploads. Upload a CEM report too and satisfaction, taste, temperature, service and cleanliness fill in on their own.` : '<b>Upload a CEM report in Uploads</b> and satisfaction, taste, temperature, service and cleanliness fill in on their own.'}
     ${summary}
     <br>Still typed in: ${typed.join(', ')}.
   </div>`);
@@ -316,7 +319,7 @@ function renderTXManage(){
     <div style="background:white;padding:8px;border-radius:6px;border:1px solid var(--border);display:flex;gap:8px;align-items:center;">
       <input type="text" value="${escapeHtml(evt.name)}" placeholder="Event name" style="flex:1;padding:5px;border:1px solid var(--border);border-radius:4px;font-family:'Inter';font-size:11px;" onchange="txData.events[${i}].name=this.value;">
       <input type="date" value="${escapeHtml(evt.date)}" style="padding:5px;border:1px solid var(--border);border-radius:4px;font-family:'Inter';font-size:11px;" onchange="txData.events[${i}].date=this.value;">
-      <button onclick="txData.events.splice(${i},1);renderTXManage();" style="background:none;border:none;color:var(--cfa-red);cursor:pointer;font-weight:bold;">✕</button>
+      <button onclick="txData.events.splice(${i},1);renderTXManage();txAutosave();" style="background:none;border:none;color:var(--cfa-red);cursor:pointer;font-weight:bold;">✕</button>
     </div>
   `).join('');
 
@@ -325,7 +328,7 @@ function renderTXManage(){
     <div style="background:white;padding:8px;border-radius:6px;border:1px solid var(--border);display:flex;gap:8px;align-items:center;">
       <input type="text" value="${escapeHtml(trainer.name)}" placeholder="Trainer name" style="flex:1;padding:5px;border:1px solid var(--border);border-radius:4px;font-family:'Inter';font-size:11px;" onchange="txData.trialTrainers[${i}].name=this.value;">
       <input type="date" value="${escapeHtml(trainer.startDate)}" style="padding:5px;border:1px solid var(--border);border-radius:4px;font-family:'Inter';font-size:11px;" onchange="txData.trialTrainers[${i}].startDate=this.value;">
-      <button onclick="txData.trialTrainers.splice(${i},1);renderTXManage();" style="background:none;border:none;color:var(--cfa-red);cursor:pointer;font-weight:bold;">✕</button>
+      <button onclick="txData.trialTrainers.splice(${i},1);renderTXManage();txAutosave();" style="background:none;border:none;color:var(--cfa-red);cursor:pointer;font-weight:bold;">✕</button>
     </div>
   `).join('');
 
@@ -338,7 +341,7 @@ function renderTXManage(){
         <option ${cert.level==='Team Leader'?'selected':''}>Team Leader</option>
       </select>
       <input type="date" value="${escapeHtml(cert.targetDate)}" style="padding:5px;border:1px solid var(--border);border-radius:4px;font-family:'Inter';font-size:11px;" onchange="txData.certCompetitive[${i}].targetDate=this.value;">
-      <button onclick="txData.certCompetitive.splice(${i},1);renderTXManage();" style="background:none;border:none;color:var(--cfa-red);cursor:pointer;font-weight:bold;">✕</button>
+      <button onclick="txData.certCompetitive.splice(${i},1);renderTXManage();txAutosave();" style="background:none;border:none;color:var(--cfa-red);cursor:pointer;font-weight:bold;">✕</button>
     </div>
   `).join('');
 
@@ -351,7 +354,7 @@ function renderTXManage(){
         <option value="birthday" ${String(celeb.type).toLowerCase()==='birthday'?'selected':''}>Birthday</option>
         <option value="anniversary" ${String(celeb.type).toLowerCase()==='anniversary'?'selected':''}>Anniversary</option>
       </select>
-      <button onclick="txData.celebrations.splice(${i},1);renderTXManage();" style="background:none;border:none;color:var(--cfa-red);cursor:pointer;font-weight:bold;">✕</button>
+      <button onclick="txData.celebrations.splice(${i},1);renderTXManage();txAutosave();" style="background:none;border:none;color:var(--cfa-red);cursor:pointer;font-weight:bold;">✕</button>
     </div>
   `).join('');
 }
@@ -383,11 +386,11 @@ function mvDirty(container){
   return !!container && [...container.querySelectorAll('input, textarea, select')].some(mvEdited);
 }
 
-async function saveTXScoreboard(){
+async function saveTXScoreboard(quiet){
   txData.lastUpdated = new Date().toISOString();
   await saveState();
   renderTXScoreboard();
-  showToast('✓ TX Scoreboard Updated');
+  if(!quiet) showToast('✓ TX Scoreboard Updated');
 }
 
 function renderHomeManage(){
@@ -420,7 +423,7 @@ function renderHomeManage(){
   `;
 }
 
-async function saveHomeScoreboard(){
+async function saveHomeScoreboard(quiet){
   mvTakeId('home-vision', v => { homeData.vision = v; });
   mvTakeId('home-mission', v => { homeData.mission = v; });
   mvTakeId('home-values', v => { homeData.values = v; });
@@ -430,10 +433,10 @@ async function saveHomeScoreboard(){
   homeData.lastUpdated = new Date().toISOString();
   await saveState();
   renderHomeScoreboard();
-  showToast('✓ Home Page Updated');
+  if(!quiet) showToast('✓ Home Page Updated');
 }
 
-async function saveLXScoreboard(){
+async function saveLXScoreboard(quiet){
   lxMetrics.forEach((m, idx) => {
     mvTakeId('metric-val-' + idx, v => { m.value = v; });
     mvTakeId('metric-rating-' + idx, v => { m.rating = parseInt(v); });
@@ -441,10 +444,10 @@ async function saveLXScoreboard(){
   lxLastUpdated = new Date().toISOString();
   await saveState();
   renderLXScoreboard();
-  showToast('✓ LX Scoreboard Updated');
+  if(!quiet) showToast('✓ LX Scoreboard Updated');
 }
 
-async function saveGXScoreboard(){
+async function saveGXScoreboard(quiet){
   mvTakeId('gx-mtd-sales', v => { gxData.wig.mtdSales.value = v; });
   mvTakeId('gx-mtd-change', v => { gxData.wig.mtdSalesChange.value = v; });
   mvTakeId('gx-ytd-sales', v => { gxData.wig.ytdSales.value = v; });
@@ -468,20 +471,21 @@ async function saveGXScoreboard(){
   if(typeof rpSyncLx === 'function' && rpSyncLx()) renderLXScoreboard();   // LX Food Safety Score follows this one
   await saveState();
   renderGXScoreboard();
-  showToast('✓ Guest Obsession Scoreboard Updated');
+  if(!quiet) showToast('✓ Guest Obsession Scoreboard Updated');
 }
 
-async function savePillars(){
+// Only the open pillar has fields; the others are untouched.
+async function savePillars(quiet){
+  let changed = false;
   lxPillars.forEach((p, idx) => {
-    mvTakeId('pillar-focus-' + idx, v => { p.focus = v; });
-    mvTakeId('pillar-goal-' + idx, v => { p.goal = v; });
-    mvTakeId('pillar-initiatives-' + idx, v => { p.initiatives = v; });
+    if(mvTakeId('pillar-focus-' + idx, v => { p.focus = v; })) changed = true;
+    if(mvTakeId('pillar-goal-' + idx, v => { p.goal = v; })) changed = true;
+    if(mvTakeId('pillar-initiatives-' + idx, v => { p.initiatives = v; })) changed = true;
   });
+  if(!changed) return;
   await saveState();
-  // Redraw only if the metrics above have no unsaved typing to lose.
-  if(!mvDirty(document.getElementById('metricsManageList'))) renderLXManage();
   renderLXScoreboard();
-  showToast('✓ Pillars Updated');
+  if(!quiet) showToast('✓ Pillars Updated');
 }
 
 // Generic CSV tokenizer (handles quoted fields with embedded commas). Reused

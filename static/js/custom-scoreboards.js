@@ -31,15 +31,28 @@ function renderCustomScoreboards(){
   `).join('');
 }
 
-// Manage edits a copy (sbDraft); nothing changes on the Scoreboard, or gets
-// saved along with something else, until Save Scoreboard is tapped. A redraw
-// while the copy has unsaved edits keeps them; opening Manage starts fresh.
+// Manage edits a copy (sbDraft) that is saved as you go: 1.5 s after the
+// last keystroke, when a field is left, and after adding or removing a
+// scoreboard or a metric (Tim, Oct 2026). A redraw from another device's
+// changes waits while the copy has typing not yet saved, or a field here has
+// the cursor; opening Manage starts fresh.
 let sbDraft = [];
 let sbDraftDirty = false;
+let sbTimer = null;
+
+async function sbCommit(){
+  clearTimeout(sbTimer);
+  scoreboardItems = JSON.parse(JSON.stringify(sbDraft));
+  sbDraftDirty = false;
+  await saveState();
+  renderCustomScoreboards();
+  if(typeof mvSavedNote === 'function') mvSavedNote(document.getElementById('scoreboardManageList'));
+}
 
 function renderScoreboardManage(opening){
   const list = document.getElementById('scoreboardManageList');
   if(!list) return;
+  if(!opening && list.contains(document.activeElement)) return;
   if(opening || !sbDraftDirty){ sbDraft = JSON.parse(JSON.stringify(scoreboardItems)); sbDraftDirty = false; }
   if(sbDraft.length === 0){
     list.innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:16px;font-size:12px;">No scoreboards yet — add one below</div>';
@@ -81,16 +94,19 @@ document.getElementById('scoreboardManageList').addEventListener('input', (e)=>{
     sbDraft[idx].metrics[midx][e.target.dataset.sbMetricField] = e.target.value;
     sbDraftDirty = true;
   }
+  if(sbDraftDirty){ clearTimeout(sbTimer); sbTimer = setTimeout(sbCommit, 1500); }
 });
+document.getElementById('scoreboardManageList').addEventListener('change', ()=>{ if(sbDraftDirty) sbCommit(); });
 
 document.getElementById('scoreboardManageList').addEventListener('click', (e)=>{
   const delItem = e.target.closest('[data-sb-delete-item]');
   if(delItem){
     const item = sbDraft[delItem.dataset.sbDeleteItem];
-    if(!confirm(`Delete the "${(item && item.title) || 'Untitled'}" scoreboard? It's removed when you tap Save Scoreboard.`)) return;
+    if(!confirm(`Delete the "${(item && item.title) || 'Untitled'}" scoreboard? This can't be undone.`)) return;
     sbDraft.splice(delItem.dataset.sbDeleteItem, 1);
     sbDraftDirty = true;
     renderScoreboardManage();
+    sbCommit();
     return;
   }
   const delMetric = e.target.closest('[data-sb-delete-metric]');
@@ -100,6 +116,7 @@ document.getElementById('scoreboardManageList').addEventListener('click', (e)=>{
     sbDraft[idx].metrics.splice(midx, 1);
     sbDraftDirty = true;
     renderScoreboardManage();
+    sbCommit();
     return;
   }
   const addMetric = e.target.closest('[data-sb-add-metric]');
@@ -109,6 +126,7 @@ document.getElementById('scoreboardManageList').addEventListener('click', (e)=>{
     sbDraft[idx].metrics.push({label: '', value: ''});
     sbDraftDirty = true;
     renderScoreboardManage();
+    sbCommit();
     return;
   }
 });
@@ -117,12 +135,5 @@ document.getElementById('btnAddScoreboardItem').addEventListener('click', ()=>{
   sbDraft.push({icon: '', title: 'New Scoreboard', notes: '', metrics: []});
   sbDraftDirty = true;
   renderScoreboardManage();
-});
-
-document.getElementById('btnSaveScoreboard').addEventListener('click', async ()=>{
-  scoreboardItems = JSON.parse(JSON.stringify(sbDraft));
-  sbDraftDirty = false;
-  await saveState();
-  renderCustomScoreboards();
-  showToast('✓ Scoreboard Updated');
+  sbCommit();
 });

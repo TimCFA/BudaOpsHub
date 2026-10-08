@@ -146,16 +146,8 @@ function knDownloadTemplate(){
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
+// The numbers file is uploaded in Manage → Uploads (data-uploads.js), which
+// also offers the template.
 document.addEventListener('click', e=>{
-  if(e.target.closest('#knTemplate')) knDownloadTemplate();
-});
-document.addEventListener('change', async e=>{
-  if(!e.target.matches('#knFile')) return;
-  const files = e.target.files;
-  if(!files || !files.length) return;
-  await duHandleFiles(files, 'numbers');
-  const r = duResults[duResults.length - 1];
-  const status = document.getElementById('knStatus');
-  if(status && r) status.textContent = `${r.state === 'ok' ? '✓' : '⚠'} ${r.text}`;
-  e.target.value = '';
+  if(e.target.closest('[data-du-template]')) knDownloadTemplate();
 });

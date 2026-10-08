@@ -1026,12 +1026,17 @@ function duLevelsetHtml(){
   </div>`;
 }
 
+// The list starts with only what's due (Tim, Oct 2026: fourteen rows with
+// their month grids ran four screens); "Show the N up to date" opens the rest.
+let duShowAll = false;
+
 function renderDataUploads(){
   const root = document.getElementById('dataUploadsRoot');
   if(!root) return;
   const now = new Date();
   const rows = DU_SOURCES.map(src => ({src, st: duSourceState(src, now)}));
   const dueCount = rows.filter(r => r.st.status !== 'fresh').length;
+  const shown = duShowAll || !dueCount ? rows : rows.filter(r => r.st.status !== 'fresh');
   root.innerHTML = `
     ${duRestoreHtml()}
     <div class="du-summary ${dueCount ? 'has-due' : ''}">${dueCount ? `${dueCount} of ${rows.length} need an upload` : `All ${rows.length} data sources are up to date`}</div>
@@ -1042,7 +1047,7 @@ function renderDataUploads(){
     </label>
     ${duResults.length ? `<ul class="du-results">${duResults.map(r => `<li class="du-result is-${r.state}"><b>${escapeHtml(r.file)}</b>${r.kind ? ` <span>${escapeHtml(r.kind)}</span>` : ''}<div>${escapeHtml(r.text)}</div></li>`).join('')}</ul>` : ''}
     <ul class="du-list">
-      ${rows.map(({src, st}) => {
+      ${shown.map(({src, st}) => {
         const s = DU_STATUS[st.status];
         const log = duLastLog(src.key);
         const lastText = st.last ? `Last upload ${st.last.toLocaleDateString('en-US', {month: 'short', day: 'numeric'})}${log && log.file ? ` · ${log.file}` : ''}` : 'No upload logged here yet';
@@ -1060,6 +1065,7 @@ function renderDataUploads(){
           ${src.key === 'pea' ? duLevelsetHtml() : ''}
           ${src.key === 'roster' && typeof hsSyncInstallHtml === 'function' ? hsSyncInstallHtml() : ''}
           ${src.key === 'numbers' && typeof salesHistory !== 'undefined' && Object.keys(salesHistory || {}).length ? '<button type="button" class="du-sync-btn full-only" data-du-forecast="1">Fill from the Forecast</button>' : ''}
+          ${src.key === 'numbers' ? '<button type="button" class="du-sync-btn" data-du-template="1">Download template</button>' : ''}
           <label class="du-row-upload"><input type="file" accept="${src.accept}" ${src.multiple ? 'multiple' : ''} data-du-row-input="${src.key}"><span>⬆ Upload ${escapeHtml(src.short || src.name.split(' (')[0])}${src.key === 'pea' ? ' (backup)' : ''}</span></label>
           <details class="du-more">
             <summary>How to get it · ${src.fixedFreq ? DU_FREQUENCIES[st.freq] : `<span>${DU_FREQUENCIES[st.freq]}</span>`}</summary>
@@ -1070,10 +1076,13 @@ function renderDataUploads(){
           </details>
         </li>`;
       }).join('')}
-    </ul>`;
+    </ul>
+    ${shown.length < rows.length ? `<button type="button" class="du-showall" data-du-showall="1">Show the ${rows.length - shown.length} up to date</button>` : duShowAll && dueCount ? '<button type="button" class="du-showall" data-du-showall="0">Show only what’s due</button>' : ''}`;
 }
 
 document.getElementById('dataUploadsRoot').addEventListener('click', e=>{
+  const sa = e.target.closest('[data-du-showall]');
+  if(sa){ duShowAll = sa.dataset.duShowall === '1'; renderDataUploads(); return; }
   if(e.target.closest('[data-du-levelset]')) peaLevelsetSync(false);
   if(e.target.closest('[data-du-forecast]')){ fcTab = 'forecast'; fcNumbersOpen = true; launchShowTab('forecast'); const c = document.getElementById('fcNumbersCard'); if(c && c.scrollIntoView) c.scrollIntoView({block: 'start'}); }
   if(e.target.closest('[data-du-restore]')) duRestoreBackup();

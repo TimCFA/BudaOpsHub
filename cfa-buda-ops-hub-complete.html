@@ -832,63 +832,44 @@
       <button id="btnPinGo" class="btn btn-primary" style="width:auto;margin:12px auto;display:block;">Unlock <span class="sub"><i>Desbloquear</i></span></button>
     </div>
     <div id="manageContent" style="display:none;">
-      <div style="margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;">
-        <h2 class="sb-h2" style="margin:0;">Settings <span style="display:block;font-size:11px;font-style:italic;font-weight:400;color:var(--text-secondary);">Configuracion</span></h2>
+      <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+        <h2 class="sb-h2" style="margin:0;">Manage <span style="display:block;font-size:11px;font-style:italic;font-weight:400;color:var(--text-secondary);">Gestionar</span></h2>
         <button id="btnLock" class="btn btn-ghost" style="width:auto;padding:8px 16px;margin:0;font-size:11px;">Lock <span class="sub"><i>Bloquear</i></span></button>
       </div>
 
-      <label class="launch-setting">
-        <input type="checkbox" id="launchModeToggle" checked>
-        <span><b>Launch mode</b> — the team sees only Home, Set Ups, Waste and Lists (Zone Resets first, then Leader Transition, Food Safety, Safe Count and the Prep Board as pills). Devices signed in here see everything.</span>
-      </label>
+      <!-- One section at a time (Tim, Oct 2026): the chips pick which. -->
+      <nav class="manage-tabs" id="manageTabs" role="tablist" aria-label="Manage sections">
+        <button type="button" class="manage-tab" role="tab" id="manageTab-uploads" data-manage-go="uploads" aria-selected="false">Uploads</button>
+        <button type="button" class="manage-tab" role="tab" id="manageTab-numbers" data-manage-go="numbers" aria-selected="false">Numbers</button>
+        <button type="button" class="manage-tab" role="tab" id="manageTab-events" data-manage-go="events" aria-selected="false">Events</button>
+        <button type="button" class="manage-tab" role="tab" id="manageTab-scoreboards" data-manage-go="scoreboards" aria-selected="false">Scoreboards</button>
+        <button type="button" class="manage-tab" role="tab" id="manageTab-talent" data-manage-go="talent" aria-selected="false">Talent</button>
+        <button type="button" class="manage-tab" role="tab" id="manageTab-waste" data-manage-go="waste" aria-selected="false">Waste</button>
+        <button type="button" class="manage-tab" role="tab" id="manageTab-pea" data-manage-go="pea" aria-selected="false">PEA</button>
+        <button type="button" class="manage-tab" role="tab" id="manageTab-settings" data-manage-go="settings" aria-selected="false">Settings</button>
+      </nav>
 
-
-      <!-- GROUP: Data Uploads (TIM-46) -->
-      <div class="manage-group open">
-        <div class="manage-group-header" onclick="toggleManageGroup(this)">
-          <span class="manage-group-title">Data Uploads</span>
-          <span class="manage-group-chevron">▾</span>
-        </div>
+      <!-- GROUP: Data Uploads -->
+      <section class="manage-group" data-manage-tab="uploads" aria-labelledby="manageTab-uploads">
         <div class="manage-group-body">
+
           <div class="standup-card">
             <h3>What's due</h3>
             <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">One upload per report keeps every scoreboard, tool and insight that uses it up to date.</p>
             <div id="dataUploadsRoot"></div>
           </div>
-        </div>
-      </div>
-
-      <!-- GROUP: Events Calendar (events.js): the only place the calendar changes -->
-      <div class="manage-group">
-        <div class="manage-group-header" onclick="toggleManageGroup(this)">
-          <span class="manage-group-title">Events Calendar</span>
-          <span class="manage-group-chevron">▾</span>
-        </div>
-        <div class="manage-group-body">
-          <div class="standup-card">
-            <h3>Store events</h3>
-            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Promos, samples, outreach, family nights, heads-ups, the month's goals and Pre-Checklist. They show on the Calendar tab and on the Set Ups daypart they fall in.</p>
-            <div id="eventsManageRoot"></div>
-          </div>
-        </div>
-      </div>
+                </div>
+      </section>
 
       <!-- GROUP: Know the Numbers -->
-      <div class="manage-group">
-        <div class="manage-group-header" onclick="toggleManageGroup(this)">
-          <span class="manage-group-title">Know the Numbers</span>
-          <span class="manage-group-chevron">▾</span>
-        </div>
+      <section class="manage-group" data-manage-tab="numbers" aria-labelledby="manageTab-numbers">
         <div class="manage-group-body">
-          <div class="standup-card">
-            <h3>Projected Sales, Productivity & Events</h3>
-            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Projected sales, productivity goals, and events by daypart</p>
+<div class="standup-card">
+            <h3>Know the Numbers</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Projected sales, productivity goal, special events and the actuals, by daypart. Saves as you go.</p>
             <div class="kn-upload">
-              <label class="du-row-upload"><input type="file" id="knFile" accept=".csv,.xlsx,.xls,.txt"><span>⬆ Upload projected sales &amp; productivity goals</span></label>
-              <button type="button" id="knTemplate" class="btn btn-ghost">Download template</button>
               <button type="button" id="knFromForecast" class="btn btn-ghost full-only">Fill from the Forecast</button>
-              <p class="kn-help">Excel or CSV — a row per day and daypart (Date, Daypart, Projected Sales, Productivity Goal) — or fill the days ahead from the Forecast tab. Special events and the actuals are typed in below.</p>
-              <div id="knStatus" class="kn-status"></div>
+              <p class="kn-help">Projected sales and productivity goals come in through <b>Uploads</b> (the numbers file) or the Forecast. Special events and the actuals are typed in here.</p>
             </div>
             <div class="week-toggle">
               <button type="button" class="week-toggle-btn active" aria-pressed="true" data-offset="0">This Week</button>
@@ -900,115 +881,89 @@
             <div id="numbersContent"></div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <!-- GROUP: Talent Development -->
-      <div class="manage-group">
-        <div class="manage-group-header" onclick="toggleManageGroup(this)">
-          <span class="manage-group-title">Talent Development</span>
-          <span class="manage-group-chevron">▾</span>
-        </div>
+      <!-- GROUP: Events Calendar -->
+      <section class="manage-group" data-manage-tab="events" aria-labelledby="manageTab-events">
         <div class="manage-group-body">
+
           <div class="standup-card">
+            <h3>Store events</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Promos, samples, outreach, family nights, heads-ups, the month's goals and Pre-Checklist. They show on the Calendar tab and on the Set Ups daypart they fall in.</p>
+            <div id="eventsManageRoot"></div>
+          </div>
+                </div>
+      </section>
+
+      <!-- GROUP: Scoreboards -->
+      <section class="manage-group" data-manage-tab="scoreboards" aria-labelledby="manageTab-scoreboards">
+        <div class="manage-group-body">
+<div class="standup-card">
+            <h3>LX Scoreboard</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Weekly. Tap a pillar to edit it.</p>
+            <div id="pillarsManageList" style="margin-bottom:20px;"></div>
+            <h4 style="font-family:'Outfit';font-weight:600;margin:20px 0 12px;font-size:13px;color:var(--text-primary);">Business Metrics</h4>
+            <div id="metricsManageList" style="margin-bottom:16px;"></div>
+            <p class="mv-saved" data-mv-saved>Saves as you go</p>
+          </div>
+<div class="standup-card">
+            <h3>Guest Obsession Scoreboard</h3>
+            <p style="font-size:11px;color:var(--text-secondary);margin:0 0 12px;">The shaded figures come from the CEM and Analytics Hub uploads in <b>Uploads</b>; only the rest is typed in here.</p>
+
+            <div id="gxManageList" style="margin-bottom:16px;"></div>
+            <p class="mv-saved" data-mv-saved>Saves as you go</p>
+          </div>
+<div class="standup-card">
+            <h3>Custom Scoreboards & Trackers</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Scoreboards, dashboards or trackers of your own, shown under Scoreboard.</p>
+            <div id="scoreboardManageList" style="margin-bottom:16px;"></div>
+            <button id="btnAddScoreboardItem" class="btn btn-secondary" style="margin-bottom:12px;">+ Add Scoreboard</button>
+            <p class="mv-saved" data-mv-saved>Saves as you go</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- GROUP: Talent -->
+      <section class="manage-group" data-manage-tab="talent" aria-labelledby="manageTab-talent">
+        <div class="manage-group-body">
+<div class="standup-card">
             <h3>EOI Submissions <span class="sub"><i>Expresiones de Interés</i></span></h3>
             <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Team members interested in their next role</p>
             <div id="eoiSubmissionsContainer"></div>
           </div>
-
-          <div class="standup-card">
-            <h3>TX Scoreboard (Monthly Update)</h3>
-            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Updated at the beginning of each month</p>
+<div class="standup-card">
+            <h3>TX Scoreboard</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Monthly: events, trainers in trial, certification, celebrations.</p>
             <div id="txManageList" style="margin-bottom:16px;"></div>
-            <button id="btnSaveTX" class="btn btn-primary">Save TX Scoreboard</button>
+            <p class="mv-saved" data-mv-saved>Saves as you go</p>
           </div>
         </div>
-      </div>
+      </section>
 
-      <!-- GROUP: Scoreboards -->
-      <div class="manage-group">
-        <div class="manage-group-header" onclick="toggleManageGroup(this)">
-          <span class="manage-group-title">Scoreboards</span>
-          <span class="manage-group-chevron">▾</span>
-        </div>
+      <!-- GROUP: Waste -->
+      <section class="manage-group" data-manage-tab="waste" aria-labelledby="manageTab-waste">
         <div class="manage-group-body">
-          <div class="standup-card">
-            <h3>LX Scoreboard (Weekly Update)</h3>
-            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Updated every Monday by admin team</p>
-            <div id="pillarsManageList" style="margin-bottom:20px;"></div>
-            <h4 style="font-family:'Outfit';font-weight:600;margin:20px 0 12px;font-size:13px;color:var(--text-primary);">Business Metrics</h4>
-            <div id="metricsManageList" style="margin-bottom:16px;"></div>
-            <button id="btnSaveLX" class="btn btn-primary">Save LX Scoreboard</button>
+<div class="standup-card">
+            <h3>Waste Export</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Today, last week, the month or any days, as a CSV or a PDF (the same as Export on the Waste page). Nothing is cleared: the log keeps the last 90 days on its own, and exporting a whole month saves its summary for month-over-month comparisons.</p>
+            <div id="wasteExportManageRoot"></div>
+            <div id="monthCloseStatus" style="font-size:11px;color:var(--text-secondary);margin-top:8px;"></div>
           </div>
-
-          <div class="standup-card">
-            <h3>Guest Obsession Scoreboard (Weekly Update)</h3>
-            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Updated every Monday by admin team</p>
-
-            <p style="font-size:11px;color:var(--text-secondary);margin:0 0 12px;">CEM scores fill in automatically from <b>Data Uploads</b> at the top of this page (the latest month uploaded). Everything else here is typed in.</p>
-
-            <div id="gxManageList" style="margin-bottom:16px;"></div>
-            <button id="btnSaveGX" class="btn btn-primary">Save Guest Obsession Scoreboard</button>
-          </div>
-
-          <div class="standup-card">
-            <h3>Custom Scoreboards & Trackers</h3>
-            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Add scoreboards, dashboards, or trackers to show under Scoreboard</p>
-            <div id="scoreboardManageList" style="margin-bottom:16px;"></div>
-            <button id="btnAddScoreboardItem" class="btn btn-secondary" style="margin-bottom:12px;">+ Add Scoreboard</button>
-            <button id="btnSaveScoreboard" class="btn btn-primary">Save Scoreboard</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- GROUP: Home Page -->
-      <div class="manage-group">
-        <div class="manage-group-header" onclick="toggleManageGroup(this)">
-          <span class="manage-group-title">Home Page</span>
-          <span class="manage-group-chevron">▾</span>
-        </div>
-        <div class="manage-group-body">
-          <div class="standup-card">
-            <h3>Home Page (Vision, Mission, Values & Wins)</h3>
-            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Updated monthly by leadership team</p>
-            <div id="homeManageList" style="margin-bottom:16px;"></div>
-            <button id="btnSaveHome" class="btn btn-primary">Save Home Page</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- GROUP: Waste Tracking -->
-      <div class="manage-group">
-        <div class="manage-group-header" onclick="toggleManageGroup(this)">
-          <span class="manage-group-title">Waste Tracking</span>
-          <span class="manage-group-chevron">▾</span>
-        </div>
-        <div class="manage-group-body">
-          <div class="standup-card">
-            <h3>Daily Waste Limit</h3>
-            <div style="display:flex;gap:8px;">
-              <input type="number" id="targetInput" value="100" min="1" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius);">
-              <button id="btnUpdateTarget" class="btn btn-primary" style="flex:0;width:auto;padding:10px 16px;">Update</button>
-            </div>
-          </div>
-
-          <div class="standup-card">
-            <h3>Items</h3>
+<div class="standup-card">
+            <h3>Waste items</h3>
             <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">What shows on the Waste tracker, with each item's cost per unit, an optional daily ceiling (the tile flags it when today's count reaches it), tile color and Spanish name. Tap an item to edit it. An item with waste history is hidden, not deleted, so its history stays.</p>
             <div id="prodList"></div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <!-- GROUP: PEA Ratings -->
-      <div class="manage-group">
-        <div class="manage-group-header" onclick="toggleManageGroup(this)">
-          <span class="manage-group-title">PEA Ratings (Levelset)</span>
-          <span class="manage-group-chevron">▾</span>
-        </div>
+      <!-- GROUP: PEA Ratings (Levelset) -->
+      <section class="manage-group" data-manage-tab="pea" aria-labelledby="manageTab-pea">
         <div class="manage-group-body">
+
           <div class="standup-card">
             <h3>Saved PEA Ratings</h3>
-            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px;">Upload Levelset PEA PDFs in <b>Data Uploads</b> at the top of this page. Overlapping date ranges are fine — ratings already saved are skipped.</p>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px;">Upload Levelset PEA PDFs in <b>Uploads</b>. Overlapping date ranges are fine — ratings already saved are skipped.</p>
             <div id="peaUploadStatus" style="font-size:12px;color:var(--text-primary);margin-top:8px;"></div>
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px;">
               <div id="peaDataStatus" style="font-size:11px;color:var(--text-secondary);"></div>
@@ -1035,24 +990,35 @@
             <h3>Name Matching (HotSchedules ↔ Levelset)</h3>
             <div id="peaNameMatchRoot"></div>
           </div>
-        </div>
-      </div>
+                </div>
+      </section>
 
-      <!-- GROUP: Backup & Data -->
-      <div class="manage-group">
-        <div class="manage-group-header" onclick="toggleManageGroup(this)">
-          <span class="manage-group-title">Backup & Data</span>
-          <span class="manage-group-chevron">▾</span>
-        </div>
+      <!-- GROUP: Settings -->
+      <section class="manage-group" data-manage-tab="settings" aria-labelledby="manageTab-settings">
         <div class="manage-group-body">
           <div class="standup-card">
-            <h3>Waste Export</h3>
-            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Today, last week, the month or any days, as a CSV or a PDF (the same as Export on the Waste page). Nothing is cleared: the log keeps the last 90 days on its own, and exporting a whole month saves its summary for month-over-month comparisons.</p>
-            <div id="wasteExportManageRoot"></div>
-            <div id="monthCloseStatus" style="font-size:11px;color:var(--text-secondary);margin-top:8px;"></div>
+            <h3>Launch mode</h3>
+            <label class="launch-setting">
+              <input type="checkbox" id="launchModeToggle" checked>
+              <span><b>On</b> — team devices see only Home, Set Ups, Waste and Lists.</span>
+            </label>
+            <details class="mv-more"><summary>What this means</summary><p>While the team is getting started, a device without the manager PIN sees Home, Set Ups, Waste and Lists (Zone Resets first, then Leader Transition, Food Safety, Safe Count and the Prep Board as pills). Devices signed in here see every tab. Turn it off and everyone sees everything.</p></details>
           </div>
-
-          <div class="standup-card">
+<div class="standup-card">
+            <h3>Daily waste limit</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Dollars a day for the whole store. The Waste meter turns amber at 75% and red over it.</p>
+            <div style="display:flex;gap:8px;">
+              <input type="number" id="targetInput" value="100" min="1" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius);">
+            </div>
+            <p class="mv-saved" data-mv-saved>Saves as you go</p>
+          </div>
+<div class="standup-card">
+            <h3>Home page</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Vision, mission, values and the monthly leadership wins.</p>
+            <div id="homeManageList" style="margin-bottom:16px;"></div>
+            <p class="mv-saved" data-mv-saved>Saves as you go</p>
+          </div>
+<div class="standup-card">
             <h3>Full Backup</h3>
             <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Downloads everything the hub has saved, straight from the server, as one file you keep: rosters, set ups, breaks, numbers and actuals, checklists, waste, prep, PEA, safe counts, trainees, EOI and the forecast. Keep it somewhere private: it has team names and the store's numbers.</p>
             <button id="btnExportBackup" class="btn btn-primary">Download Full Backup</button>
@@ -1060,11 +1026,9 @@
             <div id="setupHistoryStatus" style="font-size:11px;color:var(--text-secondary);margin-top:4px;"></div>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
+      </section>
 
-</div>
+    </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="/static/js/state-and-utils.js"></script>
