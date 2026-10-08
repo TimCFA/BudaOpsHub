@@ -84,5 +84,14 @@ class RosterRows(unittest.TestCase):
         self.assertNotIn('<img', html)
 
 
+class OnlyUnderAll(unittest.TestCase):
+    def test_truck_rows_stay_out_of_breaks_left(self):
+        # Truck is off the floor, so it's not in the Breaks Left view (Tim, Oct 2026).
+        with open(os.path.join(ROOT, 'static', 'js', 'daypicker-and-positions.js'), encoding='utf-8') as f:
+            src = f.read()
+        line = next(l for l in src.splitlines() if 'truckRosterHtml(dayName)' in l)
+        self.assertIn("rosterView !== 'breaks'", line)
+
+
 if __name__ == '__main__':
     unittest.main()
