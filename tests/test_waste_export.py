@@ -40,7 +40,9 @@ class Ranges(unittest.TestCase):
         self.assertEqual(got, ['2026-09', '2026-10', None, None])
 
     def test_panel_totals(self):
-        got = run("""c => { entries = [{day: '2026-10-07', section: 'foh', cost: 4.5}, {day: '2026-10-07', section: 'boh', cost: 10}, {day: '2026-10-06', section: 'foh', cost: 99}];
+        # The panel reads the real date, so the entries are made for today and yesterday.
+        got = run("""c => { const t = toLocalISODate(new Date()), y = isoAddDays(t, -1);
+            entries = [{day: t, section: 'foh', cost: 4.5}, {day: t, section: 'boh', cost: 10}, {day: y, section: 'foh', cost: 99}];
             wxPreset = 'today'; wxLoc = 'all'; const all = wxPanelHtml(false); wxLoc = 'boh'; const boh = wxPanelHtml(false);
             entries = []; const none = wxPanelHtml(false); return [all, boh, none]; }""")[0]
         self.assertIn('$14.50', got[0])

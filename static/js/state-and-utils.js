@@ -19,7 +19,6 @@ let foodSafetyDays = [];
 let wasteDays = [];
 let rosterPosted = {};   // {date: {foh: [...], boh: [...], at}}: each day's posted schedule (roster-changes.js)
 let truckShifts = {};    // {date: [{name, start, end, source: 'schedule' | 'manual', addedBy, addedAt}]}: who's doing truck (truck.js)
-let truckDays = null;    // weekdays the truck comes (0 = Sunday); null: TRUCK_DEFAULT_DAYS (truck.js)
 let foodSafetyStreak = 0;
 let wasteStreak = 0;
 let wasteLogLastClosedOut = null; // timestamp of the last manual export+reset, shown in Manage

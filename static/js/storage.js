@@ -12,7 +12,7 @@ const STATE_SECTIONS = {
   manager: ['wasteTarget', 'safeTarget', 'products', 'deletedProductIds', 'productFixesVersion',
             'productCategoryOrder', 'lxPillars', 'lxMetrics', 'lxLastUpdated', 'gxData', 'txData',
             'homeData', 'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData',
-            'launchMode', 'storeEvents', 'truckDays'],
+            'launchMode', 'storeEvents'],
   pea: ['peaRatings', 'peaNameAliases'],
   rosters: ['fohRoster', 'bohRoster', 'rosterPosted', 'truckShifts'],
   setups: ['posAssignments', 'posVacancyFlags', 'setupDayTypes', 'lastUpdated',
@@ -68,7 +68,7 @@ function stateSnapshot(){
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
     prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, launchMode, prepTimes, prepTimers,
-    salesHistory, forecastSettings, forecastLog, daypartWeeks, zoneOwners, posNotes, storeEvents, truckShifts, truckDays
+    salesHistory, forecastSettings, forecastLog, daypartWeeks, zoneOwners, posNotes, storeEvents, truckShifts
   };
 }
 
@@ -399,7 +399,6 @@ function applyStateData(data){
   homeData = data.homeData || JSON.parse(JSON.stringify(defaultHomeData));
   storeEvents = Array.isArray(data.storeEvents) ? data.storeEvents : null;   // null: October's calendar as typed in (events.js)
   truckShifts = (data.truckShifts && typeof data.truckShifts === 'object' && !Array.isArray(data.truckShifts)) ? data.truckShifts : {};
-  truckDays = Array.isArray(data.truckDays) ? data.truckDays.filter(n => Number.isInteger(n) && n >= 0 && n <= 6) : null;
   if(typeof evRerender === 'function') evRerender();
   if(data.fohRoster) Object.assign(fohRoster, data.fohRoster);
   if(data.bohRoster) Object.assign(bohRoster, data.bohRoster);

@@ -1,6 +1,6 @@
 """Who has the Truck shift (static/js/truck.js): kept from the HotSchedules
-roster import (the only source: leaders don't assign it) and shown on Set
-Ups, in red when a truck day has no Truck shift."""
+roster import (the only source: leaders don't assign it) and shown at the
+top of the Set Ups roster, in red when an open day has no Truck shift."""
 import json
 import os
 import subprocess
@@ -48,43 +48,39 @@ class Import(unittest.TestCase):
         self.assertEqual(off, {'Truck': 3, 'Administrative': 1})
 
 
-class SetUpsLine(unittest.TestCase):
-    def strip(self, setup):
-        return run(f"c => {{ {setup}; return truckStripHtml(c.date); }}", date='2026-10-06')[0]
+class RosterRows(unittest.TestCase):
+    """The truck rows at the top of the Set Ups roster (Tue Oct 6 2026 is today)."""
 
-    def test_truck_day_with_nobody_is_red(self):
-        html = self.strip("truckShifts = {}")
-        self.assertIn('is-missing', html.split('>')[0])
+    def rows(self, setup, date='2026-10-06'):
+        return run(f"c => {{ {setup}; return truckRosterHtml(c.date); }}", date=date)[0]
+
+    def test_shows_who_has_it_set_apart(self):
+        html = self.rows("truckShifts = {'2026-10-06': [{name: 'Maya Torres', start: '5:30a', end: '8:30a'}], '2026-10-07': [{name: 'Noah Bennett', start: '5:30a', end: '8:30a'}]}")
+        self.assertIn('su-roster-truck', html)
+        self.assertIn('Maya Torres', html)
+        self.assertIn('5:30a - 8:30a · off the floor', html)
+        self.assertIn('su-truck-badge', html)
+        self.assertNotIn('is-missing', html)
+        self.assertIn('Tomorrow · Wed: Noah Bennett 5:30a - 8:30a', html)
+        self.assertNotIn('<button', html)                       # the schedule decides; nothing to assign
+
+    def test_every_open_day_needs_it(self):
+        html = self.rows("truckShifts = {}")
+        self.assertIn('su-roster-truck is-missing', html)
         self.assertIn('No truck shift on the schedule', html)
-        self.assertNotIn('<button', html)                       # nothing to assign: the schedule decides
+        self.assertIn('su-truck-next is-missing', html)        # Wednesday too: every open day
 
-    def test_shows_who(self):
-        html = self.strip("truckShifts = {'2026-10-06': [{name: 'Maya Torres', start: '5:30a', end: '8:30a', source: 'schedule'}]}")
-        self.assertNotIn('is-missing', html.split('>')[0])
-        self.assertIn('<b>Maya Torres</b> 5:30a–8:30a', html)
-        self.assertNotIn('<button', html)
-
-    def test_tomorrow_line_on_todays_page(self):
-        # Tue Oct 6: tomorrow is Wed, not a truck day by default; with Wed on, it's flagged
-        html = self.strip("truckShifts = {'2026-10-06': [{name: 'Maya Torres', start: '5:30a', end: '8:30a'}]}")
+    def test_tomorrow_line_only_on_todays_roster(self):
+        html = self.rows("truckShifts = {}", date='2026-10-08')
+        self.assertIn('is-missing', html)
         self.assertNotIn('Tomorrow', html)
-        html = self.strip("truckDays = [1, 2, 3, 4, 5, 6]; truckShifts = {'2026-10-06': [{name: 'Maya Torres', start: '5:30a', end: '8:30a'}]}")
-        self.assertIn('Tomorrow', html)
-        self.assertIn('is-missing', html.split('su-truck-next')[1][:20])
-        html = self.strip("truckShifts = {'2026-10-07': [{name: 'Noah Bennett', start: '5:30a', end: '8:30a'}]}")
-        self.assertIn('Tomorrow', html)
-        self.assertIn('<b>Noah Bennett</b>', html)
 
-    def test_saturday_looks_ahead_to_monday(self):
-        got = run("c => [truckNextOpenDay('2026-10-10'), truckNextOpenDay('2026-10-06')]")[0]
-        self.assertEqual(got, ['2026-10-12', '2026-10-07'])
-
-    def test_no_truck_day_and_nobody_shows_nothing(self):
-        got = run("c => { truckShifts = {}; return [truckStripHtml('2026-10-07'), truckIsTruckDay('2026-10-07'), truckIsTruckDay('2026-10-08')]; }")[0]
-        self.assertEqual(got, ['', False, True])
+    def test_saturday_looks_ahead_to_monday_and_sunday_has_none(self):
+        got = run("c => [truckNextOpenDay('2026-10-10'), truckNextOpenDay('2026-10-06'), truckIsTruckDay('2026-10-07'), truckIsTruckDay('2026-10-11'), truckRosterHtml('2026-10-11')]")[0]
+        self.assertEqual(got, ['2026-10-12', '2026-10-07', True, False, ''])
 
     def test_names_are_escaped(self):
-        html = self.strip("""truckShifts = {'2026-10-06': [{name: '<img src=x onerror=alert(1)>', start: '5:30a', end: '8:30a'}]}""")
+        html = self.rows("""truckShifts = {'2026-10-06': [{name: '<img src=x onerror=alert(1)>', start: '5:30a', end: '8:30a'}]}""")
         self.assertNotIn('<img', html)
 
 

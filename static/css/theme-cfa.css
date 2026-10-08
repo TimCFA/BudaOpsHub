@@ -1083,20 +1083,21 @@ body:not(.is-manager) .manager-only{display:none !important;}
 .shift-hint{min-height:1.4em;margin:-4px 0 12px;font-family:var(--font-ui);font-size:14px;font-weight:600;color:var(--cfa-navy);font-variant-numeric:tabular-nums;}
 .shift-hint.is-bad{color:var(--cfa-dark-red);}
 
-/* Set Ups: who has the Truck shift (truck.js). Red when a truck day has none. */
-.su-truck{margin:0 0 12px;padding:10px 14px;border:1px solid var(--border);border-radius:14px;background:var(--cfa-white);font-family:var(--font-ui);font-size:14px;color:var(--text-primary);}
-.su-truck.is-missing{border-color:var(--cfa-red);background:#FCEBE9;}
-.su-truck-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;}
-.su-truck-row + .su-truck-row{margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
-.su-truck-icon{flex:0 0 auto;color:var(--cfa-navy);}
-.su-truck.is-missing .su-truck-icon{color:var(--cfa-red);}
-.su-truck-k{font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-secondary);}
-.su-truck-k .es{text-transform:none;letter-spacing:0;}
-.su-truck-who{display:inline-flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums;}
+/* Set Ups roster: who has the Truck shift (truck.js), at the top and set
+   apart from the people on the floor: a navy rail and a Truck tag; red when
+   there's no Truck shift on the schedule. */
+.su-truck-group{margin:0 0 10px;padding-bottom:10px;border-bottom:1px dashed var(--border);}
+.su-roster-row.su-roster-truck{padding:10px 12px 10px 14px;border-left:4px solid var(--cfa-navy);border-radius:0 12px 12px 0;background:#EEF4F7;}
+.su-roster-row.su-roster-truck.is-missing{border-left-color:var(--cfa-red);background:#FCEBE9;}
+.su-truck-badge{display:inline-flex;align-items:center;gap:4px;margin-left:8px;padding:2px 9px;border-radius:999px;background:var(--cfa-navy);color:#fff;font-family:var(--font-ui);font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;vertical-align:2px;}
+.su-truck-badge .es{color:inherit;opacity:0.8;text-transform:none;letter-spacing:0;}
+.su-roster-truck.is-missing .su-truck-badge{margin:0 8px 0 0;background:var(--cfa-red);}
+.su-truck-icon{flex:0 0 auto;}
 .su-truck-miss{font-weight:700;color:var(--cfa-dark-red);}
-.su-truck-next.is-missing{margin:8px -14px -10px;padding:8px 14px 10px;border-radius:0 0 13px 13px;background:#FCEBE9;}
-.truck-days{display:flex;flex-wrap:wrap;gap:8px 16px;font-family:var(--font-ui);font-size:14px;}
-.truck-days label{display:inline-flex;align-items:center;gap:6px;}
+.su-truck-next{display:flex;align-items:center;gap:6px;margin:6px 2px 0;font-family:var(--font-ui);font-size:13px;font-weight:600;color:var(--text-secondary);font-variant-numeric:tabular-nums;}
+.su-truck-next .su-truck-icon{color:var(--cfa-navy);}
+.su-truck-next.is-missing{color:var(--cfa-dark-red);}
+.su-truck-next.is-missing .su-truck-icon{color:var(--cfa-red);}
 
 /* Waste export (waste-export.js): on the Waste page and in Manage */
 .wx-open{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 14px;border:1px solid var(--cfa-red);border-radius:18px;background:var(--cfa-white);font-family:var(--font-ui);font-size:13px;font-weight:700;color:var(--cfa-red);cursor:pointer;}
