@@ -66,26 +66,89 @@ document.getElementById('btnLock').addEventListener('click', async ()=>{
   }catch(err){ /* stay locked if the status check fails */ }
 })();
 
-// Collapsible accordion groups in Manage. Only "General Settings" starts open
-// (matches the .open class already on that group in the HTML).
-window.toggleManageGroup = function(headerEl){
-  headerEl.closest('.manage-group').classList.toggle('open');
-};
+// ---- One section at a time (Tim, Oct 2026) ----
+// Manage was nine stacked groups, thirty screens tall on a phone. Now the
+// chips at the top pick one section and only it shows; the device remembers
+// the last one picked.
+const MANAGE_TAB_KEY = 'cfaBudaManageTab';
+function manageShowTab(key){
+  const groups = [...document.querySelectorAll('#manageContent .manage-group')];
+  if(!groups.some(g => g.dataset.manageTab === key)) key = 'uploads';
+  groups.forEach(g => g.classList.toggle('is-active', g.dataset.manageTab === key));
+  document.querySelectorAll('[data-manage-go]').forEach(b => {
+    const on = b.dataset.manageGo === key;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-selected', on);
+  });
+  try{ localStorage.setItem(MANAGE_TAB_KEY, key); }catch(err){ /* private mode */ }
+}
+function manageCurrentTab(){
+  try{ return localStorage.getItem(MANAGE_TAB_KEY) || 'uploads'; }catch(err){ return 'uploads'; }
+}
+document.getElementById('manageTabs').addEventListener('click', e=>{
+  const b = e.target.closest('[data-manage-go]');
+  if(!b) return;
+  manageShowTab(b.dataset.manageGo);
+  const top = document.getElementById('manageContent').getBoundingClientRect().top + window.scrollY - 8;
+  if(window.scrollY > top) window.scrollTo({top});
+});
 
-document.getElementById('btnUpdateTarget').addEventListener('click', async ()=>{
-  const input = document.getElementById('targetInput');
-  const v = parseInt(input.value);
-  if(!isNaN(v) && v > 0){
+// ---- Saves as you go (Tim, Oct 2026) ----
+// No Save buttons: each Manage form saves on its own, when a field is left
+// and 1.5 s after the last keystroke. A save takes only the fields that
+// differ from what the form was drawn with (mvTake, TIM-53), so two managers
+// editing different fields never undo each other, and a redraw from another
+// device's changes waits while a field is being typed in (refreshManage).
+// Each card's note says when it last saved.
+const MV_AUTOSAVE = {
+  pillarsManageList: () => savePillars(true),
+  metricsManageList: () => saveLXScoreboard(true),
+  gxManageList: () => saveGXScoreboard(true),
+  homeManageList: () => saveHomeScoreboard(true),
+  txManageList: () => saveTXScoreboard(true),
+};
+const mvTimers = {};
+function mvSavedNote(el){
+  const card = el && el.closest ? el.closest('.standup-card') : null;
+  const note = card && card.querySelector('[data-mv-saved]');
+  if(note) note.textContent = 'Saved · ' + new Date().toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'});
+}
+async function mvAutosave(id){
+  clearTimeout(mvTimers[id]);
+  const root = document.getElementById(id);
+  if(!root || !MV_AUTOSAVE[id]) return;
+  await MV_AUTOSAVE[id]();
+  mvSavedNote(root);
+}
+window.txAutosave = () => mvAutosave('txManageList');
+Object.keys(MV_AUTOSAVE).forEach(id=>{
+  const root = document.getElementById(id);
+  if(!root) return;
+  root.addEventListener('change', () => mvAutosave(id));
+  root.addEventListener('input', e=>{
+    if(!e.target.matches('input[type="text"], textarea')) return;
+    clearTimeout(mvTimers[id]);
+    mvTimers[id] = setTimeout(() => mvAutosave(id), 1500);
+  });
+});
+
+// The daily waste limit saves when the field is left.
+document.getElementById('targetInput').addEventListener('change', async e=>{
+  const input = e.target;
+  const v = parseInt(input.value, 10);
+  if(isNaN(v) || v <= 0){ input.value = wasteTarget; showToast('The limit needs to be a number of dollars'); return; }
+  if(v !== wasteTarget){
     wasteTarget = v;
-    input.defaultValue = input.value;
     syncTodayWasteDay();
     await saveState();
     renderScoreboardView();
-    showToast('✓ Limit Updated');
   }
+  input.defaultValue = input.value;
+  mvSavedNote(input);
 });
 
 async function renderManage(){
+  manageShowTab(manageCurrentTab());
   renderDataUploads();
   renderPeaManage();
   if(document.getElementById('manageContent').style.display === 'block'){ peaAutoSync(); duCheckBackup(); }
@@ -124,6 +187,10 @@ function refreshManage(opening){
 // than deleted so the history keeps its name and price.
 
 let wiQuery = '', wiCat = 'All', wiUnpriced = false, wiColor = '';
+// The list starts at 20 items (Tim, Oct 2026: a hundred rows ran eight
+// screens); search, a category or "Show all" opens the rest.
+const WI_FIRST = 20;
+let wiShowAll = false;
 
 async function saveProductsAndRefresh(){
   await saveState();
@@ -147,6 +214,8 @@ function renderProductManager(){
     && (!q || p.name.toLowerCase().includes(q) || (p.es || '').toLowerCase().includes(q) || p.cat.toLowerCase().includes(q)))
     .sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
   const unpriced = products.filter(p => !(Number(p.cost) > 0)).length;
+  const filtered = !!q || wiCat !== 'All' || wiUnpriced || wiShowAll;
+  const shown = filtered ? rows : rows.slice(0, WI_FIRST);
   list.innerHTML = `
     <div class="wi-tools">
       <input type="search" class="wi-search" data-wi-search placeholder="Search items" value="${escapeHtml(wiQuery)}" autocomplete="off" aria-label="Search items">
@@ -154,14 +223,15 @@ function renderProductManager(){
       <button type="button" class="wi-filter ${wiUnpriced ? 'is-on' : ''}" data-wi-unpriced aria-pressed="${wiUnpriced}">No price set${unpriced ? ` (${unpriced})` : ''}</button>
       <button type="button" class="wi-add" data-wi-add>+ Add item</button>
     </div>
-    <div class="wi-count">${rows.length} of ${products.length} items</div>
-    <div class="wi-list">${rows.length ? rows.map(p => `
+    <div class="wi-count">${shown.length < rows.length ? `First ${shown.length} of ${rows.length} items, A to Z` : `${rows.length} of ${products.length} items`}</div>
+    <div class="wi-list">${shown.length ? shown.map(p => `
       <button type="button" class="wi-row ${p.active === false ? 'is-off' : ''}" data-wi-edit="${escapeHtml(p.id)}">
         <span class="wi-dot" style="--c:${wasteItemColor(p)}"></span>
         <span class="wi-nm"><b>${escapeHtml(p.name)}${p.active === false ? '<span class="wi-tag">Hidden</span>' : ''}</b><span>${escapeHtml(p.es || '')}${p.es ? ' · ' : ''}${escapeHtml(p.cat)} · ${wasteSideLabel(p.side)}${p.ceil > 0 ? ` · Ceiling ${p.ceil}` : ''}</span></span>
         <span class="wi-un">${escapeHtml(p.unit)}</span>
         <span class="wi-pr ${Number(p.cost) > 0 ? '' : 'is-none'}">${Number(p.cost) > 0 ? wasteMoney(p.cost) : 'no price'}</span>
-      </button>`).join('') : '<div class="empty-state">No items match.</div>'}</div>`;
+      </button>`).join('') : '<div class="empty-state">No items match.</div>'}</div>
+    ${shown.length < rows.length ? `<button type="button" class="wi-more" data-wi-more>Show all ${rows.length} items</button>` : ''}`;
 }
 
 function wasteItemModal(id){
@@ -266,6 +336,7 @@ document.getElementById('prodList').addEventListener('click', e => {
   const row = e.target.closest('[data-wi-edit]');
   if(row){ wasteItemModal(row.dataset.wiEdit); return; }
   if(e.target.closest('[data-wi-unpriced]')){ wiUnpriced = !wiUnpriced; renderProductManager(); }
+  if(e.target.closest('[data-wi-more]')){ wiShowAll = true; renderProductManager(); }
 });
 document.getElementById('prodList').addEventListener('input', e => {
   if(e.target.matches('[data-wi-search]')){ wiQuery = e.target.value; renderProductManager(); const s = document.querySelector('[data-wi-search]'); if(s){ s.focus(); s.setSelectionRange(s.value.length, s.value.length); } }
@@ -274,36 +345,22 @@ document.getElementById('prodList').addEventListener('change', e => {
   if(e.target.matches('[data-wi-cat]')){ wiCat = e.target.value; renderProductManager(); }
 });
 
-document.getElementById('btnSaveLX').addEventListener('click', saveLXScoreboard);
-
 document.addEventListener('click', (e) => {
-  if(e.target && e.target.id === 'btnSavePillars'){
-    savePillars();
-  }
-  if(e.target && e.target.id === 'btnSaveGX'){
-    saveGXScoreboard();
-  }
-  if(e.target && e.target.id === 'btnSaveTX'){
-    saveTXScoreboard();
-  }
-  if(e.target && e.target.id === 'btnSaveHome'){
-    saveHomeScoreboard();
-  }
   if(e.target && e.target.id === 'btnAddTXEvent'){
     txData.events.push({id: 'evt' + Date.now(), name: 'New Event', date: toLocalISODate(new Date())});
-    renderTXManage();
+    renderTXManage(); txAutosave();
   }
   if(e.target && e.target.id === 'btnAddTXTrial'){
     txData.trialTrainers.push({id: 'trial' + Date.now(), name: 'New Trainer', startDate: toLocalISODate(new Date())});
-    renderTXManage();
+    renderTXManage(); txAutosave();
   }
   if(e.target && e.target.id === 'btnAddTXCert'){
     txData.certCompetitive.push({id: 'cert' + Date.now(), name: 'New Person', level: 'Trainer', targetDate: toLocalISODate(new Date())});
-    renderTXManage();
+    renderTXManage(); txAutosave();
   }
   if(e.target && e.target.id === 'btnAddTXCeleb'){
     txData.celebrations.push({id: 'celeb' + Date.now(), name: 'New Person', date: '01-01', type: 'birthday'});
-    renderTXManage();
+    renderTXManage(); txAutosave();
   }
 });
 

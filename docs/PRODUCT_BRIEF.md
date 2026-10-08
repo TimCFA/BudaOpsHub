@@ -339,8 +339,29 @@ manager section, manager-only on the server.
   Tracker**.
 
 ### Manage (PIN)
-Data Uploads, Events Calendar, Know the Numbers, Talent Development, Scoreboards, Home Page,
-Waste Tracking (limit, products), PEA Ratings, Backup & Data.
+One section at a time (Tim, Oct 2026: the nine stacked groups ran thirty
+phone screens): chips at the top, Uploads · Numbers · Events · Scoreboards ·
+Talent · Waste · PEA · Settings, pick one and only it shows; the device
+remembers the last one (`manageShowTab`, manage-and-import.js). Each kind of
+data has one home: every file upload is in Uploads (Know the Numbers keeps
+its day editor and "Fill from the Forecast"; the numbers template is on the
+Uploads row); Guest Obsession figures that come from the CEM and Analytics
+Hub uploads show as read-only figures; PEA keeps its reports. Set-once things
+live in Settings: Launch mode (one line, "What this means" opens the rest),
+the daily waste limit, the Home page text and the Full Backup. Waste holds
+the export panel and the item catalog.
+
+**Saves as you go** (no Save buttons): LX, Guest Obsession, the custom
+trackers, TX, the waste limit and the Home page save when a field is left and
+1.5 s after the last keystroke, taking only the fields that differ from what
+the form was drawn with (`mvTake`, TIM-53), so two managers editing different
+fields never undo each other; each card's note says when it last saved. A
+redraw from another device's changes (`refreshManage`) still waits while a
+field holds unsaved typing or the cursor. Long lists start short: Uploads
+shows only what's due ("Show the N up to date"), the waste items the first 20
+A to Z ("Show all"; search or a category shows every match), and the LX
+pillars are a list where tapping one opens its focus, goal and initiatives
+(the one open before is saved first).
 
 **Full Backup** (Backup & Data): one tap downloads everything the hub has
 saved as one JSON file (`budaopshub-full-backup-<date>.json`). It comes from
