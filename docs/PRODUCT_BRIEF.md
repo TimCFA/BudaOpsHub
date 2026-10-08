@@ -81,8 +81,15 @@ for the full site. Managers turn launch mode off for everyone in Manage.
 - Daypart cards show their Know the Numbers line (projected sales, $/labor
   hour goal, special event; once typed, the actual sales and how far off
   projection, e.g. "$4,061 actual −3.7%") in both the Set up and Coach views.
-  **Actuals** are typed by hand on Manage → Know the Numbers under each
-  daypart (Actual Sales, Actual Productivity in $/labor hour), and the card
+  **Actuals** are the only numbers typed by hand (Tim, Oct 2026): Manage →
+  Numbers is a month calendar (Monday–Saturday) where each day shows whether
+  its actuals are in (green check), still needed (dashed, for a day with a
+  projection whose dayparts are over), or its projected total ahead. Tapping a
+  day opens its four dayparts: projected sales and goal shown, not typed (they
+  come from the Forecast or the numbers file), special events from the Events
+  calendar, and two boxes, Actual Sales and Actual Productivity ($/labor
+  hour). The last two weeks can be typed in; older days show what was saved
+  (numbersHistory) read-only. The card
   shows sales vs projected (dollars and percent) and productivity vs goal
   (dollars). They're kept for a year with the plan (numbersHistory). Numbers are
   kept for the **four major dayparts only, on Analytics Hub's hours**
@@ -293,6 +300,27 @@ how many adjusted days the adjustment helped, and which way the sent
 forecast leans.
 No sample data, ever — an empty history shows an empty page.
 
+### Uniforms (managers only, for now)
+The uniform order form (`static/js/uniform-orders.js`), moved in from
+Connecteam (Tim, Oct 2026). Same questions as the Connecteam form: full name
+(typed, or picked from this week's schedule), role (Team Member, Trainer, Team
+Leader), split payment between two checks, then the items by section
+(Outerwear for Women, Outerwear for Men, Pants/Shorts/Skirts, Accessories,
+Shoes) with color, size and quantity. Buda FSU only, so no store question.
+The order comes out of the team member's paycheck once it's placed; the
+total shows, and the two-check split when asked for (the first check takes
+the odd cent).
+
+Leaders only for now (the tab is `.manager-only`): a leader fills it in with
+the team member. The Orders side lists them New → Ordered → Handed out, with
+Undo and Delete and a CSV (one row per item) for placing the order and for
+payroll. The items, prices, colors and sizes are edited in **Manage →
+Uniforms**; until then the list is the six women's outerwear items
+Connecteam's form showed (Tim's PDF), and the rest are added there, never
+guessed. Each order keeps the item names and prices as ordered.
+`uniformOrders` and `uniformCatalog` are in the private `orders` section:
+only a manager session is sent them or can change them.
+
 ### Calendar (managers only, for now)
 The store's events calendar (`static/js/events.js`), its own tab, drawn like
 the printed calendar the store hands out: the month in big coral type, the
@@ -319,8 +347,8 @@ forecast's unusual-day rule (`fcEventFor`). Month-long events (the samples),
 Community Outreach, Cow in Community, social posts and heads-ups don't count.
 A manager can tick or untick any one event in Manage → Events Calendar
 (saved as `kn` only when it differs from the rule); Manage → Know the
-Numbers shows "From the calendar: …" under each daypart's Special Events box
-without writing it into the typed field. The chips on Set Ups skip events
+Numbers shows each daypart's special events (anything typed earlier plus the
+calendar's) under its projection; nothing is typed there any more. The chips on Set Ups skip events
 already on the numbers line.
 
 Tim wants it hidden while it's being shaped (Oct 2026): the tab and the Set

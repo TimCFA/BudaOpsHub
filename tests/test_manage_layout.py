@@ -15,7 +15,7 @@ class Chips(unittest.TestCase):
     def test_every_chip_has_a_section_and_every_section_a_chip(self):
         chips = re.findall(r'data-manage-go="([a-z]+)"', MANAGE)
         groups = re.findall(r'data-manage-tab="([a-z]+)"', MANAGE)
-        self.assertEqual(chips, ['uploads', 'numbers', 'events', 'scoreboards', 'talent', 'waste', 'pea', 'settings'])
+        self.assertEqual(chips, ['uploads', 'numbers', 'events', 'scoreboards', 'talent', 'waste', 'uniforms', 'pea', 'settings'])
         self.assertEqual(groups, chips)
 
     def test_no_accordion_left(self):
@@ -51,7 +51,7 @@ class OneHomePerKindOfData(unittest.TestCase):
         settings = MANAGE[MANAGE.index('data-manage-tab="settings"'):]
         for inside in ('launchModeToggle', 'targetInput', 'homeManageList', 'btnExportBackup'):
             self.assertIn(f'id="{inside}"', settings, inside)
-        waste = MANAGE[MANAGE.index('data-manage-tab="waste"'):MANAGE.index('data-manage-tab="pea"')]
+        waste = MANAGE[MANAGE.index('data-manage-tab="waste"'):MANAGE.index('data-manage-tab="uniforms"')]
         for inside in ('wasteExportManageRoot', 'prodList'):
             self.assertIn(f'id="{inside}"', waste, inside)
         self.assertNotIn('targetInput', waste)

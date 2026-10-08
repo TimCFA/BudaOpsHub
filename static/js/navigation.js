@@ -1,6 +1,6 @@
 function activateView(view){
-  // The Calendar is managers-only for now (Tim, Oct 2026).
-  if(view === 'calendar' && typeof launchManager !== 'undefined' && !launchManager) view = 'home';
+  // The Calendar and Uniforms are managers-only for now (Tim, Oct 2026).
+  if((view === 'calendar' || view === 'uniforms') && typeof launchManager !== 'undefined' && !launchManager) view = 'home';
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
   document.getElementById(view+'View').classList.add('active');
   if(view === 'positions') renderPositionsTab();
@@ -18,6 +18,7 @@ function activateView(view){
   if(view === 'home') renderHomeScoreboard();
   if(view === 'forecast') renderForecastView();
   if(view === 'calendar' && typeof renderCalendarView === 'function') renderCalendarView();
+  if(view === 'uniforms' && typeof renderUniformsView === 'function') renderUniformsView();
   if(view === 'manage' && typeof refreshManage === 'function') refreshManage();
   if(typeof launchSubnavRender === 'function') launchSubnavRender(view);
 }

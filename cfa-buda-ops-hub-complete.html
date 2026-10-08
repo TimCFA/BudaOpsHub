@@ -61,6 +61,7 @@
       <button type="button" class="tab full-only" role="tab" aria-selected="false" aria-controls="scoreboardView" data-view="scoreboard">Scoreboard <span class="sub"><i>Tableros</i></span></button>
       <button type="button" class="tab full-only" role="tab" aria-selected="false" aria-controls="forecastView" data-view="forecast">Forecast <span class="sub"><i>Pronóstico</i></span></button>
       <button type="button" class="tab manager-only" role="tab" aria-selected="false" aria-controls="calendarView" data-view="calendar">Calendar <span class="sub"><i>Calendario</i></span></button>
+      <button type="button" class="tab manager-only" role="tab" aria-selected="false" aria-controls="uniformsView" data-view="uniforms">Uniforms <span class="sub"><i>Uniformes</i></span></button>
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="manageView" data-view="manage">Manage <span class="sub"><i>Gestionar</i></span></button>
     </div>
   </div>
@@ -825,6 +826,12 @@
     <div class="cal-page" id="calendarRoot"></div>
   </div>
 
+  <!-- Uniforms View: the uniform order form and the orders (uniform-orders.js).
+       Managers only for now: a leader fills it in with the team member. -->
+  <div class="view" id="uniformsView">
+    <div class="uo-page" id="uniformsRoot"></div>
+  </div>
+
   <div class="view" id="manageView">
     <div id="pinGate" class="pin-gate">
       <div style="font-size:14px;margin-bottom:20px;font-weight:600;">Enter PIN to manage <span style="display:block;font-size:12px;font-style:italic;color:var(--text-secondary);font-weight:400;">Ingrese PIN</span></div>
@@ -845,6 +852,7 @@
         <button type="button" class="manage-tab" role="tab" id="manageTab-scoreboards" data-manage-go="scoreboards" aria-selected="false">Scoreboards</button>
         <button type="button" class="manage-tab" role="tab" id="manageTab-talent" data-manage-go="talent" aria-selected="false">Talent</button>
         <button type="button" class="manage-tab" role="tab" id="manageTab-waste" data-manage-go="waste" aria-selected="false">Waste</button>
+        <button type="button" class="manage-tab" role="tab" id="manageTab-uniforms" data-manage-go="uniforms" aria-selected="false">Uniforms</button>
         <button type="button" class="manage-tab" role="tab" id="manageTab-pea" data-manage-go="pea" aria-selected="false">PEA</button>
         <button type="button" class="manage-tab" role="tab" id="manageTab-settings" data-manage-go="settings" aria-selected="false">Settings</button>
       </nav>
@@ -866,18 +874,11 @@
         <div class="manage-group-body">
 <div class="standup-card">
             <h3>Know the Numbers</h3>
-            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Projected sales, productivity goal, special events and the actuals, by daypart. Saves as you go.</p>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Tap a day to type its actual sales and productivity. Saves as you go.</p>
             <div class="kn-upload">
               <button type="button" id="knFromForecast" class="btn btn-ghost full-only">Fill from the Forecast</button>
-              <p class="kn-help">Projected sales and productivity goals come in through <b>Uploads</b> (the numbers file) or the Forecast. Special events and the actuals are typed in here.</p>
+              <p class="kn-help">Projected sales and productivity goals come from the Forecast or the numbers file in <b>Uploads</b>; special events from the Events calendar.</p>
             </div>
-            <div class="week-toggle">
-              <button type="button" class="week-toggle-btn active" aria-pressed="true" data-offset="0">This Week</button>
-              <button type="button" class="week-toggle-btn" aria-pressed="false" data-offset="1">Next Week</button>
-            </div>
-            <div class="day-picker" id="numbersDayPicker"></div>
-            <select id="numbersDaySelect" style="display:none;"></select>
-            <div id="numbersSelectedInfo" class="day-info-bar"></div>
             <div id="numbersContent"></div>
           </div>
         </div>
@@ -953,6 +954,18 @@
             <h3>Waste items</h3>
             <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">What shows on the Waste tracker, with each item's cost per unit, an optional daily ceiling (the tile flags it when today's count reaches it), tile color and Spanish name. Tap an item to edit it. An item with waste history is hidden, not deleted, so its history stays.</p>
             <div id="prodList"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- GROUP: Uniforms (the order form's items) -->
+      <section class="manage-group" data-manage-tab="uniforms" aria-labelledby="manageTab-uniforms">
+        <div class="manage-group-body">
+
+          <div class="standup-card">
+            <h3>Uniform items</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">What the order form on the Uniforms tab offers, with each item's price, colors and sizes. A change here never alters an order already placed.</p>
+            <div id="uniformCatalogRoot"></div>
           </div>
         </div>
       </section>
@@ -1062,6 +1075,7 @@
 <script src="/static/js/shift-time.js"></script>
 <script src="/static/js/daypicker-and-positions.js"></script>
 <script src="/static/js/truck.js"></script>
+<script src="/static/js/uniform-orders.js"></script>
 <script src="/static/js/custom-scoreboards.js"></script>
 <script src="/static/js/operational-intelligence.js"></script>
 <script src="/static/js/weekly-roster-import.js"></script>

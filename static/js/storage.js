@@ -29,6 +29,7 @@ const STATE_SECTIONS = {
   prepTimes: ['prepTimes', 'prepTimers'],
   cem: ['cemEntries'],
   forecast: ['salesHistory', 'forecastSettings', 'forecastLog', 'daypartWeeks'],
+  orders: ['uniformOrders', 'uniformCatalog'],
   misc: []
 };
 const STATE_SECTION_OF = {};
@@ -68,7 +69,8 @@ function stateSnapshot(){
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
     prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, launchMode, prepTimes, prepTimers,
-    salesHistory, forecastSettings, forecastLog, daypartWeeks, zoneOwners, posNotes, storeEvents, truckShifts
+    salesHistory, forecastSettings, forecastLog, daypartWeeks, zoneOwners, posNotes, storeEvents, truckShifts,
+    uniformOrders, uniformCatalog
   };
 }
 
@@ -456,6 +458,10 @@ function applyStateData(data){
   forecastSettings = (data.forecastSettings && typeof data.forecastSettings === 'object' && !Array.isArray(data.forecastSettings)) ? data.forecastSettings : {};
   forecastLog = (data.forecastLog && typeof data.forecastLog === 'object' && !Array.isArray(data.forecastLog)) ? data.forecastLog : {};
   daypartWeeks = (data.daypartWeeks && typeof data.daypartWeeks === 'object' && !Array.isArray(data.daypartWeeks)) ? data.daypartWeeks : {};
+  // Uniform orders and the order form's items (manager sessions only).
+  uniformOrders = Array.isArray(data.uniformOrders) ? data.uniformOrders : [];
+  uniformCatalog = Array.isArray(data.uniformCatalog) ? data.uniformCatalog : null;
+  if(typeof uoRerender === 'function') uoRerender();
 }
 
 // ===== OTHER PEOPLE'S CHANGES =====

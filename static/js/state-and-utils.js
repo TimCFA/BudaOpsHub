@@ -19,6 +19,8 @@ let foodSafetyDays = [];
 let wasteDays = [];
 let rosterPosted = {};   // {date: {foh: [...], boh: [...], at}}: each day's posted schedule (roster-changes.js)
 let truckShifts = {};    // {date: [{name, start, end, source: 'schedule' | 'manual', addedBy, addedAt}]}: who's doing truck (truck.js)
+let uniformOrders = [];  // uniform orders, newest last (uniform-orders.js); manager sessions only
+let uniformCatalog = null; // the order form's items; null until a manager edits: UNIFORM_SEED shows
 let foodSafetyStreak = 0;
 let wasteStreak = 0;
 let wasteLogLastClosedOut = null; // timestamp of the last manual export+reset, shown in Manage
@@ -149,7 +151,6 @@ function formatLastUpdated(ts){
   return d.toLocaleDateString('en-US', {month: 'short', day: 'numeric'}) + ' at ' + d.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'});
 }
 
-let currentWeekOffset = 0;
 
 function touchLastUpdated(dateISO){
   if(!dateISO) return;
