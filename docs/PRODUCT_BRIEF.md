@@ -336,6 +336,25 @@ Pre-Checklist. On a phone the grid shows titles only and the goals sit above
 it. Set Ups shows the same events by itself, nothing retyped: an Events strip
 above the cards for all-day ones and a chip on each daypart card an event overlaps.
 
+**Reading the month's calendar image** (`static/js/events-import.js`, Tim,
+Oct 2026): Manage → Events Calendar → "Read a calendar image" takes the PNG
+or JPG of the marketing calendar template and lists what's on it: each
+day's events (the kind from the ink color, the key's colors), bars that run
+across days as one event with an end date (a bar continued on the next row
+is one event), times ("6-7 PM", "3pm-6pm", "6AM-4PM", "11-8" as store
+hours), "Name: detail" split ("12 Days of Christmas: Brownie"), Monthly
+Goals, the Pre-Checklist, and the Notes box attached to the events it heads
+(headings that match nothing are listed, not added). The month comes from
+the title and can be changed. Nothing is added until a manager has checked
+the list: every item's type, name, dates, times and detail can be fixed, any
+can be unticked; ones already on the calendar and ones written on a grey day
+of the next or last month start unticked; a small misread of a name the
+calendar already uses ("Community Outreact") takes that name. The words are
+read on the device with Tesseract.js (pinned, loaded from jsDelivr only when
+an image is picked); the image goes nowhere. Black "CLOSED" and store-hours
+lines read as heads-ups, not social posts. Checked against the November and
+December 2026 calendars.
+
 **Calendar → Know the Numbers** (Tim, Oct 2026): the short events held at the
 store (In-Store, Drive Thru and App events of a week or less: Free Breakfast
 Tuesday, Pack the Drive Thru, Family Night, Halloween Week Promo) count as

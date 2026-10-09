@@ -154,6 +154,7 @@ async function renderManage(){
   if(document.getElementById('manageContent').style.display === 'block'){ peaAutoSync(); duCheckBackup(); }
   renderNumbersTab();
   if(typeof renderEventsManage === 'function') renderEventsManage();
+  if(typeof eviRender === 'function') eviRender();
   if(typeof renderUniformCatalogManage === 'function') renderUniformCatalogManage();
   refreshManage(true);
 }
