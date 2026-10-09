@@ -668,6 +668,19 @@ body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="z
 .fc-inline-select{font-family:var(--font-ui);font-size:13px;border:1px solid var(--border);border-radius:999px;padding:4px 10px;background:var(--cfa-white);color:var(--text-primary);margin-left:6px;}
 /* Controls */
 .fc-controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px 14px;margin-bottom:14px;}
+.fc-settings{grid-column:1 / -1;border-top:1px solid var(--border);padding-top:10px;margin-top:2px;}
+.fc-settings summary{display:block;list-style:none;cursor:pointer;padding:8px 0;font-family:var(--font-ui);line-height:1.4;}
+.fc-settings summary::-webkit-details-marker{display:none;}
+.fc-settings-k{display:inline-block;margin-right:12px;font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-secondary);}
+.fc-settings-k::before{content:"";display:inline-block;width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);margin:0 8px 2px 2px;transition:transform .15s;}
+.fc-settings[open] .fc-settings-k::before{transform:rotate(45deg);}
+.fc-settings-v{display:inline-block;font-size:13px;color:var(--text-primary);}
+.fc-settings-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px 14px;padding-top:12px;}
+.fc-section-head{margin:22px 0 12px;} .fc-section-head h3{margin:0 0 4px;font-family:var(--font-display);font-size:19px;font-weight:600;} .fc-section-head .fc-lede{margin:0;}
+.fc-lede-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 14px;}
+.fc-inline-label{display:inline-flex;align-items:center;gap:0;font-size:12px;color:var(--text-tertiary);white-space:nowrap;}
+.fc-pickline{margin:0 0 12px;}
+.fc-only-sm{display:none;} @media (max-width:720px){.fc-only-sm{display:inline;}}
 .fc-field{display:flex;flex-direction:column;gap:5px;min-width:0;}
 .fc-field[hidden]{display:none;}
 .fc-field > label,.fc-field > span{font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-secondary);}
@@ -736,7 +749,7 @@ body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="z
 .fc-kpi-label{font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-secondary);}
 .fc-kpi-value{font-family:var(--font-display);font-weight:700;font-size:28px;margin-top:4px;color:var(--text-primary);}
 .fc-kpi-note{font-size:12px;color:var(--text-tertiary);margin-top:4px;}
-.fc-kpi-note.is-up,.fc-kpi-note.is-good{color:var(--success);} .fc-kpi-note.is-down,.fc-kpi-note.is-bad{color:var(--cfa-dark-red);} .fc-kpi-note.is-warn{color:#7A4C00;}
+.fc-kpi-value.is-up,.fc-kpi-value.is-good{color:var(--success);} .fc-kpi-value.is-down,.fc-kpi-value.is-bad{color:var(--cfa-dark-red);} .fc-kpi-value.is-warn{color:#7A4C00;}
 /* Charts */
 .fc-chart-card{margin-bottom:14px;}
 .fc-chart-card h3{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
@@ -795,13 +808,21 @@ body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="z
   .fc-sum-stat{padding:10px;} .fc-sum-stat .value{font-size:20px;}
   .fc-kpis{grid-template-columns:1fr 1fr;} .fc-kpis-3{grid-template-columns:1fr 1fr;}
   .fc-two{grid-template-columns:1fr;}
-  .fc-controls{grid-template-columns:1fr 1fr;}
+  .fc-controls{grid-template-columns:1fr 1fr;} .fc-settings-grid{grid-template-columns:1fr 1fr;}
+  .fc-hide-sm{display:none !important;}
+  #fcPanelForecast > .fc-table-wrap > .fc-table{min-width:0;font-size:13px;}
+  #fcPanelForecast > .fc-table-wrap > .fc-table th,#fcPanelForecast > .fc-table-wrap > .fc-table td{padding:10px 6px;}
+  #fcPanelForecast > .fc-table-wrap > .fc-table .fc-adjcell .fc-adj-suffix{display:none;}
+  .fc-adj{width:48px;} .fc-step{width:28px;height:28px;} .fc-event{max-width:110px;}
+  #fcPanelForecast > .fc-table-wrap > .fc-table td:first-child{white-space:normal;}
+  #fcPanelForecast > .fc-table-wrap > .fc-table td:first-child .fc-muted{display:block;}
 }
 @media (max-width:480px){
   .fc-tabs{border-radius:14px;} .fc-tab{padding:8px 6px;font-size:12px;}
   .fc-table-numbers th:first-child,.fc-table-numbers td:first-child{white-space:normal;max-width:120px;font-size:12px;}
   .fc-sum-stats{grid-template-columns:1fr 1fr;}
   .fc-kpi-value{font-size:22px;}
+  .fc-kpis-3{grid-template-columns:1fr;}
 }
 
 /* ---- Zone resets owned by positions, and signed position notes ---- */

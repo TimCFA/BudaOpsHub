@@ -202,7 +202,8 @@ Assign team members to positions for each daypart, FOH and BOH.
 - Assigning must feel instant (it once took ~2 seconds; that was unacceptable).
 
 ### Waste
-- **Log Waste**: tap a product, set quantity, submit; FOH/BOH toggle; recent
+- **Log Waste**: tap a product, set quantity, submit; FOH/BOH toggle (its
+  own, like Set Ups': tapping one never clears or flips the other); recent
   entries list (last 15 minutes). Products have costs and Spanish names.
 - **Scoreboard**: a thermometer of today's waste in dollars against a **daily
   limit** (default $100, set in Manage). **Waste is bad: lower is better**, so
@@ -299,6 +300,19 @@ kept in a forecast log (private, 120 days) and scored on the Accuracy tab's
 how many adjusted days the adjustment helped, and which way the sent
 forecast leans.
 No sample data, ever — an empty history shows an empty page.
+**The Forecast tab's layout** (audited Oct 2026): Start and Days are the
+only controls out in the open; the look-back window, model and labor target
+sit behind a Settings line that reads back what's set ("weekday average ·
+$175 / labor hour") and stays open across redraws. The adjust row has no 0%
+chip (Reset does that). On a phone the forecast table keeps Day, Adjustment,
+Forecast and Hrs; Last year, Baseline and Transactions are desktop columns
+(`fc-hide-sm`), so nothing clips. The Accuracy tab reads top to bottom: Your
+track record (what was sent), The model on its own (the backtest's figures,
+chart and days), then How the model was chosen (the window and mix tables).
+A KPI's tone colors its figure, never its note, and the Sales by week chart's
+floor sits just under the data rather than at $0, so three close weeks don't
+draw as a flat line.
+
 
 ### Uniforms (managers only, for now)
 The uniform order form (`static/js/uniform-orders.js`), moved in from
