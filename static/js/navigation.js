@@ -92,9 +92,12 @@ document.addEventListener('click', (e)=>{
 let tabDropdownOpenedAt = 0;
 window.addEventListener('scroll', ()=>{ if(Date.now() - tabDropdownOpenedAt > 400) closeAllTabDropdowns(); }, true);
 
-document.querySelectorAll('.toggle-btn').forEach(t=>{
+// The Waste tracker's FOH/BOH toggle only: Set Ups has its own (#posToggle,
+// fohoe-and-safecount.js). Binding every .toggle-btn here used to clear the
+// other page's pill and flip this section from the Set Ups toggle (Tim).
+document.querySelectorAll('#logToggle .toggle-btn').forEach(t=>{
   t.addEventListener('click',()=>{
-    document.querySelectorAll('.toggle-btn').forEach(x=>{x.classList.remove('active'); x.setAttribute('aria-pressed', 'false');});
+    document.querySelectorAll('#logToggle .toggle-btn').forEach(x=>{x.classList.remove('active'); x.setAttribute('aria-pressed', 'false');});
     t.classList.add('active');
     t.setAttribute('aria-pressed', 'true');
     currentSection = t.dataset.section;

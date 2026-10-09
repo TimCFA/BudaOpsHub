@@ -536,6 +536,7 @@ function fcAnalysisFor(s){
 // window on the last 28 open days, and give every weekday the window that
 // was closest for it (the overall best until a weekday has 3 scored days).
 let fcLookbackMemo = null;
+let fcSettingsOpen = false;   // Forecast tab: the Settings disclosure, kept open across redraws
 function fcLookbackPick(hist, testDays){
   const h = hist || salesHistory;
   const keys = Object.keys(h);
@@ -1014,7 +1015,7 @@ function fcTrackRecordHtml(){
   const rows = t.rows.map(r => `<tr class="${r.adj ? 'is-adjusted' : ''}"><td><b>${FC_DOW[r.dow]}</b> <span class="fc-muted">${fcShort(r.date)}</span></td><td class="fc-num">${fcMoney(r.sent)}${r.adj ? `<span class="fc-muted"> (${fcPctFmt(r.adj, 0)})</span>` : ''}</td><td class="fc-num">${fcMoney(r.baseline)}</td><td class="fc-num">${fcMoney(r.actual)}</td><td><span class="fc-pill ${tier(r.accuracy)}">${r.accuracy.toFixed(1)}%</span></td><td class="fc-num">${r.baselineAccuracy.toFixed(1)}%</td></tr>`).join('');
   return `<div class="standup-card fc-compare"><h3>Your track record <span class="sub">what was sent to Know the Numbers, against what happened</span></h3>
     ${head}
-    ${t.days ? `<div class="fc-table-wrap"><table class="fc-table fc-table-sm"><thead><tr><th>Day</th><th class="fc-num">Sent</th><th class="fc-num">Model alone</th><th class="fc-num">Actual</th><th>Accuracy</th><th class="fc-num">Model alone</th></tr></thead><tbody>${rows}</tbody></table></div>` : ''}
+    ${t.days ? `<div class="fc-table-wrap"><table class="fc-table fc-table-sm"><thead><tr><th>Day</th><th class="fc-num">Sent</th><th class="fc-num">Model alone</th><th class="fc-num">Actual</th><th>Sent accuracy</th><th class="fc-num">Model accuracy</th></tr></thead><tbody>${rows}</tbody></table></div>` : ''}
     ${t.waiting.length ? `<p class="fc-muted">${t.waiting.length} day${t.waiting.length === 1 ? '' : 's'} sent and waiting for actuals (${fcShort(t.waiting[0])}${t.waiting.length > 1 ? ` – ${fcShort(t.waiting[t.waiting.length - 1])}` : ''}) — they score once the DayTrack export covering them is uploaded.</p>` : ''}
   </div>`;
 }
@@ -1102,15 +1103,17 @@ const FC_ICON = {
   lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>'
 };
 
+// `tone` (is-up, is-down, is-good, is-warn, is-bad) colors the figure; the
+// note under it stays quiet, so a plain fact there never reads as a warning.
 function fcKpi(icon, label, value, note, tone){
-  return `<div class="fc-kpi"><div class="fc-kpi-ic">${icon}</div><div class="fc-kpi-label">${label}</div><div class="fc-kpi-value">${value}</div>${note ? `<div class="fc-kpi-note ${tone || ''}">${note}</div>` : ''}</div>`;
+  return `<div class="fc-kpi"><div class="fc-kpi-ic">${icon}</div><div class="fc-kpi-label">${label}</div><div class="fc-kpi-value ${tone || ''}">${value}</div>${note ? `<div class="fc-kpi-note">${note}</div>` : ''}</div>`;
 }
 function fcLookbackLabel(a, s){
   if(s.lookback === 'auto') return a && a.lookbackPick ? `best-fit window (${a.lookbackPick.overall} weeks overall)` : 'best-fit window';
   const weeks = +s.lookback;
   return weeks > 0 ? `last ${weeks} weeks` : 'all history';
 }
-const FC_LOOKBACK_OPTS = [['auto', 'Best fit (per weekday)'], [4, '4 weeks'], [8, '8 weeks'], [12, '12 weeks'], [26, '26 weeks'], [0, 'All history']];
+const FC_LOOKBACK_OPTS = [['auto', 'Best fit'], [4, '4 weeks'], [8, '8 weeks'], [12, '12 weeks'], [26, '26 weeks'], [0, 'All history']];
 function fcLookbackOptions(s){ return FC_LOOKBACK_OPTS.map(([v, l]) => `<option value="${v}" ${String(s.lookback) === String(v) ? 'selected' : ''}>${l}</option>`).join(''); }
 function fcLookbackValue(v){ return v === 'auto' ? 'auto' : +v; }
 
@@ -1142,11 +1145,11 @@ function fcRenderForecast(){
     const lyCell = base.closed ? '' : base.closedLastYear ? `<span class="fc-pill is-warn">closed last year</span>` : base.lastYear != null ? `${fcMoney(base.lastYear)}<span class="fc-muted"> ${fcShort(base.lastYearDate)}</span>` : '<span class="fc-muted">—</span>';
     return `<tr class="${adj ? 'is-adjusted' : ''} ${base.closed ? 'is-closed' : ''}">
       <td><b>${FC_DOW[base.dow]}</b> <span class="fc-muted">${fcShort(iso)}</span>${(() => { const ev = base.closed ? null : fcEventFor(iso); return ev ? `<span class="fc-event" title="Special event in Know the Numbers">${fcEsc(ev)}</span>` : ''; })()}</td>
-      ${a.hasLastYear ? `<td class="fc-num">${lyCell}</td>` : ''}
-      <td class="fc-num">${base.sales == null ? '<span class="fc-muted">no history</span>' : fcMoney(base.sales)}</td>
+      ${a.hasLastYear ? `<td class="fc-num fc-hide-sm">${lyCell}</td>` : ''}
+      <td class="fc-num fc-hide-sm">${base.sales == null ? '<span class="fc-muted">no history</span>' : fcMoney(base.sales)}</td>
       <td>${adjCell}</td>
       <td class="fc-num fc-strong ${adj > 0 ? 'is-up' : adj < 0 ? 'is-down' : ''}">${adjSales == null ? '—' : fcMoney(adjSales)}</td>
-      ${a.hasTransactions ? `<td class="fc-num">${adjTrans == null ? '—' : fcNumFmt(adjTrans)}</td>` : ''}
+      ${a.hasTransactions ? `<td class="fc-num fc-hide-sm">${adjTrans == null ? '—' : fcNumFmt(adjTrans)}</td>` : ''}
       <td class="fc-num">${hrs == null ? '—' : fcNumFmt(hrs, 1)}</td>
     </tr>`;
   }).join('');
@@ -1159,16 +1162,23 @@ function fcRenderForecast(){
   const lyMissing = a.hasLastYear ? dates.filter(d => { const b = fcBaseline(d, a); return b.sales != null && !b.closed && b.lastYear == null; }) : [];
   const lyNote = lyMissing.length ? `No last-year figure for ${lyMissing.length === dates.length ? 'these days' : `${lyMissing.length} of these days`} yet, so they use the weekday average. Export DayTrack Table from ${fcShort(fcAddDays(lyMissing[0], -FC_YEAR_DAYS))} ${fcAddDays(lyMissing[0], -FC_YEAR_DAYS).slice(0, 4)} onward once and they'll have one.` : '';
   const laborNote = !a.hasLabor && pctMethod ? 'Enter a labor % and wage, or upload labor by day' : !a.hasLabor && !splh ? 'Enter a $ per labor hour target, or upload labor by day' : '';
+  const laborSummary = pctMethod ? (pct ? `labor ${pct}% at $${wage || '—'}/hr` : 'labor % not set') : (splh ? `${fcMoney(splh)} / labor hour` : 'labor target not set');
+  const modelSummary = a.hasLastYear ? fcModelLabel(s.model, a.yoyWeight) : fcLookbackLabel(a, s);
   panel.innerHTML = `
     <div class="standup-card fc-controls">
       <div class="fc-field"><label for="fcStart">Start</label><input type="date" id="fcStart" value="${fcStart}"></div>
       <div class="fc-field"><label for="fcDays">Days</label><select id="fcDays">${[7, 14].map(n => `<option value="${n}" ${+s.days === n ? 'selected' : ''}>${n} days</option>`).join('')}</select></div>
-      <div class="fc-field"><label for="fcLookback">Based on</label><select id="fcLookback">${fcLookbackOptions(s)}</select></div>
-      ${a.hasLastYear ? `<div class="fc-field"><label for="fcModel">Model</label><select id="fcModel">${[['auto', 'Best fit (backtest picks)'], ['blend', 'Half last year, half weekday'], ['lastyear', 'Last year × run-rate'], ['weekday', 'Weekday average only']].map(([v, l]) => `<option value="${v}" ${s.model === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>` : ''}
-      <div class="fc-field"><label for="fcMethod">Labor target</label><select id="fcMethod"><option value="splh" ${!pctMethod ? 'selected' : ''}>$ per labor hour</option><option value="pct" ${pctMethod ? 'selected' : ''}>Labor % of sales</option></select></div>
+      <details class="fc-settings" ${fcSettingsOpen ? 'open' : ''}>
+        <summary><span class="fc-settings-k">Settings</span><span class="fc-settings-v">${fcEsc(modelSummary)} · ${fcEsc(laborSummary)}</span></summary>
+        <div class="fc-settings-grid">
+      <div class="fc-field"><label for="fcLookback">Look back</label><select id="fcLookback">${fcLookbackOptions(s)}</select></div>
+      ${a.hasLastYear ? `<div class="fc-field"><label for="fcModel">Model</label><select id="fcModel">${[['auto', 'Best fit'], ['blend', 'Half and half'], ['lastyear', 'Last year'], ['weekday', 'Weekday average']].map(([v, l]) => `<option value="${v}" ${s.model === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>` : ''}
+      <div class="fc-field"><label for="fcMethod">Labor target</label><select id="fcMethod"><option value="splh" ${!pctMethod ? 'selected' : ''}>$ / labor hour</option><option value="pct" ${pctMethod ? 'selected' : ''}>Labor %</option></select></div>
       <div class="fc-field" ${pctMethod ? 'hidden' : ''}><label for="fcSplh">$ / labor hour</label><input type="number" id="fcSplh" value="${splh}" min="1" step="1" inputmode="decimal" placeholder="${a.avgSPLH ? Math.round(a.avgSPLH) : 'e.g. 170'}"></div>
       <div class="fc-field" ${pctMethod ? '' : 'hidden'}><label for="fcPct">Labor %</label><input type="number" id="fcPct" value="${pct}" min="1" max="60" step="0.1" inputmode="decimal" placeholder="${a.avgLaborPct ? a.avgLaborPct.toFixed(1) : 'e.g. 22'}"></div>
       <div class="fc-field" ${pctMethod ? '' : 'hidden'}><label for="fcWage">Avg wage $/hr</label><input type="number" id="fcWage" value="${wage}" min="1" step="0.25" inputmode="decimal" placeholder="${a.avgWage ? a.avgWage.toFixed(2) : 'e.g. 15.50'}"></div>
+        </div>
+      </details>
     </div>
     <div class="fc-summary">
       <div class="fc-sum-main">
@@ -1186,16 +1196,16 @@ function fcRenderForecast(){
     <div class="standup-card fc-adjust">
       <div class="fc-adjust-head"><h3>Adjust every day</h3><span class="fc-muted">A game, a holiday, weather, a promotion. Per-day changes are in the table.</span></div>
       <div class="fc-adjust-row">
-        ${[-15, -10, -5, 0, 5, 10, 15].map(v => `<button type="button" class="fc-chip" data-fc-bulk="${v}">${v > 0 ? '+' : ''}${v}%</button>`).join('')}
+        ${[-15, -10, -5, 5, 10, 15].map(v => `<button type="button" class="fc-chip" data-fc-bulk="${v}">${v > 0 ? '+' : ''}${v}%</button>`).join('')}
         <span class="fc-adjust-custom"><input type="number" id="fcBulkCustom" placeholder="custom" inputmode="numeric" aria-label="Custom adjustment %"><span class="fc-adj-suffix">%</span><button type="button" class="fc-chip" id="fcBulkApply">Apply</button></span>
         <button type="button" class="fc-chip is-ghost" id="fcAdjReset">Reset</button>
       </div>
     </div>
     <div class="fc-table-wrap">
       <table class="fc-table">
-        <thead><tr><th>Day</th>${a.hasLastYear ? '<th class="fc-num">Last year</th>' : ''}<th class="fc-num">Baseline</th><th>Adjustment</th><th class="fc-num">Forecast</th>${a.hasTransactions ? '<th class="fc-num">Transactions</th>' : ''}<th class="fc-num">Labor hrs</th></tr></thead>
+        <thead><tr><th>Day</th>${a.hasLastYear ? '<th class="fc-num fc-hide-sm">Last year</th>' : ''}<th class="fc-num fc-hide-sm">Baseline</th><th>Adjustment</th><th class="fc-num">Forecast</th>${a.hasTransactions ? '<th class="fc-num fc-hide-sm">Transactions</th>' : ''}<th class="fc-num"><span class="fc-hide-sm">Labor hrs</span><span class="fc-only-sm">Hrs</span></th></tr></thead>
         <tbody>${rowsHtml}</tbody>
-        <tfoot><tr><td>Total</td>${a.hasLastYear ? '<td></td>' : ''}<td class="fc-num">${fcMoney(totalBase)}</td><td></td><td class="fc-num">${fcMoney(totalAdj)}</td>${a.hasTransactions ? '<td></td>' : ''}<td class="fc-num">${anyHrs ? fcNumFmt(totalHrs, 1) : '—'}</td></tr></tfoot>
+        <tfoot><tr><td>Total</td>${a.hasLastYear ? '<td class="fc-hide-sm"></td>' : ''}<td class="fc-num fc-hide-sm">${fcMoney(totalBase)}</td><td></td><td class="fc-num">${fcMoney(totalAdj)}</td>${a.hasTransactions ? '<td class="fc-hide-sm"></td>' : ''}<td class="fc-num">${anyHrs ? fcNumFmt(totalHrs, 1) : '—'}</td></tr></tfoot>
       </table>
     </div>
     <div class="fc-actions">
@@ -1209,6 +1219,8 @@ function fcRenderForecast(){
     <div id="fcNumbersCard">${fcNumbersOpen ? fcNumbersPreviewHtml() : ''}</div>`;
 
   const wire = (id, ev, fn) => { const el = document.getElementById(id); if(el) el.addEventListener(ev, fn); };
+  const settings = panel.querySelector('.fc-settings');
+  if(settings) settings.addEventListener('toggle', () => { fcSettingsOpen = settings.open; });
   wire('fcStart', 'change', e => { if(fcValidIso(e.target.value)) fcStart = e.target.value; fcRenderForecast(); });
   wire('fcDays', 'change', e => { fcSaveSettings({days: +e.target.value}); fcRenderForecast(); });
   wire('fcLookback', 'change', e => { fcSaveSettings({lookback: fcLookbackValue(e.target.value)}); fcRenderForecast(); });
@@ -1352,7 +1364,7 @@ function fcRenderPatterns(){
   const g = a.trend.weeklyGrowthPct || 0;
   const first = a.rows[0], last = a.rows[a.rows.length - 1];
   panel.innerHTML = `
-    <div class="fc-panel-head"><p class="fc-lede">${a.rows.length} day${a.rows.length === 1 ? '' : 's'} · ${first ? `${fcShort(first.date)} – ${fcShort(last.date)}` : ''} · ${fcLookbackLabel(a, s)} <select id="fcLookback2" class="fc-inline-select" aria-label="Look back">${fcLookbackOptions(s)}</select>${a.lookbackPick ? `<span class="fc-pickline">Windows the backtest picked: ${fcLookbackText(a.lookbackPick, a)}</span>` : ''}</p></div>
+    <div class="fc-panel-head"><p class="fc-lede fc-lede-row"><span>${a.rows.length} day${a.rows.length === 1 ? '' : 's'} · ${first ? `${fcShort(first.date)} – ${fcShort(last.date)}` : ''} · ${fcLookbackLabel(a, s)}</span><label class="fc-inline-label">Look back <select id="fcLookback2" class="fc-inline-select" aria-label="Look back">${fcLookbackOptions(s)}</select></label></p>${a.lookbackPick ? `<p class="fc-pickline">Windows the backtest picked: ${fcLookbackText(a.lookbackPick, a)}</p>` : ''}</div>
     <div class="fc-kpis">
       ${fcKpi(FC_ICON.dollar, 'Avg weekly sales', fcMoney(weeklyAvg), a.weekly.length ? `${a.weekly.length} full week${a.weekly.length === 1 ? '' : 's'}` : 'no full week yet')}
       ${fcKpi(g >= 0 ? FC_ICON.trendUp : FC_ICON.trendDown, 'Weekly trend', fcPctFmt(g), g >= 0 ? 'trending up' : 'trending down', g >= 0 ? 'is-up' : 'is-down')}
@@ -1419,8 +1431,7 @@ function fcRenderAccuracy(){
   }
   panel.innerHTML = `
     ${fcTrackRecordHtml()}
-    <div class="fc-panel-head"><p class="fc-lede">How the model would have done on days already lived, forecasting each from only the history before it: ${sel}</p></div>
-    ${compareHtml}
+    <div class="fc-panel-head fc-section-head"><h3>The model on its own</h3><p class="fc-lede">How it would have done on days already lived, forecasting each from only the history before it: ${sel}</p></div>
     <div class="fc-kpis">
       ${fcKpi(FC_ICON.percent, 'Average accuracy', avg.toFixed(1) + '%', `${results.length} days tested`, tier(avg))}
       ${fcKpi(FC_ICON.trendUp, 'Best day', best.accuracy.toFixed(1) + '%', `${FC_DOW[best.dow]} ${fcShort(best.date)}`)}
@@ -1431,7 +1442,8 @@ function fcRenderAccuracy(){
     <div class="fc-table-wrap"><table class="fc-table">
       <thead><tr><th>Day</th><th class="fc-num">Actual</th><th class="fc-num">Forecast</th><th>Accuracy</th></tr></thead>
       <tbody>${results.slice().reverse().map(r => `<tr><td><b>${FC_DOW[r.dow]}</b> <span class="fc-muted">${fcShort(r.date)}</span></td><td class="fc-num">${fcMoney(r.actual)}</td><td class="fc-num">${fcMoney(r.forecast)}</td><td><span class="fc-pill ${tier(r.accuracy)}">${r.accuracy.toFixed(1)}%</span></td></tr>`).join('')}</tbody>
-    </table></div>`;
+    </table></div>
+    ${compareHtml ? `<div class="fc-panel-head fc-section-head"><h3>How the model was chosen</h3><p class="fc-lede">Best fit scores each look-back window and each mix of last year with the weekday average, and the forecast uses the winners.</p></div>${compareHtml}` : ''}`;
   document.getElementById('fcBacktestDays').addEventListener('change', e => { fcBacktestDays = +e.target.value; fcRenderAccuracy(); });
   fcCompareChart(document.getElementById('fcCompareChart'), results);
 }
@@ -1633,7 +1645,8 @@ function fcTrendChart(container, weekly, trend){
   const svg = fcSvg('svg', {viewBox: `0 0 ${W} ${H}`, width: '100%', height: H, role: 'img', 'aria-label': 'weekly sales trend'});
   const vals = weekly.map(w => w.sales);
   const fitted = weekly.map((_, i) => trend.intercept + trend.slope * i);
-  const maxV = Math.max(...vals, ...fitted) * 1.08, minV = Math.min(0, ...vals, ...fitted);
+  const lo = Math.min(...vals, ...fitted), hi = Math.max(...vals, ...fitted);
+  const maxV = hi + (hi - lo || hi * 0.1) * 0.25, minV = Math.max(0, lo - (hi - lo || hi * 0.1) * 0.6);
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const xFor = i => padL + (i / (weekly.length - 1)) * plotW;
   const yFor = v => padT + plotH - ((v - minV) / (maxV - minV || 1)) * plotH;
