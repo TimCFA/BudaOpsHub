@@ -440,6 +440,23 @@ a roster the hub has. `leaderRoster` and `peaGoals` are in the
 manager section; `leaderFocus` and `leaderNotes` (`{text, by, ts, date,
 type, pec}`) in the private `people` section.
 
+**Bring notes in** (`static/js/leaders-import.js`; Tim, Oct 2026): a
+button on the Leaders overview opens a card that takes a lot of notes at
+once: a spreadsheet or CSV with a note a row (leader, date, type, note,
+and optionally pillar tags and who wrote it; a header row is matched
+loosely, else the columns are taken in that order), the JSON the Leader
+Notes Calendar page exports (its Export button; notes and each quarter's
+focus), or plain text pasted or dropped (a leader's name on its own line,
+then each note on a line starting with its date in any common shape, with
+an optional type word, running on over the lines below; a blank line ends
+a note; a line with no date is dated today and marked). Everything lands
+in a review list first: each row's leader (matched by full name or an
+unambiguous first name; unknown names are added as typed), date, type
+and text can be fixed, rows that match a saved note start unticked, and
+nothing is written until "Add". A row typed "focus" becomes an item of
+that leader's focus for the date's quarter. Notes keep up to 4,000
+characters.
+
 Leaders are the Team Leader shifts on the roster plus whoever is set as
 Lead Captain on Set Ups. Directors' time is their **Administrative** shifts
 in the HotSchedules export, which the roster import now keeps
