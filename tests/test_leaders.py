@@ -22,14 +22,17 @@ def run(op, **extra):
     return json.loads(out.stdout)[0]
 
 
-# Three leaders' PEAs this quarter, one from last quarter, one by a director.
+# The directors' PEAs on two leaders this quarter, one from last quarter on a
+# third, and two PEAs by a leader (on a team member, and on another leader)
+# that don't count.
 QUARTER = """
   peaRows = [
-    pea('2026-10-01', 'Maya Torres', 'Noah Bennett'), pea('2026-10-02', 'Maya Torres', 'Priya Nair', 'Bagging', 2),
-    pea('2026-10-06', 'Maya Torres', 'Noah Bennett', 'Drinks 2'), pea('2026-10-12', 'Maya Torres', 'Caleb Brooks'),
-    pea('2026-10-05', 'Jordan Reyes', 'Noah Bennett'),
-    pea('2026-09-28', 'Ava Morales', 'Noah Bennett'),
-    pea('2026-10-07', 'Timothy Lane', 'Noah Bennett')];
+    pea('2026-10-01', 'Timothy Lane', 'Maya Torres'), pea('2026-10-02', 'Kianna Ramos', 'Maya Torres', 'Bagging', 2),
+    pea('2026-10-06', 'Timothy Lane', 'Maya Torres', 'Drinks 2'), pea('2026-10-12', 'Timothy Lane', 'Maya Torres'),
+    pea('2026-10-05', 'Timothy Lane', 'Jordan Reyes', 'Host', 3, 'Team Lead'),
+    pea('2026-09-28', 'Kianna Ramos', 'Ava Morales'),
+    pea('2026-10-07', 'Maya Torres', 'Noah Bennett'),
+    pea('2026-10-08', 'Maya Torres', 'Jordan Reyes', 'Host', 3, 'Team Lead')];
   leaderNotes = {'Ava Morales': [{text: 'Shadowed the close', ts: 1, date: '2026-10-02', type: 'talk'}]};
 """
 
@@ -61,18 +64,25 @@ class Data(unittest.TestCase):
 
 class Scoreboard(unittest.TestCase):
     def test_counts_pace_and_streaks(self):
-        got = run("c => { " + QUARTER + " const S = ldScore(); return {total: S.total, expected: S.expected, weeksLeft: S.weeksLeft, directors: S.directorsGiven, status: S.teamStatus,"
-                  " leaders: S.leaders.map(L => [L.name, L.count, L.status, L.streak, L.people, L.last])}; }")
-        self.assertEqual(got['total'], 6)                      # every PEA in the quarter counts for the team, the director's too; Ava's Sep one doesn't
+        got = run("c => { " + QUARTER + " const S = ldScore(); return {total: S.total, expected: S.expected, weeksLeft: S.weeksLeft, by: S.byDirector, status: S.teamStatus, warn: S.noDirectorMatch,"
+                  " leaders: S.leaders.map(L => [L.name, L.count, L.status, L.streak, L.others, L.last, L.byDirector, L.avg])}; }")
+        self.assertEqual(got['total'], 5)                      # the directors' PEAs on leaders; not Maya's two, not Ava's Sep one
+        self.assertEqual(got['by'], {'Timothy Lane': 4, 'Kianna Ramos': 1})
         self.assertAlmostEqual(got['expected'], 50 * 12 / 92, places=3)
         self.assertEqual(got['weeksLeft'], 12)
-        self.assertEqual(got['directors'], 1)                  # Timothy's, not on a leader card
-        self.assertEqual(got['status'], 'pace')
-        # Maya: 4 (three weeks running), Jordan: 1 (on pace, 1 expected), Ava (has notes): 0 this quarter, behind.
-        self.assertEqual(got['leaders'], [['Maya Torres', 4, 'pace', 3, 3, '2026-10-12'], ['Jordan Reyes', 1, 'pace', 1, 1, '2026-10-05'], ['Ava Morales', 0, 'behind', 0, 0, '']])
+        self.assertEqual(got['status'], 'behind')              # 6 expected by today
+        self.assertFalse(got['warn'])
+        # Maya: 4 (three weeks running, 2.75 average), Jordan: 1 from a director plus Maya's that doesn't count, Ava (has notes): 0, behind.
+        self.assertEqual(got['leaders'], [['Maya Torres', 4, 'pace', 3, 0, '2026-10-12', {'Timothy Lane': 3, 'Kianna Ramos': 1}, 2.75],
+                                          ['Jordan Reyes', 1, 'pace', 1, 1, '2026-10-05', {'Timothy Lane': 1}, 3],
+                                          ['Ava Morales', 0, 'behind', 0, 0, '', {}, None]])
+
+    def test_warns_when_no_rater_is_a_director(self):
+        got = run("c => { peaRows = [pea('2026-10-07', 'Maya Torres', 'Noah Bennett')]; const S = ldScore(); return [S.noDirectorMatch, S.total]; }")
+        self.assertEqual(got, [True, 0])
 
     def test_goal_met_and_a_closed_quarter(self):
-        got = run("c => { peaRows = Array.from({length: 13}, (_, i) => pea('2026-10-0' + (1 + i % 9), 'Maya Torres', 'N' + i)); peaGoals = {team: 50, leader: 12};"
+        got = run("c => { leaderRoster = [{name: 'Maya Torres', roles: []}]; peaRows = Array.from({length: 13}, (_, i) => pea('2026-10-0' + (1 + i % 9), 'Timothy Lane', 'Maya Torres', 'P' + i)); peaGoals = {team: 50, leader: 12};"
                   " const S = ldScore(); const L = S.leaders[0]; return [L.status, S.done, ldPaceText(L, S)]; }")
         self.assertEqual(got, ['done', 1, '13 of 12, 1 over. Goal met.'])
         got = run("c => { " + QUARTER + " const S = ldScore('2026-Q3'); return [S.over, S.teamStatus, S.leaders.map(L => [L.name, L.count, L.status])]; }")
@@ -88,7 +98,7 @@ class Scoreboard(unittest.TestCase):
     def test_who_gets_a_profile(self):
         got = run("c => { " + QUARTER + " leaderRoster = [{name: 'Grace Kim', roles: []}]; leaderNotes = {'Liam Patel': [{text: 'x', ts: 1}]};"
                   " fohRoster = {'2026-10-13': [{name: 'Sofia Alvarez', start: '6:00a', end: '2:00p', leader: true}, {name: 'Noah Bennett', start: '6:00a', end: '2:00p'}]}; return ldLeaderNames('2026-Q4'); }")
-        self.assertEqual(got, ['Grace Kim', 'Maya Torres', 'Jordan Reyes', 'Liam Patel', 'Sofia Alvarez'])   # listed, PEA givers, noted, rostered; not the director
+        self.assertEqual(got, ['Grace Kim', 'Jordan Reyes', 'Maya Torres', 'Liam Patel', 'Sofia Alvarez'])   # listed, rated as a Team Lead, a PEA giver, noted, rostered; not the directors
         got = run("c => { " + QUARTER + " leaderRoster = [{name: 'Timothy Lane', roles: ['Senior Leader']}]; return ldLeaderNames('2026-Q4').includes('Timothy Lane'); }")
         self.assertTrue(got)                                   # unless he's on the list
 
@@ -106,8 +116,10 @@ class Notes(unittest.TestCase):
             leaderNotes = {'Maya Torres': [{text: 'Caught the sanitizer gap herself', ts: 1, date: '2026-10-03', type: 'win', pec: ['fs:coach']}, {text: 'Late twice', ts: 2, date: '2026-09-20', type: 'watch'}]};
             return ldProfileText('Maya Torres'); }""")
         self.assertIn('Maya Torres — Food Safety\nQ4 2026 (Oct–Dec 2026)', text)
-        self.assertIn('PEAs: 4 of 12 · 8 to go in 12 weeks', text)
+        self.assertIn('PEAs from directors: 4 of 12 · 8 to go in 12 weeks', text)
+        self.assertIn('(Timothy Lane 3 · Kianna Ramos 1)', text)
         self.assertIn('Streak: 3 weeks', text)
+        self.assertIn('Average score on those PEAs: 2.75', text)
         self.assertIn('1. Run the 2pm handoff without a prompt', text)
         self.assertIn('NOTES (1: 1 win, 0 coaching, 0 watch, 0 conversation)', text)
         self.assertIn('Oct 3 · Win: Caught the sanitizer gap herself [Coach Immediately]', text)
@@ -117,7 +129,8 @@ class Notes(unittest.TestCase):
 
     def test_brief_lines(self):
         got = run("c => { " + QUARTER + " return ldBriefLines(); }")
-        self.assertEqual(got, ['Team: 6 of 50 (on pace, 6 expected by today)', 'Leaders: Maya Torres 4/12, Jordan Reyes 1/12, Ava Morales 0/12 (behind)'])
+        self.assertEqual(got, ['Director PEAs on leaders: 5 of 50 (behind pace, 6 expected by today) · Timothy Lane 4 · Kianna Ramos 1',
+                               'Each leader: Maya Torres 4/12, Jordan Reyes 1/12, Ava Morales 0/12 (behind)'])
 
 
 class Page(unittest.TestCase):
@@ -125,7 +138,7 @@ class Page(unittest.TestCase):
         return run("c => { " + setup + " const root = {innerHTML: ''}; document.getElementById = id => id === 'directorsRoot' ? root : null; renderDirectorsView(); return root.innerHTML; }")
 
     def test_overview_and_profile_render_and_escape(self):
-        html = self.render(QUARTER + " dirView = 'leaders'; peaRows.push(pea('2026-10-03', '<img src=x onerror=alert(1)>', 'Noah Bennett'));")
+        html = self.render(QUARTER + " dirView = 'leaders'; peaRows.push(pea('2026-10-03', '<img src=x onerror=alert(1)>', 'Noah Bennett'), pea('2026-10-03', 'Timothy Lane', '<img src=y>', 'Host', 3, 'Team Lead'));")
         self.assertIn('data-ld-open="Maya Torres"', html)
         self.assertIn('of 50 PEAs · Q4 2026', html)
         self.assertNotIn('<img', html)

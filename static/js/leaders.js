@@ -2,10 +2,11 @@
 // A profile for each leader on the Directors page (Tim, Oct 2026), built
 // from the Levelset ratings and the directors' own notes:
 //
-//  1. The PEA scoreboard: PEAs given this quarter against the goal per
-//     leader (12) and the team's goal (50), the pace to hit it, the weekly
-//     streak, and the quarter's week-by-week bars. A PEA is one Levelset
-//     positional rating (one row of the report).
+//  1. The PEA scoreboard: the PEAs the directors have completed on each
+//     leader this quarter against the goal per leader (12) and the team's
+//     goal (50), the pace to hit it, the weekly streak, and the quarter's
+//     week-by-week bars. A PEA is one Levelset positional rating (one row
+//     of the report) whose rater is on the director list.
 //  2. A focus for the quarter: the growth goals agreed in the leader's eval.
 //  3. Notes, each a Win, Coaching, Watch or Conversation, dated, optionally
 //     tagged to a pillar of the store's Role Clarity Cards; grouped by month.
@@ -15,9 +16,9 @@
 //     across evals.
 //
 // Leaders are the names in Manage → Settings → Leaders (with their PEC
-// roles), plus anyone who gave a PEA this quarter, has notes, or holds a
-// Team Leader shift on a roster the hub has; directors are left out unless
-// they're on the list. leaderRoster and peaGoals live in the manager
+// roles), plus anyone who gave a PEA this quarter or was rated under a
+// leader role, has notes, or holds a Team Leader shift on a roster the hub
+// has; directors are left out unless they're on the list. leaderRoster and peaGoals live in the manager
 // section; leaderFocus and leaderNotes in the private people section.
 
 const LD_TYPES = [
@@ -190,34 +191,42 @@ function ldNoteKey(name){ const k = dirKey(name); return Object.keys(leaderNotes
 function ldNotesFor(name){ const list = leaderNotes[ldNoteKey(name)]; return Array.isArray(list) ? list : []; }
 function ldFocusFor(name, q){ const f = leaderFocus[`${dirKey(name)}__${q || ldQuarterOn()}`]; return Array.isArray(f) ? f : []; }
 
-// Everyone with a profile for the quarter: the Leaders list, PEA givers,
-// anyone with notes, Team Leader shifts on the rosters the hub holds.
+// Everyone with a profile for the quarter: the Leaders list, PEA givers
+// who aren't directors, anyone rated under a leader role, anyone with
+// notes, Team Leader shifts on the rosters the hub holds.
 function ldLeaderNames(q){
   const names = new Map();
   const listed = new Set(ldRoster().map(r => dirKey(r.name)));
   const add = (n, force) => { const k = dirKey(n); if(!k || names.has(k)) return; if(!force && !listed.has(k) && dirIsDirector(n)) return; names.set(k, n); };
   ldRoster().forEach(r => add(r.name, true));
   const b = ldQuarterBounds(q);
-  ldRatings().forEach(r => { if(r.leader && r.date >= b.from && r.date <= b.to) add(r.leader); });
+  ldRatings().forEach(r => { if(r.date < b.from || r.date > b.to) return; if(r.leader) add(r.leader); if(/lead/i.test(r.role || '')) add(r.employee); });
   Object.keys(leaderNotes).forEach(n => { if(leaderNotes[n] && leaderNotes[n].length) add(n); });
   [fohRoster, bohRoster].forEach(rost => Object.values(rost).forEach(list => (Array.isArray(list) ? list : []).forEach(p => { if(p.leader) add(p.name); })));
   return [...names.values()];
 }
 
 // ----- The scoreboard -----
+// The PEAs the directors completed on each leader this quarter (the rater
+// is on the director list, the employee is the leader).
 function ldScore(q){
   q = q || ldQuarterOn();
   const b = ldQuarterBounds(q), goals = ldGoals();
   const rows = ldRatings().filter(r => r.date >= b.from && r.date <= b.to);
+  const dirRows = rows.filter(r => dirIsDirector(r.leader));
   const days = ldDaysBetween(b.from, b.to) + 1;
   const elapsed = today < b.from ? 0 : today > b.to ? days : ldDaysBetween(b.from, today) + 1;
   const frac = elapsed / days;
   const weeksLeft = Math.max(0, Math.ceil((days - elapsed) / 7));
   const weeks = ldWeeksOf(b), cur = peaWeekStart(today);
   const names = ldLeaderNames(q);
+  const keys = new Set(names.map(dirKey));
   const leaders = names.map(name => {
     const k = dirKey(name);
-    const mine = rows.filter(r => dirKey(r.leader) === k);
+    const mine = dirRows.filter(r => dirKey(r.employee) === k);
+    const others = rows.filter(r => dirKey(r.employee) === k && !dirIsDirector(r.leader)).length;
+    const byDirector = {};
+    mine.forEach(r => { byDirector[r.leader] = (byDirector[r.leader] || 0) + 1; });
     const byWeek = {};
     mine.forEach(r => { const w = peaWeekStart(r.date); byWeek[w] = (byWeek[w] || 0) + 1; });
     const series = weeks.map(w => byWeek[w] || 0);
@@ -233,17 +242,21 @@ function ldScore(q){
     const status = count >= goals.leader ? 'done' : elapsed >= days ? 'missed' : count >= Math.floor(expected) ? 'pace' : 'behind';
     const avg = count ? mine.reduce((s, r) => s + (+r.overall || 0), 0) / count : null;
     return {name, roles: ldRolesFor(name), count, goal: goals.leader, expected, status, series, streak,
-      last: mine.reduce((m, r) => r.date > m ? r.date : m, ''), people: new Set(mine.map(r => dirKey(r.employee))).size,
+      last: mine.reduce((m, r) => r.date > m ? r.date : m, ''), byDirector, others,
       positions: new Set(mine.map(r => r.position)).size, avg, best: Math.max(0, ...series),
       perWeek: weeksLeft ? Math.max(0, goals.leader - count) / weeksLeft : 0, notes: ldNotesFor(name).length, focus: ldFocusFor(name, q)};
   }).sort((a, c) => c.count - a.count || a.name.localeCompare(c.name));
-  const keys = new Set(names.map(dirKey));
-  const directorsGiven = rows.filter(r => !keys.has(dirKey(r.leader)) && dirIsDirector(r.leader)).length;
-  const total = rows.length;
-  return {quarter: b, goals, total, expected: goals.team * frac, frac, elapsed, days, weeksLeft, weeks, leaders, directorsGiven,
+  // The team's total: every director PEA on a leader; and each director's share.
+  const onLeaders = dirRows.filter(r => keys.has(dirKey(r.employee)));
+  const total = onLeaders.length;
+  const byDirector = {};
+  onLeaders.forEach(r => { byDirector[r.leader] = (byDirector[r.leader] || 0) + 1; });
+  return {quarter: b, goals, total, expected: goals.team * frac, frac, elapsed, days, weeksLeft, weeks, leaders, byDirector,
+    noDirectorMatch: rows.length > 0 && !dirRows.length,
     done: leaders.filter(l => l.status === 'done').length, current: q === ldQuarterNow(), over: elapsed >= days,
     teamStatus: total >= goals.team ? 'done' : elapsed >= days ? 'missed' : total >= Math.floor(goals.team * frac) ? 'pace' : 'behind'};
 }
+const ldByDirectorText = by => Object.keys(by).sort((a, c) => by[c] - by[a] || a.localeCompare(c)).map(n => `${ldShort(n)} ${by[n]}`).join(' · ');
 
 // ----- Rendering -----
 const LD_ICON_TROPHY = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4a3 3 0 0 0 3 5"/><path d="M17 6h3a3 3 0 0 1-3 5"/></svg>';
@@ -288,7 +301,8 @@ function ldTeamBar(S){
   return `<div class="ld-team is-${S.teamStatus}">
     <div class="ld-team-head"><b>${S.total}</b><span>of ${S.goals.team} PEAs · ${escapeHtml(S.quarter.label)}</span>${ldStatusChip(S.teamStatus)}</div>
     <div class="ld-bar"><i style="width:${pct.toFixed(1)}%"></i>${S.current ? `<u style="left:${mark.toFixed(1)}%" title="Today"></u>` : ''}</div>
-    <p class="dir-note">${S.over ? `The quarter is closed.` : `${Math.floor(S.expected)} expected by today · ${ldPlural(S.weeksLeft, 'week')} left`}${S.leaders.length ? ` · ${S.done} of ${ldPlural(S.leaders.length, 'leader')} at ${S.goals.leader}` : ''}${S.directorsGiven ? ` · directors gave ${S.directorsGiven}` : ''}</p>
+    <p class="dir-note">${S.over ? `The quarter is closed.` : `${Math.floor(S.expected)} expected by today · ${ldPlural(S.weeksLeft, 'week')} left`}${S.leaders.length ? ` · ${S.done} of ${ldPlural(S.leaders.length, 'leader')} at ${S.goals.leader}` : ''}${Object.keys(S.byDirector).length ? ` · by director: ${escapeHtml(ldByDirectorText(S.byDirector))}` : ''}</p>
+    ${S.noDirectorMatch ? `<p class="dir-flag-text">${DIR_ICON_WARN} No rating this quarter has a director as its rater. Check the names in Manage → Settings → Directors match Levelset’s.</p>` : ''}
   </div>`;
 }
 
@@ -304,8 +318,8 @@ function ldSummaryHtml(){
 }
 function ldBriefLines(){
   const S = ldScore(ldQuarterNow());
-  const L = [`Team: ${S.total} of ${S.goals.team} (${ldStatusText[S.teamStatus].toLowerCase()}${S.over ? '' : `, ${Math.floor(S.expected)} expected by today`})`];
-  if(S.leaders.length) L.push(`Leaders: ${S.leaders.map(l => `${ldShort(l.name)} ${l.count}/${l.goal}${l.status === 'done' ? ' ✓' : l.status === 'behind' ? ' (behind)' : ''}`).join(', ')}`);
+  const L = [`Director PEAs on leaders: ${S.total} of ${S.goals.team} (${ldStatusText[S.teamStatus].toLowerCase()}${S.over ? '' : `, ${Math.floor(S.expected)} expected by today`})${Object.keys(S.byDirector).length ? ` · ${ldByDirectorText(S.byDirector)}` : ''}`];
+  if(S.leaders.length) L.push(`Each leader: ${S.leaders.map(l => `${ldShort(l.name)} ${l.count}/${l.goal}${l.status === 'done' ? ' ✓' : l.status === 'behind' ? ' (behind)' : ''}`).join(', ')}`);
   return L;
 }
 
@@ -313,7 +327,7 @@ function ldLeaderCard(L, S){
   return `<button type="button" class="ld-card is-${L.status}" data-ld-open="${escapeHtml(L.name)}">
     <div class="ld-card-top">${ldRing(L.count, L.goal, L.status, 64)}<div class="ld-card-name"><b>${escapeHtml(ldShort(L.name))}</b><span>${escapeHtml(L.roles.length ? L.roles.join(' · ') : 'Team Leader')}</span>${ldStatusChip(L.status)}</div></div>
     ${ldPips(L.count, L.goal)}
-    <div class="ld-card-meta"><span>${L.last ? `Last PEA ${escapeHtml(ldDate(L.last))}` : 'No PEA this quarter'}</span>${L.streak > 1 ? `<span class="ld-streak">${LD_ICON_FLAME}${L.streak}-week streak</span>` : ''}${L.notes ? `<span>${ldPlural(L.notes, 'note')}</span>` : ''}</div>
+    <div class="ld-card-meta"><span>${L.last ? `Last PEA ${escapeHtml(ldDate(L.last))}` : 'No director PEA this quarter'}</span>${L.streak > 1 ? `<span class="ld-streak">${LD_ICON_FLAME}${L.streak}-week streak</span>` : ''}${Object.keys(L.byDirector).length > 1 ? `<span>${escapeHtml(ldByDirectorText(L.byDirector))}</span>` : ''}${L.notes ? `<span>${ldPlural(L.notes, 'note')}</span>` : ''}</div>
     ${L.focus.length ? `<div class="ld-card-focus"><b>Focus</b> ${escapeHtml(L.focus[0])}${L.focus.length > 1 ? ` (+${L.focus.length - 1})` : ''}</div>` : ''}
   </button>`;
 }
@@ -321,7 +335,7 @@ function ldLeaderCard(L, S){
 function ldOverviewHtml(){
   const S = ldScore();
   return `
-    <section class="dir-card"><h3>PEA scoreboard</h3><p class="dir-note">A PEA is one Levelset positional rating, from Manage → PEA. The team’s goal is ${S.goals.team} a quarter and each leader’s is ${S.goals.leader}; change either in Manage → Settings → Leaders.</p>${ldTeamBar(S)}</section>
+    <section class="dir-card"><h3>PEA scoreboard</h3><p class="dir-note">The PEAs the directors have completed on each leader: one Levelset positional rating with a director as the rater, from Manage → PEA. The goal is ${S.goals.team} a quarter across the leaders and ${S.goals.leader} on each; change either in Manage → Settings → Leaders.</p>${ldTeamBar(S)}</section>
     ${S.leaders.length ? `<div class="ld-grid">${S.leaders.map(L => ldLeaderCard(L, S)).join('')}</div>`
       : '<p class="dir-empty">No leaders yet. Add them in Manage → Settings → Leaders, or sync Levelset in Manage → PEA and anyone who gives a PEA shows here.</p>'}`;
 }
@@ -337,7 +351,7 @@ function ldWeekBars(L, S){
 function ldProfileHtml(){
   const S = ldScore();
   const name = ldOpen;
-  const L = S.leaders.find(l => dirKey(l.name) === dirKey(name)) || {name, roles: ldRolesFor(name), count: 0, goal: S.goals.leader, expected: S.goals.leader * S.frac, status: S.over ? 'missed' : 'behind', series: S.weeks.map(() => 0), streak: 0, last: '', people: 0, positions: 0, avg: null, best: 0, perWeek: S.weeksLeft ? S.goals.leader / S.weeksLeft : 0, notes: 0, focus: ldFocusFor(name)};
+  const L = S.leaders.find(l => dirKey(l.name) === dirKey(name)) || {name, roles: ldRolesFor(name), count: 0, goal: S.goals.leader, expected: S.goals.leader * S.frac, status: S.over ? 'missed' : 'behind', series: S.weeks.map(() => 0), streak: 0, last: '', byDirector: {}, others: 0, positions: 0, avg: null, best: 0, perWeek: S.weeksLeft ? S.goals.leader / S.weeksLeft : 0, notes: 0, focus: ldFocusFor(name)};
   const all = ldNotesFor(name).map((n, i) => ({...n, i, date: ldNoteDate(n)}));
   const counts = {}; LD_TYPES.forEach(t => counts[t.id] = all.filter(n => n.type === t.id).length);
   const shown = all.filter(n => !ldHide[n.type || 'none'] && (!ldPillar || (n.pec || []).includes(ldPillar))).sort((a, b) => b.date.localeCompare(a.date) || (b.ts || 0) - (a.ts || 0));
@@ -348,11 +362,11 @@ function ldProfileHtml(){
   const untagged = all.filter(n => !(n.pec && n.pec.length)).length;
   const history = ldQuarters().map(q => {
     const b = ldQuarterBounds(q);
-    const peas = ldRatings().filter(r => dirKey(r.leader) === dirKey(name) && r.date >= b.from && r.date <= b.to).length;
+    const peas = ldRatings().filter(r => dirKey(r.employee) === dirKey(name) && dirIsDirector(r.leader) && r.date >= b.from && r.date <= b.to).length;
     const notes = all.filter(n => n.date >= b.from && n.date <= b.to).length;
     return {q, b, peas, notes, focus: ldFocusFor(name, q).length};
   }).filter(h => h.peas || h.notes || h.focus || h.q === ldQuarterOn());
-  const stats = [[L.streak > 1 ? `${L.streak} weeks` : L.streak === 1 ? '1 week' : '—', 'Streak'], [L.best || '—', 'Best week'], [L.people || '—', 'Team members rated'], [L.positions || '—', 'Positions'], [L.avg != null ? L.avg.toFixed(2) : '—', 'Avg score given']];
+  const stats = [[L.streak > 1 ? `${L.streak} weeks` : L.streak === 1 ? '1 week' : '—', 'Streak'], [L.best || '—', 'Best week'], [Object.keys(L.byDirector).length ? ldByDirectorText(L.byDirector) : '—', 'By director'], [L.positions || '—', 'Positions rated'], [L.avg != null ? L.avg.toFixed(2) : '—', 'Avg score']];
 
   let months = '', curM = '';
   shown.forEach(n => {
@@ -371,7 +385,7 @@ function ldProfileHtml(){
     <section class="dir-card ld-profile">
       <div class="ld-profile-head"><div><h3>${escapeHtml(name)}</h3><p class="dir-sub">${escapeHtml(L.roles.length ? L.roles.join(' · ') : 'Team Leader')} · ${escapeHtml(S.quarter.label)}</p></div>${ldStatusChip(L.status)}</div>
       <div class="ld-score">
-        <div class="ld-score-ring">${ldRing(L.count, L.goal, L.status, 108)}<p>${escapeHtml(ldPaceText(L, S))}</p>${ldPips(L.count, L.goal)}</div>
+        <div class="ld-score-ring">${ldRing(L.count, L.goal, L.status, 108)}<p>${escapeHtml(ldPaceText(L, S))}${L.others ? ` <span class="dir-muted">Plus ${ldPlural(L.others, 'PEA')} from leaders, not counted.</span>` : ''}</p>${ldPips(L.count, L.goal)}</div>
         <div class="ld-score-weeks">${ldWeekBars(L, S)}<div class="ld-stats">${stats.map(([v, l]) => `<div><b>${escapeHtml(String(v))}</b><span>${escapeHtml(l)}</span></div>`).join('')}</div></div>
       </div>
     </section>
@@ -401,7 +415,7 @@ function ldProfileHtml(){
       ${!L.roles.length ? '<p class="dir-note">Set this leader’s PEC role in Manage → Settings → Leaders and their role card shows here too.</p>' : ''}
     </section>
     <section class="dir-card"><h3>Quarter by quarter</h3>
-      <table class="ld-history"><thead><tr><th>Quarter</th><th>PEAs</th><th>Notes</th><th>Focus</th></tr></thead><tbody>${history.map(h => `<tr class="${h.q === ldQuarterOn() ? 'is-on' : ''}"><td><button type="button" class="ld-link" data-ld-quarter="${h.q}">${escapeHtml(h.b.label)}</button></td><td>${h.peas}${h.peas >= S.goals.leader ? ` ${LD_ICON_TROPHY}` : ''}</td><td>${h.notes}</td><td>${h.focus ? ldPlural(h.focus, 'item') : '—'}</td></tr>`).join('')}</tbody></table>
+      <table class="ld-history"><thead><tr><th>Quarter</th><th>Director PEAs</th><th>Notes</th><th>Focus</th></tr></thead><tbody>${history.map(h => `<tr class="${h.q === ldQuarterOn() ? 'is-on' : ''}"><td><button type="button" class="ld-link" data-ld-quarter="${h.q}">${escapeHtml(h.b.label)}</button></td><td>${h.peas}${h.peas >= S.goals.leader ? ` ${LD_ICON_TROPHY}` : ''}</td><td>${h.notes}</td><td>${h.focus ? ldPlural(h.focus, 'item') : '—'}</td></tr>`).join('')}</tbody></table>
       <p class="dir-note">Ratings are kept a year; notes and the focus stay.</p>
     </section>`;
 }
@@ -420,8 +434,9 @@ function ldProfileText(name){
   const L = S.leaders.find(l => dirKey(l.name) === dirKey(name));
   const b = S.quarter;
   const out = [`${name}${L && L.roles.length ? ' — ' + L.roles.join(', ') : ''}`, `${b.label} (${b.span})`, ''];
-  out.push(`PEAs: ${L ? L.count : 0} of ${S.goals.leader}${L ? ' · ' + ldPaceText(L, S) : ''}`);
+  out.push(`PEAs from directors: ${L ? L.count : 0} of ${S.goals.leader}${L ? ' · ' + ldPaceText(L, S) : ''}${L && Object.keys(L.byDirector).length ? ` (${ldByDirectorText(L.byDirector)})` : ''}`);
   if(L && L.streak > 1) out.push(`Streak: ${L.streak} weeks with a PEA`);
+  if(L && L.avg != null) out.push(`Average score on those PEAs: ${L.avg.toFixed(2)}`);
   const focus = ldFocusFor(name);
   out.push(''); out.push(`${b.label} FOCUS`);
   focus.length ? focus.forEach((f, i) => out.push(`${i + 1}. ${f}`)) : out.push('None set.');
