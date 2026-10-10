@@ -23,8 +23,8 @@ vm.runInContext(`
   let fohRoster = {}, bohRoster = {}, posAssignments = {}, adminShifts = {}, directors = null, leaderNotes = {}, wasteDays = [], wasteTarget = 100, uniformOrders = [], salesHistory = {}, forecastLog = {};
   let leaderRoster = null, peaGoals = null, leaderFocus = {};
   let peaRows = []; function peaAllRatings(){ return peaRows; }
-  // One PEA: {date, leader, employee, position, overall}.
-  const pea = (date, leader, employee, position, overall) => ({at: date + 'T10:00', date, leader, employee, position: position || 'iPOS', overall: overall == null ? 3 : overall, criteria: [3, 3, 3, 3, 3], role: 'Team Member'});
+  // One PEA: {date, leader (the rater), employee, position, overall, role (the employee's)}.
+  const pea = (date, leader, employee, position, overall, role) => ({at: date + 'T10:00', date, leader, employee, position: position || 'iPOS', overall: overall == null ? 3 : overall, criteria: [3, 3, 3, 3, 3], role: role || 'Team Member'});
 `, ctx);
 vm.runInContext(js('directors.js'), ctx);
 vm.runInContext(js('leaders.js'), ctx);
