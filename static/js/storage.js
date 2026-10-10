@@ -12,9 +12,9 @@ const STATE_SECTIONS = {
   manager: ['wasteTarget', 'safeTarget', 'products', 'deletedProductIds', 'productFixesVersion',
             'productCategoryOrder', 'lxPillars', 'lxMetrics', 'lxLastUpdated', 'gxData', 'txData',
             'homeData', 'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData',
-            'launchMode', 'storeEvents'],
+            'launchMode', 'storeEvents', 'directors'],
   pea: ['peaRatings', 'peaNameAliases'],
-  rosters: ['fohRoster', 'bohRoster', 'rosterPosted', 'truckShifts'],
+  rosters: ['fohRoster', 'bohRoster', 'rosterPosted', 'truckShifts', 'adminShifts'],
   setups: ['posAssignments', 'posVacancyFlags', 'setupDayTypes', 'lastUpdated',
            'breakCountdowns', 'completedBreaks', 'zoneOwners', 'posNotes'],
   history: ['setupHistory', 'numbersHistory', 'wasteMonthlyHistory', 'zoneChecklistHistory'],
@@ -24,7 +24,7 @@ const STATE_SECTIONS = {
         'numbersData'],
   safe: ['safeCounts'],
   people: ['eoiSubmissions', 'trainerTrainees', 'trainerProgress', 'teamLeadTrainees',
-           'teamLeadProgress', 'scoreboardItems'],
+           'teamLeadProgress', 'scoreboardItems', 'leaderNotes'],
   prep: ['prepBuffers', 'prepSoldEntries', 'prepWasteEntries', 'prepStockoutEvents', 'prepHistorySeeded'],
   prepTimes: ['prepTimes', 'prepTimers'],
   cem: ['cemEntries'],
@@ -70,7 +70,7 @@ function stateSnapshot(){
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
     prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, launchMode, prepTimes, prepTimers,
     salesHistory, forecastSettings, forecastLog, daypartWeeks, zoneOwners, posNotes, storeEvents, truckShifts,
-    uniformOrders, uniformCatalog
+    uniformOrders, uniformCatalog, directors, adminShifts, leaderNotes
   };
 }
 
@@ -462,6 +462,11 @@ function applyStateData(data){
   uniformOrders = Array.isArray(data.uniformOrders) ? data.uniformOrders : [];
   uniformCatalog = Array.isArray(data.uniformCatalog) ? data.uniformCatalog : null;
   if(typeof uoRerender === 'function') uoRerender();
+  // The director team, their Administrative shifts and the notes on each leader (directors.js).
+  directors = Array.isArray(data.directors) ? data.directors : null;
+  adminShifts = (data.adminShifts && typeof data.adminShifts === 'object' && !Array.isArray(data.adminShifts)) ? data.adminShifts : {};
+  leaderNotes = (data.leaderNotes && typeof data.leaderNotes === 'object' && !Array.isArray(data.leaderNotes)) ? data.leaderNotes : {};
+  if(typeof dirRerender === 'function') dirRerender();
 }
 
 // ===== OTHER PEOPLE'S CHANGES =====

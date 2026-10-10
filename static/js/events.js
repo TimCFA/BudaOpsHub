@@ -30,6 +30,7 @@ const EVENT_KINDS = {
   drivethru: {label: 'Drive Thru Event', color: '#2E8B57', name: 'Green'},
   social: {label: 'Social', color: '#1C1B19', name: 'Black'},
   note: {label: 'Heads-up', color: '#4A4640'},
+  meeting: {label: 'Meeting / leadership', color: '#004F71'},
   goal: {label: 'Monthly goals', color: '#004F71'},
   checklist: {label: 'Pre-Checklist (the month)', color: '#7C766C'},
 };
@@ -399,6 +400,7 @@ function evFormHtml(ev){
       </div>
       <fieldset class="ev-days"><legend>Only on (for a date range; none = every day)</legend>${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => `<label><input type="checkbox" data-ev-day="${i}" ${days.includes(i) ? 'checked' : ''}>${d}</label>`).join('')}</fieldset>
       <label class="ev-kn"><input type="checkbox" id="evKn" ${evCountsForNumbers(ev.id === 'new' ? {...ev, kn: undefined} : ev) ? 'checked' : ''} ${typeof ev.kn === 'boolean' ? 'data-touched="1"' : ''}><span><b>Special event in Know the Numbers</b> — shows on Set Ups' numbers line, counts toward Game Day and the forecast's unusual days. On by itself for In-Store, Drive Thru and App events of a week or less.</span></label>
+      <label class="ev-kn"><input type="checkbox" id="evAttn" ${ev.attn ? 'checked' : ''}><span><b>Needs a director</b> — shows under Needs attention on the Directors page (meetings always do).</span></label>
       <div class="field"><label for="evNotes">Notes (one per line)</label><textarea id="evNotes" rows="4" maxlength="2000">${escapeHtml((ev.notes || []).join('\n'))}</textarea></div>
       <div class="ev-form-actions">
         <button type="submit" class="btn btn-primary">Save</button>
@@ -430,6 +432,8 @@ function evReadForm(form){
   // after a change of type or dates.
   const kn = document.getElementById('evKn');
   if(kn && !EVENT_MONTH_KINDS.includes(ev.kind) && kn.checked !== evCountsByRule(ev)) ev.kn = kn.checked;
+  const attn = document.getElementById('evAttn');
+  if(attn && attn.checked) ev.attn = true;
   return {ev};
 }
 

@@ -24,6 +24,7 @@ let weeklyImportActiveDay = 'Mon';
 let weeklyImportFileStart = null;   // Sunday ISO from the file name, if any
 let weeklyImportOffFloor = {};
 let weeklyImportTruck = {};   // {Mon: [{name, start, end}], ...}
+let weeklyImportAdmin = {};   // {Mon: [{name, start, end}], ...}: Administrative shifts (directors' time)
 
 function parseCsv(text){
   const rows = [];
@@ -89,7 +90,8 @@ function parseWeeklyRosterCsv(text){
   const unrecognized = [];
   const offFloor = {};
   const truck = {};
-  HS_DAY_ORDER.forEach(day => { truck[day] = []; });
+  const admin = {};   // Administrative shifts by day (directors.js)
+  HS_DAY_ORDER.forEach(day => { truck[day] = []; admin[day] = []; });
 
   for(let r = 1; r < rows.length; r++){
     const row = rows[r];
@@ -115,6 +117,8 @@ function parseWeeklyRosterCsv(text){
         const kind = job || schedule;
         offFloor[kind] = (offFloor[kind] || 0) + 1;
         if(/truck/i.test(job) && !truck[day].some(t => t.name.toLowerCase() === name.toLowerCase())) truck[day].push({name, start: range.start, end: range.end});
+        // Administrative shifts are the directors' time in the store (directors.js).
+        if(/administrative/i.test(job)) admin[day].push({name, start: range.start, end: range.end});
         return;
       }
 
@@ -149,7 +153,7 @@ function parseWeeklyRosterCsv(text){
     else p.blocks = merged;
   })));
 
-  return {result, unrecognized, offFloor, truck};
+  return {result, unrecognized, offFloor, truck, admin};
 }
 
 // "Weekly_Roster_09202026_09262026.csv" → the Sunday it starts on, as ISO.
@@ -299,6 +303,9 @@ async function confirmWeeklyImport(){
     // Who has the Truck shift: the schedule's, replacing the day's (truck.js).
     const truck = weeklyImportTruck[hsDay] || [];
     if(truck.length) truckShifts[dateISO] = truck.map(t => ({name: t.name, start: t.start, end: t.end})); else delete truckShifts[dateISO];
+    // Administrative shifts: the directors' time, for the Directors page.
+    const admin = weeklyImportAdmin[hsDay] || [];
+    if(admin.length) adminShifts[dateISO] = admin.map(t => ({name: t.name, start: t.start, end: t.end})); else delete adminShifts[dateISO];
     touchLastUpdated(dateISO);
   });
   rosterPrunePosted();

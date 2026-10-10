@@ -21,6 +21,9 @@ let rosterPosted = {};   // {date: {foh: [...], boh: [...], at}}: each day's pos
 let truckShifts = {};    // {date: [{name, start, end, source: 'schedule' | 'manual', addedBy, addedAt}]}: who's doing truck (truck.js)
 let uniformOrders = [];  // uniform orders, newest last (uniform-orders.js); manager sessions only
 let uniformCatalog = null; // the order form's items; null until a manager edits: UNIFORM_SEED shows
+let directors = null;    // [{name, title}] the director team (directors.js); null until edited: DIRECTORS_SEED
+let adminShifts = {};    // {date: [{name, start, end}]}: Administrative shifts from the roster import (directors' time)
+let leaderNotes = {};    // {leader name: [{text, by, ts}]}: directors' notes on each leader, newest last
 let foodSafetyStreak = 0;
 let wasteStreak = 0;
 let wasteLogLastClosedOut = null; // timestamp of the last manual export+reset, shown in Manage
@@ -207,7 +210,7 @@ function pruneOldDateData(){
   const isDateKey = k => /^\d{4}-\d{2}-\d{2}$/.test(k);
   
   let pruned = false;
-  [fohRoster, bohRoster, numbersData, lastUpdated, truckShifts].forEach(obj=>{
+  [fohRoster, bohRoster, numbersData, lastUpdated, truckShifts, adminShifts].forEach(obj=>{
     Object.keys(obj).forEach(key=>{
       if(isDateKey(key) && key < cutoffISO){
         delete obj[key];
