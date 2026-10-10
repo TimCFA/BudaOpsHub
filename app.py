@@ -52,13 +52,13 @@ MANAGER_ONLY_KEYS = {
     'wasteTarget', 'safeTarget', 'products',
     'deletedProductIds', 'productFixesVersion', 'productCategoryOrder',
     'lxPillars', 'lxMetrics', 'lxLastUpdated',
-    'gxData', 'txData', 'homeData', 'storeEvents', 'directors',
+    'gxData', 'txData', 'homeData', 'storeEvents', 'directors', 'leaderRoster', 'peaGoals',
     'peaRatings', 'peaNameAliases',
     'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData',
     'launchMode',
     # People data (below): private, so only a manager session changes it.
     'eoiSubmissions', 'trainerTrainees', 'trainerProgress', 'teamLeadTrainees',
-    'teamLeadProgress', 'scoreboardItems', 'leaderNotes',
+    'teamLeadProgress', 'scoreboardItems', 'leaderNotes', 'leaderFocus',
     # Sales and labor history (below): private, so only a manager session changes it.
     'salesHistory', 'forecastSettings', 'forecastLog', 'daypartWeeks',
     # Uniform orders (below): names and paycheck deductions, so only a manager session.
@@ -133,7 +133,7 @@ STATE_SECTIONS = {
     'manager': ['wasteTarget', 'safeTarget', 'products', 'deletedProductIds', 'productFixesVersion',
                 'productCategoryOrder', 'lxPillars', 'lxMetrics', 'lxLastUpdated', 'gxData', 'txData',
                 'homeData', 'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData',
-                'launchMode', 'storeEvents', 'directors'],
+                'launchMode', 'storeEvents', 'directors', 'leaderRoster', 'peaGoals'],
     'pea': ['peaRatings', 'peaNameAliases'],
     'rosters': ['fohRoster', 'bohRoster', 'rosterPosted', 'truckShifts', 'adminShifts'],
     'setups': ['posAssignments', 'posVacancyFlags', 'setupDayTypes', 'lastUpdated',
@@ -145,7 +145,7 @@ STATE_SECTIONS = {
             'numbersData'],
     'safe': ['safeCounts'],
     'people': ['eoiSubmissions', 'trainerTrainees', 'trainerProgress', 'teamLeadTrainees',
-               'teamLeadProgress', 'scoreboardItems', 'leaderNotes'],
+               'teamLeadProgress', 'scoreboardItems', 'leaderNotes', 'leaderFocus'],
     'prep': ['prepBuffers', 'prepSoldEntries', 'prepWasteEntries', 'prepStockoutEvents', 'prepHistorySeeded'],
     'prepTimes': ['prepTimes', 'prepTimers'],
     'cem': ['cemEntries'],

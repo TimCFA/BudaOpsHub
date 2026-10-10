@@ -10,14 +10,16 @@
 //     leads the floor at the time.
 //  4. PEA cadence: leaders by how long since their last PEA given, team
 //     members by their last received.
-//  5. Notes on each leader, with their history (private to PIN sessions).
+//  5. The PEA scoreboard in short (the Leaders view, leaders.js, has the
+//     profiles: scoreboard, focus, notes, PEC calibration, quarter history).
 //  6. The numbers: the week's forecast, last week's accuracy, waste, orders.
 //
 // Directors are named in Manage → Settings (directors, {name, title}, as
 // HotSchedules spells them); their time is the Administrative shifts the
 // roster import keeps (adminShifts). Leaders are the Team Leader shifts on
 // the roster plus anyone set as Lead Captain on Set Ups. Notes live in
-// leaderNotes {name: [{text, by, ts}]} (the private people section).
+// leaderNotes {name: [{text, by, ts, date, type, pec}]} (the private people
+// section).
 
 const DIRECTORS_SEED = [
   {name: 'Timothy Lane', title: 'Director'},
@@ -30,7 +32,7 @@ const DIR_GAP_MIN = 30;         // a leader-less stretch shorter than this isn't
 const DIR_CLOSE_MIN = 21 * 60 + 30;   // a leader on until here counts as closing
 
 let dirWeekOffset = 0;   // 0 = this week, 1 = next
-let dirNoteLeader = '';  // the leader whose notes are open
+let dirView = 'brief';   // 'brief' | 'leaders'
 
 function dirList(){ return Array.isArray(directors) ? directors : DIRECTORS_SEED; }
 function dirEnsureOwn(){ if(!Array.isArray(directors)) directors = JSON.parse(JSON.stringify(DIRECTORS_SEED)); }
@@ -157,12 +159,21 @@ function renderDirectorsView(){
   if(!root) return;
   if(!dirShown()){ root.innerHTML = ''; return; }
   const dates = dirWeek();
+  const leadersOn = dirView === 'leaders' && typeof ldBodyHtml === 'function';
+  const panes = `<div class="uo-panes" role="tablist" aria-label="View"><button type="button" class="uo-pane-btn ${!leadersOn ? 'active' : ''}" data-dir-view="brief">Brief</button><button type="button" class="uo-pane-btn ${leadersOn ? 'active' : ''}" data-dir-view="leaders">Leaders</button></div>`;
+  if(leadersOn){
+    root.innerHTML = `
+      <div class="dir-head">
+        <div><h2 class="dir-title">Directors</h2><p class="dir-sub">${ldOpen ? escapeHtml(ldQuarterBounds(ldQuarterOn()).label) + ' · ' + escapeHtml(ldQuarterBounds(ldQuarterOn()).span) : 'Each leader’s quarter: PEAs, focus, notes'}</p></div>
+        <div class="dir-actions">${panes}${ldActionsHtml()}</div>
+      </div>
+      ${ldBodyHtml()}`;
+    return;
+  }
   const hasRoster = dates.some(iso => fohRoster[iso] && fohRoster[iso].length);
   const attention = dirAttention(dates), others = dirOtherEvents(dates);
   const pea = dirPeaCadence(dates);
   const nums = dirNumbers(dates);
-  const noteNames = [...new Set([...dates.flatMap(iso => dirLeaders(iso).map(p => p.name)), ...Object.keys(leaderNotes)])].sort((a, b) => a.localeCompare(b));
-  if(!noteNames.includes(dirNoteLeader)) dirNoteLeader = noteNames[0] || '';
 
   const dayRows = dates.map(iso => {
     const floor = dirFloor(iso), leaders = floor.filter(p => p.leader), dirs = dirDirectorShifts(iso);
@@ -191,7 +202,6 @@ function renderDirectorsView(){
 
   const peaRow = (p, what) => `<li class="${p.days === null || p.days > DIR_PEA_DAYS ? 'is-flag' : ''}"><span>${escapeHtml(dirShort(p.name))}</span><span class="dir-muted">${p.days === null ? `no PEA ${what} on record` : p.days === 0 ? 'today' : `${p.days} day${p.days === 1 ? '' : 's'} ago`}${what === 'given' && p.recent ? ` · ${p.recent} in ${DIR_PEA_COUNT_DAYS} days` : ''}</span></li>`;
 
-  const notes = (leaderNotes[dirNoteLeader] || []).slice().reverse();
   const numParts = [];
   if(nums.forecast) numParts.push(`<div class="dir-num"><span>Forecast, ${nums.forecast.days} days</span><b>${escapeHtml(fcMoney(nums.forecast.sales))}</b><small>${nums.forecast.vsLastYear != null ? `${escapeHtml(fcPctFmt(nums.forecast.vsLastYear))} vs last year` : 'the Forecast tab’s baseline'}</small></div>`);
   if(nums.track) numParts.push(`<div class="dir-num"><span>Sent forecasts</span><b>${nums.track.accuracy.toFixed(1)}%</b><small>${nums.track.days} days scored · ${nums.track.bias > 1 ? 'runs high' : nums.track.bias < -1 ? 'runs low' : 'no lean'}</small></div>`);
@@ -202,6 +212,7 @@ function renderDirectorsView(){
     <div class="dir-head">
       <div><h2 class="dir-title">Directors</h2><p class="dir-sub">${escapeHtml(dirDay(dates[0]))} – ${escapeHtml(dirDay(dates[dates.length - 1]))}</p></div>
       <div class="dir-actions">
+        ${panes}
         <div class="uo-panes" role="tablist" aria-label="Week"><button type="button" class="uo-pane-btn ${dirWeekOffset === 0 ? 'active' : ''}" data-dir-week="0">This week</button><button type="button" class="uo-pane-btn ${dirWeekOffset === 1 ? 'active' : ''}" data-dir-week="1">Next week</button></div>
         <button type="button" class="btn btn-ghost dir-btn" data-dir-copy>Copy brief</button>
         <button type="button" class="btn btn-ghost dir-btn" data-dir-pdf>PDF</button>
@@ -224,17 +235,15 @@ function renderDirectorsView(){
         <div><h4>Team members, longest since a PEA</h4><ul class="dir-list dir-list-sm">${pea.employees.slice(0, 12).map(p => peaRow(p, 'received')).join('')}</ul></div>
       </div><p class="dir-note">Flagged past ${DIR_PEA_DAYS} days. From the Levelset ratings in Manage → PEA.</p>` : '<p class="dir-empty">No PEA ratings on file yet. Sync Levelset in Manage → PEA.</p>'}
     </section>
-    <section class="dir-card" id="dirNotes"><h3>Leader notes</h3>
-      <div class="dir-note-bar"><label>Leader <select id="dirNoteLeader">${noteNames.map(n => `<option value="${escapeHtml(n)}" ${n === dirNoteLeader ? 'selected' : ''}>${escapeHtml(n)}${leaderNotes[n] && leaderNotes[n].length ? ` (${leaderNotes[n].length})` : ''}</option>`).join('')}</select></label></div>
-      ${dirNoteLeader ? `<form class="dir-note-form" id="dirNoteForm"><textarea id="dirNoteText" rows="3" maxlength="1000" placeholder="A one-on-one, a win, something to follow up on…"></textarea><button type="submit" class="btn btn-primary dir-btn">Add note</button></form>
-      ${notes.length ? `<ul class="dir-notes">${notes.map((n, i) => `<li><div class="dir-note-meta">${escapeHtml(new Date(n.ts).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}))}${n.by ? ` · ${escapeHtml(n.by)}` : ''}<button type="button" class="dir-x" data-dir-note-del="${notes.length - 1 - i}" aria-label="Delete note">${UO_X_ICON}</button></div><p>${escapeHtml(n.text)}</p></li>`).join('')}</ul>` : '<p class="dir-empty">No notes yet.</p>'}` : '<p class="dir-empty">No leaders on this week’s roster yet.</p>'}
-    </section>
+    ${typeof ldSummaryHtml === 'function' ? ldSummaryHtml() : ''}
     <section class="dir-card"><h3>The numbers</h3>${numParts.length ? `<div class="dir-nums">${numParts.join('')}</div>` : '<p class="dir-empty">Upload sales history and waste fills in here.</p>'}</section>`;
 }
 
 function dirRerender(){
   const view = document.getElementById('directorsView');
-  if(view && view.classList.contains('active') && !(document.activeElement && document.activeElement.id === 'dirNoteText')) renderDirectorsView();
+  const a = document.activeElement;
+  const typing = a && a.closest && a.closest('#directorsRoot') && /^(TEXTAREA|INPUT)$/.test(a.tagName);
+  if(view && view.classList.contains('active') && !typing) renderDirectorsView();
 }
 
 // ----- The brief as text (copy / PDF) -----
@@ -265,6 +274,7 @@ function dirBriefText(){
   L.push(flaggedL.length ? `Leaders: ${flaggedL.map(p => `${dirShort(p.name)} (${p.days === null ? 'none on record' : p.days + ' days'})`).join(', ')}` : 'Every leader has given a PEA recently.');
   const flaggedE = pea.employees.filter(p => p.days !== null && p.days > DIR_PEA_DAYS).slice(0, 10);
   if(flaggedE.length) L.push(`Team members: ${flaggedE.map(p => `${dirShort(p.name)} (${p.days} days)`).join(', ')}`);
+  if(typeof ldBriefLines === 'function'){ L.push(''); L.push(`PEA SCOREBOARD (${ldQuarterBounds(ldQuarterNow()).label})`); ldBriefLines().forEach(x => L.push(x)); }
   const nums = dirNumbers(dates);
   L.push(''); L.push('THE NUMBERS');
   if(nums.forecast) L.push(`Forecast for the week: ${fcMoney(nums.forecast.sales)}${nums.forecast.vsLastYear != null ? ` (${fcPctFmt(nums.forecast.vsLastYear)} vs last year)` : ''}`);
@@ -299,30 +309,12 @@ function dirPdf(){
 document.addEventListener('click', e => {
   const t = e.target && e.target.closest ? e.target : null;
   if(!t || !t.closest('#directorsRoot')) return;
+  const vw = t.closest('[data-dir-view]');
+  if(vw){ dirView = vw.dataset.dirView; renderDirectorsView(); window.scrollTo(0, 0); return; }
   const wk = t.closest('[data-dir-week]');
   if(wk){ dirWeekOffset = +wk.dataset.dirWeek; renderDirectorsView(); return; }
   if(t.closest('[data-dir-copy]')){ dirCopy(t.closest('[data-dir-copy]')); return; }
   if(t.closest('[data-dir-pdf]')){ dirPdf(); return; }
-  const del = t.closest('[data-dir-note-del]');
-  if(del){
-    const list = leaderNotes[dirNoteLeader] || [];
-    const n = list[+del.dataset.dirNoteDel];
-    if(!n || !confirm('Delete this note?')) return;
-    list.splice(+del.dataset.dirNoteDel, 1);
-    if(!list.length) delete leaderNotes[dirNoteLeader];
-    renderDirectorsView(); saveState();
-  }
-});
-document.addEventListener('change', e => {
-  if(e.target && e.target.id === 'dirNoteLeader'){ dirNoteLeader = e.target.value; renderDirectorsView(); }
-});
-document.addEventListener('submit', e => {
-  if(e.target.id !== 'dirNoteForm') return;
-  e.preventDefault();
-  const text = (document.getElementById('dirNoteText').value || '').trim();
-  if(!text || !dirNoteLeader) return;
-  (leaderNotes[dirNoteLeader] = leaderNotes[dirNoteLeader] || []).push({text: text.slice(0, 1000), by: (typeof getInitials === 'function' && getInitials()) || '', ts: Date.now()});
-  renderDirectorsView(); showToast('Note added'); saveState();
 });
 
 // ----- Manage → Settings: the director team -----

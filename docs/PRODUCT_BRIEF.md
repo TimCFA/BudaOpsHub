@@ -404,11 +404,36 @@ attention** (meetings and events a manager marked "Needs a director", each
 with who is on the floor at that time; the rest of the week's events in a
 line under it); **PEA cadence** (leaders by the last PEA they gave, with the
 count in the last 30 days, and team members longest since they received one;
-14 days flags red); **leader notes** (a private note per leader, by whom and
-when, delete with ×); and **the numbers** (the week's forecast and its change
-vs last year, sent-forecast accuracy, open uniform orders). "Copy brief"
-copies the same as plain text for a message; "PDF" prints it (jsPDF, the
-same as the Set Ups PDF). This week / Next week.
+14 days flags red); **the PEA scoreboard** in short (below); and **the
+numbers** (the week's forecast and its change vs last year, sent-forecast
+accuracy, open uniform orders). "Copy brief" copies the same as plain text
+for a message; "PDF" prints it (jsPDF, the same as the Set Ups PDF). This
+week / Next week. The header's Brief / Leaders switch opens the leaders.
+
+**Leaders** (`static/js/leaders.js`; Tim, Oct 2026, shaped on his Leader
+Notes Calendar page): a profile per leader for the quarter, with a quarter
+picker. The **PEA scoreboard** counts each Levelset positional rating as
+one PEA: the team's goal is 50 a quarter and each leader's 12 (both in
+Manage → Settings → Leaders), with the pace to hit it (expected by today =
+goal × days elapsed ÷ days in the quarter; on pace / behind / hit the goal,
+a trophy at the goal), the weeks-in-a-row streak, the quarter's bars week
+by week, best week, team members rated, positions covered and the average
+score given. The overview is a card per leader (ring, pips to 12, streak,
+focus); tap one for the profile: the **quarter focus** (the growth goals
+agreed in the eval, one per line), **notes** (each a Win, Coaching, Watch
+or Conversation, dated, by whom, optionally tagged to a pillar; filter by
+type or pillar; grouped by month), **Calibrate to the PEC** (the Team
+Leader Role Clarity Card plus the leader's role card(s), each pillar with
+the notes that evidence it or "no evidence yet", "You are winning when" and
+"Expected actions" verbatim from the cards), and **quarter by quarter**
+(PEAs, notes and focus per quarter, so a year reads across evals). "Copy
+profile" gives the quarter as text for an eval. A director's PEAs count for
+the team but a director gets no card unless added to the list. Leaders are
+the Manage list (name as Levelset spells it, PEC roles as chips) plus
+anyone who gave a PEA that quarter, has notes, or holds a Team Leader
+shift on a roster the hub has. `leaderRoster` and `peaGoals` are in the
+manager section; `leaderFocus` and `leaderNotes` (`{text, by, ts, date,
+type, pec}`) in the private `people` section.
 
 Leaders are the Team Leader shifts on the roster plus whoever is set as
 Lead Captain on Set Ups. Directors' time is their **Administrative** shifts

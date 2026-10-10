@@ -157,6 +157,7 @@ async function renderManage(){
   if(typeof eviRender === 'function') eviRender();
   if(typeof renderUniformCatalogManage === 'function') renderUniformCatalogManage();
   if(typeof renderDirectorsManage === 'function') renderDirectorsManage();
+  if(typeof renderLeadersManage === 'function') renderLeadersManage();
   refreshManage(true);
 }
 
@@ -179,6 +180,7 @@ function refreshManage(opening){
   if(typeof renderEventsManage === 'function' && (opening || !evEditId)) renderEventsManage();
   if(typeof renderUniformCatalogManage === 'function' && (opening || !uoEditId)) renderUniformCatalogManage();
   if(typeof renderDirectorsManage === 'function' && (opening || !document.activeElement || !document.activeElement.closest('#directorsManageRoot'))) renderDirectorsManage();
+  if(typeof renderLeadersManage === 'function' && (opening || !document.activeElement || !document.activeElement.closest('#leadersManageRoot'))) renderLeadersManage();
   renderTXManage();
   renderEOISubmissions();
   renderScoreboardManage(opening);

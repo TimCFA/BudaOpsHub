@@ -23,7 +23,10 @@ let uniformOrders = [];  // uniform orders, newest last (uniform-orders.js); man
 let uniformCatalog = null; // the order form's items; null until a manager edits: UNIFORM_SEED shows
 let directors = null;    // [{name, title}] the director team (directors.js); null until edited: DIRECTORS_SEED
 let adminShifts = {};    // {date: [{name, start, end}]}: Administrative shifts from the roster import (directors' time)
-let leaderNotes = {};    // {leader name: [{text, by, ts}]}: directors' notes on each leader, newest last
+let leaderNotes = {};    // {leader name: [{text, by, ts, date, type, pec}]}: directors' notes on each leader, newest last (leaders.js)
+let leaderRoster = null; // [{name, roles}] the leaders and their PEC roles (leaders.js); null until edited
+let peaGoals = null;     // {team, leader}: PEAs per quarter the team and each leader aim for; null = PEA_GOALS_SEED
+let leaderFocus = {};    // {'<leader key>__2026-Q4': [focus items]}: each leader's focus for the quarter
 let foodSafetyStreak = 0;
 let wasteStreak = 0;
 let wasteLogLastClosedOut = null; // timestamp of the last manual export+reset, shown in Manage
