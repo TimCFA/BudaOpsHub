@@ -62,6 +62,7 @@
       <button type="button" class="tab full-only" role="tab" aria-selected="false" aria-controls="forecastView" data-view="forecast">Forecast <span class="sub"><i>Pronóstico</i></span></button>
       <button type="button" class="tab manager-only" role="tab" aria-selected="false" aria-controls="calendarView" data-view="calendar">Calendar <span class="sub"><i>Calendario</i></span></button>
       <button type="button" class="tab manager-only" role="tab" aria-selected="false" aria-controls="uniformsView" data-view="uniforms">Uniforms <span class="sub"><i>Uniformes</i></span></button>
+      <button type="button" class="tab manager-only" role="tab" aria-selected="false" aria-controls="directorsView" data-view="directors">Directors <span class="sub"><i>Directores</i></span></button>
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="manageView" data-view="manage">Manage <span class="sub"><i>Gestionar</i></span></button>
     </div>
   </div>
@@ -832,6 +833,11 @@
     <div class="uo-page" id="uniformsRoot"></div>
   </div>
 
+  <!-- Directors View: the week ahead for the director team (directors.js). PIN only. -->
+  <div class="view" id="directorsView">
+    <div class="dir-page" id="directorsRoot"></div>
+  </div>
+
   <div class="view" id="manageView">
     <div id="pinGate" class="pin-gate">
       <div style="font-size:14px;margin-bottom:20px;font-weight:600;">Enter PIN to manage <span style="display:block;font-size:12px;font-style:italic;color:var(--text-secondary);font-weight:400;">Ingrese PIN</span></div>
@@ -1033,6 +1039,16 @@
             <p class="mv-saved" data-mv-saved>Saves as you go</p>
           </div>
 <div class="standup-card">
+            <h3>Directors</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">The director team, with each name as HotSchedules has it, so their Administrative shifts show on the Directors page. Saves as you go.</p>
+            <div id="directorsManageRoot"></div>
+          </div>
+<div class="standup-card">
+            <h3>Leaders</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">The PEA goals for the quarter, and each leader with their PEC role so their role card shows on their profile (Directors → Leaders). Names as Levelset spells them. Saves as you go.</p>
+            <div id="leadersManageRoot"></div>
+          </div>
+<div class="standup-card">
             <h3>Full Backup</h3>
             <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Downloads everything the hub has saved, straight from the server, as one file you keep: rosters, set ups, breaks, numbers and actuals, checklists, waste, prep, PEA, safe counts, trainees, EOI and the forecast. Keep it somewhere private: it has team names and the store's numbers.</p>
             <button id="btnExportBackup" class="btn btn-primary">Download Full Backup</button>
@@ -1095,6 +1111,8 @@
 <script src="/static/js/numbers-upload.js"></script>
 <script src="/static/js/report-uploads.js"></script>
 <script src="/static/js/forecast.js"></script>
+<script src="/static/js/directors.js"></script>
+<script src="/static/js/leaders.js"></script>
 <script src="/static/js/launch-mode.js"></script>
 </body>
 </html>

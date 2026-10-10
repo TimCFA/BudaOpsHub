@@ -348,9 +348,10 @@ async function duImportCem(file, text, buffer){
 }
 
 function duImportRoster(file, text){
-  const {result, unrecognized, offFloor, truck} = parseWeeklyRosterCsv(text);
+  const {result, unrecognized, offFloor, truck, admin} = parseWeeklyRosterCsv(text);
   weeklyImportParsed = result;
   weeklyImportTruck = truck || {};
+  weeklyImportAdmin = admin || {};
   weeklyImportUnrecognized = unrecognized;
   weeklyImportOffFloor = offFloor;
   weeklyImportFileStart = weeklyRosterStartFromFileName(file.name);
