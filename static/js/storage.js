@@ -353,6 +353,14 @@ function applyStateData(data){
       // that the catalog doesn't know show on both.
       products.forEach(p=>{ if(!WASTE_SIDES.includes(p.side)) p.side = WASTE_CATALOG_IDS.has(p.id) ? wasteDefaultSide(p.id) : 'both'; });
     }
+    if(fixesDone < 7){
+      // Fix 7: the TIM-18 audit's names, category and unit (WASTE_ITEM_FIX_7).
+      products.forEach(p=>{
+        Object.entries(WASTE_ITEM_FIX_7[p.id] || {}).forEach(([field, [before, now]])=>{
+          if(p[field] === before) p[field] = now;
+        });
+      });
+    }
   } else if(data.products){
     // Fix 4: the Waste tracker's catalog replaces the old Log Waste list.
     // A price a manager had typed in for an old item carries to the item it

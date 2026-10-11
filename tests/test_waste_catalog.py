@@ -23,6 +23,7 @@ const out = vm.runInContext(`({
   legacy: WASTE_LEGACY_MAP,
   colors: WASTE_COLORS,
   priceFix: WASTE_PRICE_FIX_5,
+  itemFix: WASTE_ITEM_FIX_7,
   bohIds: [...WASTE_BOH_ITEMS],
   shows: [wasteItemShows({side: 'foh'}, 'foh'), wasteItemShows({side: 'foh'}, 'boh'), wasteItemShows({side: 'both'}, 'boh'), wasteItemShows({}, 'boh'), wasteItemShows({side: 'x'}, 'foh')],
   catOrder: WASTE_CAT_ORDER,
@@ -81,6 +82,25 @@ class WasteCatalogTest(unittest.TestCase):
         # Judgment calls left alone.
         for pid in ('buttered-biscuit', 'egg-whites-2', 'yellow-egg-2', 'coke', 'bacon', 'brioche-bun', 'mini-bread'):
             self.assertNotIn(pid, fix, pid)
+
+    def test_audit_fixes(self):
+        # TIM-18: tidy names, Raw Breakfast Filet with the raw product, wraps by the portion.
+        items = {p['id']: p for p in self.data['items']}
+        self.assertEqual(items['egg-whites']['name'], 'Egg Whites')
+        self.assertEqual(items['yellow-egg-2']['name'], 'Yellow Egg (2)')
+        # Renamed, but the ids saved data and entries use are kept.
+        self.assertEqual(items['icecream-cone']['name'], 'Ice Cream Cone')
+        self.assertEqual(items['icecream-cup']['name'], 'Ice Cream Cup')
+        self.assertNotIn('ice-cream-cone', items)
+        self.assertEqual(items['raw-breakfast-filet']['cat'], 'Raw')
+        self.assertEqual(items['raw-breakfast-filet']['ord'], 1000)
+        self.assertEqual(items['spicy-wrap']['unit'], items['cool-wrap']['unit'])
+        # Every fix lands on the catalog's current value.
+        for pid, fields in self.data['itemFix'].items():
+            self.assertIn(pid, items, pid)
+            for field, (old, new) in fields.items():
+                self.assertEqual(items[pid][field], new, f'{pid}.{field}')
+                self.assertNotEqual(old, new, f'{pid}.{field}')
 
     def test_sides(self):
         items = {p['id']: p for p in self.data['items']}

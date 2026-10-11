@@ -21,7 +21,7 @@ const WASTE_CAT_COLOR = {
   'Nuggets': '#a21caf', 'Strips': '#c62828', 'Sandwiches': '#27418a', 'Sides': '#c9741a', 'Drinks': '#6b4a2f', 'FOH SAT BEV WASTE': '#8a8a12'
 };
 // Proteins first in this order, everything else by name.
-const WASTE_PROTEIN_ORDER = {'Filet': 1, 'Grilled Filet': 2, 'Spicy Filet': 3, 'Nugget': 4, 'Grilled Nugget': 5, 'Strips': 6, 'Raw Breakfast Filet': 7, 'Bacon': 8};
+const WASTE_PROTEIN_ORDER = {'Filet': 1, 'Grilled Filet': 2, 'Spicy Filet': 3, 'Nugget': 4, 'Grilled Nugget': 5, 'Strips': 6, 'Bacon': 8};
 
 // [name, Spanish, category, unit, cost per unit, color key]
 const WASTE_CATALOG_ROWS = [
@@ -59,7 +59,7 @@ const WASTE_CATALOG_ROWS = [
   ['Cool Wrap', 'Envoltorio Asado', 'Prep', 'portion', 2.44, 'green'],
   ['Diet Lemonade', 'Limonada Dietética (Cuarto)', 'FOH SAT BEV WASTE', 'quart', 1.43, 'yellow'],
   ['Egg White Grill', 'Egg White Grill (Claras a la Parrilla)', 'Breakfast', 'pc', 1.06],
-  ['Egg whites', 'Claras de Huevo', 'Breakfast', 'pc', 0.16],
+  ['Egg Whites', 'Claras de Huevo', 'Breakfast', 'pc', 0.16],
   ['Egg Whites (2)', 'Claras de Huevo (2)', 'Breakfast', 'pc', 0.80, 'blue'],
   ['Filet', 'Filete CFA', 'Proteins', 'pc', 1.08, 'navy'],
   ['Frosted Coffee', 'Café Frosted', 'Desserts', 'portion', 0.77, 'maroon'],
@@ -75,8 +75,8 @@ const WASTE_CATALOG_ROWS = [
   ['Hashbrown Scramble Burrito', 'Burrito Hash Brown Scramble', 'Breakfast', 'pc', 1.43],
   ['Hashbrowns', 'Papitas Hash Brown (Regular)', 'Breakfast', 'pc', 0.27, 'tan'],
   ['Ice Dream', 'Helado CFA (Cuarto)', 'FOH SAT BEV WASTE', 'quart', 0],
-  ['IceCream Cone', 'Helado CFA (Cono)', 'Desserts', 'portion', 0.39],
-  ['IceCream Cup', 'Helado CFA (Vaso)', 'Desserts', 'portion', 0.26],
+  ['Ice Cream Cone', 'Helado CFA (Cono)', 'Desserts', 'portion', 0.39],
+  ['Ice Cream Cup', 'Helado CFA (Vaso)', 'Desserts', 'portion', 0.26],
   ['Kale Crunch Side', 'Ensalada de Kale', 'Prep', 'portion', 0.79, 'green'],
   ['Large Hashbrowns', 'Papitas Hash Brown (Grande)', 'Breakfast', 'pc', 0.41, 'tan'],
   ['Large Mac and Cheese', 'Pasta con Queso (Grande)', 'Sides', 'portion', 1.57, 'orange'],
@@ -91,7 +91,7 @@ const WASTE_CATALOG_ROWS = [
   ['Multi-Grain Bun', 'Pan Multigrano', 'Breads', 'bun', 0.35],
   ['Nugget', 'Pepita (1 pieza)', 'Proteins', 'pc', 0.16, 'magenta'],
   ['Peach Milkshake', 'Malteada de Durazno', 'Desserts', 'portion', 1.70, 'sand'],
-  ['Raw Breakfast Filet', 'Filete Desayuno Crudo', 'Proteins', 'pc', 0.56, 'gray'],
+  ['Raw Breakfast Filet', 'Filete Desayuno Crudo', 'Raw', 'pc', 0.56, 'gray'],
   ['Raw Filet', 'Filete Crudo', 'Raw', 'pc', 0.85, 'dnavy'],
   ['Raw Grilled Filet', 'Filete Asado Crudo', 'Raw', 'pc', 0.89, 'tan'],
   ['Raw Grilled Nugget', 'Pepita Asada Cruda', 'Raw', 'pc', 0.14, 'charcoal'],
@@ -113,7 +113,7 @@ const WASTE_CATALOG_ROWS = [
   ['Spicy Filet', 'Filete Picante', 'Proteins', 'pc', 1.30, 'purple'],
   ['Spicy Sandwich', 'Sándwich Picante', 'Sandwiches', 'pc', 1.49, 'red'],
   ['Spicy Southwest Salad', 'Ensalada Suroeste Picante', 'Prep', 'portion', 3.21, 'lime'],
-  ['Spicy Wrap', 'Envoltorio Picante', 'Prep', 'pc', 2.20, 'green'],
+  ['Spicy Wrap', 'Envoltorio Picante', 'Prep', 'portion', 2.20, 'green'],
   ['Strawberry Milkshake', 'Malteada de Fresa', 'Desserts', 'portion', 1.24, 'red'],
   ['Strips', 'Tiras (1 pieza)', 'Proteins', 'pc', 0.56, 'red'],
   ['Sweet Tea', 'Té Dulce', 'Drinks', 'cup', 0.06, 'brown'],
@@ -124,7 +124,7 @@ const WASTE_CATALOG_ROWS = [
   ['Waffle Potato Chips', 'Papas Onduladas (Chips)', 'Sides', 'portion', 0.55],
   ['White Bun', 'Pan Blanco', 'Breads', 'bun', 0.17],
   ['Yellow Egg', 'Huevo', 'Breakfast', 'pc', 0.16, 'yellow'],
-  ['Yellow egg (2)', 'Huevos (2)', 'Breakfast', 'pc', 0.60, 'teal']
+  ['Yellow Egg (2)', 'Huevos (2)', 'Breakfast', 'pc', 0.60, 'teal']
 ];
 
 // Price fix 5 (Oct 2026): costs from the store's Menu Details report (the
@@ -258,14 +258,32 @@ const WASTE_LEGACY_MAP = {
   boh18: 'strips', boh19: '2-count-strip', boh20: '3-count-strip', boh21: '4-count-strip'
 };
 
-const WASTE_CATALOG_IDS = new Set(WASTE_CATALOG_ROWS.map(r => wasteSlug(r[0])));
+// Items renamed after their id was saved keep the old id, so saved prices,
+// sides and this month's entries still find them.
+const WASTE_KEPT_IDS = {'Ice Cream Cone': 'icecream-cone', 'Ice Cream Cup': 'icecream-cup'};
+function wasteCatalogId(name){ return WASTE_KEPT_IDS[name] || wasteSlug(name); }
+
+// Fix 7 (Oct 2026, TIM-18 audit): names tidied, Raw Breakfast Filet moved to
+// Raw with the other raw product, Spicy Wrap counted by the portion like the
+// Cool Wrap. {id: {field: [before, now]}}: a saved item still at the old value
+// moves to the new one; anything a manager changed in Manage stays.
+const WASTE_ITEM_FIX_7 = {
+  'egg-whites': {name: ['Egg whites', 'Egg Whites']},
+  'yellow-egg-2': {name: ['Yellow egg (2)', 'Yellow Egg (2)']},
+  'icecream-cone': {name: ['IceCream Cone', 'Ice Cream Cone']},
+  'icecream-cup': {name: ['IceCream Cup', 'Ice Cream Cup']},
+  'raw-breakfast-filet': {cat: ['Proteins', 'Raw'], ord: [7, 1000]},
+  'spicy-wrap': {unit: ['pc', 'portion']}
+};
+
+const WASTE_CATALOG_IDS = new Set(WASTE_CATALOG_ROWS.map(r => wasteCatalogId(r[0])));
 
 // A fresh copy of the built-in list (the saved list starts from it).
 function wasteDefaultProducts(){
   const seen = {};
   return WASTE_CATALOG_ROWS.map(r => {
-    let id = wasteSlug(r[0]), n = 2;
-    while(seen[id]) id = wasteSlug(r[0]) + '-' + (n++);
+    let id = wasteCatalogId(r[0]), n = 2;
+    while(seen[id]) id = wasteCatalogId(r[0]) + '-' + (n++);
     seen[id] = 1;
     return {id, name: r[0], es: r[1], cat: r[2], unit: r[3], cost: r[4], color: r[5] ? WASTE_COLORS[r[5]] : '', ceil: 0, active: true, side: wasteDefaultSide(id),
             ord: (r[2] === 'Proteins' && WASTE_PROTEIN_ORDER[r[0]]) || 1000};
