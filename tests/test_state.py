@@ -7,6 +7,7 @@ import json
 import os
 import re
 import sys
+import time
 import unittest
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
@@ -198,6 +199,8 @@ class PatchTest(unittest.TestCase):
         # Without a manager session, the private sections aren't sent.
         self.assertEqual(set(self.loaded['versions']), set(appmod.STATE_SECTIONS) - set(appmod.PRIVATE_SECTIONS))
         self.assertTrue(self.loaded['build'])
+        # The server's time, for timers that every tablet counts the same way.
+        self.assertLess(abs(self.loaded['now'] - time.time() * 1000), 5000)
 
     def test_private_sections_only_for_managers(self):
         store['state/pea'] = json.dumps({'peaRatings': {'names': ['Test Person'], 'rows': []}})

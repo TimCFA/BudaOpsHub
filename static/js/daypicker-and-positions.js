@@ -671,13 +671,23 @@ const SU_ICON_CUP = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"
 const SU_ICON_CHECK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>';
 const SU_ICON_X = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
-// A break is kept under the person and the day it was taken ("Maya
-// Torres2026-10-05"). The roster shows any day of the week, so it must look
-// up the day it's showing: keyed by today alone, every other day of someone's
-// week read as "Break done" once they'd had today's break.
-function breakKeyFor(name, day){ return name + (day || today); }
+// A break is kept under the side, the day it was taken and the person
+// ("foh||2026-10-05||Maya Torres"), like posAssignments. The roster shows any
+// day of the week, so it looks up the day it's showing; and FOH and BOH each
+// have their own, so two people with one name don't share a break (TIM-57).
+function breakKeyFor(name, day, side){ return (side || currentPosSection) + '||' + (day || today) + '||' + name; }
+// Before TIM-57 the key was the name and the day ("Maya Torres2026-10-05").
+// Such a break moves to the side that shows it first. Returns true if it moved.
+function breakAdoptLegacy(name, day){
+  const old = name + day, key = breakKeyFor(name, day);
+  let moved = false;
+  if(old in breakCountdowns){ if(!(key in breakCountdowns)) breakCountdowns[key] = breakCountdowns[old]; delete breakCountdowns[old]; moved = true; }
+  if(old in completedBreaks){ if(!(key in completedBreaks)) completedBreaks[key] = completedBreaks[old]; delete completedBreaks[old]; moved = true; }
+  return moved;
+}
 function breakClockText(secs){ return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`; }
-function breakBackAt(endMs){ return new Date(endMs).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'}); }
+// On this tablet's clock, so it matches the time it shows.
+function breakBackAt(endMs){ return new Date(endMs - serverClockOffset).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'}); }
 
 // The roster card shows everyone, or just who still has a break to take
 // (Tim): people on 6+ hours on the floor (BREAK_MIN_SHIFT, break-planner.js)
@@ -724,9 +734,10 @@ function renderRoster(){
   // Breaks run on the day itself: only today's roster has the buttons; a
   // past day shows the breaks that were taken, a later day nothing yet.
   const isToday = dayName === today;
+  sortedRoster.forEach(person => { if(breakAdoptLegacy(person.name, dayName)) expiredSomething = true; });
   const breakLeft = person => {
     const key = breakKeyFor(person.name, dayName);
-    const running = breakCountdowns[key] && breakCountdowns[key] > Date.now();
+    const running = breakCountdowns[key] && breakCountdowns[key] > serverNow();
     return rosterOwesBreak(person) && (running || !completedBreaks[key]);
   };
   const leftCount = sortedRoster.filter(breakLeft).length;
@@ -736,7 +747,7 @@ function renderRoster(){
     const key = breakKeyFor(person.name, dayName);
     let remaining = 0;
     if(breakCountdowns[key]){
-      remaining = Math.round((breakCountdowns[key] - Date.now()) / 1000);
+      remaining = Math.round((breakCountdowns[key] - serverNow()) / 1000);
       if(remaining <= 0){
         delete breakCountdowns[key];
         completedBreaks[key] = true;
@@ -806,7 +817,7 @@ async function breakTick(){
   clocks.forEach(el=>{
     const key = breakKeyFor(el.dataset.breakTimer);
     if(!breakCountdowns[key]){ expired = true; return; }
-    const remaining = Math.round((breakCountdowns[key] - Date.now()) / 1000);
+    const remaining = Math.round((breakCountdowns[key] - serverNow()) / 1000);
     if(remaining <= 0){
       delete breakCountdowns[key];
       completedBreaks[key] = true;
@@ -852,6 +863,8 @@ window.removeFromRoster = async function(name){
   const breakKey = breakKeyFor(name, dayName);   // that day's break, not today's
   delete breakCountdowns[breakKey];
   delete completedBreaks[breakKey];
+  delete breakCountdowns[name + dayName];   // and one saved before TIM-57
+  delete completedBreaks[name + dayName];
   Object.keys(posAssignments).forEach(k=>{
     if(k.startsWith(currentPosSection + '||' + dayName + '||')){
       const names = posAssignments[k].split('/').map(n => n.trim());
@@ -945,7 +958,7 @@ document.getElementById('btnConfirmAddTM').addEventListener('click', async ()=>{
 window.toggleBreak = async function(name){
   const key = breakKeyFor(name);
   if(breakCountdowns[key]) delete breakCountdowns[key];
-  else breakCountdowns[key] = Date.now() + BREAK_LEN * 60 * 1000;
+  else breakCountdowns[key] = serverNow() + BREAK_LEN * 60 * 1000;
   await saveState();
   renderRoster();
 };
