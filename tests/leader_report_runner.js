@@ -23,7 +23,7 @@ vm.runInContext(`
   const ALL_ZONE_NAMES = ['Drinks Zone', 'Final Check'];
   const fohLeaderTransitionItems = ['Cash count', 'Walk the line', 'Hand off notes', 'Breaks'];
   let zoneChecklistState = {}, leaderTransitionHistory = {}, numbersData = {}, foodSafetyWalkthroughs = {};
-  let fohRoster = {}, bohRoster = {}, posAssignments = {}, adminShifts = {}, directors = null, wasteDays = [], wasteTarget = 100;
+  let leaderRoster = null; let fohRoster = {}, bohRoster = {}, posAssignments = {}, adminShifts = {}, directors = null, wasteDays = [], wasteTarget = 100;
   let storeEvents = []; function eventsOn(){ return []; }
   let peaRows = []; function peaAllRatings(){ return peaRows; }
   function fsTotals(rec){ return rec && rec.complete ? {done: 1, total: 1, complete: true} : {done: 0, total: 1, complete: false}; }
@@ -40,6 +40,8 @@ vm.runInContext('let fohLeaderTransitionChecked = {};\n' + grab(zr, 'getZoneDayp
 vm.runInContext(js('setup-history.js'), ctx);
 const dp = js('daypicker-and-positions.js');
 vm.runInContext(dp.slice(dp.indexOf('function parseShiftTimeToMinutes'), dp.indexOf('function parseDaypartTimeToMinutes')), ctx);
+// The leader list check (Manage → Settings → Leaders).
+{ const sl = js('setup-leaders.js'); vm.runInContext(sl.match(/function leaderListed\([\s\S]*?\n}\n/)[0], ctx); }
 vm.runInContext(js('directors.js'), ctx);
 vm.runInContext(js('leader-report.js'), ctx);
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));

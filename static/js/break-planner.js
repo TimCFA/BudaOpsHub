@@ -86,7 +86,7 @@ function planBreaks(section, date){
     const blocks = suShiftBlocks(entry);
     const onFloor = blocks.reduce((n, [s, e]) => n + (e - s), 0);
     if(!blocks.length) return null;
-    return {name: entry.name, leader: !!entry.leader, blocks, onFloor, from: Math.min(...blocks.map(b => b[0])), to: Math.max(...blocks.map(b => b[1]))};
+    return {name: entry.name, leader: !!entry.leader || leaderListed(entry.name), blocks, onFloor, from: Math.min(...blocks.map(b => b[0])), to: Math.max(...blocks.map(b => b[1]))};
   }).filter(Boolean);
 
   const breaks = [];

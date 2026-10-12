@@ -10,8 +10,9 @@
 //   is walled off, so a leader there covers only iPOS; the Bagging captain
 //   also reaches OMD and Drinks. Stretch goal: a leader in Drinks and OMD too.
 // - Rotation: leaders in a different spot each day.
-// Who is a leader: a HotSchedules "Team Leader" shift (roster `leader`) or a
-// Levelset role of Team Lead; Trainers come from Levelset.
+// Who is a leader: anyone on the leader list in Manage → Settings → Leaders,
+// a HotSchedules "Team Leader" shift (roster `leader`), or a Levelset role
+// of Team Lead; Trainers come from Levelset.
 
 const SU_LEAD_CAPTAIN = 'Lead Captain';
 const SU_REQUIRED_LEADER_ZONES = ['ipos', 'bagging', 'host'];
@@ -24,13 +25,26 @@ function suRosterEntryFor(section, date, name){
   return roster.find(p => p.name.trim().toLowerCase() === k) || null;
 }
 
+// On the leader list in Manage → Settings → Leaders (leaderRoster)? That
+// list holds names as Levelset spells them, so a roster name is matched the
+// way PEAs are: a name link first, then the name itself or a close form
+// ("Rory" / "Aurora", "Last, First"). The list is the word on who leads,
+// whatever shift HotSchedules has them on that day.
+function leaderListed(name){
+  const list = (Array.isArray(leaderRoster) ? leaderRoster : []).map(r => r && r.name ? String(r.name).trim() : '').filter(Boolean);
+  if(!list.length || !name) return false;
+  const k = String(name).trim().toLowerCase().replace(/\s+/g, ' ');
+  if(list.some(n => n.toLowerCase().replace(/\s+/g, ' ') === k)) return true;
+  return typeof peaMatchName === 'function' && !!peaMatchName(name, list);
+}
+
 // 'Team Lead' | 'Trainer' | null for someone working this date.
 function suLeaderRole(section, date, name, strength){
   const entry = suRosterEntryFor(section, date, name);
   const names = Object.keys(strength);
   const peaName = names.length ? peaMatchName(name, names) : null;
   const role = peaName ? strength[peaName].role : '';
-  if((entry && entry.leader) || role === 'Team Lead') return 'Team Lead';
+  if((entry && entry.leader) || role === 'Team Lead' || leaderListed(name)) return 'Team Lead';
   if(role === 'Trainer') return 'Trainer';
   return null;
 }
