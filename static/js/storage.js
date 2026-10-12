@@ -128,7 +128,7 @@ async function saveOnce(){
     patches[name] = {ver: stateVersions[name] || '?', ops};
     sent[name] = sections[name];
   });
-  if(!Object.keys(patches).length){ setSyncStatus('Synced', 'ok'); return; }
+  if(!Object.keys(patches).length){ setSyncStatus('Synced', 'ok'); return true; }
   const result = await statePost('/api/state/patch', {patches});
   if(result){
     Object.keys(sent).forEach(name=>{
@@ -150,6 +150,13 @@ async function saveOnce(){
     document.getElementById('pinGate').style.display = 'block';
     showToast('Manager sign-in expired — sign in again and redo your Manage changes');
   }
+  return !!result;
+}
+
+// Changes this page made that the server hasn't taken yet.
+function stateHasUnsent(){
+  const sections = stateSections(stateSnapshot());
+  return Object.keys(sections).some(name => name in stateBase && sections[name] !== savedSections[name]);
 }
 
 // The server's latest copy of some sections: keep this page's changes the
@@ -210,14 +217,29 @@ function stateReconcile(cur, next){
 // promise resolves once its change has gone out.
 let saveInFlight = null;
 let saveAgain = false;
+// A save that fails (no signal, or the server restarting for an update) is
+// tried again on its own: 5 s, 15 s, then every 30 s while there's anything
+// unsent. Left unsent, a change stays on this phone only and is laid back
+// over every update it hears, so the phones drift apart until a reload.
+const SAVE_RETRY_MS = [5000, 15000, 30000];
+let saveRetryTimer = null, saveRetryN = 0;
 function saveState(){
   if(saveInFlight){ saveAgain = true; return saveInFlight; }
+  if(saveRetryTimer){ clearTimeout(saveRetryTimer); saveRetryTimer = null; }
   saveInFlight = (async ()=>{
+    let ok = true;
     try{
-      do { saveAgain = false; await saveOnce(); } while(saveAgain);
+      do { saveAgain = false; ok = await saveOnce(); } while(saveAgain);
+    } catch(e){
+      ok = false;
+      console.warn('Save failed:', e);
     } finally {
       saveInFlight = null;
     }
+    if(ok){ saveRetryN = 0; return; }
+    const wait = SAVE_RETRY_MS[Math.min(saveRetryN, SAVE_RETRY_MS.length - 1)];
+    saveRetryN++;
+    saveRetryTimer = setTimeout(() => { saveRetryTimer = null; if(stateHasUnsent()) saveState(); else saveRetryN = 0; }, wait);
   })();
   return saveInFlight;
 }
@@ -506,6 +528,11 @@ let stateBuild = null;
 
 async function syncState(){
   if(stateSyncing || saveInFlight || !Object.keys(stateVersions).length) return;
+  // Anything still unsent goes first (then the check goes ahead either way:
+  // a change the server won't take, like a manager setting from a team
+  // phone, must never stop this phone hearing everyone else's).
+  if(stateHasUnsent()){ try{ await saveState(); }catch(e){} }
+  if(stateSyncing || saveInFlight) return;
   stateSyncing = true;
   try{
     const reply = await statePost('/api/state/sync', {versions: stateVersions});
@@ -527,6 +554,9 @@ async function syncState(){
 const SETUP_REFRESH_SECTIONS = ['setups', 'rosters'];
 async function refreshSetups(){
   if(saveInFlight){ try{ await saveInFlight; }catch(e){} }
+  // A change of this page's that never got out (sent while the server was
+  // restarting): send it now, so Refresh leaves every phone the same.
+  if(stateHasUnsent()){ try{ await saveState(); }catch(e){} }
   if(!Object.keys(stateVersions).length) return {ok: false, changed: false};
   const reply = await statePost('/api/state/sync', {versions: stateVersions, only: SETUP_REFRESH_SECTIONS});
   if(!reply) return {ok: false, changed: false};
