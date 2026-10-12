@@ -830,6 +830,9 @@ body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="z
 .su-sheet-list .su-rowwrap{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:6px;}
 .su-sheet-list .su-rowwrap + .su-rowwrap{border-top:1px solid #EFE8DC;}
 .su-sheet-list .su-rowwrap .su-row{border-top:0;}
+/* Lead Captain picker: everyone else on shift, folded away (setup-leaders.js). */
+.su-lead-others{margin-top:12px;}
+.su-lead-others summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--text-secondary);padding:8px 0;}
 /* Leaving as the daypart ends (setup-rules.js): a red clock before the time. */
 .su-out-clock{flex:none;color:var(--cfa-red,#DD0031);vertical-align:-1px;margin-right:3px;}
 .su-tile-time.is-out,.su-row-note.is-out,.su-tray-when.is-out,.pos-option-when.is-out{display:inline-flex;align-items:center;flex-wrap:wrap;}

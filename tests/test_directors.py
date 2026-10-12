@@ -73,6 +73,13 @@ class Week(unittest.TestCase):
         got = run("c => { " + WEEK + " leaderRoster = [{name: 'Someone Else', roles: []}]; return dirLeaders('2026-10-13').map(p => p.name); }")
         self.assertNotIn('Priya Nair', got)
 
+    def test_leaders_page_names_are_team_leads_on_set_ups(self):
+        # Priya gives PEAs, so Directors → Leaders lists her; Set Ups lets her
+        # be Lead Captain though HotSchedules has her on an ordinary shift.
+        got = run("c => { " + WEEK + """ peaRows = [{at: '2026-10-08T12:00', date: '2026-10-08', leader: 'Priya Nair', employee: 'Noah Bennett', role: 'Team Member', position: 'iPOS', overall: 3}];
+          return [ldLeaderNames(ldQuarterNow()).includes('Priya Nair'), suLeaderRole('foh', '2026-10-13', 'Priya Nair', {}), suLeaderRole('foh', '2026-10-13', 'Noah Bennett', {})]; }""")
+        self.assertEqual(got, [True, 'Team Lead', None])
+
     def test_no_leader_at_all_is_one_gap_for_the_day(self):
         got = run("c => { fohRoster = {'2026-10-13': [{name: 'Noah Bennett', start: '6:00a', end: '2:00p'}]}; return dirLeaderGaps('2026-10-13'); }")
         self.assertEqual(got, [{'start': 6 * 60, 'end': 14 * 60}])

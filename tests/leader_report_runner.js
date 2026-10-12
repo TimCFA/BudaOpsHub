@@ -41,7 +41,7 @@ vm.runInContext(js('setup-history.js'), ctx);
 const dp = js('daypicker-and-positions.js');
 vm.runInContext(dp.slice(dp.indexOf('function parseShiftTimeToMinutes'), dp.indexOf('function parseDaypartTimeToMinutes')), ctx);
 // The leader list check (Manage → Settings → Leaders).
-{ const sl = js('setup-leaders.js'); vm.runInContext(sl.match(/function leaderListed\([\s\S]*?\n}\n/)[0], ctx); }
+{ const sl = js('setup-leaders.js'); vm.runInContext(sl.slice(sl.indexOf('let suLeaderNamesCache'), sl.indexOf("// 'Team Lead' | 'Trainer' | null")), ctx); }
 vm.runInContext(js('directors.js'), ctx);
 vm.runInContext(js('leader-report.js'), ctx);
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
