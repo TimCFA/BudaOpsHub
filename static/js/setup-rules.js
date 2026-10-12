@@ -45,16 +45,23 @@ function suShiftBlocks(entry){
 function suDaypartTiming(section, date, dpIndex){
   const dayparts = suDaypartsFor(section);
   const {startMin, endMin} = daypartTimeWindow(dayparts, dpIndex);
+  const isLast = dpIndex === dayparts.length - 1;
   const people = [];
   suRosterFor(section, date).forEach(entry=>{
-    const inside = suShiftBlocks(entry).filter(([s, e]) => s < endMin && e > startMin);
+    const blocks = suShiftBlocks(entry);
+    const inside = blocks.filter(([s, e]) => s < endMin && e > startMin);
     if(!inside.length) return;
     const from = Math.max(startMin, Math.min(...inside.map(b => b[0])));
     const to = Math.min(endMin, Math.max(...inside.map(b => b[1])));
+    const leaves = to < endMin - SU_EDGE_MIN ? to : null;
+    // Done for the day as this daypart ends: on to its end, and no shift
+    // after it (Tim). Not marked in the last daypart, where everyone is.
+    const shiftEnd = Math.max(...blocks.map(b => b[1]));
     people.push({
       name: entry.name, from, to,
       arrives: from > startMin + SU_EDGE_MIN ? from : null,
-      leaves: to < endMin - SU_EDGE_MIN ? to : null
+      leaves,
+      out: leaves === null && !isLast && shiftEnd <= endMin + SU_EDGE_MIN ? shiftEnd : null
     });
   });
   // Pair each early leaver with the arrival closest to their leaving time.
@@ -89,6 +96,9 @@ function suPairFor(timing, a, b){
 }
 
 // "Josh → Lauren @ 7:30", "leaves 7:30", "arrives 11:30" — for a slot's names.
+// The red clock beside someone who leaves as the daypart ends.
+const SU_ICON_OUT = '<svg class="su-out-clock" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+
 function suSlotTimeNote(timing, names){
   if(names.length > 1){
     const a = suTimingFor(timing, names[0]), b = suTimingFor(timing, names[1]);
@@ -99,8 +109,10 @@ function suSlotTimeNote(timing, names){
   const p = names[0] ? suTimingFor(timing, names[0]) : null;
   if(!p) return null;
   if(p.leaves !== null) return {text: `leaves ${suClock(p.leaves)}`, warn: true};
-  if(p.arrives !== null) return {text: `arrives ${suClock(p.arrives)}`, warn: false};
-  return null;
+  // Leaving as the daypart ends: a red clock, not a warning (nothing to cover).
+  const out = p.out !== null && p.out !== undefined ? {text: `leaves ${suClock(p.out)}`, es: `${esText('leaves at')} ${suClock(p.out)}`, out: true} : null;
+  if(p.arrives !== null) return out ? {...out, text: `arrives ${suClock(p.arrives)} · ${out.text}`, es: `${esText('arrives at')} ${suClock(p.arrives)} · ${out.es}`} : {text: `arrives ${suClock(p.arrives)}`, warn: false};
+  return out;
 }
 
 function suIsOutside(section, slot){

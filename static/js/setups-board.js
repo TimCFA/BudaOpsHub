@@ -319,9 +319,10 @@ function suTrayHtml(section, date, dp, m){
   const hint = pick ? `Now tap a spot for ${suDisplayName(pick)}${esLine('Now tap a spot for NAME', suDisplayName(pick))}` : `Tap a name, then a spot${esLine('Tap a name, then a spot')}`;
   const pills = m.unplaced.map(name => {
     const t = suTimingFor(m.timing, name);
-    const when = t && t.arrives !== null ? `in ${suClock(t.arrives)}` : t && t.leaves !== null ? `till ${suClock(t.leaves)}` : '';
+    const out = t && t.leaves === null && t.arrives === null && t.out !== null && t.out !== undefined;
+    const when = t && t.arrives !== null ? `in ${suClock(t.arrives)}` : t && t.leaves !== null ? `till ${suClock(t.leaves)}` : out ? `till ${suClock(t.out)}` : '';
     const on = pick === name;
-    return `<button type="button" class="su-tray-pill ${on ? 'active' : ''}" aria-pressed="${on}" data-su-tray="${escapeHtml(name)}">${escapeHtml(suDisplayName(name))}${when ? `<span class="su-tray-when">${escapeHtml(when)}</span>` : ''}</button>`;
+    return `<button type="button" class="su-tray-pill ${on ? 'active' : ''}" aria-pressed="${on}" data-su-tray="${escapeHtml(name)}">${escapeHtml(suDisplayName(name))}${when ? `<span class="su-tray-when ${out ? 'is-out' : ''}">${out ? SU_ICON_OUT : ''}${escapeHtml(when)}</span>` : ''}</button>`;
   }).join('');
   return `<section class="su-tray" aria-label="Not placed yet">
       <div class="su-tray-head"><h3>Not placed yet${esHtml('Not placed yet')}</h3>${m.unplaced.length ? `<span>${hint}</span>` : ''}</div>
@@ -449,7 +450,7 @@ function suTileHtml(t){
         <span class="su-avatar su-av-${t.tier}" aria-hidden="true">${escapeHtml(avatar)}</span>
         <span class="su-tile-name">${escapeHtml(name)}${t.develop ? ' <span class="su-star" title="Development focus">★</span>' : ''}</span>
       </span>
-      ${t.timeNote ? `<span class="su-tile-time ${t.timeNote.warn ? 'is-warn' : ''}">${escapeHtml(t.timeNote.text)}</span>` : ''}
+      ${t.timeNote ? `<span class="su-tile-time ${t.timeNote.warn ? 'is-warn' : ''} ${t.timeNote.out ? 'is-out' : ''}">${t.timeNote.out ? SU_ICON_OUT : ''}${escapeHtml(t.timeNote.text)}${t.timeNote.es ? esSpan(t.timeNote.es, true) : ''}</span>` : ''}
       ${t.flagged ? '<span class="su-tile-flag">Needs coverage</span>' : ''}
     </button>`;
 }

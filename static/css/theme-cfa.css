@@ -830,6 +830,10 @@ body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="z
 .su-sheet-list .su-rowwrap{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:6px;}
 .su-sheet-list .su-rowwrap + .su-rowwrap{border-top:1px solid #EFE8DC;}
 .su-sheet-list .su-rowwrap .su-row{border-top:0;}
+/* Leaving as the daypart ends (setup-rules.js): a red clock before the time. */
+.su-out-clock{flex:none;color:var(--cfa-red,#DD0031);vertical-align:-1px;margin-right:3px;}
+.su-tile-time.is-out,.su-row-note.is-out,.su-tray-when.is-out,.pos-option-when.is-out{display:inline-flex;align-items:center;flex-wrap:wrap;}
+.is-out > .es-line{flex-basis:100%;}
 .su-row-notebtn{width:32px;height:32px;margin-right:4px;border:1px solid var(--border);border-radius:999px;background:var(--cfa-white);color:var(--text-tertiary);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none;}
 .su-row-notebtn:hover{border-color:var(--cfa-navy);color:var(--cfa-navy);}
 .su-row-notebtn{position:relative;}

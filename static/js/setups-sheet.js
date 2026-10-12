@@ -70,7 +70,7 @@ function suSheetNameHtml(t, brk){
   if(!t.names.length) return t.needed ? '' : '<span class="su-row-open">—</span>';
   const who = t.names.length > 1 && t.timeNote ? suDisplayName(t.names[0]) : t.names.map(suDisplayName).join(' → ');
   const lead = t.leaderRole ? `<span class="su-row-role" title="${escapeHtml(t.leaderRole)}">${t.leaderRole === 'Team Lead' ? 'TL' : 'T'}</span>` : '';
-  const note = t.timeNote ? `<span class="su-row-note ${t.timeNote.warn ? 'is-warn' : ''}">${escapeHtml(t.timeNote.text)}</span>` : '';
+  const note = t.timeNote ? `<span class="su-row-note ${t.timeNote.warn ? 'is-warn' : ''} ${t.timeNote.out ? 'is-out' : ''}">${t.timeNote.out ? SU_ICON_OUT : ''}${escapeHtml(t.timeNote.text)}${t.timeNote.es ? esSpan(t.timeNote.es, true) : ''}</span>` : '';
   const flag = t.flagged ? `<span class="su-row-note is-warn">needs coverage${esHtml('needs coverage')}</span>` : '';
   const brkNote = brk ? `<span class="su-row-note is-break" title="Planned 30-minute break">☕ ${suClock(brk)}</span>` : '';
   return `<span class="su-row-who">${suTierDotHtml(t)}${escapeHtml(who)}${lead}</span>${note}${brkNote}${flag}`;

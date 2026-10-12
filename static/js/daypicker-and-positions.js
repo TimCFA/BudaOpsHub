@@ -316,6 +316,7 @@ window.openPosModal = function(key, pos, daypart, note){
     const parts = [];
     if(t.arrives !== null) parts.push({kind: 'arrives', text: `arrives at ${suClock(t.arrives)}`, es: `${esText('arrives at')} ${suClock(t.arrives)}`});
     if(t.leaves !== null) parts.push({kind: 'leaves', text: `leaves at ${suClock(t.leaves)}`, es: `${esText('leaves at')} ${suClock(t.leaves)}`});
+    else if(t.out !== null && t.out !== undefined) parts.push({kind: 'out', text: `leaves at ${suClock(t.out)}`, es: `${esText('leaves at')} ${suClock(t.out)}`});
     return parts;
   };
   // Fit for this spot: the PEA tier on the spot's position(s), best first;
@@ -384,7 +385,7 @@ function renderPosOptionList(eligible, filterText){
       const fit = p.offShift ? 'off shift now' : hasPea && p.tierLabel ? `${p.tierLabel}${p.avg != null ? ` · ${p.avg.toFixed(2)}` : ''}` : '';
       const sub = [fit, p.current ? 'here now' : ''].filter(Boolean).join(' · ');
       const subEs = [p.offShift ? esText('off shift now') : '', p.current ? esText('here now') : ''].filter(Boolean).join(' · ');
-      const when = (p.when || []).map(w => `<span class="pos-option-when is-${w.kind}">${escapeHtml(w.text)}${esSpan(w.es)}</span>`).join('');
+      const when = (p.when || []).map(w => `<span class="pos-option-when is-${w.kind}">${w.kind === 'out' ? SU_ICON_OUT : ''}${escapeHtml(w.text)}${esSpan(w.es)}</span>`).join('');
       return `<button type="button" class="pos-option ${p.current ? 'is-current' : ''} ${when ? 'has-when' : ''}" data-pos-pick="${escapeHtml(p.name)}">
           <span class="pos-option-who">${dot}<span class="pos-option-name">${escapeHtml(p.name)}</span>${when ? `<span class="pos-option-whens">${when}</span>` : ''}</span>
           ${sub ? `<span class="pos-option-tag">${escapeHtml(sub)}${esSpan(subEs)}</span>` : ''}
