@@ -79,6 +79,19 @@ function getLeaderTransitionCompletion(daypart){
   return {checked, total: fohLeaderTransitionItems.length};
 }
 
+const LT_HISTORY_KEEP_DAYS = 365;
+// Today's count for every handoff into leaderTransitionHistory, and days
+// past a year dropped.
+function ltRecordHistory(){
+  const day = {};
+  getZoneDayparts().forEach(h => { const c = getLeaderTransitionCompletion(h); day[h] = [c.checked, c.total]; });
+  leaderTransitionHistory[today] = day;
+  const cut = new Date(today + 'T00:00:00');
+  cut.setDate(cut.getDate() - LT_HISTORY_KEEP_DAYS);
+  const cutISO = toLocalISODate(cut);
+  Object.keys(leaderTransitionHistory).forEach(d => { if(d < cutISO) delete leaderTransitionHistory[d]; });
+}
+
 function getLeaderTransitionOverall(){
   let checked = 0, total = 0;
   getZoneDayparts().forEach(daypart=>{
@@ -217,6 +230,7 @@ document.getElementById('fohLeaderTransitionChecklist').addEventListener('click'
     bucket[idx] = {initials, ts: Date.now()};
   }
   fohLeaderTransitionDate = today;
+  ltRecordHistory();
   await saveState();
   renderLeaderTransitionCard();
 });

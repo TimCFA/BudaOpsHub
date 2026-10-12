@@ -32,7 +32,7 @@ const DIR_GAP_MIN = 30;         // a leader-less stretch shorter than this isn't
 const DIR_CLOSE_MIN = 21 * 60 + 30;   // a leader on until here counts as closing
 
 let dirWeekOffset = 0;   // 0 = this week, 1 = next
-let dirView = 'brief';   // 'brief' | 'leaders'
+let dirView = 'brief';   // 'brief' | 'leaders' | 'report' (leader-report.js)
 
 function dirList(){ return Array.isArray(directors) ? directors : DIRECTORS_SEED; }
 function dirEnsureOwn(){ if(!Array.isArray(directors)) directors = JSON.parse(JSON.stringify(DIRECTORS_SEED)); }
@@ -160,7 +160,19 @@ function renderDirectorsView(){
   if(!dirShown()){ root.innerHTML = ''; return; }
   const dates = dirWeek();
   const leadersOn = dirView === 'leaders' && typeof ldBodyHtml === 'function';
-  const panes = `<div class="uo-panes" role="tablist" aria-label="View"><button type="button" class="uo-pane-btn ${!leadersOn ? 'active' : ''}" data-dir-view="brief">Brief</button><button type="button" class="uo-pane-btn ${leadersOn ? 'active' : ''}" data-dir-view="leaders">Leaders</button></div>`;
+  const reportOn = dirView === 'report' && typeof lrBodyHtml === 'function';
+  const briefOn = !leadersOn && !reportOn;
+  const panes = `<div class="uo-panes" role="tablist" aria-label="View"><button type="button" class="uo-pane-btn ${briefOn ? 'active' : ''}" data-dir-view="brief">Brief</button><button type="button" class="uo-pane-btn ${leadersOn ? 'active' : ''}" data-dir-view="leaders">Leaders</button>${typeof lrBodyHtml === 'function' ? `<button type="button" class="uo-pane-btn ${reportOn ? 'active' : ''}" data-dir-view="report">Weekly report</button>` : ''}</div>`;
+  if(reportOn){
+    const rep = {dates: getWeekDays(lrWeekOffset).map(d => d.date)};
+    root.innerHTML = `
+      <div class="dir-head">
+        <div><h2 class="dir-title">Weekly leader report</h2>${lrHeadHtml(rep)}</div>
+        <div class="dir-actions">${panes}${lrActionsHtml()}</div>
+      </div>
+      ${lrBodyHtml()}`;
+    return;
+  }
   if(leadersOn){
     root.innerHTML = `
       <div class="dir-head">
@@ -284,17 +296,16 @@ function dirBriefText(){
   return L.join('\n');
 }
 
-function dirCopy(btn){
-  const text = dirBriefText();
+function dirCopy(btn, text = dirBriefText()){
   const done = ok => { const orig = btn.textContent; btn.textContent = ok ? 'Copied' : 'Copy failed'; setTimeout(() => { btn.textContent = orig; }, 1600); };
   if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => done(true), () => done(false)); else done(false);
 }
 
-function dirPdf(){
+function dirPdf(text = dirBriefText(), fileName = `directors-brief-${dirWeek()[0]}.pdf`){
   const J = window.jspdf && window.jspdf.jsPDF;
   if(!J){ showToast('The PDF library didn’t load'); return; }
   const doc = new J({unit: 'pt', format: 'letter'});
-  const lines = doc.splitTextToSize(dirBriefText(), 612 - 96);
+  const lines = doc.splitTextToSize(text, 612 - 96);
   let y = 60;
   doc.setFont('helvetica', 'normal').setFontSize(10.5);
   lines.forEach(line => {
@@ -303,7 +314,7 @@ function dirPdf(){
     doc.setFont('helvetica', head ? 'bold' : 'normal');
     doc.text(line, 48, y); y += 15;
   });
-  doc.save(`directors-brief-${dirWeek()[0]}.pdf`);
+  doc.save(fileName);
 }
 
 document.addEventListener('click', e => {

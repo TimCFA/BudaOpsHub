@@ -1378,6 +1378,9 @@ body:not(.is-manager) .manager-only{display:none !important;}
 .dir-num span{font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-secondary);}
 .dir-num b{font-family:var(--font-display);font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;}
 .dir-num small{font-size:12px;color:var(--text-tertiary);}
+/* Weekly leader report (leader-report.js): a leader's seven measures on one row on a desktop, two across on a phone. */
+.lr-leader .dir-nums{grid-template-columns:repeat(auto-fit,minmax(min(100%,128px),1fr));}
+.lr-coach{margin-top:10px;}
 /* Directors → Leaders: the PEA scoreboard and each leader's profile (leaders.js). */
 .ld-q{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);}
 .ld-q select{min-height:40px;padding:6px 10px;border:1px solid var(--border);border-radius:10px;font-family:var(--font-ui);font-size:14px;background:var(--cfa-white);}

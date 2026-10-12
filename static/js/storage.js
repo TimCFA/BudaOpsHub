@@ -17,7 +17,7 @@ const STATE_SECTIONS = {
   rosters: ['fohRoster', 'bohRoster', 'rosterPosted', 'truckShifts', 'adminShifts'],
   setups: ['posAssignments', 'posVacancyFlags', 'setupDayTypes', 'lastUpdated',
            'breakCountdowns', 'completedBreaks', 'zoneOwners', 'posNotes'],
-  history: ['setupHistory', 'numbersHistory', 'wasteMonthlyHistory', 'zoneChecklistHistory'],
+  history: ['setupHistory', 'numbersHistory', 'wasteMonthlyHistory', 'zoneChecklistHistory', 'leaderTransitionHistory'],
   waste: ['entries', 'wasteDays', 'formDone', 'formDoneDate', 'wasteLogLastClosedOut'],
   ops: ['foodSafetyDays', 'foodSafetyWalkthroughs', 'fohOEDays', 'fohOEChecked', 'fohOECheckedDate',
         'fohLeaderTransitionChecked', 'fohLeaderTransitionDate', 'zoneChecklistState',
@@ -77,7 +77,7 @@ function stateSnapshot(){
     formDoneDate: formDone ? today : null, foodSafetyDays, wasteDays, breakCountdowns, completedBreaks, posAssignments,
     fohRoster, bohRoster, rosterPosted, lxPillars, lxMetrics, lxLastUpdated, gxData, txData, homeData,
     fohOEDays, fohOEChecked, fohOECheckedDate,
-    fohLeaderTransitionChecked, fohLeaderTransitionDate,
+    fohLeaderTransitionChecked, fohLeaderTransitionDate, leaderTransitionHistory,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
     prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, launchMode, prepTimes, prepTimers,
@@ -434,6 +434,7 @@ function applyStateData(data){
   eoiSubmissions = data.eoiSubmissions || [];
   zoneChecklistState = data.zoneChecklistState || {};
   zoneChecklistHistory = data.zoneChecklistHistory || {};
+  leaderTransitionHistory = (data.leaderTransitionHistory && typeof data.leaderTransitionHistory === 'object') ? data.leaderTransitionHistory : {};
   numbersData = data.numbersData || {};
   if(typeof knNormalizeAll === 'function') knNormalizeAll();   // the four dayparts (know-numbers.js)
   lastUpdated = data.lastUpdated || {};
