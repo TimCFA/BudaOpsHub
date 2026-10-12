@@ -466,6 +466,7 @@ def _state_reply(names):
         'sections': {name: _dumps(_section_for_session(name, _cache[name]['data'])) for name in names if shown(name)},
         'versions': {name: entry['ver'] for name, entry in _cache.items() if shown(name)},
         'build': BUILD,
+        'now': int(time.time() * 1000),   # the shared clock for timers (serverNow)
     }
 
 @app.route('/api/state/load', methods=['POST'])
@@ -498,7 +499,7 @@ def state_sync():
     try:
         with _state_lock:
             if _read_sections() is None:
-                return jsonify({'sections': {}, 'versions': {}, 'build': BUILD})
+                return jsonify({'sections': {}, 'versions': {}, 'build': BUILD, 'now': int(time.time() * 1000)})
             names = [n for n in _cache if have.get(n) != _cache[n]['ver'] and (only is None or n in only)]
             return jsonify(_state_reply(names))
     except Exception as e:

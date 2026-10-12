@@ -43,15 +43,27 @@ let stateBase = {};
 let savedSections = {};
 let stateVersions = {};
 
+// Timers (breaks, prep) run on the server's clock, not each tablet's: every
+// state reply carries the server's time, and the page keeps how far its own
+// clock is off (taken at the middle of the round trip).
+let serverClockOffset = 0;
+function serverNow(){ return Date.now() + serverClockOffset; }
+function serverClockNote(now, sentAt, gotAt){
+  if(typeof now === 'number' && isFinite(now)) serverClockOffset = Math.round(now - (sentAt + gotAt) / 2);
+}
+
 async function statePost(path, body){
   try{
+    const sentAt = Date.now();
     const response = await fetch(`${API_BASE}${path}`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body)
     });
     if(!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.json();
+    const reply = await response.json();
+    serverClockNote(reply && reply.now, sentAt, Date.now());
+    return reply;
   }catch(err){
     console.error(`${path} failed:`, err);
     return null;
