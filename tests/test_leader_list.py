@@ -21,11 +21,11 @@ const grab = (src, name) => src.match(new RegExp('function ' + name + '\\([\\s\\
 const ctx = {};
 vm.createContext(ctx);
 const sl = js('setup-leaders.js'), pea = js('pea-ratings.js');
-vm.runInContext(`let leaderRoster = null;
+vm.runInContext(`let today = '2026-10-13'; let leaderRoster = null;
   let fohRoster = {'2026-10-13': [{name: 'Aurora Diaz', start: '6:00a', end: '2:00p'}, {name: 'Ben Cole', start: '6:00a', end: '2:00p', leader: true}, {name: 'Cy Park', start: '6:00a', end: '2:00p'}]}; let bohRoster = {};`, ctx);
 // The real name matching (nicknames, "Last, First", name links).
 vm.runInContext(pea.slice(pea.indexOf('// ----- Matching Set Ups'), pea.indexOf('// ----- Name Matching card')), ctx);
-vm.runInContext(grab(sl, 'suRosterEntryFor') + grab(sl, 'leaderListed') + grab(sl, 'suLeaderRole'), ctx);
+vm.runInContext(grab(sl, 'suRosterEntryFor') + sl.slice(sl.indexOf('let suLeaderNamesCache'), sl.indexOf("// 'Team Lead' | 'Trainer' | null")) + grab(sl, 'suLeaderRole'), ctx);
 const out = vm.runInContext(`(() => {
   const role = n => suLeaderRole('foh', '2026-10-13', n, {});
   const before = ['Aurora Diaz', 'Ben Cole', 'Cy Park'].map(role);

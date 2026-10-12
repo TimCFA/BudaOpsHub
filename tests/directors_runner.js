@@ -26,7 +26,8 @@ vm.runInContext(`
   function peaWeekStart(iso){ const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return toLocalISODate(d); }
 `, ctx);
 // The leader list check (Manage → Settings → Leaders).
-{ const sl = js('setup-leaders.js'); vm.runInContext(sl.match(/function leaderListed\([\s\S]*?\n}\n/)[0], ctx); }
+{ const sl = js('setup-leaders.js'); const fn = n => sl.match(new RegExp('function ' + n + '\\([\\s\\S]*?\\n}\\n'))[0];
+  vm.runInContext(fn('suRosterEntryFor') + fn('suLeaderRole'), ctx); vm.runInContext(sl.slice(sl.indexOf('let suLeaderNamesCache'), sl.indexOf("// 'Team Lead' | 'Trainer' | null")), ctx); }
 vm.runInContext(js('directors.js'), ctx);
 vm.runInContext(js('leaders.js'), ctx);
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));

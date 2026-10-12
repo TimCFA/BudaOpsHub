@@ -10,9 +10,10 @@
 //   is walled off, so a leader there covers only iPOS; the Bagging captain
 //   also reaches OMD and Drinks. Stretch goal: a leader in Drinks and OMD too.
 // - Rotation: leaders in a different spot each day.
-// Who is a leader: anyone on the leader list in Manage → Settings → Leaders,
-// a HotSchedules "Team Leader" shift (roster `leader`), or a Levelset role
-// of Team Lead; Trainers come from Levelset.
+// Who is a leader: anyone the Directors → Leaders page lists (the leader list
+// in Manage → Settings → Leaders, anyone giving PEAs or rated under a lead
+// role), a HotSchedules "Team Leader" shift (roster `leader`), or a Levelset
+// role of Team Lead; Trainers come from Levelset.
 
 const SU_LEAD_CAPTAIN = 'Lead Captain';
 const SU_REQUIRED_LEADER_ZONES = ['ipos', 'bagging', 'host'];
@@ -25,13 +26,35 @@ function suRosterEntryFor(section, date, name){
   return roster.find(p => p.name.trim().toLowerCase() === k) || null;
 }
 
-// On the leader list in Manage → Settings → Leaders (leaderRoster)? That
-// list holds names as Levelset spells them, so a roster name is matched the
-// way PEAs are: a name link first, then the name itself or a close form
-// ("Rory" / "Aurora", "Last, First"). The list is the word on who leads,
-// whatever shift HotSchedules has them on that day.
+// The leaders the Directors → Leaders page shows (leaders.js, this quarter
+// and last): the leader list in Manage → Settings → Leaders, anyone who gave
+// a PEA or was rated under a lead role, anyone with leader notes. Without
+// leaders.js, the Manage list alone. Kept until the data behind it changes.
+let suLeaderNamesCache = {sig: null, names: []};
+function suLeaderNames(){
+  const roster = Array.isArray(leaderRoster) ? leaderRoster : [];
+  const rows = typeof peaRatings === 'object' && peaRatings && Array.isArray(peaRatings.rows) ? peaRatings.rows.length : 0;
+  const notes = typeof leaderNotes === 'object' && leaderNotes ? Object.keys(leaderNotes).length : 0;
+  const sig = [today, rows, notes, JSON.stringify(roster)].join('|');
+  if(suLeaderNamesCache.sig === sig) return suLeaderNamesCache.names;
+  let names = roster.map(r => r && r.name ? String(r.name).trim() : '').filter(Boolean);
+  if(typeof ldLeaderNames === 'function' && typeof ldQuarterNow === 'function'){
+    try{
+      const q = ldQuarterNow(), [y, n] = q.split('-Q').map(Number);
+      const prev = n === 1 ? `${y - 1}-Q4` : `${y}-Q${n - 1}`;
+      names = [...new Set([...names, ...ldLeaderNames(q), ...ldLeaderNames(prev)])];
+    }catch(e){ console.warn('Leader names: Leaders page list skipped', e); }
+  }
+  suLeaderNamesCache = {sig, names};
+  return names;
+}
+
+// A leader per suLeaderNames? Those names are as Levelset spells them, so a
+// roster name is matched the way PEAs are: a name link first, then the name
+// itself or a close form ("Rory" / "Aurora", "Last, First"). Being listed is
+// the word on who leads, whatever shift HotSchedules has them on that day.
 function leaderListed(name){
-  const list = (Array.isArray(leaderRoster) ? leaderRoster : []).map(r => r && r.name ? String(r.name).trim() : '').filter(Boolean);
+  const list = suLeaderNames();
   if(!list.length || !name) return false;
   const k = String(name).trim().toLowerCase().replace(/\s+/g, ' ');
   if(list.some(n => n.toLowerCase().replace(/\s+/g, ' ') === k)) return true;
@@ -124,10 +147,25 @@ function suLeadCaptainSheetHtml(date, dp, dpIndex){
         ? '<span class="su-current">Current</span>'
         : `<button type="button" class="${i === 0 ? 'su-btn-dark' : 'su-btn-line'}" data-su-set-lead="${escapeHtml(o.name)}">Make Lead</button>`}
     </div>`).join('');
+  // Anyone else on the FOH roster for this daypart, for when the leader
+  // running the shift isn't on the leader list yet: never blocked.
+  const optionNames = new Set(options.map(o => o.name.toLowerCase()));
+  const others = availableForDaypart(date, dpIndex, fohDayparts).filter(p => !optionNames.has(p.name.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const othersHtml = others.length ? `
+    <details class="su-lead-others" ${options.length ? '' : 'open'}>
+      <summary>Someone else on shift (${others.length})</summary>
+      <div class="su-pb">${others.map(p => `
+        <div class="su-pb-row">
+          <span class="su-pb-v"><b>${escapeHtml(p.name)}</b><span>Not on the leader list${p.name.toLowerCase() === current.toLowerCase() ? '' : ' · add them in Manage → Settings → Leaders'}</span></span>
+          ${p.name.toLowerCase() === current.toLowerCase() ? '<span class="su-current">Current</span>' : `<button type="button" class="su-btn-line" data-su-set-lead="${escapeHtml(p.name)}">Make Lead</button>`}
+        </div>`).join('')}</div>
+    </details>` : '';
   const body = `
     <p class="su-sheet-rule">${escapeHtml(rule)} Only Team Leads can be Lead Captain, and they don’t also captain a zone. They work Runner if staffing allows, otherwise Drinks 3 or FC Bagger${suIsAfternoon(dp) ? ' (Mid: DT Bagger 2)' : ''}.</p>
     ${current ? `<div class="su-note">${working ? `${escapeHtml(current)} is working ${escapeHtml(working)}.` : home ? `${escapeHtml(current)} has no working spot yet. <button type="button" class="su-btn-dark" data-su-lead-home="${escapeHtml(home.slot)}">Put on ${escapeHtml(home.slot)}</button>` : `${escapeHtml(current)} has no working spot, and Runner, Drinks 3 and FC Bagger are taken.`}</div>` : ''}
-    ${options.length ? `<div class="su-pb">${rows}</div>` : '<div class="su-note">No Team Lead is on the FOH roster for this daypart. Import the weekly HotSchedules CSV so Team Leader shifts are marked.</div>'}
+    ${options.length ? `<div class="su-pb">${rows}</div>` : '<div class="su-note">No Team Lead is on the FOH roster for this daypart. Add them to the leader list in Manage → Settings → Leaders, or pick someone below.</div>'}
+    ${othersHtml}
     ${current ? `<div class="su-person-actions" style="grid-template-columns:1fr"><button type="button" class="su-btn-line" data-su-clear-lead="1">Clear Lead Captain (${escapeHtml(current)})</button></div>` : ''}`;
   return suSheetFrame(`Lead Captain · ${suShortDaypart(dp.name)}`, body);
 }
