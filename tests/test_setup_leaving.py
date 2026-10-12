@@ -1,6 +1,7 @@
 """Set Ups: who leaves as the daypart ends (setup-rules.js). Someone on to
-the end of a daypart with no shift after it gets a red clock and "leaves
-1:00", next to the existing "arrives" and mid-daypart "leaves" notes.
+the end of a daypart and not on just after it (a split shift that comes
+back later included) gets a red clock and "leaves 1:00", next to the
+existing "arrives" and mid-daypart "leaves" notes.
 
 Run: python3 -m unittest discover tests   (needs Node.js; skipped without it)
 """
@@ -53,9 +54,10 @@ class LeavingTest(unittest.TestCase):
         cls.d = json.loads(done.stdout)
 
     def test_who_leaves_as_lunch_ends(self):
-        # Lunch is 10:30–1:00. Ana and Ben (1:05, inside the 10-minute edge) are done;
-        # Cal stays on, Eve left mid-daypart, Fay comes back for dinner.
-        self.assertEqual(self.d['lunch'], {'Ana': 13 * 60, 'Ben': 13 * 60 + 5, 'Cal': None, 'Dee': 13 * 60, 'Eve': None, 'Fay': None})
+        # Lunch is 10:30–1:00. Ana and Ben (1:05, inside the 10-minute edge) leave;
+        # Fay leaves too, though she's back for dinner (a split shift still
+        # leaves Lunch's floor). Cal stays on; Eve left mid-daypart.
+        self.assertEqual(self.d['lunch'], {'Ana': 13 * 60, 'Ben': 13 * 60 + 5, 'Cal': None, 'Dee': 13 * 60, 'Eve': None, 'Fay': 13 * 60})
 
     def test_not_while_their_shift_goes_on(self):
         self.assertIsNone(self.d['breakfast']['Ana'])
@@ -72,7 +74,7 @@ class LeavingTest(unittest.TestCase):
         self.assertTrue(n['Dee']['out'])
         # A mid-daypart leave stays the red warning it was, no clock.
         self.assertEqual(n['Eve'], {'text': 'leaves 12:00', 'warn': True})
-        self.assertIsNone(n['Fay'])
+        self.assertEqual(n['Fay']['text'], 'leaves 1:00')
 
 
 if __name__ == '__main__':

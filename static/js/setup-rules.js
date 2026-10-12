@@ -54,14 +54,18 @@ function suDaypartTiming(section, date, dpIndex){
     const from = Math.max(startMin, Math.min(...inside.map(b => b[0])));
     const to = Math.min(endMin, Math.max(...inside.map(b => b[1])));
     const leaves = to < endMin - SU_EDGE_MIN ? to : null;
-    // Done for the day as this daypart ends: on to its end, and no shift
-    // after it (Tim). Not marked in the last daypart, where everyone is.
-    const shiftEnd = Math.max(...blocks.map(b => b[1]));
+    // Off the floor as this daypart ends: on to its end and not on just
+    // after it. A split shift that comes back later still counts, since
+    // they leave this leader's floor all the same (Tim). Not marked in the
+    // last daypart, where everyone leaves.
+    const after = endMin + SU_EDGE_MIN;
+    const staysOn = blocks.some(([s, e]) => s <= after && e > after);
+    const shiftEnd = Math.max(...inside.map(b => b[1]));
     people.push({
       name: entry.name, from, to,
       arrives: from > startMin + SU_EDGE_MIN ? from : null,
       leaves,
-      out: leaves === null && !isLast && shiftEnd <= endMin + SU_EDGE_MIN ? shiftEnd : null
+      out: leaves === null && !isLast && !staysOn ? shiftEnd : null
     });
   });
   // Pair each early leaver with the arrival closest to their leaving time.
