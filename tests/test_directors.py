@@ -63,6 +63,16 @@ class Week(unittest.TestCase):
         self.assertIn('Noah Bennett', got[0])
         self.assertEqual(got[1], [{'start': 14 * 60, 'end': 16 * 60}])
 
+    def test_leader_list_in_manage_counts_as_a_leader(self):
+        # Priya works an ordinary shift in HotSchedules but is on the leader
+        # list in Manage → Settings → Leaders: she leads that day.
+        got = run("c => { " + WEEK + " leaderRoster = [{name: ' Priya  Nair ', roles: []}, {name: '', roles: []}]; return [dirLeaders('2026-10-13').map(p => p.name), dirLeaderGaps('2026-10-13')]; }")
+        self.assertIn('Priya Nair', got[0])
+        self.assertEqual(got[1], [])
+        # Not on the list: not a leader.
+        got = run("c => { " + WEEK + " leaderRoster = [{name: 'Someone Else', roles: []}]; return dirLeaders('2026-10-13').map(p => p.name); }")
+        self.assertNotIn('Priya Nair', got)
+
     def test_no_leader_at_all_is_one_gap_for_the_day(self):
         got = run("c => { fohRoster = {'2026-10-13': [{name: 'Noah Bennett', start: '6:00a', end: '2:00p'}]}; return dirLeaderGaps('2026-10-13'); }")
         self.assertEqual(got, [{'start': 6 * 60, 'end': 14 * 60}])

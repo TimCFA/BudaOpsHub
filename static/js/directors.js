@@ -16,8 +16,9 @@
 //
 // Directors are named in Manage → Settings (directors, {name, title}, as
 // HotSchedules spells them); their time is the Administrative shifts the
-// roster import keeps (adminShifts). Leaders are the Team Leader shifts on
-// the roster plus anyone set as Lead Captain on Set Ups. Notes live in
+// roster import keeps (adminShifts). Leaders are the leader list in Manage →
+// Settings → Leaders, the Team Leader shifts on the roster, and anyone set as
+// Lead Captain on Set Ups. Notes live in
 // leaderNotes {name: [{text, by, ts, date, type, pec}]} (the private people
 // section).
 
@@ -54,7 +55,7 @@ const dirOverlap = (a, b) => a && b && a.start < b.end && b.start < a.end;
 function dirFloor(iso){
   const out = [];
   [['foh', fohRoster[iso]], ['boh', bohRoster[iso]]].forEach(([section, list]) => {
-    (Array.isArray(list) ? list : []).forEach(p => { const span = dirSpan(p); if(span) out.push({name: p.name, section, leader: !!p.leader, span}); });
+    (Array.isArray(list) ? list : []).forEach(p => { const span = dirSpan(p); if(span) out.push({name: p.name, section, leader: !!p.leader || leaderListed(p.name), span}); });
   });
   // Lead Captains set on Set Ups count as leaders for their day.
   const caps = new Set();
@@ -231,7 +232,7 @@ function renderDirectorsView(){
       </div>
     </div>
     ${!hasRoster ? `<p class="dir-empty">No roster for this week yet. Import the week's HotSchedules CSV in Manage → Uploads and the days fill in.</p>` : ''}
-    <section class="dir-card"><h3>The week at a glance</h3><p class="dir-note">Leaders are Team Leader shifts and anyone set as Lead Captain. Directors’ time is their Administrative shifts. A gap is ${DIR_GAP_MIN} minutes or more with no leader on.</p><div class="dir-days">${dayRows}</div></section>
+    <section class="dir-card"><h3>The week at a glance</h3><p class="dir-note">Leaders are the leader list in Manage, Team Leader shifts and anyone set as Lead Captain. Directors’ time is their Administrative shifts. A gap is ${DIR_GAP_MIN} minutes or more with no leader on.</p><div class="dir-days">${dayRows}</div></section>
     <section class="dir-card"><h3>Where directors overlap leaders</h3>
       ${overlapRows.length ? `<ul class="dir-list">${overlapRows.join('')}</ul>` : '<p class="dir-empty">No director shifts on the roster this week.</p>'}
       ${unseen.length ? `<p class="dir-note"><b>Leaders no director overlaps this week:</b> ${escapeHtml(unseen.map(dirShort).join(', '))}</p>` : ''}
