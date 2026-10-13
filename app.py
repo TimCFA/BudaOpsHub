@@ -539,8 +539,14 @@ def state_patch():
     if not patches:
         return jsonify({'success': True, **_state_reply([])})
     for name, patch in patches.items():
-        # A key belongs to one section only.
-        stray = sorted({op['p'][0] for op in patch['ops'] if SECTION_OF_KEY.get(op['p'][0], 'misc') != name})
+        # A key belongs to one section only. Removing a key no section lists
+        # any more (a retired setting still stored, like truckDays) is
+        # cleanup, not a stray: a page drops what it doesn't know, so its
+        # first save of that section removes it. Refusing it refused the
+        # whole save, every section with it.
+        stray = sorted({op['p'][0] for op in patch['ops']
+                        if SECTION_OF_KEY.get(op['p'][0], 'misc') != name
+                        and not (op['o'] == 'del' and len(op['p']) == 1 and op['p'][0] not in SECTION_OF_KEY)})
         if stray:
             return jsonify({'error': f'Keys in the wrong section: {", ".join(stray)}'}), 400
 
