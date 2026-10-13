@@ -30,7 +30,7 @@ const STATE_SECTIONS = {
   cem: ['cemEntries'],
   forecast: ['salesHistory', 'forecastSettings', 'forecastLog', 'daypartWeeks'],
   orders: ['uniformOrders', 'uniformCatalog'],
-  points: ['pointsRecords', 'pointsUploads', 'pointsSettings'],
+  points: ['pointsRecords', 'pointsUploads', 'pointsSettings', 'pointsTeam', 'pointsMemos'],
   misc: []
 };
 const STATE_SECTION_OF = {};
@@ -84,7 +84,7 @@ function stateSnapshot(){
     prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, launchMode, prepTimes, prepTimers,
     salesHistory, forecastSettings, forecastLog, daypartWeeks, zoneOwners, posNotes, storeEvents, truckShifts,
     uniformOrders, uniformCatalog, directors, adminShifts, leaderNotes, leaderRoster, peaGoals, leaderFocus,
-    pointsRecords, pointsUploads, pointsSettings
+    pointsRecords, pointsUploads, pointsSettings, pointsTeam, pointsMemos
   };
 }
 
@@ -508,6 +508,8 @@ function applyStateData(data){
   pointsRecords = (data.pointsRecords && typeof data.pointsRecords === 'object' && !Array.isArray(data.pointsRecords)) ? data.pointsRecords : {};
   pointsUploads = Array.isArray(data.pointsUploads) ? data.pointsUploads : [];
   pointsSettings = (data.pointsSettings && typeof data.pointsSettings === 'object' && !Array.isArray(data.pointsSettings)) ? data.pointsSettings : {};
+  pointsTeam = (data.pointsTeam && typeof data.pointsTeam === 'object' && !Array.isArray(data.pointsTeam)) ? data.pointsTeam : {};
+  pointsMemos = (data.pointsMemos && typeof data.pointsMemos === 'object' && !Array.isArray(data.pointsMemos)) ? data.pointsMemos : {};
   uniformCatalog = Array.isArray(data.uniformCatalog) ? data.uniformCatalog : null;
   if(typeof uoRerender === 'function') uoRerender();
   // The director team, their Administrative shifts and the notes on each leader (directors.js).

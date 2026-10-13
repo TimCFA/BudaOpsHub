@@ -64,7 +64,7 @@ MANAGER_ONLY_KEYS = {
     # Uniform orders (below): names and paycheck deductions, so only a manager session.
     'uniformOrders', 'uniformCatalog',
     # Accountability points (below): disciplinary records, so only a manager session.
-    'pointsRecords', 'pointsUploads', 'pointsSettings',
+    'pointsRecords', 'pointsUploads', 'pointsSettings', 'pointsTeam', 'pointsMemos',
 }
 
 # Sections sent only to a manager session: PEA ratings, people data
@@ -153,7 +153,7 @@ STATE_SECTIONS = {
     'cem': ['cemEntries'],
     'forecast': ['salesHistory', 'forecastSettings', 'forecastLog', 'daypartWeeks'],
     'orders': ['uniformOrders', 'uniformCatalog'],
-    'points': ['pointsRecords', 'pointsUploads', 'pointsSettings'],
+    'points': ['pointsRecords', 'pointsUploads', 'pointsSettings', 'pointsTeam', 'pointsMemos'],
     'misc': [],
 }
 SECTION_OF_KEY = {key: name for name, keys in STATE_SECTIONS.items() for key in keys}

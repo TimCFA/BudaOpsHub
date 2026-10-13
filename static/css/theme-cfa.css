@@ -1535,3 +1535,26 @@ body:not(.is-manager) .manager-only{display:none !important;}
 .pt-ev-when{font-size:13px;color:var(--text-secondary);}
 .pt-ev-pts{font-family:var(--font-display);font-size:18px;color:var(--cfa-red);}
 .pt-ev-pts.is-credit{color:#2E6B3F;}
+.pt-panes{flex-wrap:wrap;}
+.pt-link{border:0;background:none;padding:0;margin-right:14px;font:inherit;font-size:13px;font-weight:700;color:var(--cfa-navy);text-decoration:underline;cursor:pointer;}
+.pt-ev-acts{display:block;margin-top:4px;}
+.pt-msg-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+.pt-msg-head h3{margin:0;}
+.pt-msg-tools{display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.pt-msg-text{width:100%;box-sizing:border-box;margin-top:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;font:inherit;font-size:15px;line-height:1.45;resize:vertical;}
+.pt-count{align-self:center;font-size:13px;color:var(--text-secondary);font-variant-numeric:tabular-nums;}
+.pt-count.is-over{color:var(--cfa-red);font-weight:700;}
+.pt-filter{display:inline-flex;gap:8px;align-items:center;margin:4px 0 10px;font-size:14px;color:var(--text-secondary);}
+.pt-filter select,.pt-task-acts select,.pt-field select,.pt-field input{padding:8px 10px;border:1px solid var(--border);border-radius:10px;font:inherit;font-size:15px;background:var(--cfa-white);}
+.pt-tasks li{display:grid;grid-template-columns:48px 1fr;gap:10px;align-items:start;}
+.pt-step{font-family:var(--font-display);font-size:22px;font-weight:600;color:var(--cfa-red);}
+.pt-task-acts{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;}
+.pt-task-acts label{display:inline-flex;gap:6px;align-items:center;font-size:13px;color:var(--text-secondary);}
+.pt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:10px;margin:10px 0;}
+.pt-field{display:grid;gap:4px;margin:8px 0;}
+.pt-field > span{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary);}
+.pt-field textarea{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:10px;font:inherit;font-size:15px;line-height:1.45;}
+.pt-acks{border:0;padding:0;margin:10px 0;display:flex;gap:16px;flex-wrap:wrap;}
+.pt-acks legend{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:6px;}
+.pt-acks label{display:inline-flex;gap:6px;align-items:center;font-size:14px;}
+.pt-error{color:var(--cfa-dark-red);font-weight:700;}

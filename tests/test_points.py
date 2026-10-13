@@ -28,7 +28,7 @@ def run(op):
 class Data(unittest.TestCase):
     def test_points_are_private_and_manager_only(self):
         self.assertIn('points', appmod.PRIVATE_SECTIONS)
-        for key in ('pointsRecords', 'pointsUploads', 'pointsSettings'):
+        for key in ('pointsRecords', 'pointsUploads', 'pointsSettings', 'pointsTeam', 'pointsMemos'):
             self.assertEqual(appmod.SECTION_OF_KEY[key], 'points')
             self.assertIn(key, appmod.MANAGER_ONLY_KEYS)
 
@@ -116,3 +116,114 @@ class Report(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+@unittest.skipUnless(NODE, 'Node.js not installed')
+class Messages(unittest.TestCase):
+    def test_one_card_per_person_since_their_last_message(self):
+        got = run("""c => { setup(); const cards = ptMessageCards();
+          const before = cards.map(x => [x.tm, x.total, x.ids.length, x.lang]);
+          const maya = cards.find(x => x.tm === 'torres-maya');
+          const sent = [ptMarkSent('torres-maya', maya.ids, 'Hi Maya'), ptMarkSent('torres-maya', maya.ids, 'again')];
+          return {before, text: maya.text, sent, after: ptMessageCards().map(x => x.tm), kept: pointsRecords['2026-Q4']['torres-maya'].messages}; }""")
+        self.assertEqual(got['before'], [['ruiz-ana', 50, 1, 'en'], ['torres-maya', 10, 2, 'en'], ['cole-ben', 0, 1, 'en']])
+        self.assertIn('Maya', got['text'])
+        self.assertIn('Chick-fil-A Buda Leadership', got['text'])
+        self.assertEqual(got['sent'], [True, False])
+        self.assertEqual(got['after'], ['ruiz-ana', 'cole-ben'])
+        self.assertEqual(len(got['kept']), 1)
+        self.assertEqual(got['kept'][0]['text'], 'Hi Maya')
+
+    def test_spanish_per_person(self):
+        got = run("""c => { setup(); const en = ptMessageCards().find(x => x.tm === 'ruiz-ana').text; ptSetLang('ruiz-ana', 'es');
+          const es = ptMessageCards().find(x => x.tm === 'ruiz-ana'); return {en, es: es.text, lang: es.lang, other: ptMessageCards().find(x => x.tm === 'torres-maya').lang}; }""")
+        self.assertNotEqual(got['en'], got['es'])
+        self.assertEqual(got['lang'], 'es')
+        self.assertEqual(got['other'], 'en')
+        self.assertIn('no llamaste ni te presentaste', got['es'])
+
+    def test_remove_an_event(self):
+        got = run("""c => { setup(); const ev = pointsRecords['2026-Q4']['torres-maya'].events.find(e => e.type === 'tardy');
+          return [ptRemoveEvent('torres-maya', ev.id), ptRemoveEvent('torres-maya', ev.id), ptScored()['torres-maya'].score.total, ev.status]; }""")
+        # The late break is now the first punctuality event: 5 points.
+        self.assertEqual(got, [True, False, 5, 'removed'])
+
+    def test_doctors_note(self):
+        got = run("""c => { ptCommit(ptPrepare(APS.parseReport(REPORT)), 'a.pdf');
+          const ana = ptReviewItems().find(e => e.tm === 'ruiz-ana'); ptResolve(ana.tm, ana.id, 'callout_lt24_note');
+          const ev = pointsRecords['2026-Q4']['ruiz-ana'].events[0]; const promised = [ev.type, ev.notePending, ptScored()['ruiz-ana'].score.total, ev.detail];
+          ptMarkSent('ruiz-ana', [ev.id], 'x');
+          const got = ptNoteReceived('ruiz-ana', ev.id);
+          return {promised, got, after: [ev.type, ev.notePending, ptScored()['ruiz-ana'].score.total], waiting: ptMessageCards().some(x => x.tm === 'ruiz-ana'), again: ptNoteReceived('ruiz-ana', ev.id)}; }""")
+        self.assertEqual(got['promised'][:3], ['callout_lt24', True, 25])
+        self.assertIn('doctor’s note promised', got['promised'][3])
+        self.assertEqual(got['after'], ['callout_doc', False, 10])
+        self.assertTrue(got['waiting'])   # the thank-you message
+        self.assertEqual((got['got'], got['again']), (True, False))
+
+    def test_messages_view(self):
+        got = run("""c => { setup(); pointsRecords['2026-Q4']['ruiz-ana'].tmName = 'Ruiz, <b>Ana</b>'; ptPane = 'messages'; return {html: ptBodyHtml(), panes: ptActionsHtml()}; }""")
+        self.assertIn('Copy message', got['html'])
+        self.assertIn('/ 1000', got['html'])
+        self.assertNotIn('<b>Ana</b>', got['html'])
+        self.assertIn('Messages · 3', got['panes'])
+        self.assertIn('Tasks · 3', got['panes'])
+
+
+@unittest.skipUnless(NODE, 'Node.js not installed')
+class TasksAndMemos(unittest.TestCase):
+    def test_tasks_owed_and_assigned(self):
+        got = run("""c => { setup(); const t0 = ptTasks().map(t => [t.tm, t.at, t.leader]);
+          ptAssign('ruiz-ana', 50, 'Kianna Ramos'); ptTaskFilter = '__none'; const html = ptTasksHtml();
+          return {t0, t1: ptTasks().map(t => [t.at, t.leader]), leaders: ptLeaders(), unassignedShown: html.includes('Leader conversation'), assignedHidden: !html.includes('Coaching conversation')}; }""")
+        # 50 points reaches 20, 30 and 50; most serious first.
+        self.assertEqual(got['t0'], [['ruiz-ana', 50, ''], ['ruiz-ana', 30, ''], ['ruiz-ana', 20, '']])
+        self.assertEqual(got['t1'], [[50, 'Kianna Ramos'], [30, ''], [20, '']])
+        self.assertEqual(got['leaders'], ['Timothy Lane', 'Kianna Ramos'])
+        self.assertTrue(got['unassignedShown'])
+        self.assertTrue(got['assignedHidden'])
+
+    def test_memo_closes_its_task(self):
+        got = run("""c => { setup(); ptAssign('ruiz-ana', 20, 'Kianna Ramos'); ptOpenMemo('ruiz-ana', 20);
+          const prefilled = Object.assign({}, ptMemoDraft.fields);
+          ptMemoDraft.fields.leader = ''; const e1 = ptSaveMemo();
+          ptMemoDraft.fields.leader = 'Kianna Ramos'; const e2 = ptSaveMemo();
+          Object.assign(ptMemoDraft.fields, {notes: 'Talked about <the> schedule', ack: 'signed', date: '2026-10-12'}); const e3 = ptSaveMemo();
+          const id = 'ruiz-ana__2026-Q4__20', m = pointsMemos[id];
+          return {prefilled, errs: [e1, e2, e3], draft: ptMemoDraft, tasks: ptTasks().map(t => t.at), ack: pointsRecords['2026-Q4']['ruiz-ana'].acks[20],
+                  memo: {title: m.title, total: m.total, leader: m.leader, n: m.events.length}, doc: ptMemoDoc(m), list: ptMemosHtml()}; }""")
+        self.assertEqual(got['prefilled']['leader'], 'Kianna Ramos')
+        self.assertIn('clocked in at the scheduled minute', got['prefilled']['plan'])
+        self.assertEqual(got['errs'], ['Pick the leader who held the conversation.', 'Add a few lines about what was discussed.', ''])
+        self.assertIsNone(got['draft'])
+        self.assertEqual(got['tasks'], [50, 30])
+        self.assertEqual(got['ack']['memo'], 'ruiz-ana__2026-Q4__20')
+        self.assertEqual(got['memo'], {'title': 'Leader Conversation Record', 'total': 50, 'leader': 'Kianna Ramos', 'n': 1})
+        self.assertIn('Talked about &lt;the&gt; schedule', got['doc'])
+        self.assertIn('Team member signed', got['doc'])
+        self.assertIn('Chick-fil-A Buda #04066', got['doc'])
+        self.assertNotIn('West', got['doc'])
+        self.assertIn('Download for HR', got['list'])
+
+    def test_editing_a_memo_keeps_it_closed(self):
+        got = run("""c => { setup(); ptOpenMemo('ruiz-ana', 50); Object.assign(ptMemoDraft.fields, {leader: 'Timothy Lane', notes: 'First'}); ptSaveMemo();
+          const id = 'ruiz-ana__2026-Q4__50', created = pointsMemos[id].createdAt;
+          ptOpenMemo('ruiz-ana', 50, id); const existing = ptMemoDraft.existing; ptMemoDraft.fields.notes = 'Second'; ptSaveMemo();
+          return [existing, pointsMemos[id].notes, pointsMemos[id].createdAt === created, ptTasks().map(t => t.at)]; }""")
+        self.assertEqual(got, [True, 'Second', True, [30, 20]])
+
+    def test_suspension_dates_on_step_75(self):
+        got = run("""c => { setup(); const r = pointsRecords['2026-Q4']['ruiz-ana']; r.events.push({id: 'v', date: '2026-10-09', type: 'insubord', status: 'confirmed', detail: ''});
+          ptOpenMemo('ruiz-ana', 75); const form = ptMemoFormHtml();
+          Object.assign(ptMemoDraft.fields, {leader: 'Timothy Lane', notes: 'x', susStart: '2026-10-20', susEnd: '2026-10-26'}); ptSaveMemo();
+          return [form.includes('Suspension start'), pointsMemos['ruiz-ana__2026-Q4__75'].susStart, ptMemoDoc(pointsMemos['ruiz-ana__2026-Q4__75']).includes('Suspension: 2026-10-20 to 2026-10-26')]; }""")
+        self.assertEqual(got, [True, '2026-10-20', True])
+
+    def test_history_download(self):
+        got = run("""c => { setup(); const m = ptMessageCards().find(x => x.tm === 'torres-maya'); ptMarkSent('torres-maya', m.ids, 'Hi <Maya>');
+          ptDetail = 'torres-maya'; return {doc: ptHistoryDoc('torres-maya'), detail: ptBoardHtml()}; }""")
+        self.assertIn('Accountability Points — Maya Torres', got['doc'])
+        self.assertIn('Late from break #2', got['doc'])
+        self.assertIn('Hi &lt;Maya&gt;', got['doc'])
+        self.assertIn('Download history', got['detail'])
+        self.assertIn('messaged', got['detail'])

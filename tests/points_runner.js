@@ -10,7 +10,8 @@ const ctx = {console, today: '2026-10-12', document: {addEventListener(){}, quer
   getInitials: () => 'TL', saveState(){}, showToast(){}, renderDirectorsView(){},
   leaderListed: n => /aurora/i.test(n)};
 vm.createContext(ctx);
-vm.runInContext('let pointsRecords = {}, pointsUploads = [], pointsSettings = {};', ctx);
+vm.runInContext('let pointsRecords = {}, pointsUploads = [], pointsSettings = {}, pointsTeam = {}, pointsMemos = {};', ctx);
+vm.runInContext("let leaderRoster = [{name: 'Kianna Ramos'}]; function dirList(){ return [{name: 'Timothy Lane'}, {name: 'Kianna Ramos'}]; }", ctx);
 vm.runInContext(js('points-engine.js'), ctx);
 vm.runInContext(js('points.js'), ctx);
 // A report: [text, x, y] per item, all on one page.
@@ -30,5 +31,7 @@ vm.runInContext(`
     ['10/08/2026', 150, 490], ['06:30 AM', 200, 490], ['06:00 AM', 260, 490], ['02:00 PM', 200, 481], ['02:00 PM', 260, 481]
   ]);
 `, ctx);
+vm.runInContext(`function setup(){ ptCommit(ptPrepare(APS.parseReport(REPORT)), 'a.pdf');
+  const items = ptReviewItems(); ptResolve('ruiz-ana', items.find(e => e.tm === 'ruiz-ana').id, 'ncns'); ptResolve('cole-ben', items.find(e => e.tm === 'cole-ben').id, 'pickup'); }`, ctx);
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 process.stdout.write(JSON.stringify(input.cases.map(c => vm.runInContext(`(${c.op})`, ctx)(c))));
