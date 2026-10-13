@@ -328,11 +328,15 @@ class PatchTest(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(section('setups')['posAssignments'][key], 'Ethan')
         self.assertNotIn('truckDays', section('manager'))
-        # Still refused: a known key filed under the wrong section, or a
-        # retired key being set rather than removed.
+        # Still refused: a known key filed under the wrong section (a bug in
+        # the page). A retired key being set (a page on old code) is dropped
+        # and the rest of the save goes through.
         v = self.ver('waste', self.b.post('/api/state/load', json={}).get_json())
         self.assertEqual(self.patch(self.b, 'waste', v, [{'o': 'del', 'p': ['products']}]).status_code, 400)
-        self.assertEqual(self.patch(self.b, 'waste', v, [{'o': 'set', 'p': ['truckDays'], 'v': [1]}]).status_code, 400)
+        r = self.patch(self.b, 'waste', v, [{'o': 'set', 'p': ['truckDays'], 'v': [1]}, {'o': 'set', 'p': ['wasteDays'], 'v': ['2026-10-12']}])
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn('truckDays', section('waste'))
+        self.assertEqual(section('waste')['wasteDays'], ['2026-10-12'])
 
     def test_size_cap(self):
         big = [{'o': 'set', 'p': ['entries'], 'v': ['x' * (appmod.MAX_STATE_BYTES + 10)]}]

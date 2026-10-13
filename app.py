@@ -539,16 +539,22 @@ def state_patch():
     if not patches:
         return jsonify({'success': True, **_state_reply([])})
     for name, patch in patches.items():
-        # A key belongs to one section only. Removing a key no section lists
-        # any more (a retired setting still stored, like truckDays) is
-        # cleanup, not a stray: a page drops what it doesn't know, so its
-        # first save of that section removes it. Refusing it refused the
-        # whole save, every section with it.
-        stray = sorted({op['p'][0] for op in patch['ops']
-                        if SECTION_OF_KEY.get(op['p'][0], 'misc') != name
-                        and not (op['o'] == 'del' and len(op['p']) == 1 and op['p'][0] not in SECTION_OF_KEY)})
+        # A key belongs to one section only: a known key filed under another
+        # section is a bug in the page, and the save is refused so it shows.
+        # A key no section lists at all (a retired setting) never refuses a
+        # save: removing it is cleanup (a page drops what it doesn't know, so
+        # its first save of that section removes it), and setting it (a page
+        # on old code) is dropped, so the rest of the save still goes
+        # through. Refusing the whole save over a retired key took Set Ups
+        # out on every device for a day (Oct 2026).
+        retired = lambda op: op['p'][0] not in SECTION_OF_KEY
+        stray = sorted({op['p'][0] for op in patch['ops'] if not retired(op) and SECTION_OF_KEY[op['p'][0]] != name})
         if stray:
             return jsonify({'error': f'Keys in the wrong section: {", ".join(stray)}'}), 400
+        dropped_ops = [op for op in patch['ops'] if retired(op) and not (op['o'] == 'del' and len(op['p']) == 1)]
+        if dropped_ops:
+            print('[STATE PATCH] dropped changes to retired keys: ' + ', '.join(sorted({op['p'][0] for op in dropped_ops})))
+            patch['ops'] = [op for op in patch['ops'] if op not in dropped_ops]
 
     try:
         with _state_lock:
