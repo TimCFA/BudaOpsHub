@@ -55,6 +55,10 @@ class Report(unittest.TestCase):
         self.assertEqual({e['type']: e['status'] for e in got['fresh']},
                          {'tardy': 'confirmed', 'latebreak': 'confirmed', 'absence': 'review', 'unscheduled': 'review'})
 
+    def test_buda_only(self):
+        got = run("""c => [ptIsOtherStore(APS.parseReport(REPORT)), ptIsOtherStore({location: 'Chick-fil-A West Buda (05508)'}), ptIsOtherStore({location: null})]""")
+        self.assertEqual(got, [False, True, False])
+
     def test_overlapping_report_adds_nothing_twice(self):
         got = run("""c => { const p = APS.parseReport(REPORT);
           const first = ptCommit(ptPrepare(p), 'a.pdf'); const again = ptPrepare(p);

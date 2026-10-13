@@ -13,10 +13,12 @@
 //   Scoreboard the quarter to date, highest first, with each person's events.
 //
 // The scoring is the artifact's own (points-engine.js, APS). Leaders on the
-// leader list (Manage → Settings → Leaders) aren't scored. The records are
-// disciplinary data: the private `points` section, manager sessions only.
-// Messages, leader tasks, memos, Add points from team devices, the test run
-// and quarter close come in the next phases.
+// leader list (Manage → Settings → Leaders) aren't scored. Buda only: a West
+// Buda report is turned away. The records are disciplinary data: the private
+// `points` section, manager sessions only, and only managers see or change
+// any of it (Tim; directors and admin only once accounts exist, TIM-20).
+// Messages, leader tasks, memos, Add points, the test run and quarter close
+// come in the next phases.
 
 const PT_DEFAULTS = {breakMinutes: 30, graceMinutes: 3, clockGraceMinutes: 0, extendedHours: 3,
   signature: 'Chick-fil-A Buda Leadership', quarter: '2026-Q4', quarterStartDate: '2026-10-01'};
@@ -81,6 +83,10 @@ async function ptReadPdf(file){
   }
   return pages;
 }
+
+// Buda only (Tim): a report whose location line names West Buda isn't
+// scored here. One with no location line is taken as Buda's.
+function ptIsOtherStore(parsed){ return /west/i.test(String(parsed && parsed.location || '')); }
 
 // A parsed report against what's recorded: {fresh, dup, byType, skipped, range, runDate, coversTo, employees}.
 function ptPrepare(parsed){
@@ -322,6 +328,7 @@ document.addEventListener('change', async e => {
   try{
     const parsed = APS.parseReport(await ptReadPdf(file));
     if(!parsed.shifts.length){ ptStatus('No shifts found. Is this the Actual vs. Scheduled report?'); return; }
+    if(ptIsOtherStore(parsed)){ ptStatus(`This report is for ${parsed.location}. Only Chick-fil-A Buda reports are scored here.`); return; }
     ptPending = Object.assign(ptPrepare(parsed), {file: file.name});
     renderDirectorsView();
   }catch(err){
