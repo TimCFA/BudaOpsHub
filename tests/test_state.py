@@ -313,6 +313,31 @@ class PatchTest(unittest.TestCase):
         self.assertEqual(self.a.post('/api/state/patch', json={'patches': {}}).status_code, 400)
         self.assertEqual(section('waste')['entries'], LEGACY['entries'])
 
+    def test_retired_key_removal_does_not_refuse_the_save(self):
+        # A setting no section lists any more is still stored (truckDays,
+        # Oct 2026). A page's first save of that section removes it; that used
+        # to refuse the whole save, set ups and all, on every device.
+        m = section('manager'); m['truckDays'] = [2, 4]
+        store['state/manager'] = json.dumps(m)
+        appmod._cache.clear()
+        loaded = self.b.post('/api/state/load', json={}).get_json()
+        key = 'foh||2026-10-12||Lunch (10:30-1:00)||OMD 1'
+        r = self.b.post('/api/state/patch', json={'patches': {
+            'manager': {'ver': loaded['versions']['manager'], 'ops': [{'o': 'del', 'p': ['truckDays']}, {'o': 'set', 'p': ['productFixesVersion'], 'v': 7}]},
+            'setups': {'ver': loaded['versions']['setups'], 'ops': [{'o': 'set', 'p': ['posAssignments', key], 'v': 'Ethan'}]}}})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(section('setups')['posAssignments'][key], 'Ethan')
+        self.assertNotIn('truckDays', section('manager'))
+        # Still refused: a known key filed under the wrong section (a bug in
+        # the page). A retired key being set (a page on old code) is dropped
+        # and the rest of the save goes through.
+        v = self.ver('waste', self.b.post('/api/state/load', json={}).get_json())
+        self.assertEqual(self.patch(self.b, 'waste', v, [{'o': 'del', 'p': ['products']}]).status_code, 400)
+        r = self.patch(self.b, 'waste', v, [{'o': 'set', 'p': ['truckDays'], 'v': [1]}, {'o': 'set', 'p': ['wasteDays'], 'v': ['2026-10-12']}])
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn('truckDays', section('waste'))
+        self.assertEqual(section('waste')['wasteDays'], ['2026-10-12'])
+
     def test_size_cap(self):
         big = [{'o': 'set', 'p': ['entries'], 'v': ['x' * (appmod.MAX_STATE_BYTES + 10)]}]
         self.assertEqual(self.patch(self.a, 'waste', self.ver('waste'), big).status_code, 413)

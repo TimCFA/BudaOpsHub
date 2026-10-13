@@ -50,3 +50,31 @@ cards, an ivory ground, slab-serif headings and hero numbers (Zilla Slab) with a
 grotesque body (Figtree); both fonts stand in for Caecilia and Apercu until the
 brand fonts are licensed (swap `--font-display` / `--font-ui`). Line icons (inline
 SVG), never emoji. New components go in the theme's conventions.
+
+## Deploying
+
+Merging to `main` deploys to Render and restarts the server for about a
+minute. The team runs the store on this app from their phones, so a bad
+deploy stops service. These rules come from Oct 12, 2026, when four
+mid-shift merges and a retired setting still stored on the server left
+every phone unable to save for a day (PRs #148, #149).
+
+- **Never merge during service hours** (Mon–Sat, roughly 6am–10pm Central).
+  Default to after close. If something can't wait, say so and let Tim
+  decide; never assume.
+- **One merge a day.** Batch ready PRs into a single merge window so the
+  server restarts once, and tell Tim the time it went live so everyone can
+  reload once before the next shift.
+- **Tests are not the deploy check.** After every merge, watch
+  `/api/state/sync` until its `build` matches the merge commit, then load
+  the live site headlessly as a team device (Playwright is installed) and
+  confirm: its first save, if any, is not refused; today's Set Ups
+  (`posAssignments` for today) are intact on the server. Not done until
+  that passes.
+- **Before renaming or removing a saved setting** (a key in `STATE_SECTIONS`),
+  read what the live server actually stores (`POST /api/state/sync` with
+  `{"versions": {}}` is read-only) and plan for the old value still being
+  there. Retired keys are tolerated on save (app.py, `state_patch`), but a
+  change that depends on their absence still needs checking.
+- **A failed save must retry** (storage.js `saveState`), never be dropped;
+  keep that when touching the save path.
