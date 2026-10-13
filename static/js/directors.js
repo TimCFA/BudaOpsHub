@@ -33,7 +33,7 @@ const DIR_GAP_MIN = 30;         // a leader-less stretch shorter than this isn't
 const DIR_CLOSE_MIN = 21 * 60 + 30;   // a leader on until here counts as closing
 
 let dirWeekOffset = 0;   // 0 = this week, 1 = next
-let dirView = 'brief';   // 'brief' | 'leaders' | 'report' (leader-report.js)
+let dirView = 'brief';   // 'brief' | 'leaders' | 'report' (leader-report.js) | 'points' (points.js)
 
 function dirList(){ return Array.isArray(directors) ? directors : DIRECTORS_SEED; }
 function dirEnsureOwn(){ if(!Array.isArray(directors)) directors = JSON.parse(JSON.stringify(DIRECTORS_SEED)); }
@@ -162,8 +162,18 @@ function renderDirectorsView(){
   const dates = dirWeek();
   const leadersOn = dirView === 'leaders' && typeof ldBodyHtml === 'function';
   const reportOn = dirView === 'report' && typeof lrBodyHtml === 'function';
-  const briefOn = !leadersOn && !reportOn;
-  const panes = `<div class="uo-panes" role="tablist" aria-label="View"><button type="button" class="uo-pane-btn ${briefOn ? 'active' : ''}" data-dir-view="brief">Brief</button><button type="button" class="uo-pane-btn ${leadersOn ? 'active' : ''}" data-dir-view="leaders">Leaders</button>${typeof lrBodyHtml === 'function' ? `<button type="button" class="uo-pane-btn ${reportOn ? 'active' : ''}" data-dir-view="report">Weekly report</button>` : ''}</div>`;
+  const pointsOn = dirView === 'points' && typeof ptBodyHtml === 'function';
+  const briefOn = !leadersOn && !reportOn && !pointsOn;
+  const panes = `<div class="uo-panes" role="tablist" aria-label="View"><button type="button" class="uo-pane-btn ${briefOn ? 'active' : ''}" data-dir-view="brief">Brief</button><button type="button" class="uo-pane-btn ${leadersOn ? 'active' : ''}" data-dir-view="leaders">Leaders</button>${typeof lrBodyHtml === 'function' ? `<button type="button" class="uo-pane-btn ${reportOn ? 'active' : ''}" data-dir-view="report">Weekly report</button>` : ''}${typeof ptBodyHtml === 'function' ? `<button type="button" class="uo-pane-btn ${pointsOn ? 'active' : ''}" data-dir-view="points">Points</button>` : ''}</div>`;
+  if(pointsOn){
+    root.innerHTML = `
+      <div class="dir-head">
+        <div><h2 class="dir-title">Accountability points</h2><p class="dir-sub">${ptHeadSub()}</p></div>
+        <div class="dir-actions">${panes}${ptActionsHtml()}</div>
+      </div>
+      ${ptBodyHtml()}`;
+    return;
+  }
   if(reportOn){
     const rep = {dates: getWeekDays(lrWeekOffset).map(d => d.date)};
     root.innerHTML = `

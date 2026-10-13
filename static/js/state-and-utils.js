@@ -20,6 +20,16 @@ let wasteDays = [];
 let rosterPosted = {};   // {date: {foh: [...], boh: [...], at}}: each day's posted schedule (roster-changes.js)
 let truckShifts = {};    // {date: [{name, start, end, source: 'schedule' | 'manual', addedBy, addedAt}]}: who's doing truck (truck.js)
 let uniformOrders = [];  // uniform orders, newest last (uniform-orders.js); manager sessions only
+// Accountability points (points.js), manager sessions only:
+// pointsRecords {quarter: {tm: {tm, tmName, events: [...]}}}, pointsUploads
+// [{at, by, file, range, runDate, coversTo, added, quarter}] newest first,
+// pointsSettings (the rules: graces, break length, quarter), pointsTeam
+// {tm: {lang}} (message language), pointsMemos {id: memo} (HR documentation).
+let pointsRecords = {};
+let pointsUploads = [];
+let pointsSettings = {};
+let pointsTeam = {};
+let pointsMemos = {};
 let uniformCatalog = null; // the order form's items; null until a manager edits: UNIFORM_SEED shows
 let directors = null;    // [{name, title}] the director team (directors.js); null until edited: DIRECTORS_SEED
 let adminShifts = {};    // {date: [{name, start, end}]}: Administrative shifts from the roster import (directors' time)
