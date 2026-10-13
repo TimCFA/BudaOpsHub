@@ -58,7 +58,7 @@ MANAGER_ONLY_KEYS = {
     'launchMode',
     # People data (below): private, so only a manager session changes it.
     'eoiSubmissions', 'trainerTrainees', 'trainerProgress', 'teamLeadTrainees',
-    'teamLeadProgress', 'scoreboardItems', 'leaderNotes', 'leaderFocus',
+    'teamLeadProgress', 'scoreboardItems', 'leaderNotes', 'leaderFocus', 'teamNotes',
     # Sales and labor history (below): private, so only a manager session changes it.
     'salesHistory', 'forecastSettings', 'forecastLog', 'daypartWeeks',
     # Uniform orders (below): names and paycheck deductions, so only a manager session.
@@ -147,7 +147,7 @@ STATE_SECTIONS = {
             'numbersData'],
     'safe': ['safeCounts'],
     'people': ['eoiSubmissions', 'trainerTrainees', 'trainerProgress', 'teamLeadTrainees',
-               'teamLeadProgress', 'scoreboardItems', 'leaderNotes', 'leaderFocus'],
+               'teamLeadProgress', 'scoreboardItems', 'leaderNotes', 'leaderFocus', 'teamNotes'],
     'prep': ['prepBuffers', 'prepSoldEntries', 'prepWasteEntries', 'prepStockoutEvents', 'prepHistorySeeded'],
     'prepTimes': ['prepTimes', 'prepTimers'],
     'cem': ['cemEntries'],

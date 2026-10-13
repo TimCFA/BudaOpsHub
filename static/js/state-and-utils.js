@@ -37,6 +37,7 @@ let leaderNotes = {};    // {leader name: [{text, by, ts, date, type, pec}]}: di
 let leaderRoster = null; // [{name, roles}] the leaders and their PEC roles (leaders.js); null until edited
 let peaGoals = null;     // {team, leader}: PEAs per quarter the team and each leader aim for; null = PEA_GOALS_SEED
 let leaderFocus = {};    // {'<leader key>__2026-Q4': [focus items]}: each leader's focus for the quarter
+let teamNotes = {};      // {team member: [{text, by, ts, date, type, tags: ['iPOS:2']}]}: directors' notes on each team member (team-pea.js)
 let foodSafetyStreak = 0;
 let wasteStreak = 0;
 let wasteLogLastClosedOut = null; // timestamp of the last manual export+reset, shown in Manage
