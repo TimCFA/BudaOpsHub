@@ -610,6 +610,10 @@ let fohOEStreak = 0;
 let fohOEChecked = {};
 let fohOECheckedDate = null;
 let fohLeaderTransitionChecked = {};
+// The Leader Transition list resets each day, so each day's count per
+// handoff is kept here for the weekly leader report (leader-report.js):
+// {date: {handoff: [checked, total]}}, a year of it.
+let leaderTransitionHistory = {};
 let fohLeaderTransitionDate = null;
 
 const growthTrack = [

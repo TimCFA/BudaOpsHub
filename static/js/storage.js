@@ -17,7 +17,7 @@ const STATE_SECTIONS = {
   rosters: ['fohRoster', 'bohRoster', 'rosterPosted', 'truckShifts', 'adminShifts'],
   setups: ['posAssignments', 'posVacancyFlags', 'setupDayTypes', 'lastUpdated',
            'breakCountdowns', 'completedBreaks', 'zoneOwners', 'posNotes'],
-  history: ['setupHistory', 'numbersHistory', 'wasteMonthlyHistory', 'zoneChecklistHistory'],
+  history: ['setupHistory', 'numbersHistory', 'wasteMonthlyHistory', 'zoneChecklistHistory', 'leaderTransitionHistory'],
   waste: ['entries', 'wasteDays', 'formDone', 'formDoneDate', 'wasteLogLastClosedOut'],
   ops: ['foodSafetyDays', 'foodSafetyWalkthroughs', 'fohOEDays', 'fohOEChecked', 'fohOECheckedDate',
         'fohLeaderTransitionChecked', 'fohLeaderTransitionDate', 'zoneChecklistState',
@@ -30,6 +30,7 @@ const STATE_SECTIONS = {
   cem: ['cemEntries'],
   forecast: ['salesHistory', 'forecastSettings', 'forecastLog', 'daypartWeeks'],
   orders: ['uniformOrders', 'uniformCatalog'],
+  points: ['pointsRecords', 'pointsUploads', 'pointsSettings', 'pointsTeam', 'pointsMemos'],
   misc: []
 };
 const STATE_SECTION_OF = {};
@@ -43,15 +44,27 @@ let stateBase = {};
 let savedSections = {};
 let stateVersions = {};
 
+// Timers (breaks, prep) run on the server's clock, not each tablet's: every
+// state reply carries the server's time, and the page keeps how far its own
+// clock is off (taken at the middle of the round trip).
+let serverClockOffset = 0;
+function serverNow(){ return Date.now() + serverClockOffset; }
+function serverClockNote(now, sentAt, gotAt){
+  if(typeof now === 'number' && isFinite(now)) serverClockOffset = Math.round(now - (sentAt + gotAt) / 2);
+}
+
 async function statePost(path, body){
   try{
+    const sentAt = Date.now();
     const response = await fetch(`${API_BASE}${path}`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body)
     });
     if(!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.json();
+    const reply = await response.json();
+    serverClockNote(reply && reply.now, sentAt, Date.now());
+    return reply;
   }catch(err){
     console.error(`${path} failed:`, err);
     return null;
@@ -65,12 +78,13 @@ function stateSnapshot(){
     formDoneDate: formDone ? today : null, foodSafetyDays, wasteDays, breakCountdowns, completedBreaks, posAssignments,
     fohRoster, bohRoster, rosterPosted, lxPillars, lxMetrics, lxLastUpdated, gxData, txData, homeData,
     fohOEDays, fohOEChecked, fohOECheckedDate,
-    fohLeaderTransitionChecked, fohLeaderTransitionDate,
+    fohLeaderTransitionChecked, fohLeaderTransitionDate, leaderTransitionHistory,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
     prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, launchMode, prepTimes, prepTimers,
     salesHistory, forecastSettings, forecastLog, daypartWeeks, zoneOwners, posNotes, storeEvents, truckShifts,
-    uniformOrders, uniformCatalog, directors, adminShifts, leaderNotes, leaderRoster, peaGoals, leaderFocus
+    uniformOrders, uniformCatalog, directors, adminShifts, leaderNotes, leaderRoster, peaGoals, leaderFocus,
+    pointsRecords, pointsUploads, pointsSettings, pointsTeam, pointsMemos
   };
 }
 
@@ -116,7 +130,7 @@ async function saveOnce(){
     patches[name] = {ver: stateVersions[name] || '?', ops};
     sent[name] = sections[name];
   });
-  if(!Object.keys(patches).length){ setSyncStatus('Synced', 'ok'); return; }
+  if(!Object.keys(patches).length){ setSyncStatus('Synced', 'ok'); return true; }
   const result = await statePost('/api/state/patch', {patches});
   if(result){
     Object.keys(sent).forEach(name=>{
@@ -138,6 +152,13 @@ async function saveOnce(){
     document.getElementById('pinGate').style.display = 'block';
     showToast('Manager sign-in expired — sign in again and redo your Manage changes');
   }
+  return !!result;
+}
+
+// Changes this page made that the server hasn't taken yet.
+function stateHasUnsent(){
+  const sections = stateSections(stateSnapshot());
+  return Object.keys(sections).some(name => name in stateBase && sections[name] !== savedSections[name]);
 }
 
 // The server's latest copy of some sections: keep this page's changes the
@@ -198,14 +219,29 @@ function stateReconcile(cur, next){
 // promise resolves once its change has gone out.
 let saveInFlight = null;
 let saveAgain = false;
+// A save that fails (no signal, or the server restarting for an update) is
+// tried again on its own: 5 s, 15 s, then every 30 s while there's anything
+// unsent. Left unsent, a change stays on this phone only and is laid back
+// over every update it hears, so the phones drift apart until a reload.
+const SAVE_RETRY_MS = [5000, 15000, 30000];
+let saveRetryTimer = null, saveRetryN = 0;
 function saveState(){
   if(saveInFlight){ saveAgain = true; return saveInFlight; }
+  if(saveRetryTimer){ clearTimeout(saveRetryTimer); saveRetryTimer = null; }
   saveInFlight = (async ()=>{
+    let ok = true;
     try{
-      do { saveAgain = false; await saveOnce(); } while(saveAgain);
+      do { saveAgain = false; ok = await saveOnce(); } while(saveAgain);
+    } catch(e){
+      ok = false;
+      console.warn('Save failed:', e);
     } finally {
       saveInFlight = null;
     }
+    if(ok){ saveRetryN = 0; return; }
+    const wait = SAVE_RETRY_MS[Math.min(saveRetryN, SAVE_RETRY_MS.length - 1)];
+    saveRetryN++;
+    saveRetryTimer = setTimeout(() => { saveRetryTimer = null; if(stateHasUnsent()) saveState(); else saveRetryN = 0; }, wait);
   })();
   return saveInFlight;
 }
@@ -353,6 +389,14 @@ function applyStateData(data){
       // that the catalog doesn't know show on both.
       products.forEach(p=>{ if(!WASTE_SIDES.includes(p.side)) p.side = WASTE_CATALOG_IDS.has(p.id) ? wasteDefaultSide(p.id) : 'both'; });
     }
+    if(fixesDone < 7){
+      // Fix 7: the TIM-18 audit's names, category and unit (WASTE_ITEM_FIX_7).
+      products.forEach(p=>{
+        Object.entries(WASTE_ITEM_FIX_7[p.id] || {}).forEach(([field, [before, now]])=>{
+          if(p[field] === before) p[field] = now;
+        });
+      });
+    }
   } else if(data.products){
     // Fix 4: the Waste tracker's catalog replaces the old Log Waste list.
     // A price a manager had typed in for an old item carries to the item it
@@ -414,6 +458,7 @@ function applyStateData(data){
   eoiSubmissions = data.eoiSubmissions || [];
   zoneChecklistState = data.zoneChecklistState || {};
   zoneChecklistHistory = data.zoneChecklistHistory || {};
+  leaderTransitionHistory = (data.leaderTransitionHistory && typeof data.leaderTransitionHistory === 'object') ? data.leaderTransitionHistory : {};
   numbersData = data.numbersData || {};
   if(typeof knNormalizeAll === 'function') knNormalizeAll();   // the four dayparts (know-numbers.js)
   lastUpdated = data.lastUpdated || {};
@@ -460,6 +505,11 @@ function applyStateData(data){
   daypartWeeks = (data.daypartWeeks && typeof data.daypartWeeks === 'object' && !Array.isArray(data.daypartWeeks)) ? data.daypartWeeks : {};
   // Uniform orders and the order form's items (manager sessions only).
   uniformOrders = Array.isArray(data.uniformOrders) ? data.uniformOrders : [];
+  pointsRecords = (data.pointsRecords && typeof data.pointsRecords === 'object' && !Array.isArray(data.pointsRecords)) ? data.pointsRecords : {};
+  pointsUploads = Array.isArray(data.pointsUploads) ? data.pointsUploads : [];
+  pointsSettings = (data.pointsSettings && typeof data.pointsSettings === 'object' && !Array.isArray(data.pointsSettings)) ? data.pointsSettings : {};
+  pointsTeam = (data.pointsTeam && typeof data.pointsTeam === 'object' && !Array.isArray(data.pointsTeam)) ? data.pointsTeam : {};
+  pointsMemos = (data.pointsMemos && typeof data.pointsMemos === 'object' && !Array.isArray(data.pointsMemos)) ? data.pointsMemos : {};
   uniformCatalog = Array.isArray(data.uniformCatalog) ? data.uniformCatalog : null;
   if(typeof uoRerender === 'function') uoRerender();
   // The director team, their Administrative shifts and the notes on each leader (directors.js).
@@ -485,6 +535,11 @@ let stateBuild = null;
 
 async function syncState(){
   if(stateSyncing || saveInFlight || !Object.keys(stateVersions).length) return;
+  // Anything still unsent goes first (then the check goes ahead either way:
+  // a change the server won't take, like a manager setting from a team
+  // phone, must never stop this phone hearing everyone else's).
+  if(stateHasUnsent()){ try{ await saveState(); }catch(e){} }
+  if(stateSyncing || saveInFlight) return;
   stateSyncing = true;
   try{
     const reply = await statePost('/api/state/sync', {versions: stateVersions});
@@ -506,6 +561,9 @@ async function syncState(){
 const SETUP_REFRESH_SECTIONS = ['setups', 'rosters'];
 async function refreshSetups(){
   if(saveInFlight){ try{ await saveInFlight; }catch(e){} }
+  // A change of this page's that never got out (sent while the server was
+  // restarting): send it now, so Refresh leaves every phone the same.
+  if(stateHasUnsent()){ try{ await saveState(); }catch(e){} }
   if(!Object.keys(stateVersions).length) return {ok: false, changed: false};
   const reply = await statePost('/api/state/sync', {versions: stateVersions, only: SETUP_REFRESH_SECTIONS});
   if(!reply) return {ok: false, changed: false};

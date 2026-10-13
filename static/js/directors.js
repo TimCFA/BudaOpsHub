@@ -16,8 +16,9 @@
 //
 // Directors are named in Manage → Settings (directors, {name, title}, as
 // HotSchedules spells them); their time is the Administrative shifts the
-// roster import keeps (adminShifts). Leaders are the Team Leader shifts on
-// the roster plus anyone set as Lead Captain on Set Ups. Notes live in
+// roster import keeps (adminShifts). Leaders are the leader list in Manage →
+// Settings → Leaders, the Team Leader shifts on the roster, and anyone set as
+// Lead Captain on Set Ups. Notes live in
 // leaderNotes {name: [{text, by, ts, date, type, pec}]} (the private people
 // section).
 
@@ -32,7 +33,7 @@ const DIR_GAP_MIN = 30;         // a leader-less stretch shorter than this isn't
 const DIR_CLOSE_MIN = 21 * 60 + 30;   // a leader on until here counts as closing
 
 let dirWeekOffset = 0;   // 0 = this week, 1 = next
-let dirView = 'brief';   // 'brief' | 'leaders'
+let dirView = 'brief';   // 'brief' | 'leaders' | 'report' (leader-report.js) | 'points' (points.js)
 
 function dirList(){ return Array.isArray(directors) ? directors : DIRECTORS_SEED; }
 function dirEnsureOwn(){ if(!Array.isArray(directors)) directors = JSON.parse(JSON.stringify(DIRECTORS_SEED)); }
@@ -54,7 +55,7 @@ const dirOverlap = (a, b) => a && b && a.start < b.end && b.start < a.end;
 function dirFloor(iso){
   const out = [];
   [['foh', fohRoster[iso]], ['boh', bohRoster[iso]]].forEach(([section, list]) => {
-    (Array.isArray(list) ? list : []).forEach(p => { const span = dirSpan(p); if(span) out.push({name: p.name, section, leader: !!p.leader, span}); });
+    (Array.isArray(list) ? list : []).forEach(p => { const span = dirSpan(p); if(span) out.push({name: p.name, section, leader: !!p.leader || leaderListed(p.name), span}); });
   });
   // Lead Captains set on Set Ups count as leaders for their day.
   const caps = new Set();
@@ -160,7 +161,29 @@ function renderDirectorsView(){
   if(!dirShown()){ root.innerHTML = ''; return; }
   const dates = dirWeek();
   const leadersOn = dirView === 'leaders' && typeof ldBodyHtml === 'function';
-  const panes = `<div class="uo-panes" role="tablist" aria-label="View"><button type="button" class="uo-pane-btn ${!leadersOn ? 'active' : ''}" data-dir-view="brief">Brief</button><button type="button" class="uo-pane-btn ${leadersOn ? 'active' : ''}" data-dir-view="leaders">Leaders</button></div>`;
+  const reportOn = dirView === 'report' && typeof lrBodyHtml === 'function';
+  const pointsOn = dirView === 'points' && typeof ptBodyHtml === 'function';
+  const briefOn = !leadersOn && !reportOn && !pointsOn;
+  const panes = `<div class="uo-panes" role="tablist" aria-label="View"><button type="button" class="uo-pane-btn ${briefOn ? 'active' : ''}" data-dir-view="brief">Brief</button><button type="button" class="uo-pane-btn ${leadersOn ? 'active' : ''}" data-dir-view="leaders">Leaders</button>${typeof lrBodyHtml === 'function' ? `<button type="button" class="uo-pane-btn ${reportOn ? 'active' : ''}" data-dir-view="report">Weekly report</button>` : ''}${typeof ptBodyHtml === 'function' ? `<button type="button" class="uo-pane-btn ${pointsOn ? 'active' : ''}" data-dir-view="points">Points</button>` : ''}</div>`;
+  if(pointsOn){
+    root.innerHTML = `
+      <div class="dir-head">
+        <div><h2 class="dir-title">Accountability points</h2><p class="dir-sub">${ptHeadSub()}</p></div>
+        <div class="dir-actions">${panes}${ptActionsHtml()}</div>
+      </div>
+      ${ptBodyHtml()}`;
+    return;
+  }
+  if(reportOn){
+    const rep = {dates: getWeekDays(lrWeekOffset).map(d => d.date)};
+    root.innerHTML = `
+      <div class="dir-head">
+        <div><h2 class="dir-title">Weekly leader report</h2>${lrHeadHtml(rep)}</div>
+        <div class="dir-actions">${panes}${lrActionsHtml()}</div>
+      </div>
+      ${lrBodyHtml()}`;
+    return;
+  }
   if(leadersOn){
     root.innerHTML = `
       <div class="dir-head">
@@ -219,7 +242,7 @@ function renderDirectorsView(){
       </div>
     </div>
     ${!hasRoster ? `<p class="dir-empty">No roster for this week yet. Import the week's HotSchedules CSV in Manage → Uploads and the days fill in.</p>` : ''}
-    <section class="dir-card"><h3>The week at a glance</h3><p class="dir-note">Leaders are Team Leader shifts and anyone set as Lead Captain. Directors’ time is their Administrative shifts. A gap is ${DIR_GAP_MIN} minutes or more with no leader on.</p><div class="dir-days">${dayRows}</div></section>
+    <section class="dir-card"><h3>The week at a glance</h3><p class="dir-note">Leaders are the leader list in Manage, Team Leader shifts and anyone set as Lead Captain. Directors’ time is their Administrative shifts. A gap is ${DIR_GAP_MIN} minutes or more with no leader on.</p><div class="dir-days">${dayRows}</div></section>
     <section class="dir-card"><h3>Where directors overlap leaders</h3>
       ${overlapRows.length ? `<ul class="dir-list">${overlapRows.join('')}</ul>` : '<p class="dir-empty">No director shifts on the roster this week.</p>'}
       ${unseen.length ? `<p class="dir-note"><b>Leaders no director overlaps this week:</b> ${escapeHtml(unseen.map(dirShort).join(', '))}</p>` : ''}
@@ -284,17 +307,16 @@ function dirBriefText(){
   return L.join('\n');
 }
 
-function dirCopy(btn){
-  const text = dirBriefText();
+function dirCopy(btn, text = dirBriefText()){
   const done = ok => { const orig = btn.textContent; btn.textContent = ok ? 'Copied' : 'Copy failed'; setTimeout(() => { btn.textContent = orig; }, 1600); };
   if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => done(true), () => done(false)); else done(false);
 }
 
-function dirPdf(){
+function dirPdf(text = dirBriefText(), fileName = `directors-brief-${dirWeek()[0]}.pdf`){
   const J = window.jspdf && window.jspdf.jsPDF;
   if(!J){ showToast('The PDF library didn’t load'); return; }
   const doc = new J({unit: 'pt', format: 'letter'});
-  const lines = doc.splitTextToSize(dirBriefText(), 612 - 96);
+  const lines = doc.splitTextToSize(text, 612 - 96);
   let y = 60;
   doc.setFont('helvetica', 'normal').setFontSize(10.5);
   lines.forEach(line => {
@@ -303,7 +325,7 @@ function dirPdf(){
     doc.setFont('helvetica', head ? 'bold' : 'normal');
     doc.text(line, 48, y); y += 15;
   });
-  doc.save(`directors-brief-${dirWeek()[0]}.pdf`);
+  doc.save(fileName);
 }
 
 document.addEventListener('click', e => {

@@ -138,7 +138,7 @@ function ptRenderPage(){
       ${running.map(t => `
         <div class="pt-timer">
           <div class="pt-timer-who"><b>${escapeHtml(t.name)}</b><span>${escapeHtml(ptShortItem(t.item))} × ${t.qty}</span></div>
-          <div class="pt-timer-clock" data-pt-elapsed="${escapeHtml(t.startedAt)}">${ptClock((Date.now() - t.startedAt) / 1000)}</div>
+          <div class="pt-timer-clock" data-pt-elapsed="${escapeHtml(t.startedAt)}">${ptClock((serverNow() - t.startedAt) / 1000)}</div>
           <div class="pt-timer-actions">
             <button type="button" class="pt-done" data-pt-done="${escapeHtml(t.id)}">Done${esLine('Done')}</button>
             <button type="button" class="pt-cancel" data-pt-cancel="${escapeHtml(t.id)}" aria-label="Cancel this timer">Cancel${esLine('Cancel')}</button>
@@ -207,7 +207,7 @@ function ptStartTicking(){
   ptTick = setInterval(()=>{
     const els = document.querySelectorAll('[data-pt-elapsed]');
     if(!els.length){ clearInterval(ptTick); ptTick = null; return; }
-    els.forEach(el => { el.textContent = ptClock((Date.now() - +el.dataset.ptElapsed) / 1000); });
+    els.forEach(el => { el.textContent = ptClock((serverNow() - +el.dataset.ptElapsed) / 1000); });
   }, 1000);
 }
 
@@ -233,7 +233,7 @@ document.getElementById('prepBoardRoot').addEventListener('click', async e=>{
 
   if(t.closest('[data-pt-start]')){
     if(!ptForm.name || !ptForm.item) return;
-    prepTimers.push({id: ptUid(), name: ptForm.name, item: ptForm.item, qty: ptForm.qty, startedAt: Date.now()});
+    prepTimers.push({id: ptUid(), name: ptForm.name, item: ptForm.item, qty: ptForm.qty, startedAt: serverNow()});
     ptRerender();
     showToast(`▶ Timing ${ptForm.name} · ${ptShortItem(ptForm.item)} × ${ptForm.qty} · ${esText('Timing now')}`);
     saveState();
@@ -243,7 +243,7 @@ document.getElementById('prepBoardRoot').addEventListener('click', async e=>{
   if(done){
     const timer = prepTimers.find(x => x.id === done.dataset.ptDone);
     if(!timer) return;
-    const secs = (Date.now() - timer.startedAt) / 1000;
+    const secs = (serverNow() - timer.startedAt) / 1000;
     prepTimers = prepTimers.filter(x => x !== timer);
     try{ showToast(ptRecord({name: timer.name, item: timer.item, qty: timer.qty, secs, source: 'timer'})); }
     catch(err){ showToast(err.message); }

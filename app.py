@@ -63,6 +63,8 @@ MANAGER_ONLY_KEYS = {
     'salesHistory', 'forecastSettings', 'forecastLog', 'daypartWeeks',
     # Uniform orders (below): names and paycheck deductions, so only a manager session.
     'uniformOrders', 'uniformCatalog',
+    # Accountability points (below): disciplinary records, so only a manager session.
+    'pointsRecords', 'pointsUploads', 'pointsSettings', 'pointsTeam', 'pointsMemos',
 }
 
 # Sections sent only to a manager session: PEA ratings, people data
@@ -71,7 +73,7 @@ MANAGER_ONLY_KEYS = {
 # every other section. The keys in pea, people and forecast are manager-only
 # above; safe counts are append-only below, since leaders log them from any
 # device.
-PRIVATE_SECTIONS = ('pea', 'people', 'safe', 'forecast', 'orders')
+PRIVATE_SECTIONS = ('pea', 'people', 'safe', 'forecast', 'orders', 'points')
 
 # Keys a device without a manager session may add to but never change or
 # remove. It isn't sent these (they're private), so what it sends can only be
@@ -138,7 +140,7 @@ STATE_SECTIONS = {
     'rosters': ['fohRoster', 'bohRoster', 'rosterPosted', 'truckShifts', 'adminShifts'],
     'setups': ['posAssignments', 'posVacancyFlags', 'setupDayTypes', 'lastUpdated',
                'breakCountdowns', 'completedBreaks', 'zoneOwners', 'posNotes'],
-    'history': ['setupHistory', 'numbersHistory', 'wasteMonthlyHistory', 'zoneChecklistHistory'],
+    'history': ['setupHistory', 'numbersHistory', 'wasteMonthlyHistory', 'zoneChecklistHistory', 'leaderTransitionHistory'],
     'waste': ['entries', 'wasteDays', 'formDone', 'formDoneDate', 'wasteLogLastClosedOut'],
     'ops': ['foodSafetyDays', 'foodSafetyWalkthroughs', 'fohOEDays', 'fohOEChecked', 'fohOECheckedDate',
             'fohLeaderTransitionChecked', 'fohLeaderTransitionDate', 'zoneChecklistState',
@@ -151,6 +153,7 @@ STATE_SECTIONS = {
     'cem': ['cemEntries'],
     'forecast': ['salesHistory', 'forecastSettings', 'forecastLog', 'daypartWeeks'],
     'orders': ['uniformOrders', 'uniformCatalog'],
+    'points': ['pointsRecords', 'pointsUploads', 'pointsSettings', 'pointsTeam', 'pointsMemos'],
     'misc': [],
 }
 SECTION_OF_KEY = {key: name for name, keys in STATE_SECTIONS.items() for key in keys}
@@ -466,6 +469,7 @@ def _state_reply(names):
         'sections': {name: _dumps(_section_for_session(name, _cache[name]['data'])) for name in names if shown(name)},
         'versions': {name: entry['ver'] for name, entry in _cache.items() if shown(name)},
         'build': BUILD,
+        'now': int(time.time() * 1000),   # the shared clock for timers (serverNow)
     }
 
 @app.route('/api/state/load', methods=['POST'])
@@ -498,7 +502,7 @@ def state_sync():
     try:
         with _state_lock:
             if _read_sections() is None:
-                return jsonify({'sections': {}, 'versions': {}, 'build': BUILD})
+                return jsonify({'sections': {}, 'versions': {}, 'build': BUILD, 'now': int(time.time() * 1000)})
             names = [n for n in _cache if have.get(n) != _cache[n]['ver'] and (only is None or n in only)]
             return jsonify(_state_reply(names))
     except Exception as e:
@@ -538,10 +542,22 @@ def state_patch():
     if not patches:
         return jsonify({'success': True, **_state_reply([])})
     for name, patch in patches.items():
-        # A key belongs to one section only.
-        stray = sorted({op['p'][0] for op in patch['ops'] if SECTION_OF_KEY.get(op['p'][0], 'misc') != name})
+        # A key belongs to one section only: a known key filed under another
+        # section is a bug in the page, and the save is refused so it shows.
+        # A key no section lists at all (a retired setting) never refuses a
+        # save: removing it is cleanup (a page drops what it doesn't know, so
+        # its first save of that section removes it), and setting it (a page
+        # on old code) is dropped, so the rest of the save still goes
+        # through. Refusing the whole save over a retired key took Set Ups
+        # out on every device for a day (Oct 2026).
+        retired = lambda op: op['p'][0] not in SECTION_OF_KEY
+        stray = sorted({op['p'][0] for op in patch['ops'] if not retired(op) and SECTION_OF_KEY[op['p'][0]] != name})
         if stray:
             return jsonify({'error': f'Keys in the wrong section: {", ".join(stray)}'}), 400
+        dropped_ops = [op for op in patch['ops'] if retired(op) and not (op['o'] == 'del' and len(op['p']) == 1)]
+        if dropped_ops:
+            print('[STATE PATCH] dropped changes to retired keys: ' + ', '.join(sorted({op['p'][0] for op in dropped_ops})))
+            patch['ops'] = [op for op in patch['ops'] if op not in dropped_ops]
 
     try:
         with _state_lock:
