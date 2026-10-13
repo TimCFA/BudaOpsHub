@@ -1558,3 +1558,12 @@ body:not(.is-manager) .manager-only{display:none !important;}
 .pt-acks legend{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:6px;}
 .pt-acks label{display:inline-flex;gap:6px;align-items:center;font-size:14px;}
 .pt-error{color:var(--cfa-dark-red);font-weight:700;}
+.pt-test-banner{margin:0 0 12px;padding:10px 14px;border-radius:12px;background:#FFF1D6;color:#7A4F00;font-size:14px;}
+.pt-confirm{margin-top:10px;padding:12px 14px;border:1px solid var(--cfa-red);border-radius:12px;background:#FDF1F3;}
+.pt-confirm p{margin:0 0 8px;}
+.pt-ok{color:#2E6B3F;font-weight:700;}
+.pt-roster td{padding:8px;}
+.pt-roster input[type=checkbox]{width:20px;height:20px;}
+.pt-add .pt-field input[type=text]{width:100%;box-sizing:border-box;}
+.pt-grid > *{min-width:0;}
+.pt-field input,.pt-field select{width:100%;box-sizing:border-box;min-width:0;}

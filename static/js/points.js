@@ -26,7 +26,14 @@
 //              a leader; closing one means writing its memo.
 //   Memos      the HR documentation for each step, with the quarter's events
 //              attached, downloadable as a printable page.
-// Add points, the test run and quarter close come in phase 3.
+//
+// Phase 3:
+//   Add points  an infraction or credit a manager logs by hand.
+//   Settings    the rules (graces, break length, extended shift, message
+//               signature), the roster (active, not scored, language), a
+//               test run that scores into a sandbox and is wiped when it
+//               ends, and quarter close: 50% of each active team member's
+//               total (at most 20) carries into the next quarter.
 
 const PT_DEFAULTS = {breakMinutes: 30, graceMinutes: 3, clockGraceMinutes: 0, extendedHours: 3,
   signature: 'Chick-fil-A Buda Leadership', leader: 'Casey', quarter: '2026-Q4', quarterStartDate: '2026-10-01'};
@@ -56,10 +63,18 @@ let ptMemoDraft = null;   // the memo open in the form: {id, tm, at, existing, f
 const ptMsgEdits = {};    // tm → a message being edited before it's sent
 
 function ptSettings(){ return Object.assign({}, PT_DEFAULTS, pointsSettings || {}); }
-function ptQ(){ return ptSettings().quarter; }
+// The quarter being scored: the sandbox during a test run.
+function ptQ(){ const s = ptSettings(); return s.testMode ? 'TEST' : s.quarter; }
+// The first date that counts: any date in a test run.
+function ptQStart(){ const s = ptSettings(); return s.testMode ? '2000-01-01' : s.quarterStartDate; }
 function ptQuarterRecords(){ return (pointsRecords && pointsRecords[ptQ()]) || {}; }
-// Leaders aren't scored: anyone the hub counts as a leader (leaderListed).
-function ptExcluded(name){ return typeof leaderListed === 'function' && !!leaderListed(APS.displayName(name)); }
+// Who isn't scored: anyone marked "not scored" in Settings, and leaders
+// (anyone the hub counts as one, leaderListed) unless marked scored.
+function ptExcluded(name){
+  const t = pointsTeam[APS.slug(String(name || ''))];
+  if(t && typeof t.excluded === 'boolean') return t.excluded;
+  return typeof leaderListed === 'function' && !!leaderListed(APS.displayName(name));
+}
 
 // tm → {rec, score} for everyone scored this quarter.
 function ptScored(){
@@ -108,7 +123,7 @@ function ptPrepare(parsed){
   const s = ptSettings(), recs = ptQuarterRecords();
   const have = new Set();
   Object.values(recs).forEach(r => (r.events || []).forEach(e => have.add(e.id)));
-  const all = APS.deriveEvents(parsed, s);
+  const all = APS.deriveEvents(parsed, Object.assign({}, s, {quarterStartDate: ptQStart()}));
   const skippedNames = new Set();
   const fresh = [];
   let dup = 0;
@@ -166,7 +181,7 @@ function ptResolve(tm, id, as){
 
 // ----- Rendering -----
 const ptDay = iso => iso ? new Date(iso + 'T12:00:00').toLocaleDateString('en-US', {weekday: 'short', month: 'numeric', day: 'numeric'}) : '';
-const ptQLabel = q => `${q.slice(5)} ${q.slice(0, 4)}`;
+const ptQLabel = q => q === 'TEST' ? 'Test run' : `${q.slice(5)} ${q.slice(0, 4)}`;
 function ptLevelChip(total){
   const lv = APS.ladderLevel(total);
   const cls = !lv ? 'is-clear' : lv.at >= 50 ? 'is-high' : lv.at >= 20 ? 'is-mid' : 'is-low';
@@ -175,13 +190,13 @@ function ptLevelChip(total){
 
 function ptHeadSub(){
   const ups = pointsUploads.filter(u => u.quarter === ptQ());
-  return `${escapeHtml(ptQLabel(ptQ()))} · ${ups.length ? `last report ${escapeHtml(ptDay(ups[0].runDate))}` : 'no reports yet'}`;
+  return `${ptQ() === 'TEST' ? 'TEST RUN' : escapeHtml(ptQLabel(ptQ()))} · ${ups.length ? `last report ${escapeHtml(ptDay(ups[0].runDate))}` : 'no reports yet'}`;
 }
 
 function ptActionsHtml(){
   const sc = ptScored(), n = ptReviewItems().length, m = ptMessageCards(sc).length, t = ptTasks(sc).length;
   const b = (id, label, k) => `<button type="button" class="uo-pane-btn ${ptPane === id ? 'active' : ''}" data-pt-pane="${id}">${label}${k ? ` · ${k}` : ''}</button>`;
-  return `<div class="uo-panes pt-panes" role="tablist" aria-label="Points">${b('board', 'Scoreboard')}${b('review', 'Review', n)}${b('messages', 'Messages', m)}${b('tasks', 'Tasks', t)}${b('memos', 'Memos')}${b('upload', 'Upload')}</div>`;
+  return `<div class="uo-panes pt-panes" role="tablist" aria-label="Points">${b('board', 'Scoreboard')}${b('review', 'Review', n)}${b('messages', 'Messages', m)}${b('tasks', 'Tasks', t)}${b('memos', 'Memos')}${b('upload', 'Upload')}${b('add', 'Add points')}${b('settings', 'Settings')}</div>`;
 }
 
 function ptUploadHtml(){
@@ -289,8 +304,10 @@ function ptDetailHtml(tm, s){
 
 function ptBodyHtml(){
   if(typeof APS === 'undefined') return '<p class="dir-empty">The points engine didn’t load. Reload the page.</p>';
-  return ptPane === 'upload' ? ptUploadHtml() : ptPane === 'review' ? ptReviewHtml() : ptPane === 'messages' ? ptMessagesHtml()
-    : ptPane === 'tasks' ? ptTasksHtml() : ptPane === 'memos' ? (ptMemoDraft ? ptMemoFormHtml() : ptMemosHtml()) : ptBoardHtml();
+  const banner = ptSettings().testMode ? `<p class="pt-test-banner" role="status"><b>Test run.</b> Nothing here counts. End it in Settings to wipe it and go live.</p>` : '';
+  return banner + (ptPane === 'upload' ? ptUploadHtml() : ptPane === 'review' ? ptReviewHtml() : ptPane === 'messages' ? ptMessagesHtml()
+    : ptPane === 'tasks' ? ptTasksHtml() : ptPane === 'memos' ? (ptMemoDraft ? ptMemoFormHtml() : ptMemosHtml())
+    : ptPane === 'add' ? ptAddHtml() : ptPane === 'settings' ? ptSettingsHtml() : ptBoardHtml());
 }
 
 // ----- Phase 2: messages -----
@@ -571,6 +588,178 @@ function ptMemoFormHtml(){
   </section>`;
 }
 
+// ----- Phase 3: add points -----
+
+const PT_ADD_GROUPS = [
+  ['Infractions', ['uniform', 'foodsafety', 'tasks', 'values', 'callout_24', 'callout_doc', 'callout_lt24', 'mgrpin', 'ncns', 'insubord', 'language', 'discount', 'theft', 'harassment', 'violence']],
+  ['Credits', ['pickup', 'cover', 'aboveb', 'extended']],
+  ['No points', ['timeoff']]
+];
+let ptAddForm = {name: '', date: '', type: 'uniform', note: '', out: '', ok: false};
+let ptConfirm = '';       // 'test' | 'close' while its confirmation shows
+
+// Everyone the points know, as the punch report spells them ("Last, First").
+function ptKnownNames(){
+  const names = new Map();
+  Object.values(pointsRecords || {}).forEach(q => Object.values(q || {}).forEach(r => { if(r && r.tmName) names.set(APS.slug(r.tmName), r.tmName); }));
+  Object.entries(pointsTeam || {}).forEach(([tm, t]) => { if(t && t.name && !names.has(tm)) names.set(tm, t.name); });
+  return [...names.values()].sort((a, b) => APS.displayName(a).localeCompare(APS.displayName(b)));
+}
+
+// A typed name as the report would spell it: one already known (either
+// way round), "Last, First" as typed, or "First Last…" turned round.
+function ptReportName(typed){
+  const t = String(typed || '').trim().replace(/\s+/g, ' ');
+  if(!t) return '';
+  const lo = t.toLowerCase();
+  const known = ptKnownNames().find(n => n.toLowerCase() === lo || APS.displayName(n).toLowerCase() === lo);
+  if(known) return known;
+  if(t.includes(',')) return t;
+  const parts = t.split(' ');
+  return parts.length > 1 ? `${parts.slice(1).join(' ')}, ${parts[0]}` : t;
+}
+
+// Logs an infraction or credit. Returns '' or what's wrong.
+function ptAddPoints(typed, date, type, note){
+  const name = ptReportName(typed);
+  if(!name || !/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) return 'Pick a team member and a date.';
+  if(!APS.TYPES[type] || APS.TYPES[type].pts === null) return 'Pick what happened.';
+  if(ptExcluded(name)) return `${APS.displayName(name)} isn’t scored. Change that in Settings first if this is intended.`;
+  const q = ptQ(), tm = APS.slug(name);
+  if(!pointsRecords[q]) pointsRecords[q] = {};
+  if(!pointsRecords[q][tm]) pointsRecords[q][tm] = {tm, tmName: name, events: []};
+  const at = new Date().toISOString();
+  const e = {id: `${tm}_${date}_${type}_${Date.now().toString(36)}`, tm, tmName: pointsRecords[q][tm].tmName, date, type, status: 'confirmed',
+    detail: APS.TYPES[type].label + (['violence', 'harassment', 'theft'].includes(type) ? ' — send home immediately and message HR' : ''),
+    note: String(note || '').trim(), source: 'manual', createdAt: at, by: typeof getInitials === 'function' ? getInitials() : ''};
+  pointsRecords[q][tm].events.push(e);
+  return '';
+}
+
+// ----- Phase 3: settings, roster, test run, quarter close -----
+
+function ptSaveRules(f){
+  const num = (v, d) => { const n = Number(v); return isFinite(n) && n >= 0 ? n : d; };
+  pointsSettings = Object.assign({}, pointsSettings || {}, {
+    breakMinutes: num(f.breakMinutes, 30) || 30, graceMinutes: num(f.graceMinutes, 0), clockGraceMinutes: num(f.clockGraceMinutes, 0),
+    extendedHours: num(f.extendedHours, 3) || 3, signature: String(f.signature || '').trim() || PT_DEFAULTS.signature,
+    leader: String(f.leader || '').trim() || PT_DEFAULTS.leader});
+}
+
+// Everyone with points this quarter or a roster entry: [{tm, name, active, excluded, lang}].
+function ptRoster(){
+  const recs = ptQuarterRecords(), out = new Map();
+  Object.values(recs).forEach(r => out.set(r.tm, r.tmName));
+  Object.entries(pointsTeam || {}).forEach(([tm, t]) => { if(t && t.name && !out.has(tm)) out.set(tm, t.name); });
+  return [...out.entries()].map(([tm, name]) => {
+    const t = pointsTeam[tm] || {};
+    return {tm, name, active: t.active !== false, excluded: ptExcluded(name), lang: t.lang === 'es' ? 'es' : 'en'};
+  }).sort((a, b) => APS.displayName(a.name).localeCompare(APS.displayName(b.name)));
+}
+
+function ptSetTeam(tm, patch){
+  const name = (ptQuarterRecords()[tm] || {}).tmName || (pointsTeam[tm] || {}).name || tm;
+  pointsTeam[tm] = Object.assign({name}, pointsTeam[tm] || {}, patch);
+}
+
+function ptStartTest(){ pointsSettings = Object.assign({}, pointsSettings || {}, {testMode: true}); }
+
+// Ends the test run: everything scored in it is wiped. The real quarter is untouched.
+function ptEndTest(){
+  delete pointsRecords.TEST;
+  pointsUploads = pointsUploads.filter(u => u.quarter !== 'TEST');
+  Object.keys(pointsMemos || {}).forEach(id => { if(pointsMemos[id].quarter === 'TEST') delete pointsMemos[id]; });
+  pointsSettings = Object.assign({}, pointsSettings || {}, {testMode: false});
+}
+
+// Who carries points into next quarter: active, scored, with a carryover above 0.
+function ptCarryList(){
+  const recs = (pointsRecords || {})[ptSettings().quarter] || {}, out = [];
+  Object.values(recs).forEach(r => {
+    const t = pointsTeam[r.tm] || {};
+    if(t.active === false || ptExcluded(r.tmName)) return;
+    const total = APS.scoreTM((r.events || []).filter(e => e.status === 'confirmed').map(e => Object.assign({}, e))).total;
+    const carry = APS.carryover(total);
+    if(carry > 0) out.push({tm: r.tm, tmName: r.tmName, total, carry});
+  });
+  return out.sort((a, b) => b.total - a.total || a.tmName.localeCompare(b.tmName));
+}
+
+// Closes the quarter: carryovers into the next one, which becomes current.
+function ptCloseQuarter(){
+  const s = ptSettings();
+  if(s.testMode) return false;
+  const nq = APS.nextQuarter(s.quarter), start = APS.quarterStart(nq), at = new Date().toISOString();
+  const next = pointsRecords[nq] = pointsRecords[nq] || {};
+  ptCarryList().forEach(c => {
+    if(next[c.tm] && (next[c.tm].events || []).some(e => e.type === 'carryover')) return;
+    const r = next[c.tm] = next[c.tm] || {tm: c.tm, tmName: c.tmName, events: []};
+    r.carryIn = c.carry;
+    r.events.unshift({id: `${c.tm}_${start}_carryover`, tm: c.tm, tmName: c.tmName, date: start, type: 'carryover', status: 'confirmed', points: c.carry,
+      detail: `50% of ${c.total} from ${ptQLabel(s.quarter)}, capped at 20`, source: 'system', createdAt: at, messagedAt: at});
+  });
+  pointsSettings = Object.assign({}, pointsSettings || {}, {quarter: nq, quarterStartDate: start, closedAt: at});
+  return true;
+}
+
+function ptAddHtml(){
+  const f = ptAddForm;
+  if(!f.date) f.date = today;
+  const roster = typeof fohRoster === 'object' ? [...new Set(Object.values(fohRoster).concat(Object.values(typeof bohRoster === 'object' ? bohRoster : {}))
+    .flatMap(l => Array.isArray(l) ? l.map(p => p.name) : []))] : [];
+  const names = [...new Set([...ptKnownNames().map(APS.displayName), ...roster])].sort((a, b) => a.localeCompare(b));
+  return `<section class="dir-card pt-add">
+    <h3>Log an infraction or a credit</h3>
+    <p class="dir-note">Attendance comes from the daily report; add a call-out here if a report hasn’t been run yet. Let the team member know the same day.</p>
+    <datalist id="ptNames">${names.map(n => `<option value="${escapeHtml(n)}">`).join('')}</datalist>
+    <div class="pt-grid">
+      <label class="pt-field"><span>Team member</span><input type="text" list="ptNames" autocomplete="off" value="${escapeHtml(f.name)}" data-pt-add="name" placeholder="Name"></label>
+      <label class="pt-field"><span>Date</span><input type="date" value="${escapeHtml(f.date)}" data-pt-add="date"></label>
+      <label class="pt-field"><span>What happened</span><select data-pt-add="type">${PT_ADD_GROUPS.map(([g, types]) => `<optgroup label="${g}">${types.map(t => `<option value="${t}" ${t === f.type ? 'selected' : ''}>${escapeHtml(APS.TYPES[t].label)} (${APS.TYPES[t].pts > 0 ? '+' : ''}${APS.TYPES[t].pts})</option>`).join('')}</optgroup>`).join('')}</select></label>
+    </div>
+    <label class="pt-field"><span>Note (optional; the team member may see it)</span><textarea rows="2" data-pt-add="note">${escapeHtml(f.note)}</textarea></label>
+    ${f.out ? `<p class="${f.ok ? 'pt-ok' : 'pt-error'}" role="status">${escapeHtml(f.out)}</p>` : ''}
+    <div class="pt-actions"><button type="button" class="btn dir-btn" data-pt-add-go>Add</button></div>
+  </section>`;
+}
+
+function ptSettingsHtml(){
+  const s = ptSettings(), roster = ptRoster(), carry = s.testMode ? [] : ptCarryList(), nq = APS.nextQuarter(s.quarter);
+  const num = (key, label, step) => `<label class="pt-field"><span>${label}</span><input type="number" min="0" step="${step || 1}" value="${escapeHtml(s[key])}" data-pt-rule="${key}"></label>`;
+  const recsN = Object.keys((pointsRecords || {}).TEST || {}).length, upsN = pointsUploads.filter(u => u.quarter === 'TEST').length;
+  return `
+    <section class="dir-card"><h3>Rules the system applies</h3>
+      <div class="pt-grid">${num('breakMinutes', 'Break length (min)')}${num('graceMinutes', 'Break grace (min, leaders only)')}${num('clockGraceMinutes', 'Clock-in grace (min, leaders only)')}${num('extendedHours', 'Extended shift (hrs past scheduled)', 0.5)}</div>
+      <div class="pt-grid"><label class="pt-field"><span>Message signature</span><input type="text" value="${escapeHtml(s.signature)}" data-pt-rule="signature"></label>
+        <label class="pt-field"><span>Messages come from</span><input type="text" value="${escapeHtml(s.leader)}" data-pt-rule="leader"></label></div>
+      <p class="dir-note">A clock-in within the clock-in grace counts as on time; later is a tardy. A break up to its length plus the break grace is on time. Team members are never shown either grace. New rules apply to reports added from now on.</p>
+      <div class="pt-actions"><button type="button" class="btn dir-btn" data-pt-rules-save>Save rules</button></div>
+    </section>
+    <section class="dir-card"><h3>Team roster</h3>
+      <p class="dir-note">Names come from the punch reports. Mark anyone who left as inactive so they’re left out of carryover. Leaders on the leader list aren’t scored unless you tick them back in here.</p>
+      ${roster.length ? `<div class="pt-table-wrap"><table class="pt-table pt-roster"><thead><tr><th>Name</th><th>Active</th><th>Scored</th><th>Messages</th></tr></thead><tbody>${roster.map(r => `
+        <tr><td><b>${escapeHtml(APS.displayName(r.name))}</b></td>
+          <td><input type="checkbox" data-pt-team="active" data-pt-tm="${escapeHtml(r.tm)}" ${r.active ? 'checked' : ''} aria-label="${escapeHtml(APS.displayName(r.name))} active"></td>
+          <td><input type="checkbox" data-pt-team="scored" data-pt-tm="${escapeHtml(r.tm)}" ${r.excluded ? '' : 'checked'} aria-label="${escapeHtml(APS.displayName(r.name))} scored"></td>
+          <td><select data-pt-team="lang" data-pt-tm="${escapeHtml(r.tm)}"><option value="en" ${r.lang === 'en' ? 'selected' : ''}>English</option><option value="es" ${r.lang === 'es' ? 'selected' : ''}>Español</option></select></td></tr>`).join('')}</tbody></table></div>`
+        : '<p class="dir-empty">The roster fills in from the first punch report.</p>'}
+    </section>
+    <section class="dir-card"><h3>Test run</h3>
+      <p class="dir-note">A test run scores into a sandbox instead of the real quarter, with no date limit, so you can add an older report and walk the whole flow. Ending it deletes everything from the test; roster changes are kept.</p>
+      ${ptConfirm === 'test' ? `<div class="pt-confirm"><p>This deletes <b>${recsN} test record${recsN === 1 ? '' : 's'}</b> and ${upsN} test upload${upsN === 1 ? '' : 's'}. The real quarter (${escapeHtml(ptQLabel(s.quarter))}) is untouched.</p>
+        <div class="pt-actions"><button type="button" class="btn dir-btn" data-pt-test-end>Yes, clear the test and go live</button><button type="button" class="btn btn-ghost dir-btn" data-pt-confirm-cancel>Cancel</button></div></div>`
+        : `<div class="pt-actions"><button type="button" class="btn ${s.testMode ? '' : 'btn-ghost'} dir-btn" data-pt-test>${s.testMode ? 'End test run and clear test data' : 'Start a test run'}</button></div>`}
+    </section>
+    <section class="dir-card"><h3>Quarter close</h3>
+      ${s.testMode ? '<p class="dir-note">Quarter close is off during a test run.</p>' : `
+      <p class="dir-note">Current quarter: ${escapeHtml(ptQLabel(s.quarter))}. Closing it carries 50% of each active team member’s total (rounded down, at most 20, never below 0) into ${escapeHtml(ptQLabel(nq))} and switches the page to that quarter.</p>
+      ${ptConfirm === 'close' ? `<div class="pt-confirm"><p><b>${carry.length} team member${carry.length === 1 ? '' : 's'}</b> will carry points into ${escapeHtml(ptQLabel(nq))}. Everyone else starts at 0.</p>
+        ${carry.length ? `<ul class="dir-list dir-list-sm">${carry.map(c => `<li><span>${escapeHtml(APS.displayName(c.tmName))}</span><span class="dir-muted">${c.total} → carries ${c.carry}</span></li>`).join('')}</ul>` : ''}
+        <div class="pt-actions"><button type="button" class="btn dir-btn" data-pt-close-go>Yes, close the quarter</button><button type="button" class="btn btn-ghost dir-btn" data-pt-confirm-cancel>Cancel</button></div></div>`
+        : '<div class="pt-actions"><button type="button" class="btn btn-ghost dir-btn" data-pt-close>Close quarter…</button></div>'}`}
+    </section>`;
+}
+
 // ----- Events -----
 function ptStatus(text){ const el = document.querySelector('#directorsRoot [data-pt-status]'); if(el) el.textContent = text; }
 
@@ -578,7 +767,7 @@ document.addEventListener('click', e => {
   const t = e.target && e.target.closest ? e.target : null;
   if(!t || !t.closest('#directorsRoot')) return;
   const pane = t.closest('[data-pt-pane]');
-  if(pane){ ptPane = pane.dataset.ptPane; ptDetail = ''; ptMemoDraft = null; renderDirectorsView(); return; }
+  if(pane){ ptPane = pane.dataset.ptPane; ptDetail = ''; ptMemoDraft = null; ptConfirm = ''; ptAddForm.out = ''; renderDirectorsView(); return; }
   const open = t.closest('[data-pt-open]');
   if(open){ ptDetail = open.dataset.ptOpen; renderDirectorsView(); window.scrollTo(0, 0); return; }
   if(t.closest('[data-pt-back]')){ ptDetail = ''; renderDirectorsView(); return; }
@@ -647,6 +836,29 @@ document.addEventListener('click', e => {
     renderDirectorsView();
     return;
   }
+  if(t.closest('[data-pt-add-go]')){
+    const f = ptAddForm, err = ptAddPoints(f.name, f.date, f.type, f.note);
+    if(err){ f.out = err; f.ok = false; }
+    else { saveState(); f.out = `Added ${APS.TYPES[f.type].label} for ${APS.displayName(ptReportName(f.name))}. A message is waiting in Messages.`; f.ok = true; f.note = ''; showToast('Added'); }
+    renderDirectorsView();
+    return;
+  }
+  if(t.closest('[data-pt-rules-save]')){
+    const f = {};
+    document.querySelectorAll('#directorsRoot [data-pt-rule]').forEach(el => { f[el.dataset.ptRule] = el.value; });
+    ptSaveRules(f); saveState(); showToast('Rules saved'); renderDirectorsView();
+    return;
+  }
+  if(t.closest('[data-pt-test]')){
+    if(ptSettings().testMode){ ptConfirm = 'test'; }
+    else { ptStartTest(); saveState(); showToast('Test run started'); ptPane = 'upload'; }
+    renderDirectorsView();
+    return;
+  }
+  if(t.closest('[data-pt-test-end]')){ ptEndTest(); ptConfirm = ''; ptDetail = ''; saveState(); showToast('Test cleared. You are live.'); renderDirectorsView(); return; }
+  if(t.closest('[data-pt-close]')){ ptConfirm = 'close'; renderDirectorsView(); return; }
+  if(t.closest('[data-pt-close-go]')){ if(ptCloseQuarter()){ saveState(); showToast('Quarter closed'); } ptConfirm = ''; renderDirectorsView(); return; }
+  if(t.closest('[data-pt-confirm-cancel]')){ ptConfirm = ''; renderDirectorsView(); return; }
   const res = t.closest('[data-pt-resolve]');
   if(res){
     if(ptResolve(res.dataset.ptTm, res.dataset.ptId, res.dataset.ptResolve)){
@@ -673,6 +885,7 @@ document.addEventListener('input', e => {
     return;
   }
   if(t.matches('[data-pt-mf]') && ptMemoDraft){ if(t.type !== 'radio' || t.checked) ptMemoDraft.fields[t.dataset.ptMf] = t.value; return; }
+  if(t.matches('[data-pt-add]')){ ptAddForm[t.dataset.ptAdd] = t.value; return; }
   if(t.matches('[data-pt-memo-search]')){
     ptMemoSearch = t.value;
     const pos = t.selectionStart;
@@ -694,6 +907,15 @@ document.addEventListener('change', async e => {
   const t = e.target;
   if(!t || !t.closest || !t.closest('#directorsRoot')) return;
   if(t.matches('[data-pt-zero]')){ ptShowZero = t.checked; renderDirectorsView(); return; }
+  if(t.matches('[data-pt-add]')){ ptAddForm[t.dataset.ptAdd] = t.value; return; }
+  if(t.matches('[data-pt-team]')){
+    const tm = t.dataset.ptTm, what = t.dataset.ptTeam;
+    if(what === 'lang') ptSetLang(tm, t.value);
+    else if(what === 'active') ptSetTeam(tm, {active: t.checked});
+    else ptSetTeam(tm, {excluded: !t.checked});
+    saveState(); showToast('Saved'); renderDirectorsView();
+    return;
+  }
   if(t.matches('[data-pt-task-filter]')){ ptTaskFilter = t.value; renderDirectorsView(); return; }
   if(t.matches('[data-pt-assign]')){
     if(ptAssign(t.dataset.ptAssign, +t.dataset.ptAt, t.value)){ saveState(); showToast(t.value ? `Assigned to ${t.value}` : 'Unassigned'); }

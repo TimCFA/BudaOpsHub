@@ -227,3 +227,90 @@ class TasksAndMemos(unittest.TestCase):
         self.assertIn('Hi &lt;Maya&gt;', got['doc'])
         self.assertIn('Download history', got['detail'])
         self.assertIn('messaged', got['detail'])
+
+
+@unittest.skipUnless(NODE, 'Node.js not installed')
+class AddPointsAndSettings(unittest.TestCase):
+    def test_add_points_by_hand(self):
+        got = run("""c => { setup();
+          const errs = [ptAddPoints('', '2026-10-12', 'uniform'), ptAddPoints('Maya Torres', 'x', 'uniform'), ptAddPoints('Maya Torres', '2026-10-12', 'tardy'), ptAddPoints('Aurora Diaz', '2026-10-12', 'uniform')];
+          const ok = [ptAddPoints('Maya Torres', '2026-10-12', 'uniform', 'No hat'), ptAddPoints('Jo Ann Smith', '2026-10-12', 'theft'), ptAddPoints('Cole, Ben', '2026-10-12', 'aboveb')];
+          const r = pointsRecords['2026-Q4']; const maya = r['torres-maya'].events.slice(-1)[0];
+          return {errs, ok, maya: [maya.type, maya.note, maya.source, maya.by], jo: r['ann-smith-jo'] && r['ann-smith-jo'].tmName, theft: r['ann-smith-jo'].events[0].detail,
+                  totals: Object.fromEntries(Object.entries(ptScored()).map(([k, v]) => [k, v.score.total])), waiting: ptMessageCards().some(x => x.tm === 'torres-maya')}; }""")
+        self.assertEqual(got['errs'][:3], ['Pick a team member and a date.', 'Pick a team member and a date.', 'Pick what happened.'])
+        self.assertIn('isn’t scored', got['errs'][3])
+        self.assertEqual(got['ok'], ['', '', ''])
+        # A known name either way round finds the record; a new one is turned round like the report.
+        self.assertEqual(got['maya'], ['uniform', 'No hat', 'manual', 'TL'])
+        self.assertEqual(got['jo'], 'Ann Smith, Jo')
+        self.assertIn('send home immediately and message HR', got['theft'])
+        self.assertEqual(got['totals']['torres-maya'], 15)
+        self.assertEqual(got['totals']['cole-ben'], 0)
+        self.assertTrue(got['waiting'])
+
+    def test_rules(self):
+        got = run("""c => { ptSaveRules({breakMinutes: '35', graceMinutes: '2', clockGraceMinutes: '-4', extendedHours: '', signature: ' ', leader: 'Kianna'});
+          const s = ptSettings(); return [s.breakMinutes, s.graceMinutes, s.clockGraceMinutes, s.extendedHours, s.signature, s.leader, s.quarter]; }""")
+        self.assertEqual(got, [35, 2, 0, 3, 'Chick-fil-A Buda Leadership', 'Kianna', '2026-Q4'])
+
+    def test_roster_scored_and_active(self):
+        got = run("""c => { setup(); ptSetTeam('cole-ben', {excluded: true}); ptSetTeam('ruiz-ana', {active: false});
+          const r1 = ptRoster().map(x => [x.tm, x.active, x.excluded]); const scored1 = Object.keys(ptScored()).sort();
+          pointsTeam['diaz-aurora'] = {name: 'Diaz, Aurora', excluded: false};
+          return {r1, scored1, auroraScored: !ptExcluded('Diaz, Aurora'), html: ptSettingsHtml()}; }""")
+        self.assertEqual(sorted(got['r1']), [['cole-ben', True, True], ['ruiz-ana', False, False], ['torres-maya', True, False]])
+        self.assertEqual(got['scored1'], ['ruiz-ana', 'torres-maya'])
+        self.assertTrue(got['auroraScored'])   # a leader ticked back in
+        self.assertIn('Rules the system applies', got['html'])
+        self.assertIn('Start a test run', got['html'])
+
+    def test_test_run_is_a_sandbox(self):
+        got = run("""c => { setup(); const real = JSON.stringify(pointsRecords['2026-Q4']);
+          ptStartTest(); const q = ptQ(), start = ptQStart();
+          const old = page([['Actual Vs. Scheduled', 200, 790], ['Chick-fil-A Buda', 200, 780], ['06/01/2026 - 06/07/2026', 200, 770], ['06/08/2026 3:00:00 AM', 400, 760],
+            ['Torres, Maya', 10, 700], ['06/02/2026', 150, 690], ['06:20 AM', 200, 690], ['06:00 AM', 260, 690], ['02:00 PM', 200, 681], ['02:00 PM', 260, 681]]);
+          const added = ptCommit(ptPrepare(APS.parseReport(old)), 'old.pdf');
+          const during = {score: ptScored()['torres-maya'].score.total, sub: ptHeadSub(), banner: ptBodyHtml().includes('Test run.')};
+          ptOpenMemo('torres-maya', 20);
+          ptEndTest();
+          return {q, start, added, during, after: [ptQ(), JSON.stringify(pointsRecords['2026-Q4']) === real, 'TEST' in pointsRecords, pointsUploads.map(u => u.quarter)]}; }""")
+        self.assertEqual((got['q'], got['start'], got['added']), ('TEST', '2000-01-01', 1))
+        self.assertEqual(got['during']['score'], 5)
+        self.assertIn('TEST RUN', got['during']['sub'])
+        self.assertTrue(got['during']['banner'])
+        self.assertEqual(got['after'], ['2026-Q4', True, False, ['2026-Q4']])
+
+    def test_quarter_close(self):
+        got = run("""c => { setup(); ptAddPoints('Torres, Maya', '2026-10-12', 'insubord');
+          ptSetTeam('ruiz-ana', {active: false});
+          const preview = ptCarryList();
+          const ok = ptCloseQuarter();
+          const s = ptSettings(), q1 = pointsRecords['2027-Q1'];
+          const scored = Object.fromEntries(Object.entries(ptScored()).map(([k, v]) => [k, v.score.total])), noMessage = ptMessageCards().length;
+          const again = ptCloseQuarter();
+          return {preview, ok, q: [s.quarter, s.quarterStartDate], carried: Object.fromEntries(Object.entries(q1).map(([k, r]) => [k, [r.carryIn, r.events[0].type, r.events[0].points, r.events[0].detail]])),
+                  scored, noMessage, again, q2: ptSettings().quarter, q2carry: pointsRecords['2027-Q2']['torres-maya'].carryIn}; }""")
+        # Maya: 5 + 5 + 50 = 60 → carries 20 (capped). Ana is inactive. Ben is at 0.
+        self.assertEqual(got['preview'], [{'tm': 'torres-maya', 'tmName': 'Torres, Maya', 'total': 60, 'carry': 20}])
+        self.assertTrue(got['ok'])
+        self.assertEqual(got['q'], ['2027-Q1', '2027-01-01'])
+        self.assertEqual(got['carried'], {'torres-maya': [20, 'carryover', 20, '50% of 60 from Q4 2026, capped at 20']})
+        self.assertEqual(got['scored'], {'torres-maya': 20})
+        self.assertEqual(got['noMessage'], 0)     # carryover isn't messaged
+        self.assertTrue(got['again'])
+        self.assertEqual(got['q2'], '2027-Q2')
+        self.assertEqual(got['q2carry'], 10)
+
+    def test_no_close_during_a_test_run(self):
+        got = run("""c => { ptStartTest(); return [ptCloseQuarter(), ptSettings().quarter, ptSettingsHtml().includes('Quarter close is off during a test run.')]; }""")
+        self.assertEqual(got, [False, '2026-Q4', True])
+
+    def test_add_view(self):
+        got = run("""c => { setup(); fohRoster = {'2026-10-12': [{name: 'Zed <Q>'}]}; bohRoster = {}; ptPane = 'add'; return {html: ptBodyHtml(), panes: ptActionsHtml()}; }""")
+        self.assertIn('Log an infraction or a credit', got['html'])
+        self.assertIn('No-call/no-show (+50)', got['html'])
+        self.assertIn('Picked up a shift (-10)', got['html'])
+        self.assertIn('Zed &lt;Q&gt;', got['html'])
+        self.assertIn('Add points', got['panes'])
+        self.assertIn('Settings', got['panes'])
