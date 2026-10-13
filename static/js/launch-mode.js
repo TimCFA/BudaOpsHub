@@ -89,7 +89,9 @@ async function launchSetManager(isManager){
   if(!isManager && ['calendarView', 'uniformsView', 'directorsView'].some(id => document.getElementById(id).classList.contains('active'))) launchShowTab('home');
   launchApply();
   if(typeof renderAllDayparts === 'function' && document.getElementById('positionsView').classList.contains('active')) renderAllDayparts();
-  // Pick up the private sections this page wasn't sent without a session.
+  // Pick up the private sections this page wasn't sent without a session,
+  // and the waste log whole (a team device is sent two days of it).
+  if(isManager && typeof stateForget === 'function') stateForget(['waste']);
   if(isManager && typeof syncState === 'function') await syncState();
   // A week sent from HotSchedules was waiting for a manager.
   if(isManager && typeof hsSyncManagerReady === 'function') hsSyncManagerReady();
