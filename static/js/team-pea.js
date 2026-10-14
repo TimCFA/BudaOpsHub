@@ -24,6 +24,11 @@
 // teamNotes lives in the private people section: {name: [{text, by, ts,
 // date, type, tags: ['iPOS:2']}]}, a tag being position:criterion index.
 // Everything here is managers only (the Directors tab).
+//
+// The notes raters write on a PEA in Levelset are for DIRECTORS only (Tim,
+// Oct 14 2026): the server keeps them from each Levelset sync and hands one
+// person's to a session signed in with the director PIN (app.py,
+// /api/pea/notes). They never go into the app state, the copy or the PDF.
 
 let tpTab = 'raters';     // 'raters' | 'team'
 let tpOpen = '';          // the profile open ('' = the boards)
@@ -34,6 +39,11 @@ let tpPos = '';           // position whose criteria are open on the profile
 let tpNoteOpen = false;   // the add-a-note form is open
 let tpHide = {};          // note types hidden on the profile {id: true}
 let tpTag = '';           // tag the notes are filtered to ('iPOS:2')
+
+let tpDirector = false;        // this session signed in with the director PIN
+let tpDirectorPinSet = false;  // a director PIN exists on the server
+let tpLs = {};                 // Levelset notes fetched: {dirKey(name): {state, notes, error}}
+const TP_LS_SHOWN = 6;         // notes shown before "more"
 
 const TP_CROSS_POINTS = {pea: 1, person: 1, position: 1};
 const TP_STALE_DAYS = 30;  // a team member with no PEA this long is due one
@@ -338,6 +348,7 @@ function tpProfileHtml(){
       ${P.notes.length ? `<div class="ld-chips">${LD_TYPES.map(t => `<button type="button" class="ld-chip is-${t.id}" data-tp-type="${t.id}" aria-pressed="${tpHide[t.id] ? 'false' : 'true'}">${escapeHtml(t.label)} <b>${counts[t.id]}</b></button>`).join('')}${tpTag ? `<span class="dir-muted">Tagged <b>${escapeHtml(tpTagLabel(tpTag))}</b> <button type="button" class="ld-link" data-tp-tag="">Show all</button></span>` : ''}</div>` : ''}
       ${P.notes.length ? (shown.length ? months : '<p class="dir-empty">No notes match the filters.</p>') : '<p class="dir-empty">No notes yet. Log a win, a coaching moment, something to watch, or a conversation.</p>'}
     </section>
+    <section class="dir-card" id="tpLsCard">${tpLsCardInner(P.peaName)}</section>
     ${P.ratings.length ? `<section class="dir-card"><h3>${escapeHtml(b.label)} ratings</h3>
       <ul class="dir-list dir-list-sm tp-timeline">${P.ratings.map(r => `<li><span>${escapeHtml(ldDate(r.date))} · <b>${escapeHtml(r.position)}</b>${r.leader ? ` by ${escapeHtml(ldShort(r.leader))}` : ''}</span><span><span class="tp-tier is-${peaTierFor(+r.overall || 0).key}">${r.overall}</span> <small class="dir-muted">${escapeHtml(r.criteria.map(c => c === '' || c == null ? '–' : c).join(' · '))}</small></span></li>`).join('')}</ul>
     </section>` : ''}
@@ -346,6 +357,93 @@ function tpProfileHtml(){
       <p class="dir-note">Ratings are kept a year; notes stay. “Green” is positions at Crushing It at the quarter’s end.</p>
     </section>`;
 }
+
+// ----- Levelset notes (directors only) -----
+function tpLsNoteHtml(n){
+  const day = String(n.at || '').slice(0, 10);
+  return `<li class="ld-note"><div class="dir-note-meta"><span>${day ? escapeHtml(ldDateY(day)) : ''}${n.position ? ` · <b>${escapeHtml(n.position)}</b>` : ''}${n.leader ? ` · ${escapeHtml(ldShort(n.leader))}` : ''}</span>${n.overall != null ? `<span class="tp-tier is-${peaTierFor(+n.overall || 0).key}">${escapeHtml(String(n.overall))}</span>` : ''}</div><p>${escapeHtml(n.text)}</p></li>`;
+}
+function tpLsCardInner(peaName){
+  const head = '<div class="ld-row"><h3>Raters’ notes from Levelset</h3><em class="ld-pill">Directors only</em></div>';
+  if(!tpDirector){
+    return head + `<p class="dir-empty">${tpDirectorPinSet
+      ? 'The notes leaders write on a PEA in Levelset show here for directors. Sign in with the director PIN to see them.'
+      : 'The notes leaders write on a PEA in Levelset can show here for directors. Set a director PIN in Manage → Settings → Directors first.'}</p>`;
+  }
+  const got = tpLs[dirKey(peaName)];
+  if(!got) setTimeout(() => tpLoadLevelsetNotes(peaName));
+  if(!got || got.state === 'loading') return head + '<p class="dir-empty">Loading…</p>';
+  if(got.state === 'err') return head + `<p class="dir-empty">${escapeHtml(got.error)}</p>`;
+  const list = got.notes;
+  const note = '<p class="dir-note">Written by the rater in Levelset, newest first. They come in with each Levelset sync (the PDF upload doesn’t carry them) and aren’t in the copy or the PDF.</p>';
+  if(!list.length) return head + note + '<p class="dir-empty">No notes on this person’s PEAs yet.</p>';
+  const more = list.slice(TP_LS_SHOWN);
+  return head + note + `<ul class="dir-notes">${list.slice(0, TP_LS_SHOWN).map(tpLsNoteHtml).join('')}</ul>`
+    + (more.length ? `<details class="tp-log"><summary>${more.length} more</summary><ul class="dir-notes">${more.map(tpLsNoteHtml).join('')}</ul></details>` : '');
+}
+function tpLsPaint(peaName){
+  const el = document.getElementById('tpLsCard');
+  if(el && tpOpen) el.innerHTML = tpLsCardInner(peaName);
+}
+// Fetched each time a profile opens, so a new sync's notes show.
+async function tpLoadLevelsetNotes(peaName){
+  const k = dirKey(peaName);
+  if(!tpDirector || !k || tpLs[k]) return;
+  tpLs[k] = {state: 'loading', notes: []};
+  try{
+    const res = await fetch(`${API_BASE}/api/pea/notes`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name: peaName})});
+    const d = await res.json().catch(() => ({}));
+    if(res.status === 403) tpDirector = false;
+    tpLs[k] = res.ok && Array.isArray(d.notes) ? {state: 'ok', notes: d.notes} : {state: 'err', error: d.error || 'Couldn’t load the notes.'};
+  }catch(err){
+    tpLs[k] = {state: 'err', error: 'Couldn’t reach the server. Open the profile again once you’re back online.'};
+  }
+  tpLsPaint(peaName);
+}
+
+// Set after the PIN screen (manage-and-import.js) or the director PIN form.
+function tpSetDirector(isDirector, pinSet){
+  tpDirector = !!isDirector;
+  tpDirectorPinSet = !!pinSet || tpDirector;
+  tpLs = {};
+  tpRenderDirectorPin();
+  if(typeof dirView !== 'undefined' && dirView === 'team' && tpOpen && !document.getElementById('tpNoteForm')) tpRender();
+}
+async function tpRefreshDirector(){
+  try{
+    const d = await (await fetch(`${API_BASE}/api/manager/status`)).json();
+    tpSetDirector(d.isDirector, d.directorPinSet);
+  }catch(err){ /* stays as it was */ }
+}
+
+// Manage → Settings → Directors: the director PIN.
+function tpRenderDirectorPin(){
+  const root = document.getElementById('directorPinRoot');
+  if(!root) return;
+  const form = label => `<div class="tp-dpin"><input type="password" id="tpDirectorPin" inputmode="numeric" autocomplete="new-password" minlength="4" maxlength="12" placeholder="New director PIN" aria-label="New director PIN"><button type="button" class="btn btn-primary dir-btn" data-tp-dpin-save>${label}</button></div><p class="dir-note" id="tpDirectorPinMsg" role="status"></p>`;
+  root.innerHTML = `<h4>Director PIN</h4>` + (tpDirector
+    ? `<p class="dir-note">This device is signed in as a director. The director PIN opens everything the manager PIN does, plus the raters’ Levelset notes on each team member (Directors → Team). Change it here; it has to differ from the manager PIN.</p>${form('Change')}`
+    : tpDirectorPinSet
+      ? '<p class="dir-note">Set. Directors type it on the PIN screen instead of the manager PIN to see the raters’ Levelset notes. Only a director can change it.</p>'
+      : `<p class="dir-note">The raters’ Levelset notes on each team member are for directors only. Set a director PIN (different from the manager PIN) and share it with the directors; they type it on the PIN screen instead of the manager PIN. Once set, only a director can change it.</p>${form('Set the director PIN')}`);
+}
+document.addEventListener('click', async e => {
+  const btn = e.target && e.target.closest ? e.target.closest('[data-tp-dpin-save]') : null;
+  if(!btn) return;
+  const input = document.getElementById('tpDirectorPin'), msg = document.getElementById('tpDirectorPinMsg');
+  const pin = input ? input.value.trim() : '';
+  if(pin.length < 4){ if(msg) msg.textContent = 'At least 4 characters.'; return; }
+  btn.disabled = true;
+  try{
+    const res = await fetch(`${API_BASE}/api/director/set-pin`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({pin})});
+    const d = await res.json().catch(() => ({}));
+    if(res.ok){ tpSetDirector(true, true); showToast('Director PIN saved. This device is signed in as a director.'); return; }
+    if(msg) msg.textContent = d.error || 'Couldn’t save it.';
+  }catch(err){
+    if(msg) msg.textContent = 'Couldn’t reach the server.';
+  }
+  btn.disabled = false;
+});
 
 function tpBodyHtml(){
   if(tpOpen){ const P = tpPerson(tpOpen); if(!P.positions.length && !P.notes.length && !P.rater) tpOpen = ''; }
@@ -389,7 +487,10 @@ function tpProfileText(name){
 
 // ----- Events (inside #directorsRoot, Team view) -----
 function tpRender(){ if(typeof renderDirectorsView === 'function') renderDirectorsView(); }
-function tpOpenProfile(name){ tpOpen = name; tpPos = ''; tpTag = ''; tpHide = {}; tpNoteOpen = false; tpRender(); window.scrollTo(0, 0); }
+function tpOpenProfile(name){
+  tpOpen = name; tpPos = ''; tpTag = ''; tpHide = {}; tpNoteOpen = false; tpLs = {};
+  tpRender(); window.scrollTo(0, 0);
+}
 
 document.addEventListener('click', e => {
   const t = e.target && e.target.closest ? e.target : null;

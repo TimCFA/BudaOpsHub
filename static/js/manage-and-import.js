@@ -22,6 +22,7 @@ async function checkPin(){
       document.getElementById('pinGate').style.display = 'none';
       document.getElementById('manageContent').style.display = 'block';
       renderManage();
+      if(typeof tpRefreshDirector === 'function') tpRefreshDirector();
     } else {
       document.getElementById('pinInput').value = '';
       document.getElementById('pinInput').placeholder = result.error || 'Wrong PIN';
@@ -55,13 +56,14 @@ document.getElementById('btnLock').addEventListener('click', async ()=>{
 (async function checkManagerStatus(){
   try{
     const res = await fetch(`${API_BASE}/api/manager/status`);
-    const {isManager} = await res.json();
+    const {isManager, isDirector, directorPinSet} = await res.json();
     if(isManager){
       await stateLoaded;
       await launchSetManager(true);
       document.getElementById('pinGate').style.display = 'none';
       document.getElementById('manageContent').style.display = 'block';
       renderManage();
+      if(typeof tpSetDirector === 'function') tpSetDirector(isDirector, directorPinSet);
     }
   }catch(err){ /* stay locked if the status check fails */ }
 })();

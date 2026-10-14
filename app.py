@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta, timezone
 from collections import Counter, defaultdict
 import gzip
+import hashlib
 import hmac
 import json
 import os
@@ -345,22 +346,35 @@ def manager_login():
     if not stored_hash:
         return jsonify({'error': 'No manager PIN has been configured yet'}), 500
 
+    # The director PIN opens everything the manager PIN does, plus what's
+    # for directors only (the raters' Levelset notes).
+    director = False
     if not pin or not check_password_hash(stored_hash, pin):
-        _record_failure(ip)
-        return jsonify({'error': 'Incorrect PIN'}), 401
+        director_hash = db.reference(DIRECTOR_PIN_PATH).get()
+        if not director_hash or not check_password_hash(director_hash, pin):
+            _record_failure(ip)
+            return jsonify({'error': 'Incorrect PIN'}), 401
+        director = True
 
     session.permanent = True
     session['manager'] = True
-    return jsonify({'success': True})
+    if director:
+        session['director'] = True
+    else:
+        session.pop('director', None)
+    return jsonify({'success': True, 'director': director})
 
 @app.route('/api/manager/logout', methods=['POST'])
 def manager_logout():
     session.pop('manager', None)
+    session.pop('director', None)
     return jsonify({'success': True})
 
 @app.route('/api/manager/status', methods=['GET'])
 def manager_status():
-    return jsonify({'isManager': bool(session.get('manager'))})
+    manager = bool(session.get('manager'))
+    return jsonify({'isManager': manager, 'isDirector': manager and bool(session.get('director')),
+                    'directorPinSet': manager and bool(db.reference(DIRECTOR_PIN_PATH).get())})
 
 @app.route('/api/manager/set-pin', methods=['POST'])
 def manager_set_pin():
@@ -372,7 +386,45 @@ def manager_set_pin():
     if not new_pin or len(new_pin) < 4:
         return jsonify({'error': 'PIN must be at least 4 characters'}), 400
 
+    if _pin_taken(DIRECTOR_PIN_PATH, new_pin):
+        return jsonify({'error': 'That PIN can’t be used. Pick another.'}), 400
+
     db.reference('secure/managerPinHash').set(generate_password_hash(new_pin))
+    return jsonify({'success': True})
+
+# ===== DIRECTOR PIN =====
+# Directors sign in on the same PIN screen with their own PIN. The first one
+# is set from any manager session (Tim sets it right after this ships); after
+# that only a director session can change it. It can't match the manager PIN.
+DIRECTOR_PIN_PATH = 'secure/directorPinHash'
+
+def _pin_taken(path, pin):
+    """True when `pin` is the PIN stored at `path`. Checking costs a guess
+    against the login limit, so this can't be used to find the other PIN."""
+    stored = db.reference(path).get()
+    if stored and check_password_hash(stored, pin):
+        _record_failure(_client_ip())
+        return True
+    return False
+
+@app.route('/api/director/set-pin', methods=['POST'])
+def director_set_pin():
+    if not session.get('manager'):
+        return jsonify({'error': 'Not authorized'}), 403
+    if _too_many_attempts(_client_ip()):
+        return jsonify({'error': 'Too many attempts. Try again in a minute.'}), 429
+    if db.reference(DIRECTOR_PIN_PATH).get() and not session.get('director'):
+        return jsonify({'error': 'Sign in with the director PIN to change it'}), 403
+
+    data = request.json or {}
+    new_pin = data.get('pin', '')
+    if not isinstance(new_pin, str) or len(new_pin) < 4:
+        return jsonify({'error': 'PIN must be at least 4 characters'}), 400
+    if _pin_taken('secure/managerPinHash', new_pin):
+        return jsonify({'error': 'The director PIN has to be different from the manager PIN.'}), 400
+
+    db.reference(DIRECTOR_PIN_PATH).set(generate_password_hash(new_pin))
+    session['director'] = True
     return jsonify({'success': True})
 
 # ===== LEVELSET PEA RATINGS =====
@@ -444,9 +496,56 @@ def pea_levelset_sync():
     except Exception as e:
         print(f"[LEVELSET SYNC ERROR] {type(e).__name__}")
         return jsonify({'error': 'Levelset sync failed'}), 500
+    notes = reply.pop('notes', None) or []
+    try:
+        if notes:
+            _save_levelset_notes(notes)
+    except Exception as e:
+        # The ratings still go to the page; the notes come again next sync.
+        print(f"[LEVELSET NOTES ERROR] {type(e).__name__}")
     _levelset_last.update(at=now, reply=reply)
-    print(f"[LEVELSET SYNC] {len(reply['ratings'])} ratings")
+    print(f"[LEVELSET SYNC] {len(reply['ratings'])} ratings, {len(notes)} notes")
     return jsonify(reply)
+
+# ===== LEVELSET NOTES (directors only) =====
+# The notes raters write on a PEA in Levelset. Kept on the server, outside
+# the app state (no state route reads this path), and handed out one person
+# at a time to director sessions only. {key: {id, at, employee, position,
+# leader, overall, text}}; kept LEVELSET_NOTES_KEEP_DAYS.
+LEVELSET_NOTES_PATH = 'levelsetNotes'
+LEVELSET_NOTES_KEEP_DAYS = 400
+
+def _note_key(n):
+    raw = n.get('id') or '|'.join(str(n.get(k) or '') for k in ('at', 'employee', 'position', 'leader'))
+    return hashlib.sha1(raw.encode('utf-8')).hexdigest()[:20]
+
+def _person_key(name):
+    return ' '.join(str(name or '').lower().split())
+
+def _save_levelset_notes(notes):
+    ref = db.reference(LEVELSET_NOTES_PATH)
+    stored = ref.get() or {}
+    cutoff = (datetime.now(levelset_sync.STORE_TZ) - timedelta(days=LEVELSET_NOTES_KEEP_DAYS)).strftime('%Y-%m-%dT%H:%M')
+    changes = {k: None for k, v in stored.items() if not isinstance(v, dict) or str(v.get('at') or '') < cutoff}
+    for n in notes:
+        k = _note_key(n)
+        if n['at'] >= cutoff and stored.get(k) != n:
+            changes[k] = n
+    if changes:
+        ref.update(changes)
+
+@app.route('/api/pea/notes', methods=['POST'])
+def pea_notes():
+    """One person's Levelset notes, newest first. Director sessions only."""
+    if not session.get('manager') or not session.get('director'):
+        return jsonify({'error': 'Director sign-in required'}), 403
+    name = _person_key((request.get_json(silent=True) or {}).get('name'))
+    if not name:
+        return jsonify({'error': 'Who?'}), 400
+    stored = db.reference(LEVELSET_NOTES_PATH).get() or {}
+    notes = sorted((v for v in stored.values() if isinstance(v, dict) and _person_key(v.get('employee')) == name),
+                   key=lambda v: str(v.get('at') or ''), reverse=True)
+    return jsonify({'notes': [{k: v.get(k) for k in ('at', 'position', 'leader', 'overall', 'text')} for v in notes]})
 
 # ===== STATE ROUTES (sections) =====
 
