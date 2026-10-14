@@ -60,7 +60,7 @@ MANAGER_ONLY_KEYS = {
     'eoiSubmissions', 'trainerTrainees', 'trainerProgress', 'teamLeadTrainees',
     'teamLeadProgress', 'scoreboardItems', 'leaderNotes', 'leaderFocus',
     # Sales and labor history (below): private, so only a manager session changes it.
-    'salesHistory', 'forecastSettings', 'forecastLog', 'daypartWeeks',
+    'salesHistory', 'forecastSettings', 'forecastLog', 'daypartWeeks', 'laborByDaypart',
     # Uniform orders (below): names and paycheck deductions, so only a manager session.
     'uniformOrders', 'uniformCatalog',
     # Accountability points (below): disciplinary records, so only a manager session.
@@ -151,7 +151,7 @@ STATE_SECTIONS = {
     'prep': ['prepBuffers', 'prepSoldEntries', 'prepWasteEntries', 'prepStockoutEvents', 'prepHistorySeeded'],
     'prepTimes': ['prepTimes', 'prepTimers'],
     'cem': ['cemEntries'],
-    'forecast': ['salesHistory', 'forecastSettings', 'forecastLog', 'daypartWeeks'],
+    'forecast': ['salesHistory', 'forecastSettings', 'forecastLog', 'daypartWeeks', 'laborByDaypart'],
     'orders': ['uniformOrders', 'uniformCatalog'],
     'points': ['pointsRecords', 'pointsUploads', 'pointsSettings', 'pointsTeam', 'pointsMemos'],
     'misc': [],

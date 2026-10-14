@@ -848,11 +848,17 @@ async function fcImportDaypartWeek(file, text){
   const keys = Object.keys(daypartWeeks).sort((a, b) => String(daypartWeeks[a].at).localeCompare(String(daypartWeeks[b].at)));
   keys.slice(0, Math.max(0, keys.length - FC_WEEKS_KEEP)).forEach(k => { delete daypartWeeks[k]; });
   const n = Object.keys(daypartWeeks).length;
-  duRecord('dayparts', {file: file.name, summary: `${fcMoney(w.total)} week · ${n} week${n === 1 ? '' : 's'} on file`});
+  // Its days' actual sales into Know the Numbers, once the week is dated (kn-actuals.js).
+  const filled = typeof kaFill === 'function' ? kaFill() : null;
+  const dated = daypartWeeks[w.key] && daypartWeeks[w.key].week;
+  duRecord('dayparts', {file: file.name, summary: `${fcMoney(w.total)} week${dated ? ` of ${fcShort(dated)}` : ''} · ${n} week${n === 1 ? '' : 's'} on file`});
   await saveState();
   fcRerender();
+  if(filled && document.getElementById('numbersContent') && typeof renderNumbersContent === 'function') renderNumbersContent();
   const fri = fcWeekdayMix(5);
-  return `${fcMoney(w.total)} for the week · ${n} week${n === 1 ? '' : 's'} on file${n < FC_MIX_MIN_WEEKS ? ` (${FC_MIX_MIN_WEEKS} needed before each weekday's own mix is used)` : fri ? ` · Fridays run ${fcMixText(fri.mix)}` : ''} → Forecast`;
+  const kn = typeof kaFill !== 'function' ? '' : dated ? (kaFillText(filled) ? ` · ${kaFillText(filled)} → Know the Numbers` : ' · Know the Numbers already had these actuals')
+    : ' · not dated yet: its day totals match no week of daily sales on file, so its actual sales go into Know the Numbers once the DayTrack export for that week is in';
+  return `${fcMoney(w.total)} for the week${dated ? ` of ${fcShort(dated)}` : ''} · ${n} week${n === 1 ? '' : 's'} on file${n < FC_MIX_MIN_WEEKS ? ` (${FC_MIX_MIN_WEEKS} needed before each weekday's own mix is used)` : fri ? ` · Fridays run ${fcMixText(fri.mix)}` : ''} → Forecast${kn}`;
 }
 function fcMixText(mix){ return Object.keys(FC_DEFAULT_MIX).map(k => `${k.toLowerCase()} ${Math.round(mix[k] || 0)}%`).join(', '); }
 
@@ -1025,9 +1031,20 @@ async function fcAutoApply(){
   if(document.getElementById('forecastView') && document.getElementById('forecastView').classList.contains('active') && fcTab === 'forecast') fcRenderForecast();
   return plan.length;
 }
+// The forecast ahead, and the actuals behind (kn-actuals.js: the daypart
+// export's sales and the punch reports' hours, where nobody typed them).
+async function fcAutoRun(){
+  if(typeof launchManager === 'undefined' || !launchManager) return;
+  const filled = typeof kaFill === 'function' ? kaFill() : null;
+  const n = await fcAutoApply();
+  if(!n && filled && (filled.sales || filled.productivity)){
+    await saveState();
+    if(document.getElementById('numbersContent') && typeof renderNumbersContent === 'function') renderNumbersContent();
+  }
+}
 function fcAutoApplySoon(){
   clearTimeout(fcAutoTimer);
-  fcAutoTimer = setTimeout(() => { fcAutoTimer = null; fcAutoApply().catch(e => console.warn('Forecast → Know the Numbers:', e)); }, FC_AUTO_WAIT_MS);
+  fcAutoTimer = setTimeout(() => { fcAutoTimer = null; fcAutoRun().catch(e => console.warn('Forecast → Know the Numbers:', e)); }, FC_AUTO_WAIT_MS);
 }
 // Called on every save and whenever saved data arrives (storage.js) and on
 // sign-in (launch-mode.js): runs the fill only when what the forecast reads
@@ -1035,7 +1052,7 @@ function fcAutoApplySoon(){
 function fcAutoCheck(){
   if(typeof launchManager === 'undefined' || !launchManager) return;
   let sig;
-  try{ sig = JSON.stringify([today, salesHistory, forecastSettings, daypartWeeks, typeof productivityProfiles !== 'undefined' ? productivityProfiles : null, typeof storeEvents !== 'undefined' ? storeEvents : null]); }
+  try{ sig = JSON.stringify([today, salesHistory, forecastSettings, daypartWeeks, typeof productivityProfiles !== 'undefined' ? productivityProfiles : null, typeof storeEvents !== 'undefined' ? storeEvents : null, typeof laborByDaypart !== 'undefined' ? laborByDaypart : null]); }
   catch(e){ return; }
   if(sig === fcAutoSig) return;
   fcAutoSig = sig;

@@ -65,9 +65,34 @@ function lrLtSince(){
   return days[0] || null;
 }
 
+// Attendance from the punch reports (Points, managers only), by day:
+// {date: [{kind: 'late' | 'break' | 'out', at: minutes or null}]}. A late
+// start counts at its scheduled start, a late break when the break began,
+// a call-out or no-show at the shift it missed. Only counted events.
+const LR_OUT_TYPES = ['ncns', 'callout_lt24', 'callout_24', 'callout_doc'];
+function lrAttendance(dates){
+  const out = {};
+  dates.forEach(d => { out[d] = []; });
+  if(typeof pointsRecords !== 'object' || !pointsRecords) return out;
+  Object.keys(pointsRecords).forEach(q => {
+    if(q === 'TEST') return;
+    Object.values(pointsRecords[q] || {}).forEach(r => (r && r.events || []).forEach(e => {
+      if(!out[e.date] || e.status !== 'confirmed') return;
+      const kind = e.type === 'tardy' ? 'late' : e.type === 'latebreak' ? 'break' : LR_OUT_TYPES.includes(e.type) ? 'out' : null;
+      if(!kind) return;
+      const at = e.type === 'latebreak' ? e.breakOut : e.schIn;
+      out[e.date].push({kind, at: typeof at === 'number' ? at : null});
+    }));
+  });
+  return out;
+}
+const lrAttCount = list => ({late: list.filter(a => a.kind === 'late').length, brk: list.filter(a => a.kind === 'break').length, out: list.filter(a => a.kind === 'out').length});
+const lrAttText = a => [a.late ? `${a.late} late start${a.late === 1 ? '' : 's'}` : '', a.brk ? `${a.brk} late break${a.brk === 1 ? '' : 's'}` : '', a.out ? `${a.out} call-out${a.out === 1 ? '' : 's'} or no-show${a.out === 1 ? '' : 's'}` : ''].filter(Boolean).join(', ') || 'none';
+
 // The facts for a week: {dayparts: [...], days: [...], unassigned: [...]}.
 function lrFacts(dates, ratings){
   const caps = lrCaptains(dates);
+  const att = lrAttendance(dates);
   const ltSince = lrLtSince();
   const counted = dates.filter(iso => lrDayCounts(iso, caps));
   const dayparts = [], days = [], unassigned = [];
@@ -96,12 +121,14 @@ function lrFacts(dates, ratings){
         const v = e ? knVersus(e.actualProductivity, e.productivityGoal) : null;
         if(v) prod = {actual: v.actual, goal: v.plan, hit: v.actual >= v.plan};
       }
-      dayparts.push({date: iso, daypart: dp.name, leads, zone, lt, peasOn, prod});
+      const attendance = lrAttCount((att[iso] || []).filter(a => a.at !== null && a.at >= w.start && a.at < w.end));
+      dayparts.push({date: iso, daypart: dp.name, leads, zone, lt, peasOn, prod, attendance});
     });
     const fs = typeof fsTotals === 'function' ? fsTotals(foodSafetyWalkthroughs[iso]) : null;
     days.push({date: iso, leads: [...dayLeads], wasteUnder: wasteDays.includes(iso), fsDone: !!(fs && fs.complete)});
   });
-  return {dates, counted, dayparts, days, unassigned};
+  const hasPoints = typeof pointsRecords === 'object' && !!pointsRecords && Object.keys(pointsRecords).some(q => q !== 'TEST');
+  return {dates, counted, dayparts, days, unassigned, attendance: hasPoints ? lrAttCount(counted.flatMap(iso => att[iso] || [])) : null};
 }
 
 // The Levelset name a roster name rates under, or the name itself.
@@ -113,7 +140,7 @@ function lrRaterKey(name, raters){
 // Each credited leader's week: {name: {dayparts, days, zone, lt, peasGiven, peasOn, prod, waste, fs}}.
 function lrRollup(facts, ratings){
   const by = {};
-  const get = n => by[n] = by[n] || {name: n, dayparts: 0, days: 0, zone: {checked: 0, total: 0}, lt: {checked: 0, total: 0}, peasGiven: 0, peasOn: 0, prod: {hit: 0, of: 0}, waste: {under: 0, of: 0}, fs: {done: 0, of: 0}};
+  const get = n => by[n] = by[n] || {name: n, dayparts: 0, days: 0, zone: {checked: 0, total: 0}, lt: {checked: 0, total: 0}, peasGiven: 0, peasOn: 0, prod: {hit: 0, of: 0}, waste: {under: 0, of: 0}, fs: {done: 0, of: 0}, att: {late: 0, brk: 0, out: 0}, hasAtt: !!facts.attendance};
   facts.dayparts.forEach(f => f.leads.forEach(n => {
     const L = get(n);
     L.dayparts++;
@@ -121,6 +148,7 @@ function lrRollup(facts, ratings){
     if(f.lt){ L.lt.checked += f.lt.checked; L.lt.total += f.lt.total; }
     L.peasOn += f.peasOn;
     if(f.prod){ L.prod.of++; if(f.prod.hit) L.prod.hit++; }
+    if(f.attendance){ L.att.late += f.attendance.late; L.att.brk += f.attendance.brk; L.att.out += f.attendance.out; }
   }));
   facts.days.forEach(d => d.leads.forEach(n => {
     const L = get(n);
@@ -202,6 +230,7 @@ function lrLeaderHtml(L){
   const rows = lrMeasures(L).map(m => `<div class="dir-num"><span>${escapeHtml(m.label)}</span><b>${lrPct(m.rate)}</b><small>${escapeHtml([m.text, p ? lrDelta(m.rate, prevM[m.key], 'rate') : ''].filter(Boolean).join(' · ') || 'no data this week')}</small></div>`);
   rows.push(`<div class="dir-num"><span>PEAs you did</span><b>${L.peasGiven}</b><small>${escapeHtml((p ? lrDelta(L.peasGiven, p.peasGiven, 'count') : '') || 'as the Levelset rater')}</small></div>`);
   rows.push(`<div class="dir-num"><span>PEAs on your dayparts</span><b>${L.peasOn}</b><small>${escapeHtml((p ? lrDelta(L.peasOn, p.peasOn, 'count') : '') || 'by anyone, while you ran it')}</small></div>`);
+  if(L.hasAtt) rows.push(`<div class="dir-num"><span>Late or out on your dayparts</span><b>${L.att.late + L.att.brk + L.att.out}</b><small>${escapeHtml(lrAttText(L.att))}, from the punch reports</small></div>`);
   const {win, focus} = L.coach;
   return `
     <section class="dir-card lr-leader">
@@ -225,6 +254,7 @@ function lrBodyHtml(){
       <ul class="dir-list dir-list-sm">${rep.dates.filter(iso => rep.unassigned.some(u => u.date === iso)).map(iso => `<li><span>${escapeHtml(dirDay(iso))}</span><span class="dir-muted">${escapeHtml(rep.unassigned.filter(u => u.date === iso).map(u => u.daypart.replace(/\s*\(.*$/, '')).join(', '))}</span></li>`).join('')}</ul>
     </section>` : '';
   return `
+    ${rep.facts.attendance ? `<section class="dir-card"><h3>Attendance</h3><p class="dir-note">${escapeHtml(lrAttText(rep.facts.attendance))} across the week, from the punch reports. Each leader below sees the ones on their dayparts.</p></section>` : ''}
     <section class="dir-card"><p class="dir-note">Credit goes to the FOH Lead Captain set on Set Ups. Lists, PEAs and productivity count per daypart; waste and Food Safety per day, to every Lead Captain that day. Only finished days count. Compare each leader to their own last week; this is for coaching, not ranking.</p></section>
     ${rep.leaders.length ? rep.leaders.map(lrLeaderHtml).join('') : '<p class="dir-empty">No Lead Captains were set on these days.</p>'}
     ${unassigned}`;
@@ -236,6 +266,7 @@ function lrText(){
   const L = [];
   L.push(`Weekly leader report · ${dirDay(rep.dates[0])} – ${dirDay(rep.dates[rep.dates.length - 1])}${lrWeekOffset === 0 ? ' (through yesterday)' : ''}`);
   L.push('Credit: the FOH Lead Captain per daypart. Waste and Food Safety per day.');
+  if(rep.facts.attendance) L.push(`Attendance: ${lrAttText(rep.facts.attendance)} (punch reports)`);
   rep.leaders.forEach(x => {
     L.push('');
     L.push(`${dirShort(x.name).toUpperCase()} (${x.dayparts} DAYPART${x.dayparts === 1 ? '' : 'S'}, ${lrDays(x.days).toUpperCase()})`);
@@ -243,6 +274,7 @@ function lrText(){
     lrMeasures(x).forEach(m => L.push(`${m.label}: ${lrPct(m.rate)}${m.text ? ' (' + m.text + ')' : ''}${x.prev && lrDelta(m.rate, prevM[m.key], 'rate') ? ' · ' + lrDelta(m.rate, prevM[m.key], 'rate') : ''}`));
     L.push(`PEAs you did: ${x.peasGiven}${x.prev ? ' · ' + lrDelta(x.peasGiven, x.prev.peasGiven, 'count') : ''}`);
     L.push(`PEAs on your dayparts: ${x.peasOn}${x.prev ? ' · ' + lrDelta(x.peasOn, x.prev.peasOn, 'count') : ''}`);
+    if(x.hasAtt) L.push(`Late or out on your dayparts: ${lrAttText(x.att)}`);
     const {win, focus} = x.coach;
     L.push(`Win: ${win ? `${win.label} ${lrPct(win.rate)}` : 'nothing measured yet'}`);
     L.push(`Focus: ${focus ? (focus.rate !== undefined ? `${focus.label} ${lrPct(focus.rate)}` : `${focus.label}: ${focus.text}`) : 'keep it going'}`);
