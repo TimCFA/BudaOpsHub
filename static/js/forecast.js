@@ -901,14 +901,14 @@ function fcGoalSplh(s, a){
 // split by daypart and each daypart's goal, with where the shape came from
 // (source: 'mix' set by hand, the weekday of the productivity report, or
 // 'default' for Buda's typical mix; goalSource likewise, or 'flat').
-function fcNumbersPlan(){
+function fcNumbersPlan(dates){
   const s = fcSettings();
   const a = fcAnalysisFor(s);
   const goal = fcGoalSplh(s, a);
   const windows = fcDaypartWindows();
   const mix = fcMixShares(s.daypartMix, windows) ? s.daypartMix : null;
   const byDaypart = s.goalByDaypart !== false;
-  return fcDates().map(iso => {
+  return (dates || fcDates()).map(iso => {
     const base = fcBaseline(iso, a);
     if(base.sales == null || base.closed) return null;
     const adj = +s.adjustments[iso] || 0;
@@ -930,28 +930,128 @@ function fcNumbersPlan(){
   }).filter(Boolean);
 }
 
+// What one planned day writes into Know the Numbers: [{dp, field, value}].
+function fcPlanCells(p){
+  const out = [];
+  Object.entries(p.split).forEach(([dp, v]) => {
+    out.push({dp, field: 'projectedSales', value: formatAsCurrency(Math.round(v))});
+    const g = p.goals && p.goals[dp] != null ? p.goals[dp] : p.goal;
+    if(g != null) out.push({dp, field: 'productivityGoal', value: formatAsCurrency(Math.round(g))});
+  });
+  return out;
+}
+// How many of a planned day's numbers differ from what Know the Numbers has.
+function fcPlanChanges(p){
+  const day = (typeof numbersData !== 'undefined' && numbersData && numbersData[p.date]) || {};
+  return fcPlanCells(p).filter(c => !day[c.dp] || day[c.dp][c.field] !== c.value).length;
+}
+
 // Write the plan into Know the Numbers. Projected sales and goals for these
-// days are replaced; special events are never touched.
-async function fcApplyNumbers(plan){
+// days are replaced; special events and actuals are never touched. What was
+// written is kept in the forecast log, so the automatic fill knows which
+// days are the forecast's to update (fcOwnsDay).
+async function fcApplyNumbers(plan, opts){
   let cells = 0;
   plan.forEach(p => {
     const day = knNormalizeDay(numbersData[p.date] = numbersData[p.date] || {});
-    Object.entries(p.split).forEach(([dp, v]) => {
-      const entry = day[dp] = day[dp] || {};
-      entry.projectedSales = formatAsCurrency(Math.round(v)); cells++;
-      const g = p.goals && p.goals[dp] != null ? p.goals[dp] : p.goal;
-      if(g != null){ entry.productivityGoal = formatAsCurrency(Math.round(g)); cells++; }
+    p.written = {};
+    fcPlanCells(p).forEach(c => {
+      const entry = day[c.dp] = day[c.dp] || {};
+      entry[c.field] = c.value; cells++;
+      if(c.field === 'projectedSales') p.written[c.dp] = c.value;
     });
     if(typeof touchLastUpdated === 'function') touchLastUpdated(p.date);
   });
   if(plan.length){
     const dates = plan.map(p => p.date);
-    duRecord('numbers', {file: 'Forecast tab', summary: `${fcShort(dates[0])} – ${fcShort(dates[dates.length - 1])} · ${dates.length} day${dates.length === 1 ? '' : 's'} from the forecast`, periodEnd: dates[dates.length - 1]});
+    duRecord('numbers', {file: opts && opts.auto ? 'Forecast (automatic)' : 'Forecast tab', summary: `${fcShort(dates[0])} – ${fcShort(dates[dates.length - 1])} · ${dates.length} day${dates.length === 1 ? '' : 's'} from the forecast`, periodEnd: dates[dates.length - 1]});
     fcLogPlan(plan, forecastLog, today);
+    plan.forEach(p => { if(forecastLog[p.date]) forecastLog[p.date].written = p.written; });
   }
   await saveState();
   if(document.getElementById('numbersContent')) renderNumbersContent();
   return cells;
+}
+
+// ----- Know the Numbers fills itself (Tim, Oct 14 2026) -----
+// No Send or Save. On a manager's device (the forecast's data is private),
+// whenever what the forecast is built from changes (a DayTrack, sales or
+// daypart upload, an adjustment, the mix, the goal) and at each day's first
+// load, today and the days ahead are written into Know the Numbers.
+//  - Today is filled once and then stays put for the shift: a goal that
+//    moved mid-day would move the target the team is playing to.
+//  - A day whose projections came from an uploaded numbers file (anything
+//    other than what the forecast last wrote there) is left alone.
+//  - Past days are never touched; nothing is saved when nothing changed.
+const FC_AUTO_WAIT_MS = 1500;
+let fcAutoTimer = null, fcAutoRunning = false, fcAutoSig = '';
+
+function fcAutoDates(){ const n = +fcSettings().days || 7; return Array.from({length: n + 1}, (_, i) => fcAddDays(today, i)); }
+function fcDayProjections(iso){
+  const day = typeof numbersData !== 'undefined' && numbersData ? numbersData[iso] : null, out = {};
+  if(day) Object.keys(day).forEach(dp => { const v = day[dp] && day[dp].projectedSales; if(v && parseMoney(v) !== null) out[dp] = v; });
+  return out;
+}
+// A day the forecast may write: empty, or holding what it wrote there last.
+function fcOwnsDay(iso){
+  const have = fcDayProjections(iso), keys = Object.keys(have);
+  if(!keys.length) return true;
+  const log = forecastLog && forecastLog[iso];
+  if(!log) return false;
+  if(log.written) return keys.every(dp => log.written[dp] === have[dp]);
+  // Sent by hand before this change: the day's total, give or take the rounding.
+  const total = keys.reduce((t, dp) => t + (parseMoney(have[dp]) || 0), 0);
+  return Math.abs(total - log.sales) <= keys.length + 1;
+}
+// {plan: the days to write, kept: days holding a numbers file's figures}.
+function fcAutoPlan(){
+  const kept = [];
+  const plan = fcNumbersPlan(fcAutoDates()).filter(p => {
+    if(p.date < today) return false;
+    if(p.date === today && Object.keys(fcDayProjections(today)).length) return false;
+    if(!fcOwnsDay(p.date)){ kept.push(p.date); return false; }
+    return fcPlanChanges(p) > 0;
+  });
+  return {plan, kept};
+}
+async function fcAutoApply(){
+  if(fcAutoRunning || typeof launchManager === 'undefined' || !launchManager) return 0;
+  if(!salesHistory || !Object.keys(salesHistory).length) return 0;
+  const {plan} = fcAutoPlan();
+  if(!plan.length) return 0;
+  fcAutoRunning = true;
+  try{ await fcApplyNumbers(plan, {auto: true}); }
+  finally{ fcAutoRunning = false; }
+  if(document.getElementById('forecastView') && document.getElementById('forecastView').classList.contains('active') && fcTab === 'forecast') fcRenderForecast();
+  return plan.length;
+}
+function fcAutoApplySoon(){
+  clearTimeout(fcAutoTimer);
+  fcAutoTimer = setTimeout(() => { fcAutoTimer = null; fcAutoApply().catch(e => console.warn('Forecast → Know the Numbers:', e)); }, FC_AUTO_WAIT_MS);
+}
+// Called on every save and whenever saved data arrives (storage.js) and on
+// sign-in (launch-mode.js): runs the fill only when what the forecast reads
+// has changed since the last run, or the day has.
+function fcAutoCheck(){
+  if(typeof launchManager === 'undefined' || !launchManager) return;
+  let sig;
+  try{ sig = JSON.stringify([today, salesHistory, forecastSettings, daypartWeeks, typeof productivityProfiles !== 'undefined' ? productivityProfiles : null, typeof storeEvents !== 'undefined' ? storeEvents : null]); }
+  catch(e){ return; }
+  if(sig === fcAutoSig) return;
+  fcAutoSig = sig;
+  fcAutoApplySoon();
+}
+// The Forecast tab's line on what's in Know the Numbers.
+function fcAutoStatusHtml(){
+  const ahead = fcAutoDates().filter(d => forecastLog && forecastLog[d]);
+  const {kept} = fcAutoPlan();
+  const last = ahead.map(d => forecastLog[d].at || '').sort().pop();
+  const lines = [];
+  lines.push(ahead.length
+    ? `Know the Numbers fills itself from this forecast: ${ahead.length} day${ahead.length === 1 ? '' : 's'} through ${fcShort(ahead[ahead.length - 1])}${last ? `, last updated ${fcShort(last.slice(0, 10))}` : ''}. A new upload or a change here updates the days ahead; today stays as it was set for the shift.`
+    : 'Know the Numbers fills itself from this forecast as soon as there\'s sales history: today and the days ahead, updated whenever the forecast changes.');
+  const keptHtml = kept.length ? ` <span class="fc-muted">${kept.length} day${kept.length === 1 ? '' : 's'} (${kept.map(fcShort).join(', ')}) keep${kept.length === 1 ? 's' : ''} the numbers from an uploaded file.</span> <button type="button" class="fc-link" id="fcUseForecast">Use the forecast for ${kept.length === 1 ? 'it' : 'them'}</button>` : '';
+  return `<span class="fc-muted fc-note-wide is-info">${lines.join(' ')}${keptHtml}</span>`;
 }
 
 // ----- Track record -----
@@ -1005,7 +1105,7 @@ function fcTrackRecord(log, hist){
 function fcTrackRecordHtml(){
   const t = fcTrackRecord(forecastLog, salesHistory);
   const tier = acc => acc >= 90 ? 'is-good' : acc >= 75 ? 'is-warn' : 'is-bad';
-  if(!t.days && !t.waiting.length) return `<div class="standup-card fc-compare"><h3>Your track record</h3><p class="fc-muted">Nothing sent yet. Press <b>Send to Know the Numbers</b> on the Forecast tab: each day you send is kept, and scored here once its actual sales land from the DayTrack export.</p></div>`;
+  if(!t.days && !t.waiting.length) return `<div class="standup-card fc-compare"><h3>Your track record</h3><p class="fc-muted">Nothing in Know the Numbers from the forecast yet. It fills itself once there's sales history: each day it fills is kept, and scored here once its actual sales land from the DayTrack export.</p></div>`;
   const head = t.days ? `<div class="fc-kpis">
       ${fcKpi(FC_ICON.percent, 'Sent forecasts', t.accuracy.toFixed(1) + '%', `${t.days} day${t.days === 1 ? '' : 's'} scored · avg miss ${fcMoney(t.miss)}`, tier(t.accuracy))}
       ${fcKpi(FC_ICON.trendUp, 'Model alone', t.baselineAccuracy.toFixed(1) + '%', t.accuracy > t.baselineAccuracy + 0.05 ? 'your adjustments beat it' : t.accuracy < t.baselineAccuracy - 0.05 ? 'the model alone did better' : 'about the same')}
@@ -1209,10 +1309,10 @@ function fcRenderForecast(){
       </table>
     </div>
     <div class="fc-actions">
-      <button type="button" class="btn ${fcNumbersOpen ? 'btn-ghost' : 'btn-primary'}" id="fcToNumbers">${fcNumbersOpen ? 'Hide the Know the Numbers preview' : 'Send to Know the Numbers'}</button>
+      <button type="button" class="btn btn-ghost" id="fcToNumbers">${fcNumbersOpen ? 'Hide the daypart split' : 'See the daypart split'}</button>
       <button type="button" class="btn btn-ghost" id="fcCopy">Copy as CSV</button>
       <button type="button" class="btn btn-ghost" id="fcDownload">Download CSV</button>
-      ${(() => { const sent = dates.filter(d => forecastLog[d]); if(!sent.length) return ''; const last = sent.map(d => forecastLog[d].at).sort().pop(); return `<span class="fc-muted fc-note-wide is-info">Sent to Know the Numbers ${fcShort(last.slice(0, 10))} for ${sent.length === dates.length ? 'every day here' : `${sent.length} of these days`}. Sending again replaces those.</span>`; })()}
+      ${fcAutoStatusHtml()}
       ${lyNote ? `<span class="fc-muted fc-note-wide">${lyNote}</span>` : ''}
       <span class="fc-muted">${a.yoyWeight > 0 ? `Baseline = ${fcModelLabel(s.model, a.yoyWeight)}: the same weekday a year ago × this year's run-rate (${fcPctFmt(a.vsLastYearPct)}), and that weekday's average over ${fcLookbackLabel(a, s)} carried forward by the trend.` : `Baseline = that weekday's average over ${fcLookbackLabel(a, s)}, carried forward by the weekly trend.`}</span>
     </div>
@@ -1237,14 +1337,15 @@ function fcRenderForecast(){
   wire('fcCopy', 'click', () => fcExportCsv('copy'));
   wire('fcDownload', 'click', () => fcExportCsv('download'));
   wire('fcToNumbers', 'click', () => { fcNumbersOpen = !fcNumbersOpen; fcRenderForecast(); if(fcNumbersOpen){ const c = document.getElementById('fcNumbersCard'); if(c && c.scrollIntoView) c.scrollIntoView({behavior: 'smooth', block: 'start'}); } });
-  wire('fcNumbersSave', 'click', async () => {
-    const plan = fcNumbersPlan();
-    const cells = await fcApplyNumbers(plan);
-    fcNumbersOpen = false;
-    if(typeof showToast === 'function') showToast(`Know the Numbers filled: ${plan.length} day${plan.length === 1 ? '' : 's'}, ${cells} numbers`);
+  // Days holding an uploaded numbers file's figures: the forecast's, on request.
+  wire('fcUseForecast', 'click', async () => {
+    const kept = new Set(fcAutoPlan().kept);
+    const plan = fcNumbersPlan(fcAutoDates()).filter(p => kept.has(p.date));
+    if(!plan.length) return;
+    await fcApplyNumbers(plan);
+    if(typeof showToast === 'function') showToast(`Know the Numbers: ${plan.length} day${plan.length === 1 ? '' : 's'} now follow the forecast`);
     fcRenderForecast();
   });
-  wire('fcNumbersCancel', 'click', () => { fcNumbersOpen = false; fcRenderForecast(); });
   // The daypart mix: saved once the four add up to 100 (give or take one).
   const mixInputs = [...panel.querySelectorAll('[data-fc-mix]')];
   let mixTouched = false;
@@ -1304,7 +1405,7 @@ function fcNumbersPreviewHtml(){
   const rows = windows.map(w => `<tr><td>${fcEsc(fcDaypartKey(w.name))}<small>${fcEsc(w.name.replace(/^[^(]*/, ''))}</small></td>${plan.map(p => `<td class="fc-num">${fcMoney(p.split[w.name])}${p.goals && p.goals[w.name] != null ? `<small>${fcMoney(p.goals[w.name])}/hr</small>` : ''}</td>`).join('')}</tr>`).join('');
   return `<div class="standup-card fc-numbers">
     <h3>Know the Numbers <span class="sub">what each daypart will show</span></h3>
-    <p class="fc-muted">${shapeNote} ${goalNote} Projected sales and goals already there for these days are replaced; special events stay.</p>
+    <p class="fc-muted">${shapeNote} ${goalNote} Special events and actuals are never touched.</p>
     <div class="fc-mix">
       <div class="fc-mix-head"><span>Daypart mix</span><em>${s.daypartMix ? 'Set by hand' : `Automatic · ${first.source === 'default' ? 'Buda\'s typical mix' : isWeeks(first.source) ? `${FC_DOW_LONG[first.dow]}s, learned from ${first.source}` : `the ${first.source} hourly report`}`}</em></div>
       <div class="fc-mix-grid">${mixFields}</div>
@@ -1318,7 +1419,7 @@ function fcNumbersPreviewHtml(){
       <tr><td>Day target</td>${plan.map(p => `<td class="fc-num">${p.goal != null ? fcMoney(p.goal) + '/hr' : '—'}</td>`).join('')}</tr></tfoot>
     </table></div>
     ${goal == null ? '<p class="fc-muted">No productivity goal yet: set a $ per labor hour target (or labor % and wage) above and it fills in too.</p>' : ''}
-    <div class="fc-actions"><button type="button" class="btn btn-primary" id="fcNumbersSave">Save to Know the Numbers</button><button type="button" class="btn btn-ghost" id="fcNumbersCancel">Cancel</button></div>
+    <p class="fc-muted">These are in Know the Numbers already. A change to the mix or the goal goes there on its own.</p>
   </div>`;
 }
 function fcBulkAdjust(pct){
@@ -1497,7 +1598,7 @@ function fcRenderData(){
       <label class="du-drop fc-drop" data-fc-drop>
         <input type="file" id="fcFile" accept=".csv,.txt,.tsv,.xlsx,.xls" hidden>
         <span class="du-drop-main">Drop a file here or tap to choose</span>
-        <span class="du-drop-sub">Columns are read from the headers; check them below before saving.</span>
+        <span class="du-drop-sub">Saved as soon as it's read; the columns it used are shown below.</span>
       </label>
       <div id="fcMapArea"></div>
     </div>
@@ -1541,32 +1642,56 @@ function fcPickFile(file){
     // The Analytics Hub sales export is read the way Guest Obsession reads it.
     if(typeof rpDetect === 'function' && !/\.(xlsx|xls)$/i.test(file.name) && rpDetect(pbDecodeText(reader.result)) === 'sales'){
       try{ fcPendingFile = {name: file.name, salesExport: rpParseSales(pbDecodeText(reader.result))}; }
-      catch(e){ fcPendingFile = {name: file.name, error: `${e.message} The sales export needs a row per day (business date); a by-weekday or by-daypart version can't be filed by date.`}; }
-      fcRenderMap();
+      catch(e){ fcPendingFile = {name: file.name, error: `${e.message} The sales export needs a row per day (business date); a by-weekday or by-daypart version can't be filed by date.`}; fcRenderMap(); return; }
+      fcSaveSalesExport(fcPendingFile);
       return;
     }
     fcPendingFile = {name: file.name, table, map: fcGuessMap(table.headers, table.rows)};
+    // Saved straight away when the date column and a sales or labor column
+    // were recognized (Tim, Oct 14 2026: no extra step); the columns read
+    // are shown with a way to fix them.
+    const p = fcPendingFile, recs = p.map.date != null ? fcRecordsFromTable(table, p.map) : [];
+    if(recs.length && FC_FIELDS.some(f => f.key !== 'date' && p.map[f.key] != null)){ fcSaveTable(p); return; }
     fcRenderMap();
   };
   reader.onerror = () => { fcPendingFile = {name: file.name, error: 'Couldn’t read this file.'}; fcRenderMap(); };
   reader.readAsArrayBuffer(file);
+}
+// Saves an Analytics Hub sales-by-day export picked on the Data tab.
+async function fcSaveSalesExport(p){
+  const added = fcMergeSalesExport(p.salesExport);
+  duRecord('sales', {file: p.name, summary: `${fcShort(p.salesExport.from)} – ${fcShort(p.salesExport.to)} · ${added} days → Forecast`, periodEnd: p.salesExport.to});
+  p.saved = {n: added, from: p.salesExport.from, to: p.salesExport.to, what: 'sales by destination'};
+  await saveState();
+  if(typeof showToast === 'function') showToast(`${added} day${added === 1 ? '' : 's'} saved to the sales history`);
+  renderForecastView();
+}
+// Saves a DayTrack-style table picked on the Data tab, with the columns in p.map.
+async function fcSaveTable(p){
+  const records = fcRecordsFromTable(p.table, p.map);
+  if(!records.length) return;
+  const dates = records.map(r => r.date).sort();
+  const n = fcMergeRecords(records);
+  duRecord('labor', {file: p.name, summary: `${fcShort(dates[0])} – ${fcShort(dates[dates.length - 1])} · ${n} day${n === 1 ? '' : 's'}`, periodEnd: dates[dates.length - 1]});
+  p.saved = {n, from: dates[0], to: dates[dates.length - 1]};
+  p.fixing = false;
+  if(typeof rpApplyToScoreboard === 'function') rpApplyToScoreboard();
+  await saveState();
+  if(typeof showToast === 'function') showToast(`${n} day${n === 1 ? '' : 's'} saved to the sales history`);
+  renderForecastView();
 }
 function fcRenderMap(){
   const area = document.getElementById('fcMapArea');
   if(!area || !fcPendingFile) return;
   const p = fcPendingFile;
   if(p.error){ area.innerHTML = `<p class="fc-map-error">${fcEsc(p.name)} — ${fcEsc(p.error)}</p>`; return; }
-  if(p.salesExport){
-    const n = p.salesExport.days.length;
-    area.innerHTML = `<div class="fc-map"><p><b>${fcEsc(p.name)}</b> — Analytics Hub sales by day, ${n} day${n === 1 ? '' : 's'} (${fcShort(p.salesExport.from)} – ${fcShort(p.salesExport.to)}) with sales by destination.</p><div class="fc-actions"><button type="button" class="btn btn-primary" id="fcMapSave">Save to history</button><button type="button" class="btn btn-ghost" id="fcMapCancel">Cancel</button></div></div>`;
-    document.getElementById('fcMapSave').addEventListener('click', async () => {
-      const added = fcMergeSalesExport(p.salesExport);
-      duRecord('sales', {file: p.name, summary: `${fcShort(p.salesExport.from)} – ${fcShort(p.salesExport.to)} · ${added} days → Forecast`, periodEnd: p.salesExport.to});
-      fcPendingFile = null;
-      await saveState();
-      if(typeof showToast === 'function') showToast(`${added} day${added === 1 ? '' : 's'} saved to the sales history`);
-      renderForecastView();
-    });
+  if(p.saved && !p.fixing){
+    const read = p.table ? FC_FIELDS.filter(f => p.map[f.key] != null).map(f => `${f.label} ← ${p.table.headers[p.map[f.key]] || `column ${p.map[f.key] + 1}`}`).join(' · ') : p.saved.what;
+    area.innerHTML = `<div class="fc-map is-saved"><p><b>${fcEsc(p.name)}</b> — saved: ${p.saved.n} day${p.saved.n === 1 ? '' : 's'}, ${fcShort(p.saved.from)} – ${fcShort(p.saved.to)}. Know the Numbers updates from it on its own.</p>
+      <p class="fc-muted">Read as: ${fcEsc(read)}</p>
+      <div class="fc-actions">${p.table ? '<button type="button" class="btn btn-ghost" id="fcMapFix">Fix which column is which</button>' : ''}<button type="button" class="btn btn-ghost" id="fcMapCancel">Done</button></div></div>`;
+    const fix = document.getElementById('fcMapFix');
+    if(fix) fix.addEventListener('click', () => { p.fixing = true; fcRenderMap(); });
     document.getElementById('fcMapCancel').addEventListener('click', () => { fcPendingFile = null; area.innerHTML = ''; });
     return;
   }
@@ -1580,15 +1705,7 @@ function fcRenderMap(){
     <div class="fc-actions"><button type="button" class="btn btn-primary" id="fcMapSave" ${records.length ? '' : 'disabled'}>Save to history</button><button type="button" class="btn btn-ghost" id="fcMapCancel">Cancel</button></div>
   </div>`;
   area.querySelectorAll('[data-fc-map]').forEach(sel => sel.addEventListener('change', e => { const v = e.target.value; if(v === '') delete p.map[e.target.dataset.fcMap]; else p.map[e.target.dataset.fcMap] = +v; fcRenderMap(); }));
-  document.getElementById('fcMapSave').addEventListener('click', async () => {
-    const n = fcMergeRecords(fcRecordsFromTable(p.table, p.map));
-    duRecord('labor', {file: p.name, summary: `${fcShort(dates[0])} – ${fcShort(dates[dates.length - 1])} · ${n} day${n === 1 ? '' : 's'}`, periodEnd: dates[dates.length - 1]});
-    fcPendingFile = null;
-    if(typeof rpApplyToScoreboard === 'function') rpApplyToScoreboard();
-    await saveState();
-    if(typeof showToast === 'function') showToast(`${n} day${n === 1 ? '' : 's'} saved to the sales history`);
-    renderForecastView();
-  });
+  document.getElementById('fcMapSave').addEventListener('click', () => fcSaveTable(p));
   document.getElementById('fcMapCancel').addEventListener('click', () => { fcPendingFile = null; area.innerHTML = ''; });
 }
 
@@ -1706,9 +1823,9 @@ if(typeof document !== 'undefined' && document.getElementById('forecastView')){
     fcTab = btn.dataset.fcTab;
     renderForecastView();
   });
-  // Manage → Know the Numbers: "Fill from the Forecast" opens the preview here.
+  // Manage → Know the Numbers: "See the forecast split" opens the split here.
   const knBtn = document.getElementById('knFromForecast');
-  if(knBtn) knBtn.addEventListener('click', () => { fcTab = 'forecast'; fcNumbersOpen = true; launchShowTab('forecast'); const c = document.getElementById('fcNumbersCard'); if(c && c.scrollIntoView) c.scrollIntoView({block: 'start'}); });
+  if(knBtn) knBtn.addEventListener('click', () => { fcTab = 'forecast'; fcNumbersOpen = true; fcStart = fcAddDays(today, 1); launchShowTab('forecast'); const c = document.getElementById('fcNumbersCard'); if(c && c.scrollIntoView) c.scrollIntoView({block: 'start'}); });
   let fcResizeTimer = null;
   window.addEventListener('resize', () => {
     const view = document.getElementById('forecastView');

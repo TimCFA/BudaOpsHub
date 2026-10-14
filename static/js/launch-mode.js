@@ -91,6 +91,8 @@ async function launchSetManager(isManager){
   if(typeof renderAllDayparts === 'function' && document.getElementById('positionsView').classList.contains('active')) renderAllDayparts();
   // Pick up the private sections this page wasn't sent without a session.
   if(isManager && typeof syncState === 'function') await syncState();
+  // The forecast fills Know the Numbers on a manager's device (forecast.js).
+  if(isManager && typeof fcAutoCheck === 'function') fcAutoCheck();
   // A week sent from HotSchedules was waiting for a manager.
   if(isManager && typeof hsSyncManagerReady === 'function') hsSyncManagerReady();
 }

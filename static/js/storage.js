@@ -226,6 +226,8 @@ let saveAgain = false;
 const SAVE_RETRY_MS = [5000, 15000, 30000];
 let saveRetryTimer = null, saveRetryN = 0;
 function saveState(){
+  // The forecast refills Know the Numbers when what it reads has changed (forecast.js).
+  if(typeof fcAutoCheck === 'function') fcAutoCheck();
   if(saveInFlight){ saveAgain = true; return saveInFlight; }
   if(saveRetryTimer){ clearTimeout(saveRetryTimer); saveRetryTimer = null; }
   saveInFlight = (async ()=>{
@@ -521,6 +523,7 @@ function applyStateData(data){
   peaGoals = (data.peaGoals && typeof data.peaGoals === 'object' && !Array.isArray(data.peaGoals)) ? data.peaGoals : null;
   leaderFocus = (data.leaderFocus && typeof data.leaderFocus === 'object' && !Array.isArray(data.leaderFocus)) ? data.leaderFocus : {};
   if(typeof dirRerender === 'function') dirRerender();
+  if(typeof fcAutoCheck === 'function') fcAutoCheck();
 }
 
 // ===== OTHER PEOPLE'S CHANGES =====

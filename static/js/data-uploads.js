@@ -34,7 +34,7 @@ const DU_SOURCES = [
   },
   {
     key: 'numbers', short: 'numbers file', icon: '', name: 'Projected sales & productivity goals', freq: 'weekly', accept: '.csv,.xlsx,.xls,.txt',
-    how: 'Easiest: the Forecast tab → Send to Know the Numbers fills the days ahead from the forecast — no file needed. Or a spreadsheet (Excel or CSV) with a Date column, a Daypart column (Breakfast, Lunch, Afternoon, Dinner), and Projected Sales / Productivity Goal columns, or one row per day with a column per daypart; the template is here. Special events come from the Events calendar; actuals are typed in Manage → Numbers.',
+    how: 'Nothing to do: the Forecast fills Know the Numbers on its own (today and the days ahead) from the DayTrack and sales uploads. Only to override it: a spreadsheet (Excel or CSV) with a Date column, a Daypart column (Breakfast, Lunch, Afternoon, Dinner), and Projected Sales / Productivity Goal columns, or one row per day with a column per daypart; the template is here. Special events come from the Events calendar; actuals are typed in Manage → Numbers.',
     feeds: 'Know the Numbers · Set Ups game plan · Game Day / Practice Day'
   },
   {
@@ -222,7 +222,7 @@ function duSourceState(src, now){
     const status = !latest || latest < duISO(now) ? 'overdue' : latest < saturday ? 'due' : lateInWeek && latest < nextSaturday ? 'due' : 'fresh';
     const viaForecast = typeof salesHistory !== 'undefined' && Object.keys(salesHistory || {}).length > 0;
     const ask = lateInWeek ? 'next week’s numbers before Monday' : 'this week’s numbers';
-    const note = status === 'fresh' ? '' : viaForecast ? `Fill ${ask} from the Forecast tab (Send to Know the Numbers) — no file needed.` : `Upload ${ask}.`;
+    const note = status === 'fresh' ? '' : viaForecast ? `The Forecast fills ${ask} on its own once a manager is signed in; if it hasn't, upload this week's DayTrack export.` : `Upload ${ask}, or the DayTrack export and the Forecast fills them.`;
     return {status, freq, cover: latest ? `Projected sales through ${duShort(latest)}` : 'No projected sales ahead of today', note, last: logAt};
   }
 
@@ -1065,7 +1065,7 @@ function renderDataUploads(){
           ${duPending.filter(p => p.kind === src.key).map(duPendingHtml).join('')}
           ${src.key === 'pea' ? duLevelsetHtml() : ''}
           ${src.key === 'roster' && typeof hsSyncInstallHtml === 'function' ? hsSyncInstallHtml() : ''}
-          ${src.key === 'numbers' && typeof salesHistory !== 'undefined' && Object.keys(salesHistory || {}).length ? '<button type="button" class="du-sync-btn full-only" data-du-forecast="1">Fill from the Forecast</button>' : ''}
+          ${src.key === 'numbers' && typeof salesHistory !== 'undefined' && Object.keys(salesHistory || {}).length ? '<button type="button" class="du-sync-btn full-only" data-du-forecast="1">See the forecast split</button>' : ''}
           ${src.key === 'numbers' ? '<button type="button" class="du-sync-btn" data-du-template="1">Download template</button>' : ''}
           <label class="du-row-upload"><input type="file" accept="${src.accept}" ${src.multiple ? 'multiple' : ''} data-du-row-input="${src.key}"><span>⬆ Upload ${escapeHtml(src.short || src.name.split(' (')[0])}${src.key === 'pea' ? ' (backup)' : ''}</span></label>
           <details class="du-more">
