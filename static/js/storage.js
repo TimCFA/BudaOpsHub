@@ -74,6 +74,7 @@ async function statePost(path, body){
 // Everything the app saves, in one place (saves and the backup file).
 function stateSnapshot(){
   return {
+    laborByDaypart,   // hours clocked by daypart (kn-actuals.js)
     entries, products, wasteTarget, formDone,
     formDoneDate: formDone ? today : null, foodSafetyDays, wasteDays, breakCountdowns, completedBreaks, posAssignments,
     fohRoster, bohRoster, rosterPosted, lxPillars, lxMetrics, lxLastUpdated, gxData, txData, homeData,
@@ -82,7 +83,7 @@ function stateSnapshot(){
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
     prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, launchMode, prepTimes, prepTimers,
-    salesHistory, forecastSettings, forecastLog, daypartWeeks, laborByDaypart, zoneOwners, posNotes, storeEvents, truckShifts,
+    salesHistory, forecastSettings, forecastLog, daypartWeeks, zoneOwners, posNotes, storeEvents, truckShifts,
     uniformOrders, uniformCatalog, directors, adminShifts, leaderNotes, leaderRoster, peaGoals, leaderFocus,
     pointsRecords, pointsUploads, pointsSettings, pointsTeam, pointsMemos
   };
