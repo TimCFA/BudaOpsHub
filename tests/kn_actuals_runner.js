@@ -1,6 +1,6 @@
 // Runs Know the Numbers actuals from the uploads (static/js/kn-actuals.js, on
 // know-numbers.js, points-engine.js and points.js) on cases from
-// tests/test_kn_actuals.py: reads {cases: [{op}]} on stdin. "today" is
+// tests/test_kn_actuals_uploads.py: reads {cases: [{op}]} on stdin. "today" is
 // Monday Oct 12 2026. Punch reports are built as pdf.js text items in the
 // Actual vs. Scheduled layout (as tests/points_runner.js does). Made-up names.
 const fs = require('fs');
