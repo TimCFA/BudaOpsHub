@@ -24,7 +24,9 @@ const out = vm.runInContext(`({
   colors: WASTE_COLORS,
   priceFix: WASTE_PRICE_FIX_5,
   itemFix: WASTE_ITEM_FIX_7,
+  itemFix8: WASTE_ITEM_FIX_8,
   bohIds: [...WASTE_BOH_ITEMS],
+  bothIds: [...WASTE_BOTH_ITEMS],
   shows: [wasteItemShows({side: 'foh'}, 'foh'), wasteItemShows({side: 'foh'}, 'boh'), wasteItemShows({side: 'both'}, 'boh'), wasteItemShows({}, 'boh'), wasteItemShows({side: 'x'}, 'foh')],
   catOrder: WASTE_CAT_ORDER,
   valid: ['#abcdef', '#ABCDEF', 'red', '#abc', 'url(x)', '#abcdeg'].map(wasteValidColor),
@@ -107,14 +109,34 @@ class WasteCatalogTest(unittest.TestCase):
         for pid in self.data['bohIds']:
             self.assertIn(pid, items, pid)
         sides = {p['side'] for p in items.values()}
-        self.assertEqual(sides, {'foh', 'boh'})
+        self.assertEqual(sides, {'foh', 'boh', 'both'})
         self.assertEqual(sum(1 for p in items.values() if p['side'] == 'boh'), len(self.data['bohIds']))
+        self.assertEqual(sorted(p['id'] for p in items.values() if p['side'] == 'both'), sorted(self.data['bothIds']))
         for pid in ('raw-filet', 'filet', 'white-bun', 'yellow-egg', 'waffle-bkfst'):
             self.assertEqual(items[pid]['side'], 'boh', pid)
         for pid in ('cfa-sandwich', 'cobb-salad', 'medium-waffle-fry', 'lemonade', 'bec-biscuit', '8-count-nugget', 'vanilla-milkshake'):
             self.assertEqual(items[pid]['side'], 'foh', pid)
         # Items with no side (or a bad one) show on both sides.
         self.assertEqual(self.data['shows'], [True, False, True, True, True])
+
+    def test_nugget_fix(self):
+        # Oct 14 2026: FOH logged loose nuggets as 5 Count Nuggets — the single
+        # nuggets weren't on its screen and the boxes read "pc".
+        items = {p['id']: p for p in self.data['items']}
+        for pid in ('nugget', 'grilled-nugget'):
+            self.assertEqual(items[pid]['side'], 'both', pid)
+            self.assertEqual(items[pid]['unit'], 'pc', pid)
+            self.assertEqual(items[pid]['cat'], 'Proteins', pid)     # BOH's layout unchanged
+        boxes = [p for p in items.values() if p['cat'] == 'Nuggets']
+        self.assertEqual(len(boxes), 6)
+        for p in boxes:
+            self.assertEqual(p['unit'], 'box', p['id'])
+            self.assertEqual(p['side'], 'foh', p['id'])
+        for pid, fields in self.data['itemFix8'].items():
+            self.assertIn(pid, items, pid)
+            for field, (old, new) in fields.items():
+                self.assertEqual(items[pid][field], new, f'{pid}.{field}')
+                self.assertNotEqual(old, new, f'{pid}.{field}')
 
     def test_color_guard(self):
         self.assertEqual(self.data['valid'], ['#abcdef', '#abcdef', '', '', '', ''])
