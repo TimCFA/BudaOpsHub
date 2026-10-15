@@ -170,3 +170,37 @@ class Render(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+# Attendance from the punch reports (Points): on Tuesday Oct 6 a late start at
+# 8:00 (Breakfast, Maya), a late break from 11:00 (Lunch, Maya and Ava), a
+# no-show for a 5:00 shift (Dinner, Ava); a dismissed tardy, a test-run one
+# and an imported one with no time (counted for the week only).
+ATT = """
+  pointsRecords = {'2026-Q4': {a: {events: [
+      {date: '2026-10-06', type: 'tardy', status: 'confirmed', schIn: 480},
+      {date: '2026-10-06', type: 'latebreak', status: 'confirmed', breakOut: 660},
+      {date: '2026-10-06', type: 'ncns', status: 'confirmed', schIn: 1020},
+      {date: '2026-10-06', type: 'tardy', status: 'dismissed', schIn: 500},
+      {date: '2026-10-06', type: 'tardy', status: 'confirmed'}]}},
+    TEST: {b: {events: [{date: '2026-10-06', type: 'tardy', status: 'confirmed', schIn: 480}]}}};
+"""
+
+
+class Attendance(unittest.TestCase):
+    def test_counted_on_each_lead_captains_dayparts(self):
+        got = run(f"c => {{ {WEEK} {ATT} const r = lrReport(-1); return [r.facts.attendance, Object.fromEntries(r.leaders.map(L => [L.name, L.att]))]; }}")
+        week, by = got
+        self.assertEqual(week, {'late': 2, 'brk': 1, 'out': 1})
+        self.assertEqual(by['Maya Torres'], {'late': 1, 'brk': 1, 'out': 0})
+        self.assertEqual(by['Ava Morales'], {'late': 0, 'brk': 1, 'out': 1})
+
+    def test_shown_and_in_the_text_only_with_points(self):
+        got = run(f"c => {{ {WEEK} {ATT} lrWeekOffset = -1; return [lrBodyHtml(), lrText()]; }}")
+        html, text = got
+        self.assertIn('Late or out on your dayparts', html)
+        self.assertIn('2 late starts, 1 late break, 1 call-out or no-show across the week', html)
+        self.assertIn('Attendance: 2 late starts, 1 late break, 1 call-out or no-show (punch reports)', text)
+        self.assertIn('Late or out on your dayparts: 1 late break, 1 call-out or no-show', text)
+        got = run(f"c => {{ {WEEK} lrWeekOffset = -1; return [lrBodyHtml().includes('Late or out'), lrText().includes('Attendance:')]; }}")
+        self.assertEqual(got, [False, False])

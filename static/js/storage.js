@@ -28,7 +28,7 @@ const STATE_SECTIONS = {
   prep: ['prepBuffers', 'prepSoldEntries', 'prepWasteEntries', 'prepStockoutEvents', 'prepHistorySeeded'],
   prepTimes: ['prepTimes', 'prepTimers'],
   cem: ['cemEntries'],
-  forecast: ['salesHistory', 'forecastSettings', 'forecastLog', 'daypartWeeks'],
+  forecast: ['salesHistory', 'forecastSettings', 'forecastLog', 'daypartWeeks', 'laborByDaypart'],
   orders: ['uniformOrders', 'uniformCatalog'],
   points: ['pointsRecords', 'pointsUploads', 'pointsSettings', 'pointsTeam', 'pointsMemos'],
   misc: []
@@ -74,6 +74,7 @@ async function statePost(path, body){
 // Everything the app saves, in one place (saves and the backup file).
 function stateSnapshot(){
   return {
+    laborByDaypart,   // hours clocked by daypart (kn-actuals.js)
     entries, products, wasteTarget, formDone,
     formDoneDate: formDone ? today : null, foodSafetyDays, wasteDays, breakCountdowns, completedBreaks, posAssignments,
     fohRoster, bohRoster, rosterPosted, lxPillars, lxMetrics, lxLastUpdated, gxData, txData, homeData,
@@ -505,6 +506,8 @@ function applyStateData(data){
   forecastSettings = (data.forecastSettings && typeof data.forecastSettings === 'object' && !Array.isArray(data.forecastSettings)) ? data.forecastSettings : {};
   forecastLog = (data.forecastLog && typeof data.forecastLog === 'object' && !Array.isArray(data.forecastLog)) ? data.forecastLog : {};
   daypartWeeks = (data.daypartWeeks && typeof data.daypartWeeks === 'object' && !Array.isArray(data.daypartWeeks)) ? data.daypartWeeks : {};
+  // Hours clocked by daypart, from the punch reports (kn-actuals.js).
+  laborByDaypart = (data.laborByDaypart && typeof data.laborByDaypart === 'object' && !Array.isArray(data.laborByDaypart)) ? data.laborByDaypart : {};
   // Uniform orders and the order form's items (manager sessions only).
   uniformOrders = Array.isArray(data.uniformOrders) ? data.uniformOrders : [];
   pointsRecords = (data.pointsRecords && typeof data.pointsRecords === 'object' && !Array.isArray(data.pointsRecords)) ? data.pointsRecords : {};

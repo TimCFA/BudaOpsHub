@@ -185,6 +185,8 @@ function ptCommit(prep, fileName){
   });
   pointsUploads.unshift({at, by, file: String(fileName || '').slice(0, 120), range: prep.range, runDate: prep.runDate,
                          coversTo: prep.coversTo, added: prep.fresh.length, quarter: q});
+  // The Data Uploads checklist row for the punch report.
+  if(typeof duRecord === 'function') duRecord('punch', {file: String(fileName || '').slice(0, 120), summary: `${prep.fresh.length} points event${prep.fresh.length === 1 ? '' : 's'}`, periodEnd: prep.coversTo || null});
   if(pointsUploads.length > PT_UPLOADS_KEPT) pointsUploads.length = PT_UPLOADS_KEPT;
   return prep.fresh.length;
 }
@@ -963,6 +965,8 @@ document.addEventListener('change', async e => {
     const parsed = APS.parseReport(await ptReadPdf(file));
     if(!parsed.shifts.length){ ptStatus('No shifts found. Is this the Actual vs. Scheduled report?'); return; }
     if(ptIsOtherStore(parsed)){ ptStatus(`This report is for ${parsed.location}. Only Chick-fil-A Buda reports are scored here.`); return; }
+    // Its hours go to Know the Numbers' actual productivity either way (kn-actuals.js).
+    if(typeof kaRecordLabor === 'function'){ kaRecordLabor(parsed); kaFill(); saveState(); }
     ptPending = Object.assign(ptPrepare(parsed), {file: file.name});
     renderDirectorsView();
   }catch(err){
