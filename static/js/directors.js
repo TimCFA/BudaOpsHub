@@ -33,7 +33,7 @@ const DIR_GAP_MIN = 30;         // a leader-less stretch shorter than this isn't
 const DIR_CLOSE_MIN = 21 * 60 + 30;   // a leader on until here counts as closing
 
 let dirWeekOffset = 0;   // 0 = this week, 1 = next
-let dirView = 'brief';   // 'brief' | 'leaders' | 'report' (leader-report.js) | 'points' (points.js)
+let dirView = 'brief';   // 'brief' | 'leaders' | 'team' (team-pea.js) | 'report' (leader-report.js) | 'points' (points.js)
 
 function dirList(){ return Array.isArray(directors) ? directors : DIRECTORS_SEED; }
 function dirEnsureOwn(){ if(!Array.isArray(directors)) directors = JSON.parse(JSON.stringify(DIRECTORS_SEED)); }
@@ -163,8 +163,9 @@ function renderDirectorsView(){
   const leadersOn = dirView === 'leaders' && typeof ldBodyHtml === 'function';
   const reportOn = dirView === 'report' && typeof lrBodyHtml === 'function';
   const pointsOn = dirView === 'points' && typeof ptBodyHtml === 'function';
-  const briefOn = !leadersOn && !reportOn && !pointsOn;
-  const panes = `<div class="uo-panes" role="tablist" aria-label="View"><button type="button" class="uo-pane-btn ${briefOn ? 'active' : ''}" data-dir-view="brief">Brief</button><button type="button" class="uo-pane-btn ${leadersOn ? 'active' : ''}" data-dir-view="leaders">Leaders</button>${typeof lrBodyHtml === 'function' ? `<button type="button" class="uo-pane-btn ${reportOn ? 'active' : ''}" data-dir-view="report">Weekly report</button>` : ''}${typeof ptBodyHtml === 'function' ? `<button type="button" class="uo-pane-btn ${pointsOn ? 'active' : ''}" data-dir-view="points">Points</button>` : ''}</div>`;
+  const teamOn = dirView === 'team' && typeof tpBodyHtml === 'function';
+  const briefOn = !leadersOn && !reportOn && !pointsOn && !teamOn;
+  const panes = `<div class="uo-panes" role="tablist" aria-label="View"><button type="button" class="uo-pane-btn ${briefOn ? 'active' : ''}" data-dir-view="brief">Brief</button><button type="button" class="uo-pane-btn ${leadersOn ? 'active' : ''}" data-dir-view="leaders">Leaders</button>${typeof tpBodyHtml === 'function' ? `<button type="button" class="uo-pane-btn ${teamOn ? 'active' : ''}" data-dir-view="team">Team</button>` : ''}${typeof lrBodyHtml === 'function' ? `<button type="button" class="uo-pane-btn ${reportOn ? 'active' : ''}" data-dir-view="report">Weekly report</button>` : ''}${typeof ptBodyHtml === 'function' ? `<button type="button" class="uo-pane-btn ${pointsOn ? 'active' : ''}" data-dir-view="points">Points</button>` : ''}</div>`;
   if(pointsOn){
     root.innerHTML = `
       <div class="dir-head">
@@ -172,6 +173,15 @@ function renderDirectorsView(){
         <div class="dir-actions">${panes}${ptActionsHtml()}</div>
       </div>
       ${ptBodyHtml()}`;
+    return;
+  }
+  if(teamOn){
+    root.innerHTML = `
+      <div class="dir-head">
+        <div><h2 class="dir-title">Team</h2><p class="dir-sub">${tpHeadSub()}</p></div>
+        <div class="dir-actions">${panes}${tpActionsHtml()}</div>
+      </div>
+      ${tpBodyHtml()}`;
     return;
   }
   if(reportOn){
