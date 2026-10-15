@@ -25,12 +25,12 @@ const WASTE_PROTEIN_ORDER = {'Filet': 1, 'Grilled Filet': 2, 'Spicy Filet': 3, '
 
 // [name, Spanish, category, unit, cost per unit, color key]
 const WASTE_CATALOG_ROWS = [
-  ['5 Count Nugget', 'Pepitas (5 piezas)', 'Nuggets', 'pc', 0.93, 'magenta'],
-  ['5 Count Grilled Nugget', 'Pepitas Asadas (5 piezas)', 'Nuggets', 'pc', 1.02, 'charcoal'],
-  ['8 Count Nugget', 'Pepitas (8 piezas)', 'Nuggets', 'pc', 1.42, 'magenta'],
-  ['8 Count Grilled Nugget', 'Pepitas Asadas (8 piezas)', 'Nuggets', 'pc', 1.56, 'charcoal'],
-  ['12 Count Nugget', 'Pepitas (12 piezas)', 'Nuggets', 'pc', 2.19, 'magenta'],
-  ['12 Count Grilled Nugget', 'Pepitas Asadas (12 piezas)', 'Nuggets', 'pc', 2.40, 'charcoal'],
+  ['5 Count Nugget', 'Pepitas (5 piezas)', 'Nuggets', 'box', 0.93, 'magenta'],
+  ['5 Count Grilled Nugget', 'Pepitas Asadas (5 piezas)', 'Nuggets', 'box', 1.02, 'charcoal'],
+  ['8 Count Nugget', 'Pepitas (8 piezas)', 'Nuggets', 'box', 1.42, 'magenta'],
+  ['8 Count Grilled Nugget', 'Pepitas Asadas (8 piezas)', 'Nuggets', 'box', 1.56, 'charcoal'],
+  ['12 Count Nugget', 'Pepitas (12 piezas)', 'Nuggets', 'box', 2.19, 'magenta'],
+  ['12 Count Grilled Nugget', 'Pepitas Asadas (12 piezas)', 'Nuggets', 'box', 2.40, 'charcoal'],
   ['2 Count Strip', 'Tiras (2 piezas)', 'Strips', 'pc', 1.00, 'red'],
   ['3 Count Strip', 'Tiras (3 piezas)', 'Strips', 'pc', 1.45, 'red'],
   ['4 Count Strip', 'Tiras (4 piezas)', 'Strips', 'pc', 2.01, 'red'],
@@ -218,13 +218,17 @@ const WASTE_PRICE_FIX_5 = {
 // Every item's side can be changed in Manage (FOH, BOH or Both).
 const WASTE_BOH_ITEMS = new Set([
   'raw-filet', 'raw-grilled-filet', 'raw-grilled-nugget', 'raw-nugget', 'raw-spicy-breakfast-filet', 'raw-spicy-filet', 'raw-strip', 'raw-breakfast-filet',
-  'filet', 'grilled-filet', 'spicy-filet', 'nugget', 'grilled-nugget', 'strips', 'bacon',
+  'filet', 'grilled-filet', 'spicy-filet', 'strips', 'bacon',
   'breakfast-filet', 'grilled-breakfast-filet', 'spicy-breakfast-filet', 'egg-whites', 'egg-whites-2', 'yellow-egg', 'yellow-egg-2',
   'sausage', 'tortilla', 'mini-bread', 'muffin', 'buttered-biscuit',
   'brioche-bun', 'gluten-free-bun', 'multi-grain-bun', 'white-bun', 'waffle-bkfst', 'waffle-lunch'
 ]);
+// Single nuggets on both (Tim, Oct 14 2026): FOH tosses loose nuggets from
+// the holding cabinet too, and with only the boxes on its screen it logged
+// them as 5 Count Nuggets.
+const WASTE_BOTH_ITEMS = new Set(['nugget', 'grilled-nugget']);
 const WASTE_SIDES = ['foh', 'boh', 'both'];
-function wasteDefaultSide(id){ return WASTE_BOH_ITEMS.has(id) ? 'boh' : 'foh'; }
+function wasteDefaultSide(id){ return WASTE_BOTH_ITEMS.has(id) ? 'both' : WASTE_BOH_ITEMS.has(id) ? 'boh' : 'foh'; }
 // Does this item belong on the FOH or BOH tracker? An item with no side set
 // (added before sides existed) shows on both.
 function wasteItemShows(p, section){
@@ -274,6 +278,20 @@ const WASTE_ITEM_FIX_7 = {
   'icecream-cup': {name: ['IceCream Cup', 'Ice Cream Cup']},
   'raw-breakfast-filet': {cat: ['Proteins', 'Raw'], ord: [7, 1000]},
   'spicy-wrap': {unit: ['pc', 'portion']}
+};
+
+// Fix 8 (Oct 14 2026): the single nuggets show on FOH as well as BOH, and
+// the nugget boxes count by the box ("3 box", not "3 pc", which read as
+// pieces). Same rule as fix 7: only a saved value still at the old one moves.
+const WASTE_ITEM_FIX_8 = {
+  'nugget': {side: ['boh', 'both']},
+  'grilled-nugget': {side: ['boh', 'both']},
+  '5-count-nugget': {unit: ['pc', 'box']},
+  '5-count-grilled-nugget': {unit: ['pc', 'box']},
+  '8-count-nugget': {unit: ['pc', 'box']},
+  '8-count-grilled-nugget': {unit: ['pc', 'box']},
+  '12-count-nugget': {unit: ['pc', 'box']},
+  '12-count-grilled-nugget': {unit: ['pc', 'box']}
 };
 
 const WASTE_CATALOG_IDS = new Set(WASTE_CATALOG_ROWS.map(r => wasteCatalogId(r[0])));

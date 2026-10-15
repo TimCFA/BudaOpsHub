@@ -400,6 +400,14 @@ function applyStateData(data){
         });
       });
     }
+    if(fixesDone < 8){
+      // Fix 8: single nuggets on FOH too, nugget boxes by the box (WASTE_ITEM_FIX_8).
+      products.forEach(p=>{
+        Object.entries(WASTE_ITEM_FIX_8[p.id] || {}).forEach(([field, [before, now]])=>{
+          if(p[field] === before) p[field] = now;
+        });
+      });
+    }
   } else if(data.products){
     // Fix 4: the Waste tracker's catalog replaces the old Log Waste list.
     // A price a manager had typed in for an old item carries to the item it
