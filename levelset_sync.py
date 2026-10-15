@@ -117,6 +117,37 @@ def normalize(people):
     return ratings, expected
 
 
+def notes_of(people):
+    """The notes raters wrote on their PEAs: [{id, at, employee, position,
+    leader, overall, text}], newest Levelset sends. Only ratings with a note.
+    These never go to the page with the ratings: the server keeps them for
+    directors (app.py, /api/pea/notes)."""
+    out = []
+    for person in people or []:
+        if not isinstance(person, dict):
+            continue
+        for r in person.get('recent_ratings') or []:
+            if not isinstance(r, dict):
+                continue
+            text = r.get('notes')
+            text = text.strip() if isinstance(text, str) else ''
+            at = _local_minute(r.get('created_at'))
+            employee = str(r.get('employee_name') or person.get('employee_name') or '').strip()
+            if not text or not at or not employee:
+                continue
+            overall = _score(r.get('rating_avg'))
+            out.append({
+                'id': str(r.get('id') or ''),
+                'at': at,
+                'employee': employee,
+                'position': _position(r.get('position')),
+                'leader': str(r.get('rater_name') or '').strip(),
+                'overall': round(overall, 2) if overall is not None else None,
+                'text': text[:4000],
+            })
+    return out
+
+
 # {share code: (fetched at, {position: [five names]})}
 _labels_cache = {}
 
@@ -145,10 +176,11 @@ def fetch_labels(token, positions, get=requests.get):
 
 
 def fetch_ratings(token, get=requests.get):
-    """Both sides' ratings for the last 90 days, as the page expects them."""
+    """Both sides' ratings for the last 90 days, as the page expects them,
+    plus the raters' notes under 'notes' (for the server only)."""
     if not token:
         raise LevelsetError('No Levelset share code is set up yet.')
-    ratings, per_area, warnings, raw_positions = [], {}, [], set()
+    ratings, notes, per_area, warnings, raw_positions = [], [], {}, [], set()
     for area in AREAS:
         try:
             res = get(LEVELSET_URL, params={'token': token, 'area': area, 'window': WINDOW, 'tab': 'overview'},
@@ -169,6 +201,7 @@ def fetch_ratings(token, get=requests.get):
         raw_positions |= {str(r['position']).strip() for p in body['data'] if isinstance(p, dict)
                           for r in p.get('recent_ratings') or [] if isinstance(r, dict) and r.get('position')}
         ratings += found
+        notes += notes_of(body['data'])
         per_area[area] = {'people': len(body['data']), 'ratings': len(found), 'expected': expected}
         if expected and len(found) < expected:
             warnings.append(f'Levelset listed {expected} {area} ratings from the last 90 days but sent {len(found)} — '
@@ -184,4 +217,5 @@ def fetch_ratings(token, get=requests.get):
         'labels': fetch_labels(token, raw_positions, get=get),
         'summary': {'rangeStart': start.isoformat(), 'rangeEnd': today.isoformat(), 'areas': complete, 'perArea': per_area},
         'warnings': warnings,
+        'notes': notes,      # app.py takes these out before replying
     }
