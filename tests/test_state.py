@@ -263,6 +263,35 @@ class PatchTest(unittest.TestCase):
         self.assertEqual(json.loads(news['sections']['setups'])['posAssignments'], {})
         self.assertEqual(self.b.post('/api/state/sync', json={'versions': 'x'}).status_code, 400)
 
+    def test_team_devices_get_two_days_of_waste_and_managers_the_whole_log(self):
+        now = int(time.time() * 1000)
+        old, recent = {'ts': now - 3 * 86400000, 'name': 'Old'}, {'ts': now - 3600000, 'name': 'Recent'}
+        store['state/waste'] = json.dumps({'entries': [old, recent], 'wasteDays': []})
+        appmod._cache.clear()
+        team = self.b.post('/api/state/load', json={}).get_json()
+        self.assertEqual(json.loads(team['sections']['waste'])['entries'], [recent])
+        # The same device signs in: the version it holds hasn't moved, so a
+        # plain check brings nothing. Forgetting the version (stateForget,
+        # which launchSetManager calls) brings the whole log.
+        with self.b.session_transaction() as sess:
+            sess['manager'] = True
+        quiet = self.b.post('/api/state/sync', json={'versions': team['versions']}).get_json()
+        self.assertNotIn('waste', quiet['sections'])
+        have = dict(team['versions'], waste='?')
+        whole = self.b.post('/api/state/sync', json={'versions': have}).get_json()
+        self.assertEqual(json.loads(whole['sections']['waste'])['entries'], [old, recent])
+        self.assertEqual(whole['versions']['waste'], team['versions']['waste'])
+
+    def test_signing_in_refetches_the_whole_waste_log(self):
+        with open(os.path.join(ROOT, 'static', 'js', 'storage.js'), encoding='utf-8') as f:
+            storage = f.read()
+        with open(os.path.join(ROOT, 'static', 'js', 'launch-mode.js'), encoding='utf-8') as f:
+            launch = f.read()
+        self.assertIn("function stateForget(names)", storage)
+        forget = launch.index("stateForget(['waste'])")
+        self.assertLess(launch.index('async function launchSetManager'), forget)
+        self.assertLess(forget, launch.index('await syncState()'))
+
     def test_sync_only_checks_the_sections_asked_for(self):
         # Set Ups' Refresh: just the set up and roster, nothing else.
         have = dict(self.loaded['versions'])

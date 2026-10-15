@@ -554,6 +554,15 @@ async function syncState(){
   }
 }
 
+// Hear a section whole on the next check, whatever its version. The server
+// trims the waste log to two days for a device without a manager session;
+// once the PIN is in, the dashboard needs the whole log, and a version that
+// hasn't moved would otherwise leave the trimmed copy on the page all day
+// ("This month" showing two days of waste, Oct 2026).
+function stateForget(names){
+  names.forEach(name => { if(name in stateVersions) stateVersions[name] = '?'; });
+}
+
 // Set Ups' Refresh: a leader checking their set up is the latest. Asks the
 // server for just the set up and roster sections (a tiny reply when nothing
 // changed, and served from the server's memory, so no database read), after
