@@ -28,7 +28,7 @@ const STATE_SECTIONS = {
   prep: ['prepBuffers', 'prepSoldEntries', 'prepWasteEntries', 'prepStockoutEvents', 'prepHistorySeeded'],
   prepTimes: ['prepTimes', 'prepTimers'],
   cem: ['cemEntries'],
-  forecast: ['salesHistory', 'forecastSettings', 'forecastLog', 'daypartWeeks'],
+  forecast: ['salesHistory', 'forecastSettings', 'forecastLog', 'daypartWeeks', 'laborByDaypart'],
   orders: ['uniformOrders', 'uniformCatalog'],
   points: ['pointsRecords', 'pointsUploads', 'pointsSettings', 'pointsTeam', 'pointsMemos'],
   misc: []
@@ -74,6 +74,7 @@ async function statePost(path, body){
 // Everything the app saves, in one place (saves and the backup file).
 function stateSnapshot(){
   return {
+    laborByDaypart,   // hours clocked by daypart (kn-actuals.js)
     entries, products, wasteTarget, formDone,
     formDoneDate: formDone ? today : null, foodSafetyDays, wasteDays, breakCountdowns, completedBreaks, posAssignments,
     fohRoster, bohRoster, rosterPosted, lxPillars, lxMetrics, lxLastUpdated, gxData, txData, homeData,
@@ -226,6 +227,8 @@ let saveAgain = false;
 const SAVE_RETRY_MS = [5000, 15000, 30000];
 let saveRetryTimer = null, saveRetryN = 0;
 function saveState(){
+  // The forecast refills Know the Numbers when what it reads has changed (forecast.js).
+  if(typeof fcAutoCheck === 'function') fcAutoCheck();
   if(saveInFlight){ saveAgain = true; return saveInFlight; }
   if(saveRetryTimer){ clearTimeout(saveRetryTimer); saveRetryTimer = null; }
   saveInFlight = (async ()=>{
@@ -397,6 +400,14 @@ function applyStateData(data){
         });
       });
     }
+    if(fixesDone < 8){
+      // Fix 8: single nuggets on FOH too, nugget boxes by the box (WASTE_ITEM_FIX_8).
+      products.forEach(p=>{
+        Object.entries(WASTE_ITEM_FIX_8[p.id] || {}).forEach(([field, [before, now]])=>{
+          if(p[field] === before) p[field] = now;
+        });
+      });
+    }
   } else if(data.products){
     // Fix 4: the Waste tracker's catalog replaces the old Log Waste list.
     // A price a manager had typed in for an old item carries to the item it
@@ -503,6 +514,8 @@ function applyStateData(data){
   forecastSettings = (data.forecastSettings && typeof data.forecastSettings === 'object' && !Array.isArray(data.forecastSettings)) ? data.forecastSettings : {};
   forecastLog = (data.forecastLog && typeof data.forecastLog === 'object' && !Array.isArray(data.forecastLog)) ? data.forecastLog : {};
   daypartWeeks = (data.daypartWeeks && typeof data.daypartWeeks === 'object' && !Array.isArray(data.daypartWeeks)) ? data.daypartWeeks : {};
+  // Hours clocked by daypart, from the punch reports (kn-actuals.js).
+  laborByDaypart = (data.laborByDaypart && typeof data.laborByDaypart === 'object' && !Array.isArray(data.laborByDaypart)) ? data.laborByDaypart : {};
   // Uniform orders and the order form's items (manager sessions only).
   uniformOrders = Array.isArray(data.uniformOrders) ? data.uniformOrders : [];
   pointsRecords = (data.pointsRecords && typeof data.pointsRecords === 'object' && !Array.isArray(data.pointsRecords)) ? data.pointsRecords : {};
@@ -523,6 +536,7 @@ function applyStateData(data){
   // The directors' notes on each team member (team-pea.js).
   teamNotes = (data.teamNotes && typeof data.teamNotes === 'object' && !Array.isArray(data.teamNotes)) ? data.teamNotes : {};
   if(typeof dirRerender === 'function') dirRerender();
+  if(typeof fcAutoCheck === 'function') fcAutoCheck();
 }
 
 // ===== OTHER PEOPLE'S CHANGES =====
@@ -554,6 +568,15 @@ async function syncState(){
   } finally {
     stateSyncing = false;
   }
+}
+
+// Hear a section whole on the next check, whatever its version. The server
+// trims the waste log to two days for a device without a manager session;
+// once the PIN is in, the dashboard needs the whole log, and a version that
+// hasn't moved would otherwise leave the trimmed copy on the page all day
+// ("This month" showing two days of waste, Oct 2026).
+function stateForget(names){
+  names.forEach(name => { if(name in stateVersions) stateVersions[name] = '?'; });
 }
 
 // Set Ups' Refresh: a leader checking their set up is the latest. Asks the

@@ -28,5 +28,6 @@ vm.runInContext(`
 `, ctx);
 vm.runInContext(js('directors.js'), ctx);
 vm.runInContext(js('leaders.js'), ctx);
+vm.runInContext(js('leaders-import.js'), ctx);
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 process.stdout.write(JSON.stringify(input.cases.map(c => vm.runInContext(`(${c.op})`, ctx)(c))));

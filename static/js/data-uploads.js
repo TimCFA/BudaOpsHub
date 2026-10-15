@@ -34,8 +34,13 @@ const DU_SOURCES = [
   },
   {
     key: 'numbers', short: 'numbers file', icon: '', name: 'Projected sales & productivity goals', freq: 'weekly', accept: '.csv,.xlsx,.xls,.txt',
-    how: 'Easiest: the Forecast tab → Send to Know the Numbers fills the days ahead from the forecast — no file needed. Or a spreadsheet (Excel or CSV) with a Date column, a Daypart column (Breakfast, Lunch, Afternoon, Dinner), and Projected Sales / Productivity Goal columns, or one row per day with a column per daypart; the template is here. Special events come from the Events calendar; actuals are typed in Manage → Numbers.',
+    how: 'Nothing to do: the Forecast fills Know the Numbers on its own (today and the days ahead) from the DayTrack and sales uploads. Only to override it: a spreadsheet (Excel or CSV) with a Date column, a Daypart column (Breakfast, Lunch, Afternoon, Dinner), and Projected Sales / Productivity Goal columns, or one row per day with a column per daypart; the template is here. Special events come from the Events calendar; actuals are typed in Manage → Numbers.',
     feeds: 'Know the Numbers · Set Ups game plan · Game Day / Practice Day'
+  },
+  {
+    key: 'punch', short: 'punch report', icon: '', name: 'Punch report (Actual vs. Scheduled)', freq: 'daily', accept: '.pdf', multiple: true,
+    how: 'The Actual vs. Scheduled PDF for yesterday, the same one Directors → Points reads. Drop it here or there; overlapping days are fine, anything already recorded is skipped.',
+    feeds: 'Accountability points · Know the Numbers actual productivity (hours clocked in each daypart) · weekly leader report'
   },
   {
     key: 'productivity', short: 'productivity reports', icon: '', name: 'Productivity by hour', freq: 'monthly', accept: '.csv,.txt', multiple: true,
@@ -222,7 +227,7 @@ function duSourceState(src, now){
     const status = !latest || latest < duISO(now) ? 'overdue' : latest < saturday ? 'due' : lateInWeek && latest < nextSaturday ? 'due' : 'fresh';
     const viaForecast = typeof salesHistory !== 'undefined' && Object.keys(salesHistory || {}).length > 0;
     const ask = lateInWeek ? 'next week’s numbers before Monday' : 'this week’s numbers';
-    const note = status === 'fresh' ? '' : viaForecast ? `Fill ${ask} from the Forecast tab (Send to Know the Numbers) — no file needed.` : `Upload ${ask}.`;
+    const note = status === 'fresh' ? '' : viaForecast ? `The Forecast fills ${ask} on its own once a manager is signed in; if it hasn't, upload this week's DayTrack export.` : `Upload ${ask}, or the DayTrack export and the Forecast fills them.`;
     return {status, freq, cover: latest ? `Projected sales through ${duShort(latest)}` : 'No projected sales ahead of today', note, last: logAt};
   }
 
@@ -238,6 +243,17 @@ function duSourceState(src, now){
   }
   if(src.key === 'labor' && typeof fcLaborSourceState === 'function') return fcLaborSourceState(freq, now, logAt);
   if(src.key === 'dayparts' && typeof fcDaypartWeeksState === 'function') return fcDaypartWeeksState(freq, now, logAt);
+  if(src.key === 'punch'){
+    // Current once the last open day (yesterday; Saturday on a Monday) has its hours in.
+    const hrs = typeof laborByDaypart === 'object' && laborByDaypart ? Object.keys(laborByDaypart).sort() : [];
+    const latest = hrs[hrs.length - 1] || null;
+    const d = duAddDays(duStartOfDay(now), -1);
+    if(d.getDay() === 0) d.setDate(d.getDate() - 1);
+    const want = duISO(d);
+    const status = latest && latest >= want ? 'fresh' : latest && latest >= duISO(duAddDays(d, -2)) ? 'due' : 'overdue';
+    return {status, freq, cover: latest ? `Hours through ${duShort(latest)}` : 'No punch report yet', note: status === 'fresh' ? '' : `Add ${duShort(want)}’s report.`, last: logAt};
+  }
+
   return {status: 'overdue', freq, cover: '', note: '', last: logAt};
 }
 
@@ -311,7 +327,11 @@ function duReadFile(file, asBuffer){
 function duDetect(file, text, workbook){
   // Levelset exports are named positional-ratings-…; any other PDF (or zip)
   // is asked of the server first, and tried as PEA if it isn't Ops Hub's.
-  if(/\.(pdf|zip)$/i.test(file.name)) return /positional|rating|levelset/i.test(file.name) ? 'pea' : 'opsPdf';
+  if(/\.(pdf|zip)$/i.test(file.name)){
+    if(/positional|rating|levelset/i.test(file.name)) return 'pea';
+    if(/\.pdf$/i.test(file.name) && /actual|schedul|punch|timecard/i.test(file.name)) return 'punch';
+    return 'opsPdf';
+  }
   // The weekly daypart file shares the sales export's header; its rows tell them apart.
   if(typeof fcLooksLikeDaypartWeek === 'function' && fcLooksLikeDaypartWeek(text)) return 'dayparts';
   const report = rpDetect(text);
@@ -494,7 +514,7 @@ async function duHandleFiles(fileList, hint){
   renderDataUploads();
   // CEM files first so the scoreboard ends on the newest month; the roster
   // last because it opens a review window.
-  const order = {cem: 0, pea: 1, salesMix: 2, numbers: 2, sales: 2, labor: 2, dtRank: 2, sos: 2, dayparts: 2, opsPdf: 2, productivity: 3, roster: 4};
+  const order = {cem: 0, pea: 1, salesMix: 2, numbers: 2, sales: 2, labor: 2, dtRank: 2, sos: 2, dayparts: 2, punch: 2, opsPdf: 2, productivity: 3, roster: 4};
   const jobs = [];
   for(let i = 0; i < files.length; i++){
     const file = files[i];
@@ -504,7 +524,7 @@ async function duHandleFiles(fileList, hint){
       const buffer = isPdf ? null : await duReadFile(file, true);
       const text = buffer && !isExcel ? pbDecodeText(buffer) : '';
       const workbook = isExcel ? XLSX.read(new Uint8Array(buffer), {type: 'array'}) : null;
-      jobs.push({i, file, kind: duDetect(file, text, workbook) || hint || null, text, buffer});
+      jobs.push({i, file, kind: hint === 'punch' ? 'punch' : (duDetect(file, text, workbook) || hint || null), text, buffer});
     }catch(err){
       duResults[i] = {file: file.name, state: 'error', text: err.message};
     }
@@ -533,7 +553,12 @@ async function duHandleFiles(fileList, hint){
         if(d.count >= RP_DT_CHAIN_MIN) text = await rpImportDtRank(job.file, job.text, 'chain');
         else { duWait(job, 'dtGroup'); continue; }
       }
+      else if(job.kind === 'punch') text = await kaImportPunchReport(job.file);
       else if(job.kind === 'opsPdf'){
+        // A punch report under another name: read it first (kn-actuals.js).
+        const punch = /\.pdf$/i.test(job.file.name) ? await duTryPunch(job.file) : null;
+        if(punch){ job.kind = 'punch'; text = await kaImportPunchReport(job.file, punch); }
+        else {
         const report = await rpImportOpsPdf(job.file);
         if(report === null){
           if(/\.zip$/i.test(job.file.name)) throw new Error('No Smart Shop or food safety report in this zip.');
@@ -542,6 +567,7 @@ async function duHandleFiles(fileList, hint){
         } else {
           text = report.text;
           job.kind = report.kind;
+        }
         }
       }
       else if(job.kind === 'productivity'){
@@ -562,6 +588,15 @@ async function duHandleFiles(fileList, hint){
   const waiting = duResults.filter(r => r.state === 'waiting').length - twins;
   if(twins) showToast(`⚠ ${twins} file${twins === 1 ? ' matches' : 's match'} another day’s counts — not saved. Check Data Uploads.`);
   else showToast(waiting ? `${waiting} file${waiting === 1 ? '' : 's'} need${waiting === 1 ? 's' : ''} a day — pick it in Data Uploads` : ok === files.length ? `✓ ${ok} file${ok === 1 ? '' : 's'} filed` : `${ok} of ${files.length} files filed — see Data Uploads`);
+}
+
+// A PDF read as a punch report (Actual vs. Scheduled), or null if it isn't one.
+async function duTryPunch(file){
+  if(typeof ptReadPdf !== 'function' || typeof APS === 'undefined') return null;
+  try{
+    const parsed = APS.parseReport(await ptReadPdf(file));
+    return parsed && parsed.shifts && parsed.shifts.length ? parsed : null;
+  }catch(e){ return null; }
 }
 
 // Hold a Sales Mix file whose counts match another recent day, until the
@@ -1065,7 +1100,7 @@ function renderDataUploads(){
           ${duPending.filter(p => p.kind === src.key).map(duPendingHtml).join('')}
           ${src.key === 'pea' ? duLevelsetHtml() : ''}
           ${src.key === 'roster' && typeof hsSyncInstallHtml === 'function' ? hsSyncInstallHtml() : ''}
-          ${src.key === 'numbers' && typeof salesHistory !== 'undefined' && Object.keys(salesHistory || {}).length ? '<button type="button" class="du-sync-btn full-only" data-du-forecast="1">Fill from the Forecast</button>' : ''}
+          ${src.key === 'numbers' && typeof salesHistory !== 'undefined' && Object.keys(salesHistory || {}).length ? '<button type="button" class="du-sync-btn full-only" data-du-forecast="1">See the forecast split</button>' : ''}
           ${src.key === 'numbers' ? '<button type="button" class="du-sync-btn" data-du-template="1">Download template</button>' : ''}
           <label class="du-row-upload"><input type="file" accept="${src.accept}" ${src.multiple ? 'multiple' : ''} data-du-row-input="${src.key}"><span>⬆ Upload ${escapeHtml(src.short || src.name.split(' (')[0])}${src.key === 'pea' ? ' (backup)' : ''}</span></label>
           <details class="du-more">

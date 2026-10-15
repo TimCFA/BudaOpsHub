@@ -292,7 +292,8 @@ function ldQuarterSelect(){
   return `<label class="ld-q"><span>Quarter</span><select id="ldQuarter" aria-label="Quarter">${ldQuarters().map(q => `<option value="${q}" ${q === on ? 'selected' : ''}>${escapeHtml(ldQuarterBounds(q).label)}${q === ldQuarterNow() ? ' (now)' : ''}</option>`).join('')}</select></label>`;
 }
 function ldActionsHtml(){
-  return ldOpen ? `<button type="button" class="btn btn-ghost dir-btn" data-ld-copy>Copy profile</button>` : ldQuarterSelect();
+  return ldOpen ? `<button type="button" class="btn btn-ghost dir-btn" data-ld-copy>Copy profile</button>`
+    : `${ldQuarterSelect()}${typeof ldiCardHtml === 'function' ? `<button type="button" class="btn btn-ghost dir-btn" data-ldi-open>${ldiOpen ? 'Close import' : 'Bring notes in'}</button>` : ''}`;
 }
 
 // The team's progress toward its goal, with the pace marker.
@@ -335,6 +336,7 @@ function ldLeaderCard(L, S){
 function ldOverviewHtml(){
   const S = ldScore();
   return `
+    ${typeof ldiCardHtml === 'function' && ldiOpen ? ldiCardHtml() : ''}
     <section class="dir-card"><h3>PEA scoreboard</h3><p class="dir-note">The PEAs the directors have completed on each leader: one Levelset positional rating with a director as the rater, from Manage → PEA. The goal is ${S.goals.team} a quarter across the leaders and ${S.goals.leader} on each; change either in Manage → Settings → Leaders.</p>${ldTeamBar(S)}</section>
     ${S.leaders.length ? `<div class="ld-grid">${S.leaders.map(L => ldLeaderCard(L, S)).join('')}</div>`
       : '<p class="dir-empty">No leaders yet. Add them in Manage → Settings → Leaders, or sync Levelset in Manage → PEA and anyone who gives a PEA shows here.</p>'}`;
@@ -396,7 +398,7 @@ function ldProfileHtml(){
     <section class="dir-card"><div class="ld-row"><h3>Notes</h3><button type="button" class="btn ${ldNoteOpen ? 'btn-ghost' : 'btn-primary'} dir-btn" data-ld-note-open>${ldNoteOpen ? 'Close' : 'Add a note'}</button></div>
       ${ldNoteOpen ? `<form class="ld-note-form" id="ldNoteForm">
         <div class="ld-note-row"><label>Date <input type="date" id="ldNoteDate" value="${today}" max="${today}" required></label><div class="ld-type-pick" role="radiogroup" aria-label="Type">${LD_TYPES.map((t, i) => `<label class="ld-type is-${t.id}" title="${escapeHtml(t.hint)}"><input type="radio" name="ldType" value="${t.id}" ${i === 0 ? 'checked' : ''}><span>${escapeHtml(t.label)}</span></label>`).join('')}</div></div>
-        <textarea id="ldNoteText" rows="3" maxlength="1000" placeholder="What did you see or say? Specifics help later: the moment, the position, what changed." required></textarea>
+        <textarea id="ldNoteText" rows="3" maxlength="4000" placeholder="What did you see or say? Specifics help later: the moment, the position, what changed." required></textarea>
         <details class="ld-tagbox"><summary>Tag to a pillar (optional)</summary>${ldPillarChecks(cards, [])}</details>
         <button type="submit" class="btn btn-primary dir-btn">Save note</button></form>` : ''}
       ${all.length ? `<div class="ld-chips">${LD_TYPES.map(t => `<button type="button" class="ld-chip is-${t.id}" data-ld-type="${t.id}" aria-pressed="${ldHide[t.id] ? 'false' : 'true'}">${escapeHtml(t.label)} <b>${counts[t.id]}</b></button>`).join('')}${ldPillar ? `<span class="dir-muted">Tagged <b>${escapeHtml(ldPillarLabel(ldPillar))}</b> <button type="button" class="ld-link" data-ld-pillar="">Show all</button></span>` : ''}</div>` : ''}
@@ -511,7 +513,7 @@ document.addEventListener('submit', e => {
   const date = document.getElementById('ldNoteDate').value || today;
   const typeEl = e.target.querySelector('input[name="ldType"]:checked');
   if(!text || !ldOpen) return;
-  const note = {text: text.slice(0, 1000), by: (typeof getInitials === 'function' && getInitials()) || '', ts: Date.now(), date, type: typeEl ? typeEl.value : 'win'};
+  const note = {text: text.slice(0, 4000), by: (typeof getInitials === 'function' && getInitials()) || '', ts: Date.now(), date, type: typeEl ? typeEl.value : 'win'};
   const pec = [...e.target.querySelectorAll('input[name="ldPec"]:checked')].map(i => i.value);
   if(pec.length) note.pec = pec;
   ldSaveNote(ldOpen, note);
