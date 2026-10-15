@@ -1495,6 +1495,24 @@ body:not(.is-manager) .manager-only{display:none !important;}
 .ld-history td{padding:8px 8px 8px 0;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums;}
 .ld-history tr.is-on td{font-weight:700;}
 .ld-history svg{vertical-align:-2px;color:var(--cfa-red);}
+/* Bring notes in (leaders-import.js) */
+.ldi-card{border-color:var(--cfa-navy);}
+.ldi-card code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:var(--cfa-soft);padding:1px 5px;border-radius:5px;}
+.ldi-in{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:8px 0;}
+.ldi-file{cursor:pointer;display:inline-flex;align-items:center;}
+.ldi-card textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--border);border-radius:12px;font-family:var(--font-ui);font-size:14px;resize:vertical;}
+.ldi-review{margin-top:12px;border-top:1px solid var(--border);padding-top:10px;}
+.ldi-rows{display:grid;gap:8px;margin:8px 0;}
+.ldi-row{display:grid;grid-template-columns:28px minmax(0,1.3fr) 150px minmax(0,1fr);gap:6px 8px;align-items:center;padding:8px 10px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-light);}
+.ldi-row.is-off{opacity:.55;}
+.ldi-row.is-new{border-color:#B8690A;}
+.ldi-row textarea{grid-column:2 / -1;font-size:13.5px !important;padding:6px 8px !important;}
+.ldi-row .ld-tags,.ldi-row .ld-pill{grid-column:2 / -1;justify-self:start;margin:0;}
+.ldi-row select,.ldi-row input[type=date]{min-height:36px;min-width:0;box-sizing:border-box;padding:4px 8px;border:1px solid var(--border);border-radius:10px;font-family:var(--font-ui);font-size:13.5px;background:var(--cfa-white);}
+.ldi-row input.is-guess{border-color:#B8690A;}
+.ldi-on{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;}
+.ldi-on input{width:20px;height:20px;margin:0;accent-color:var(--cfa-navy);}
+@media (max-width:600px){.ldi-row{grid-template-columns:28px minmax(0,1fr);} .ldi-row input[type=date],.ldi-row select[data-ldi-f="type"]{grid-column:2;}}
 .ld-goals{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:8px;margin-bottom:12px;}
 .ld-goals label{display:grid;gap:4px;font-size:12px;font-weight:600;color:var(--text-secondary);}
 .ld-goals input{min-height:40px;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:10px;font-family:var(--font-ui);font-size:15px;background:var(--cfa-white);}
