@@ -348,7 +348,7 @@ async function peaLevelsetSync(auto){
     if(!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     const result = peaApplyRatings(data, 'Levelset sync');
     await saveState();
-    if(status) status.textContent = result.text.replace('ratings read', 'ratings from Levelset');
+    if(status) status.textContent = result.text.replace('ratings read', 'ratings from Levelset') + peaNotesLine(data.summary && data.summary.notes);
     if(!auto || result.added) showToast(result.added ? `✓ ${result.added} new PEA ratings from Levelset` : 'Levelset: no new ratings');
   }catch(err){
     if(status) status.textContent = `Levelset sync didn’t work: ${err.message}. The PDF upload still works.`;
@@ -358,6 +358,18 @@ async function peaLevelsetSync(auto){
     renderPeaManage();
     renderDataUploads();
   }
+}
+
+// How many rater notes came with the sync (the notes stay on the server, for
+// directors). Says so when the share link sent none, and which note-like
+// fields it did send, so a missing note can be told from an unwritten one.
+function peaNotesLine(n){
+  if(!n || typeof n.found !== 'number') return '';
+  if(n.found) return ` · ${n.found} rater note${n.found === 1 ? '' : 's'} kept for directors.`;
+  const like = Object.keys(n.noteLike || {});
+  return like.length
+    ? ` · No rater notes came with these ratings (Levelset sent ${like.map(k => `“${k}”`).join(', ')}, all empty).`
+    : ' · Levelset’s share link sent no notes field with these ratings.';
 }
 
 // Manage just opened (a manager is signed in): sync if it's been a while.

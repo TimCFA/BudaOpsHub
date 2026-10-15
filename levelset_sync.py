@@ -117,6 +117,37 @@ def normalize(people):
     return ratings, expected
 
 
+# Where a rating's note might be. The share link's data has carried 'notes';
+# the others are names Levelset could use instead.
+NOTE_FIELDS = ('notes', 'note', 'comments', 'comment', 'feedback')
+_NOTE_LIKE = re.compile(r'note|comment|feedback|remark', re.I)
+
+
+def _note_text(r):
+    for key in NOTE_FIELDS:
+        v = r.get(key)
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+    return ''
+
+
+def note_fields(people):
+    """What Levelset sent that could hold a note, without any of the text:
+    {'keys': every field name on the ratings, 'noteLike': {field: how many
+    ratings had it filled}}. For telling "no notes written" from "notes under
+    another name" or "the share link leaves them out"."""
+    keys, filled = set(), {}
+    for person in people or []:
+        for r in (person.get('recent_ratings') or []) if isinstance(person, dict) else []:
+            if not isinstance(r, dict):
+                continue
+            keys |= set(map(str, r.keys()))
+            for k, v in r.items():
+                if _NOTE_LIKE.search(str(k)):
+                    filled[str(k)] = filled.get(str(k), 0) + (1 if (isinstance(v, str) and v.strip()) or (v not in (None, '', [], {}) and not isinstance(v, str)) else 0)
+    return {'keys': sorted(keys)[:60], 'noteLike': filled}
+
+
 def notes_of(people):
     """The notes raters wrote on their PEAs: [{id, at, employee, position,
     leader, overall, text}], newest Levelset sends. Only ratings with a note.
@@ -129,8 +160,7 @@ def notes_of(people):
         for r in person.get('recent_ratings') or []:
             if not isinstance(r, dict):
                 continue
-            text = r.get('notes')
-            text = text.strip() if isinstance(text, str) else ''
+            text = _note_text(r)
             at = _local_minute(r.get('created_at'))
             employee = str(r.get('employee_name') or person.get('employee_name') or '').strip()
             if not text or not at or not employee:
@@ -181,6 +211,7 @@ def fetch_ratings(token, get=requests.get):
     if not token:
         raise LevelsetError('No Levelset share code is set up yet.')
     ratings, notes, per_area, warnings, raw_positions = [], [], {}, [], set()
+    fields = {'keys': set(), 'noteLike': {}}
     for area in AREAS:
         try:
             res = get(LEVELSET_URL, params={'token': token, 'area': area, 'window': WINDOW, 'tab': 'overview'},
@@ -202,6 +233,10 @@ def fetch_ratings(token, get=requests.get):
                           for r in p.get('recent_ratings') or [] if isinstance(r, dict) and r.get('position')}
         ratings += found
         notes += notes_of(body['data'])
+        seen = note_fields(body['data'])
+        fields['keys'] |= set(seen['keys'])
+        for k, n in seen['noteLike'].items():
+            fields['noteLike'][k] = fields['noteLike'].get(k, 0) + n
         per_area[area] = {'people': len(body['data']), 'ratings': len(found), 'expected': expected}
         if expected and len(found) < expected:
             warnings.append(f'Levelset listed {expected} {area} ratings from the last 90 days but sent {len(found)} — '
@@ -215,7 +250,9 @@ def fetch_ratings(token, get=requests.get):
     return {
         'ratings': ratings,
         'labels': fetch_labels(token, raw_positions, get=get),
-        'summary': {'rangeStart': start.isoformat(), 'rangeEnd': today.isoformat(), 'areas': complete, 'perArea': per_area},
+        'summary': {'rangeStart': start.isoformat(), 'rangeEnd': today.isoformat(), 'areas': complete, 'perArea': per_area,
+                    # Counts and field names only: the notes themselves stay on the server.
+                    'notes': {'found': len(notes), 'noteLike': fields['noteLike'], 'keys': sorted(fields['keys'])[:60]}},
         'warnings': warnings,
         'notes': notes,      # app.py takes these out before replying
     }
