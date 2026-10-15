@@ -68,6 +68,7 @@ const ES = {
   'Roster': 'Lista del equipo',
   '+ Add Team Member': '+ Agregar miembro del equipo',
   'Team Leader': 'Líder de equipo',
+  'In training': 'En entrenamiento',
   'Start break': 'Iniciar descanso',
   'On break': 'En descanso',
   'back at': 'regresa a las',
