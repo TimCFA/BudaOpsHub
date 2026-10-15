@@ -24,7 +24,7 @@ const STATE_SECTIONS = {
         'numbersData'],
   safe: ['safeCounts'],
   people: ['eoiSubmissions', 'trainerTrainees', 'trainerProgress', 'teamLeadTrainees',
-           'teamLeadProgress', 'scoreboardItems', 'leaderNotes', 'leaderFocus'],
+           'teamLeadProgress', 'scoreboardItems', 'leaderNotes', 'leaderFocus', 'teamNotes'],
   prep: ['prepBuffers', 'prepSoldEntries', 'prepWasteEntries', 'prepStockoutEvents', 'prepHistorySeeded'],
   prepTimes: ['prepTimes', 'prepTimers'],
   cem: ['cemEntries'],
@@ -84,7 +84,7 @@ function stateSnapshot(){
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
     prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, launchMode, prepTimes, prepTimers,
     salesHistory, forecastSettings, forecastLog, daypartWeeks, zoneOwners, posNotes, storeEvents, truckShifts,
-    uniformOrders, uniformCatalog, directors, adminShifts, leaderNotes, leaderRoster, peaGoals, leaderFocus,
+    uniformOrders, uniformCatalog, directors, adminShifts, leaderNotes, leaderRoster, peaGoals, leaderFocus, teamNotes,
     pointsRecords, pointsUploads, pointsSettings, pointsTeam, pointsMemos
   };
 }
@@ -525,6 +525,8 @@ function applyStateData(data){
   leaderRoster = Array.isArray(data.leaderRoster) ? data.leaderRoster : null;
   peaGoals = (data.peaGoals && typeof data.peaGoals === 'object' && !Array.isArray(data.peaGoals)) ? data.peaGoals : null;
   leaderFocus = (data.leaderFocus && typeof data.leaderFocus === 'object' && !Array.isArray(data.leaderFocus)) ? data.leaderFocus : {};
+  // The directors' notes on each team member (team-pea.js).
+  teamNotes = (data.teamNotes && typeof data.teamNotes === 'object' && !Array.isArray(data.teamNotes)) ? data.teamNotes : {};
   if(typeof dirRerender === 'function') dirRerender();
   if(typeof fcAutoCheck === 'function') fcAutoCheck();
 }
@@ -558,6 +560,15 @@ async function syncState(){
   } finally {
     stateSyncing = false;
   }
+}
+
+// Hear a section whole on the next check, whatever its version. The server
+// trims the waste log to two days for a device without a manager session;
+// once the PIN is in, the dashboard needs the whole log, and a version that
+// hasn't moved would otherwise leave the trimmed copy on the page all day
+// ("This month" showing two days of waste, Oct 2026).
+function stateForget(names){
+  names.forEach(name => { if(name in stateVersions) stateVersions[name] = '?'; });
 }
 
 // Set Ups' Refresh: a leader checking their set up is the latest. Asks the

@@ -71,9 +71,37 @@ function ptQuarterRecords(){ return (pointsRecords && pointsRecords[ptQ()]) || {
 // Who isn't scored: anyone marked "not scored" in Settings, and leaders
 // (anyone the hub counts as one, leaderListed) unless marked scored.
 function ptExcluded(name){
-  const t = pointsTeam[APS.slug(String(name || ''))];
+  const t = pointsTeam[ptKeyFor(name)];
   if(t && typeof t.excluded === 'boolean') return t.excluded;
   return typeof leaderListed === 'function' && !!leaderListed(APS.displayName(name));
+}
+
+// The record key for a name. Punch reports spell a name "Last, First"; the
+// old tracker's export (points-import.js) spells it the way the hub shows it,
+// "First Last". A name is matched to a record or roster entry shown the same
+// way, so the next punch report adds to the imported record rather than
+// starting a second one (Oct 2026).
+const ptShownKey = name => APS.displayName(String(name || '')).toLowerCase().replace(/\s+/g, ' ').trim();
+function ptKeyFor(name){
+  const k = APS.slug(String(name || ''));
+  const recs = ptQuarterRecords(), team = pointsTeam || {};
+  if(recs[k] || team[k]) return k;
+  const shown = ptShownKey(name);
+  if(!shown) return k;
+  return Object.keys(recs).find(tm => recs[tm] && ptShownKey(recs[tm].tmName) === shown)
+    || Object.keys(team).find(tm => team[tm] && ptShownKey(team[tm].name) === shown) || k;
+}
+
+// An event the old tracker already holds (imported) for what a punch report
+// shows again: a tardy or late break of the same type that day, or for an
+// absence, extended or unscheduled shift (which a leader may have turned into
+// a call-out, pick-up and so on there) any other imported event that day.
+const PT_PUNCT = ['tardy', 'latebreak'];
+function ptImportedTwin(pool, e){
+  const i = pool.findIndex(x => x.date === e.date && (PT_PUNCT.includes(e.type) ? x.type === e.type : !PT_PUNCT.includes(x.type)));
+  if(i < 0) return false;
+  pool.splice(i, 1);
+  return true;
 }
 
 // tm → {rec, score} for everyone scored this quarter.
@@ -121,15 +149,19 @@ function ptIsOtherStore(parsed){ return /west/i.test(String(parsed && parsed.loc
 // A parsed report against what's recorded: {fresh, dup, byType, skipped, range, runDate, coversTo, employees}.
 function ptPrepare(parsed){
   const s = ptSettings(), recs = ptQuarterRecords();
-  const have = new Set();
-  Object.values(recs).forEach(r => (r.events || []).forEach(e => have.add(e.id)));
+  const have = new Set(), imported = {};
+  Object.values(recs).forEach(r => (r.events || []).forEach(e => {
+    have.add(e.id);
+    if(e.imported) (imported[r.tm] = imported[r.tm] || []).push(e);
+  }));
   const all = APS.deriveEvents(parsed, Object.assign({}, s, {quarterStartDate: ptQStart()}));
+  all.forEach(e => { const key = ptKeyFor(e.tmName); if(key !== e.tm){ e.id = key + e.id.slice(e.tm.length); e.tm = key; } });
   const skippedNames = new Set();
   const fresh = [];
   let dup = 0;
   all.forEach(e => {
     if(ptExcluded(e.tmName)){ skippedNames.add(APS.displayName(e.tmName)); return; }
-    if(have.has(e.id)){ dup++; return; }
+    if(have.has(e.id) || (imported[e.tm] && ptImportedTwin(imported[e.tm], e))){ dup++; return; }
     have.add(e.id);
     fresh.push(e);
   });
@@ -226,6 +258,7 @@ function ptUploadHtml(){
       <p class="dir-note" data-pt-status role="status"></p>
     </section>
     ${preview}
+    ${typeof piCardHtml === 'function' ? piCardHtml() : ''}
     <section class="dir-card"><h3>Recent reports</h3>
       ${ups.length ? `<ul class="dir-list dir-list-sm">${ups.map(u => `<li><span>${escapeHtml(ptDay(u.runDate) || '—')} report${u.coversTo ? ` · through ${escapeHtml(ptDay(u.coversTo))}` : ''}</span><span class="dir-muted">${u.added} added${u.by ? ` · ${escapeHtml(u.by)}` : ''}</span></li>`).join('')}</ul>` : '<p class="dir-empty">No reports added this quarter yet.</p>'}
     </section>`;
@@ -627,7 +660,7 @@ function ptAddPoints(typed, date, type, note){
   if(!name || !/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) return 'Pick a team member and a date.';
   if(!APS.TYPES[type] || APS.TYPES[type].pts === null) return 'Pick what happened.';
   if(ptExcluded(name)) return `${APS.displayName(name)} isn’t scored. Change that in Settings first if this is intended.`;
-  const q = ptQ(), tm = APS.slug(name);
+  const q = ptQ(), tm = ptKeyFor(name);
   if(!pointsRecords[q]) pointsRecords[q] = {};
   if(!pointsRecords[q][tm]) pointsRecords[q][tm] = {tm, tmName: name, events: []};
   const at = new Date().toISOString();
