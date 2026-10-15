@@ -226,6 +226,8 @@ let saveAgain = false;
 const SAVE_RETRY_MS = [5000, 15000, 30000];
 let saveRetryTimer = null, saveRetryN = 0;
 function saveState(){
+  // The forecast refills Know the Numbers when what it reads has changed (forecast.js).
+  if(typeof fcAutoCheck === 'function') fcAutoCheck();
   if(saveInFlight){ saveAgain = true; return saveInFlight; }
   if(saveRetryTimer){ clearTimeout(saveRetryTimer); saveRetryTimer = null; }
   saveInFlight = (async ()=>{
@@ -523,6 +525,7 @@ function applyStateData(data){
   // The directors' notes on each team member (team-pea.js).
   teamNotes = (data.teamNotes && typeof data.teamNotes === 'object' && !Array.isArray(data.teamNotes)) ? data.teamNotes : {};
   if(typeof dirRerender === 'function') dirRerender();
+  if(typeof fcAutoCheck === 'function') fcAutoCheck();
 }
 
 // ===== OTHER PEOPLE'S CHANGES =====
