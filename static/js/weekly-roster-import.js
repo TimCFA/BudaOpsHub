@@ -6,7 +6,13 @@
 // - FOH/BOH comes from Schedule ("Front of House"/"Back of House"), or for
 //   Leadership shifts from the Job ("FOH - Team Leader"). Team Leader shifts
 //   mark the person as a leader for that day (Lead Captain, leader coverage).
-// - Off-floor shifts (Other: Administrative/Truck/Maintenance, Training, and
+// - Training shifts are on the floor (Tim, Oct 15 2026): the person goes on
+//   the FOH or BOH roster tagged "In training", like Team Leader, and can be
+//   put in positions. The side comes from the Job ("FOH - …", "Back of
+//   House", "Kitchen"…), else from their other shifts in the file, else from
+//   the side they were on lately; with none of those it's flagged in the
+//   preview. A Trainer's shift there goes on the floor without the tag.
+// - Off-floor shifts (Other: Administrative/Truck/Maintenance, and
 //   Leadership · Administrative) are left out of the floor roster; the
 //   preview counts them. Truck shifts are kept apart, as who's on truck
 //   that day (truck.js).
@@ -92,6 +98,20 @@ function parseWeeklyRosterCsv(text){
   const truck = {};
   const admin = {};   // Administrative shifts by day (directors.js)
   HS_DAY_ORDER.forEach(day => { truck[day] = []; admin[day] = []; });
+  const pendingTraining = [];   // Training shifts whose side the Job doesn't give
+  const addShift = (day, section, name, range, leader, training) => {
+    const bucket = result[day][section];
+    let person = bucket.find(p => p.name.toLowerCase() === name.toLowerCase());
+    if(!person){
+      person = {name, start: range.start, end: range.end, blocks: []};
+      bucket.push(person);
+    }
+    person.blocks.push({start: range.start, end: range.end});
+    if(leader) person.leader = true;
+    if(training) person.training = true;
+    if(parseShiftTimeToMinutes(range.start) < parseShiftTimeToMinutes(person.start)) person.start = range.start;
+    if(parseShiftTimeToMinutes(range.end) > parseShiftTimeToMinutes(person.end)) person.end = range.end;
+  };
 
   for(let r = 1; r < rows.length; r++){
     const row = rows[r];
@@ -108,12 +128,17 @@ function parseWeeklyRosterCsv(text){
       const schedule = (row[cols.schedule] || '').trim();
       const job = (row[cols.job] || '').trim();
 
-      let section = null, leader = false;
+      let section = null, leader = false, training = false;
       if(schedule === 'Front of House') section = 'foh';
       else if(schedule === 'Back of House') section = 'boh';
       else if(schedule === 'Leadership' && /FOH/i.test(job)){ section = 'foh'; leader = /leader/i.test(job); }
       else if(schedule === 'Leadership' && /BOH/i.test(job)){ section = 'boh'; leader = /leader/i.test(job); }
-      else if(schedule === 'Other' || schedule === 'Training' || schedule === 'Leadership'){
+      else if(schedule === 'Training'){
+        training = !/\btrainer\b/i.test(job);
+        section = wriTrainingSide(job);
+        if(!section){ pendingTraining.push({name, day, range, training, schedule, job, shift: shiftStr}); return; }
+      }
+      else if(schedule === 'Other' || schedule === 'Leadership'){
         const kind = job || schedule;
         offFloor[kind] = (offFloor[kind] || 0) + 1;
         if(/truck/i.test(job) && !truck[day].some(t => t.name.toLowerCase() === name.toLowerCase())) truck[day].push({name, start: range.start, end: range.end});
@@ -127,18 +152,16 @@ function parseWeeklyRosterCsv(text){
         return;
       }
 
-      const bucket = result[day][section];
-      let person = bucket.find(p => p.name.toLowerCase() === name.toLowerCase());
-      if(!person){
-        person = {name, start: range.start, end: range.end, blocks: []};
-        bucket.push(person);
-      }
-      person.blocks.push({start: range.start, end: range.end});
-      if(leader) person.leader = true;
-      if(parseShiftTimeToMinutes(range.start) < parseShiftTimeToMinutes(person.start)) person.start = range.start;
-      if(parseShiftTimeToMinutes(range.end) > parseShiftTimeToMinutes(person.end)) person.end = range.end;
+      addShift(day, section, name, range, leader, training);
     });
   }
+  // Training shifts whose Job didn't say FOH or BOH: the side of the
+  // person's other shifts this week, else the side they were on lately.
+  pendingTraining.forEach(t => {
+    const section = wriSideFromWeek(result, t.name) || wriSideFromRoster(t.name);
+    if(section) addShift(t.day, section, t.name, t.range, false, t.training);
+    else unrecognized.push({name: t.name, day: t.day, schedule: `${t.schedule}${t.job ? ` · ${t.job}` : ''}, FOH or BOH?`, job: t.job, shift: t.shift});
+  });
   // Back-to-back or overlapping blocks are one stretch on the floor; keep
   // blocks only when there's a real gap (a split shift).
   HS_DAY_ORDER.forEach(day => ['foh', 'boh'].forEach(sec => result[day][sec].forEach(p=>{
@@ -154,6 +177,30 @@ function parseWeeklyRosterCsv(text){
   })));
 
   return {result, unrecognized, offFloor, truck, admin};
+}
+
+// FOH or BOH from a Training shift's Job, or null when it doesn't say.
+function wriTrainingSide(job){
+  const j = String(job || '');
+  const foh = /\bFOH\b|front|counter|drive|register|dining|beverage|bagg|expo/i.test(j);
+  const boh = /\bBOH\b|back of house|kitchen|breading|prep|grill|fryer|boards|machines|dish/i.test(j);
+  return foh === boh ? null : foh ? 'foh' : 'boh';
+}
+// The side a person works most this week in the file, or null.
+function wriSideFromWeek(result, name){
+  const n = name.toLowerCase(), count = {foh: 0, boh: 0};
+  HS_DAY_ORDER.forEach(day => ['foh', 'boh'].forEach(sec => { if(result[day][sec].some(p => p.name.toLowerCase() === n)) count[sec]++; }));
+  return count.foh === count.boh ? null : count.foh > count.boh ? 'foh' : 'boh';
+}
+// The side a person was on most over the last few weeks of saved rosters, or null.
+function wriSideFromRoster(name){
+  if(typeof fohRoster !== 'object' || typeof bohRoster !== 'object') return null;
+  const n = name.toLowerCase(), count = {foh: 0, boh: 0};
+  const from = typeof fcAddDaysSafe === 'function' && typeof today === 'string' ? fcAddDaysSafe(today, -42) : '';
+  [['foh', fohRoster], ['boh', bohRoster]].forEach(([sec, roster]) => Object.entries(roster || {}).forEach(([iso, list]) => {
+    if(iso >= from && Array.isArray(list) && list.some(p => p && String(p.name || '').toLowerCase() === n)) count[sec]++;
+  }));
+  return count.foh === count.boh ? null : count.foh > count.boh ? 'foh' : 'boh';
 }
 
 // "Weekly_Roster_09202026_09262026.csv" → the Sunday it starts on, as ISO.
@@ -271,7 +318,7 @@ function showWeeklyImportPreview(){
 
   const renderList = (list) => list.length === 0
     ? '<div style="font-size:11px;color:var(--text-tertiary);padding:4px 0;">None</div>'
-    : list.map(p => `<div style="font-size:11px;padding:4px 0;">${escapeHtml(p.name)}${p.leader ? ' <b style="color:#1C1B19;">· Team Leader</b>' : ''} — ${escapeHtml(rosterTimeText(p))}</div>`).join('');
+    : list.map(p => `<div style="font-size:11px;padding:4px 0;">${escapeHtml(p.name)}${p.leader ? ' <b style="color:#1C1B19;">· Team Leader</b>' : ''}${p.training ? ' <b style="color:#1C1B19;">· In training</b>' : ''} — ${escapeHtml(rosterTimeText(p))}</div>`).join('');
 
   document.getElementById('weeklyImportDayContent').innerHTML = `
     <div style="font-weight:700;font-size:12px;color:var(--cfa-red);margin-bottom:6px;">FOH (${dayData.foh.length} from file)</div>

@@ -761,6 +761,7 @@ function renderRoster(){
     const name = escapeHtml(person.name);
     const tags = [
       person.leader || leaderListed(person.name) ? `<span class="roster-leader-badge">Team Leader${esHtml('Team Leader')}</span>` : '',
+      person.training ? `<span class="roster-leader-badge is-training">In training${esHtml('In training')}</span>` : '',
       person.source === 'manual' ? `<span class="su-roster-tag" title="Added by hand">Added${person.addedBy ? ` · ${escapeHtml(person.addedBy)}` : ''}</span>` : ''
     ].join('');
     const plan = !simplified && !isCompleted && !onBreak ? breakFor(currentPosSection, dayName, person.name) : null;
