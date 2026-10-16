@@ -87,6 +87,34 @@ class NotesOfTest(unittest.TestCase):
         self.assertEqual(reply['notes'][0]['position'], 'iPOS')
 
 
+class NoteFieldsTest(unittest.TestCase):
+    def test_other_field_names_are_read(self):
+        out = ls.notes_of([person([rating(notes=None, comment='Smiled at every guest.')])])
+        self.assertEqual([n['text'] for n in out], ['Smiled at every guest.'])
+
+    def test_field_report_has_names_and_counts_only(self):
+        people = [person([rating(), rating(id='r2', notes=''), rating(id='r3', notes=None, feedback_text='x')])]
+        seen = ls.note_fields(people)
+        self.assertEqual(seen['noteLike'], {'notes': 1, 'feedback_text': 1})
+        self.assertIn('rating_1', seen['keys'])
+        self.assertNotIn('private note', repr(seen))
+
+    def test_summary_says_how_many_without_the_text(self):
+        def get(url, params=None, **kw):
+            class R:
+                status_code = 200 if url == ls.LEVELSET_URL else 401
+
+                def json(self):
+                    return {'success': True, 'data': [person([rating(), rating(id='r2', notes=None)])] if params['area'] == 'FOH' else []}
+            return R()
+        ls._labels_cache.clear()
+        reply = ls.fetch_ratings('ABC123XYZ', get=get)
+        n = reply['summary']['notes']
+        self.assertEqual(n['found'], 1)
+        self.assertEqual(n['noteLike'], {'notes': 1})
+        self.assertNotIn('private note', repr(reply['summary']))
+
+
 class DirectorPinTest(unittest.TestCase):
     def setUp(self):
         reset()

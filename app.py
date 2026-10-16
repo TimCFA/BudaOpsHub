@@ -504,7 +504,9 @@ def pea_levelset_sync():
         # The ratings still go to the page; the notes come again next sync.
         print(f"[LEVELSET NOTES ERROR] {type(e).__name__}")
     _levelset_last.update(at=now, reply=reply)
-    print(f"[LEVELSET SYNC] {len(reply['ratings'])} ratings, {len(notes)} notes")
+    seen = (reply.get('summary') or {}).get('notes') or {}
+    print(f"[LEVELSET SYNC] {len(reply['ratings'])} ratings, {len(notes)} notes; "
+          f"note-like fields {seen.get('noteLike', {})}; rating fields {seen.get('keys', [])}")
     return jsonify(reply)
 
 # ===== LEVELSET NOTES (directors only) =====
