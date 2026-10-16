@@ -1220,6 +1220,20 @@ body:not(.is-manager) .manager-only{display:none !important;}
 .uo-items{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;padding:12px;}
 .uo-item{display:grid;gap:8px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-light);}
 .uo-item-top{display:flex;justify-content:space-between;gap:8px;font-size:15px;}
+/* Uniform pictures: a thumbnail on the card and in Manage; tap to see it large. */
+.uo-item-top{align-items:center;}
+.uo-item-top b{flex:1;min-width:0;}
+.uo-pic{flex:none;width:72px;height:72px;padding:0;border:1px solid var(--border);border-radius:10px;background:var(--cfa-white,#fff);overflow:hidden;cursor:zoom-in;}
+.uo-pic img{display:block;width:100%;height:100%;object-fit:contain;}
+.uo-pic.is-small{width:44px;height:44px;border-radius:8px;}
+.ev-m-row .uo-pic{margin-right:10px;}
+.uo-pic-now{display:flex;align-items:center;gap:10px;margin:4px 0 8px;}
+.uo-pic-remove{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;}
+.uo-pic-field small{display:block;margin-top:4px;color:var(--text-secondary);font-size:12px;}
+.uo-zoom{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(20,20,20,0.82);cursor:zoom-out;}
+.uo-zoom figure{margin:0;max-width:min(640px,100%);text-align:center;}
+.uo-zoom img{display:block;max-width:100%;max-height:78vh;margin:0 auto;border-radius:12px;background:#fff;}
+.uo-zoom figcaption{margin-top:10px;color:#fff;font-family:var(--font-display);font-size:18px;}
 .uo-price{font-family:var(--font-display);font-weight:700;color:var(--cfa-dark-red);font-variant-numeric:tabular-nums;}
 .uo-pick-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
 .uo-pick-row>span{flex:0 0 40px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-tertiary);}
