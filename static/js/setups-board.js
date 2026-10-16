@@ -156,7 +156,11 @@ function suDaypartModel(section, date, dp, dpIndex){
   });
   // A mid-daypart handoff pair shares one spot, so it counts once.
   const headcount = timing.people.length ? timing.effective : onShift.length;
-  tiles.forEach(t => { t.needed = !t.names.length && headcount > 0 && t.rank <= headcount; });
+  // An open spot is needed when it's within the headcount, or when a spot
+  // further down the priority list is filled: a skipped spot is always red
+  // (Tim, Oct 16 2026), even when people were placed past the headcount.
+  const lastFilled = tiles.reduce((n, t) => t.names.length ? t.rank : n, 0);
+  tiles.forEach(t => { t.needed = !t.names.length && ((headcount > 0 && t.rank <= headcount) || t.rank < lastFilled); });
 
   const zoneDefs = SU_ZONES[section] || [];
   const zones = [...zoneDefs, SU_EXTRA_ZONE].map(z => ({...z, tiles: []}));
