@@ -231,5 +231,20 @@ class NotesRouteTest(unittest.TestCase):
         self.assertEqual(len(r.get_json()['ratings']), 1)
 
 
+class LeaderProfileCardTest(unittest.TestCase):
+    """A Team Lead's Levelset notes show on the Leaders profile too (Oct 16)."""
+    def test_card_on_both_profiles(self):
+        root = os.path.join(os.path.dirname(__file__), '..', 'static', 'js')
+        with open(os.path.join(root, 'leaders.js'), encoding='utf-8') as f:
+            ld = f.read()
+        with open(os.path.join(root, 'team-pea.js'), encoding='utf-8') as f:
+            tp = f.read()
+        self.assertIn("tpLsCardHtml(ldPeaName(name))", ld)
+        self.assertIn("${tpLsCardHtml(P.peaName)}", tp)
+        # One painter fills every card for that person, wherever it is.
+        self.assertIn("document.querySelectorAll('.tp-ls-card')", tp)
+        self.assertNotIn("getElementById('tpLsCard')", tp)
+
+
 if __name__ == '__main__':
     unittest.main()
