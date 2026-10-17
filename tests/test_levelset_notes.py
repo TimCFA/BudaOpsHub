@@ -129,25 +129,29 @@ class DirectorPinTest(unittest.TestCase):
     def test_first_director_pin_from_a_manager_session(self):
         self.assertEqual(self.c.post('/api/director/set-pin', json={'pin': '2222'}).status_code, 403)   # signed out
         self.assertTrue(self.login('1111').get_json()['success'])
-        self.assertEqual(self.status(), {'isManager': True, 'isDirector': False, 'directorPinSet': False})
+        st = self.status()
+        self.assertEqual((st['isManager'], st['isDirector'], st['directorPinSet']), (True, False, False))
         self.assertEqual(self.c.post('/api/director/set-pin', json={'pin': '22'}).status_code, 400)
         r = self.c.post('/api/director/set-pin', json={'pin': '1111'})                                 # same as the manager PIN
         self.assertEqual(r.status_code, 400)
         self.assertEqual(self.c.post('/api/director/set-pin', json={'pin': '2222'}).status_code, 200)
-        self.assertEqual(self.status(), {'isManager': True, 'isDirector': True, 'directorPinSet': True})
+        st = self.status()
+        self.assertEqual((st['isManager'], st['isDirector'], st['directorPinSet']), (True, True, True))
 
     def test_director_pin_signs_in_as_director(self):
         store[appmod.DIRECTOR_PIN_PATH] = generate_password_hash('2222')
         r = self.login('2222').get_json()
-        self.assertEqual(r, {'success': True, 'director': True})
+        self.assertEqual((r['success'], r['director'], r['role']), (True, True, 'director'))
         self.assertTrue(self.status()['isDirector'])
         # The manager PIN on the same device drops director.
-        self.assertEqual(self.login('1111').get_json(), {'success': True, 'director': False})
+        r = self.login('1111').get_json()
+        self.assertEqual((r['success'], r['director'], r['role']), (True, False, 'lead'))
         self.assertFalse(self.status()['isDirector'])
         self.assertEqual(self.login('3333').status_code, 401)
         self.login('2222')
         self.c.post('/api/manager/logout')
-        self.assertEqual(self.status(), {'isManager': False, 'isDirector': False, 'directorPinSet': False})
+        st = self.status()
+        self.assertEqual((st['isManager'], st['isDirector'], st['directorPinSet'], st['user']), (False, False, False, None))
 
     def test_only_a_director_changes_it_once_set(self):
         store[appmod.DIRECTOR_PIN_PATH] = generate_password_hash('2222')

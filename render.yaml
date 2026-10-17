@@ -13,6 +13,18 @@ services:
       # Levelset share code for the PEA sync (the end of the share link).
       - key: LEVELSET_PEA_TOKEN
         sync: false
+      # Sign in with Google (accounts.js / app.py ACCOUNTS): the OAuth
+      # "Web application" client ID from Google Cloud Console, with this
+      # site as an authorized JavaScript origin. Unset = no Google button.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      # Who manages the account lists (comma-separated emails): directors
+      # who also see Manage → Settings → Accounts.
+      - key: ACCOUNT_OWNER_EMAILS
+        sync: false
+      # Email domains whose Google accounts are directors (default cfabuda.com).
+      - key: DIRECTOR_EMAIL_DOMAINS
+        value: cfabuda.com
       # Secret for the read-only set up feed (/api/setup-feed), 32+ random
       # characters. Leave unset to keep the feed off.
       - key: SETUP_FEED_TOKEN

@@ -17,6 +17,9 @@ async function checkPin(){
     });
     const result = await res.json();
     if(res.ok && result.success){
+      // accounts.js: who signed in and what they get (a team member's PIN
+      // signs them in by name without opening Manage).
+      if(typeof acSignedIn === 'function'){ await acSignedIn(result); return; }
       await stateLoaded;
       await launchSetManager(true);
       document.getElementById('pinGate').style.display = 'none';
@@ -56,7 +59,8 @@ document.getElementById('btnLock').addEventListener('click', async ()=>{
 (async function checkManagerStatus(){
   try{
     const res = await fetch(`${API_BASE}/api/manager/status`);
-    const {isManager, isDirector, directorPinSet} = await res.json();
+    const status = await res.json();
+    const {isManager, isDirector, directorPinSet} = status;
     if(isManager){
       await stateLoaded;
       await launchSetManager(true);
@@ -65,6 +69,7 @@ document.getElementById('btnLock').addEventListener('click', async ()=>{
       renderManage();
       if(typeof tpSetDirector === 'function') tpSetDirector(isDirector, directorPinSet);
     }
+    if(typeof acApplyStatus === 'function') acApplyStatus(status);
   }catch(err){ /* stay locked if the status check fails */ }
 })();
 
