@@ -366,6 +366,7 @@ function ldProfileHtml(){
   const counts = {}; LD_TYPES.forEach(t => counts[t.id] = all.filter(n => n.type === t.id).length);
   const shown = all.filter(n => !ldHide[n.type || 'none'] && (!ldPillar || (n.pec || []).includes(ldPillar))).sort((a, b) => b.date.localeCompare(a.date) || (b.ts || 0) - (a.ts || 0));
   const cards = ldCardsFor(name);
+  const lsTagged = typeof tpLsTagged === 'function' ? tpLsTagged(ldPeaName(name)) : [];
   if(!cards.includes(ldCard)) ldCard = cards.length > 1 ? cards[1] : cards[0];
   const card = LD_CARDS[ldCard];
   const focus = ldFocusFor(name);
@@ -412,15 +413,20 @@ function ldProfileHtml(){
       ${all.length ? `<div class="ld-chips">${LD_TYPES.map(t => `<button type="button" class="ld-chip is-${t.id}" data-ld-type="${t.id}" aria-pressed="${ldHide[t.id] ? 'false' : 'true'}">${escapeHtml(t.label)} <b>${counts[t.id]}</b></button>`).join('')}${ldPillar ? `<span class="dir-muted">Tagged <b>${escapeHtml(ldPillarLabel(ldPillar))}</b> <button type="button" class="ld-link" data-ld-pillar="">Show all</button></span>` : ''}</div>` : ''}
       ${all.length ? (shown.length ? months : '<p class="dir-empty">No notes match the filters.</p>') : '<p class="dir-empty">No notes yet. Log a win, a coaching moment, something to watch, or a conversation.</p>'}
     </section>
-    ${typeof tpLsCardHtml === 'function' ? tpLsCardHtml(ldPeaName(name)) : ''}
+    ${typeof tpLsCardHtml === 'function' ? tpLsCardHtml(ldPeaName(name), cards) : ''}
     <section class="dir-card"><div class="ld-row"><h3>Calibrate to the PEC</h3>${cards.length > 1 ? `<div class="uo-panes ld-panes" role="tablist" aria-label="Role card">${cards.map(id => `<button type="button" class="uo-pane-btn ${id === ldCard ? 'active' : ''}" data-ld-card="${id}">${escapeHtml(LD_CARDS[id].short)}</button>`).join('')}</div>` : ''}</div>
       <p class="dir-note"><b>${escapeHtml(card.name)}:</b> ${escapeHtml(card.desc)}</p>
       <div class="ld-pillars">${card.pillars.map(pl => {
         const tag = `${ldCard}:${pl[0]}`;
         const ev = all.filter(n => (n.pec || []).includes(tag));
-        const dots = LD_TYPES.map(t => { const c = ev.filter(n => n.type === t.id).length; return c ? `<span class="ld-pill is-${t.id}">${c} ${escapeHtml(t.label.toLowerCase())}</span>` : ''; }).join('');
-        return `<button type="button" class="ld-pillar ${ev.length ? '' : 'is-gap'}" data-ld-pillar="${escapeHtml(tag)}" aria-pressed="${ldPillar === tag ? 'true' : 'false'}"><span class="ld-pillar-name">${escapeHtml(pl[1])}</span><span class="ld-pillar-ev">${ev.length ? dots : '<em>No evidence yet</em>'}</span><span class="ld-pillar-desc">${escapeHtml(pl[2])}</span></button>`;
+        // Sentences of the raters' Levelset notes a director tagged to this
+        // pillar (team-pea.js; directors only) count as evidence too.
+        const ls = lsTagged.filter(x => x.pillars.includes(tag));
+        const dots = LD_TYPES.map(t => { const c = ev.filter(n => n.type === t.id).length; return c ? `<span class="ld-pill is-${t.id}">${c} ${escapeHtml(t.label.toLowerCase())}</span>` : ''; }).join('')
+          + (ls.length ? `<span class="ld-pill is-ls">${ls.length} from Levelset</span>` : '');
+        return `<button type="button" class="ld-pillar ${ev.length || ls.length ? '' : 'is-gap'}" data-ld-pillar="${escapeHtml(tag)}" aria-pressed="${ldPillar === tag ? 'true' : 'false'}"><span class="ld-pillar-name">${escapeHtml(pl[1])}</span><span class="ld-pillar-ev">${ev.length || ls.length ? dots : '<em>No evidence yet</em>'}</span><span class="ld-pillar-desc">${escapeHtml(pl[2])}</span></button>`;
       }).join('')}</div>
+      ${ldPillar && lsTagged.some(x => x.pillars.includes(ldPillar)) ? `<div class="ls-evidence"><h4>From Levelset · ${escapeHtml(ldPillarLabel(ldPillar))} <em class="ld-pill">Directors only</em></h4><ul class="ls-excerpts">${lsTagged.filter(x => x.pillars.includes(ldPillar)).sort((a, b) => b.date.localeCompare(a.date)).map(x => `<li class="ls-excerpt"><q>${escapeHtml(x.text)}</q><span class="ls-excerpt-meta"><small class="dir-muted">${escapeHtml(ldDateY(x.date))}${x.position ? ` · ${escapeHtml(x.position)}` : ''}${x.leader ? ` · ${escapeHtml(ldShort(x.leader))}` : ''}</small></span></li>`).join('')}</ul></div>` : ''}
       <div class="dir-two ld-wins"><div><h4>You are winning when</h4><ul>${card.win.map(w => `<li>${escapeHtml(w)}</li>`).join('')}</ul></div><div><h4>Expected actions</h4><ul>${card.actions.map(w => `<li>${escapeHtml(w)}</li>`).join('')}</ul></div></div>
       ${untagged ? `<p class="dir-note">${ldPlural(untagged, 'note')} not tagged to a pillar yet. Use “Tag” on a note.</p>` : ''}
       ${!L.roles.length ? '<p class="dir-note">Set this leader’s PEC role in Manage → Settings → Leaders and their role card shows here too.</p>' : ''}
