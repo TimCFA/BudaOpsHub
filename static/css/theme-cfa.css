@@ -583,6 +583,24 @@ body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="z
 /* ===== Manage ===== */
 .pin-gate input{font-family:var(--font-display);font-size:28px;border:1px solid var(--border);border-radius:14px;background:var(--cfa-white);}
 .pin-gate input:focus{border-color:var(--cfa-navy);}
+/* Accounts (accounts.js): Google sign-in on the PIN screen, the owner's lists in Settings. */
+.ac-gate{max-width:320px;margin:0 auto;}
+.ac-or{display:flex;align-items:center;gap:10px;margin:14px 0;color:var(--text-tertiary);font-size:12px;text-transform:uppercase;letter-spacing:0.08em;}
+.ac-or::before,.ac-or::after{content:"";flex:1;border-top:1px solid var(--border);}
+.ac-google{display:flex;justify-content:center;min-height:44px;}
+.ac-hint{margin:8px 0 0;font-size:12px;color:var(--text-secondary);}
+.ac-signed{margin:0 0 6px;font-size:14px;}
+#accountsRoot h4{margin:14px 0 6px;font-family:var(--font-display);font-size:16px;}
+#accountsRoot h4:first-child{margin-top:0;}
+.ac-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin:8px 0 4px;}
+.ac-form input,.ac-form select,.ac-form textarea{min-height:40px;box-sizing:border-box;padding:8px 12px;border:1px solid var(--border);border-radius:10px;font-family:var(--font-ui);font-size:15px;background:var(--cfa-white);}
+.ac-form input[type="email"]{grid-column:1 / -1;}
+.ac-pins textarea{grid-column:1 / -1;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:1.4;}
+.ac-pin-row{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:12px;align-items:center;font-size:13px;}
+.ac-file{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid var(--border);border-radius:999px;cursor:pointer;font-weight:600;}
+.ac-file input{position:absolute;opacity:0;width:0;height:0;}
+.ac-replace{display:inline-flex;align-items:center;gap:6px;font-weight:600;}
+.ac-form .btn{grid-column:1 / -1;justify-self:start;}
 .manage-group{border-radius:16px;background:var(--cfa-white);}
 .manage-group-header{background:var(--cfa-white);min-height:56px;}
 .manage-group.open .manage-group-header{border-bottom:1px solid var(--border);}
