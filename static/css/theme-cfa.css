@@ -1634,8 +1634,8 @@ body:not(.is-manager) .manager-only{display:none !important;}
 .tp-pos td{vertical-align:middle;}
 .tp-pos tr.is-gained td:first-child{font-weight:700;}
 .tp-pos .ld-pill{margin-left:4px;}
-#tpLsCard .ld-row .ld-pill{--c:var(--cfa-navy,#004F71);}
-#tpLsCard .dir-note-meta .tp-tier{flex:none;}
+.tp-ls-card .ld-row .ld-pill{--c:var(--cfa-navy,#004F71);}
+.tp-ls-card .dir-note-meta .tp-tier{flex:none;}
 .tp-dpin-root{margin-top:16px;padding-top:12px;border-top:1px solid var(--border);}
 .tp-dpin-root h4{margin:0 0 6px;font-family:var(--font-display);}
 .tp-dpin{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}

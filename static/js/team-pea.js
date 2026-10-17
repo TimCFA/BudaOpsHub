@@ -348,7 +348,7 @@ function tpProfileHtml(){
       ${P.notes.length ? `<div class="ld-chips">${LD_TYPES.map(t => `<button type="button" class="ld-chip is-${t.id}" data-tp-type="${t.id}" aria-pressed="${tpHide[t.id] ? 'false' : 'true'}">${escapeHtml(t.label)} <b>${counts[t.id]}</b></button>`).join('')}${tpTag ? `<span class="dir-muted">Tagged <b>${escapeHtml(tpTagLabel(tpTag))}</b> <button type="button" class="ld-link" data-tp-tag="">Show all</button></span>` : ''}</div>` : ''}
       ${P.notes.length ? (shown.length ? months : '<p class="dir-empty">No notes match the filters.</p>') : '<p class="dir-empty">No notes yet. Log a win, a coaching moment, something to watch, or a conversation.</p>'}
     </section>
-    <section class="dir-card" id="tpLsCard">${tpLsCardInner(P.peaName)}</section>
+    ${tpLsCardHtml(P.peaName)}
     ${P.ratings.length ? `<section class="dir-card"><h3>${escapeHtml(b.label)} ratings</h3>
       <ul class="dir-list dir-list-sm tp-timeline">${P.ratings.map(r => `<li><span>${escapeHtml(ldDate(r.date))} · <b>${escapeHtml(r.position)}</b>${r.leader ? ` by ${escapeHtml(ldShort(r.leader))}` : ''}</span><span><span class="tp-tier is-${peaTierFor(+r.overall || 0).key}">${r.overall}</span> <small class="dir-muted">${escapeHtml(r.criteria.map(c => c === '' || c == null ? '–' : c).join(' · '))}</small></span></li>`).join('')}</ul>
     </section>` : ''}
@@ -381,9 +381,14 @@ function tpLsCardInner(peaName){
   return head + note + `<ul class="dir-notes">${list.slice(0, TP_LS_SHOWN).map(tpLsNoteHtml).join('')}</ul>`
     + (more.length ? `<details class="tp-log"><summary>${more.length} more</summary><ul class="dir-notes">${more.map(tpLsNoteHtml).join('')}</ul></details>` : '');
 }
+// The card, on the Team profile and the Leaders profile (leaders.js): a
+// Team Lead's notes show on both.
+function tpLsCardHtml(peaName){
+  return `<section class="dir-card tp-ls-card" data-ls-name="${escapeHtml(dirKey(peaName))}">${tpLsCardInner(peaName)}</section>`;
+}
 function tpLsPaint(peaName){
-  const el = document.getElementById('tpLsCard');
-  if(el && tpOpen) el.innerHTML = tpLsCardInner(peaName);
+  const k = dirKey(peaName);
+  document.querySelectorAll('.tp-ls-card').forEach(el => { if(el.dataset.lsName === k) el.innerHTML = tpLsCardInner(peaName); });
 }
 // Fetched each time a profile opens, so a new sync's notes show.
 async function tpLoadLevelsetNotes(peaName){

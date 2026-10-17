@@ -350,6 +350,14 @@ function ldWeekBars(L, S){
     <div class="ld-weeks-axis"><span>${escapeHtml(ldDate(S.weeks[0]))}</span><span>${escapeHtml(ldDate(S.weeks[S.weeks.length - 1]))}</span></div>`;
 }
 
+// The leader's name as their Levelset ratings spell it (the Levelset notes
+// are filed by it), else the name as listed.
+function ldPeaName(name){
+  const k = dirKey(name);
+  const r = ldRatings().find(x => dirKey(x.employee) === k);
+  return r ? r.employee : name;
+}
+
 function ldProfileHtml(){
   const S = ldScore();
   const name = ldOpen;
@@ -404,6 +412,7 @@ function ldProfileHtml(){
       ${all.length ? `<div class="ld-chips">${LD_TYPES.map(t => `<button type="button" class="ld-chip is-${t.id}" data-ld-type="${t.id}" aria-pressed="${ldHide[t.id] ? 'false' : 'true'}">${escapeHtml(t.label)} <b>${counts[t.id]}</b></button>`).join('')}${ldPillar ? `<span class="dir-muted">Tagged <b>${escapeHtml(ldPillarLabel(ldPillar))}</b> <button type="button" class="ld-link" data-ld-pillar="">Show all</button></span>` : ''}</div>` : ''}
       ${all.length ? (shown.length ? months : '<p class="dir-empty">No notes match the filters.</p>') : '<p class="dir-empty">No notes yet. Log a win, a coaching moment, something to watch, or a conversation.</p>'}
     </section>
+    ${typeof tpLsCardHtml === 'function' ? tpLsCardHtml(ldPeaName(name)) : ''}
     <section class="dir-card"><div class="ld-row"><h3>Calibrate to the PEC</h3>${cards.length > 1 ? `<div class="uo-panes ld-panes" role="tablist" aria-label="Role card">${cards.map(id => `<button type="button" class="uo-pane-btn ${id === ldCard ? 'active' : ''}" data-ld-card="${id}">${escapeHtml(LD_CARDS[id].short)}</button>`).join('')}</div>` : ''}</div>
       <p class="dir-note"><b>${escapeHtml(card.name)}:</b> ${escapeHtml(card.desc)}</p>
       <div class="ld-pillars">${card.pillars.map(pl => {
@@ -460,7 +469,7 @@ document.addEventListener('click', e => {
   const t = e.target && e.target.closest ? e.target : null;
   if(!t || !t.closest('#directorsRoot')) return;
   const open = t.closest('[data-ld-open]');
-  if(open){ ldOpen = open.dataset.ldOpen; ldCard = ''; ldPillar = ''; ldHide = {}; ldFocusEdit = false; ldNoteOpen = false; ldTagEdit = -1; ldRender(); window.scrollTo(0, 0); return; }
+  if(open){ ldOpen = open.dataset.ldOpen; ldCard = ''; ldPillar = ''; ldHide = {}; ldFocusEdit = false; ldNoteOpen = false; ldTagEdit = -1; if(typeof tpLs !== 'undefined') tpLs = {}; ldRender(); window.scrollTo(0, 0); return; }
   if(t.closest('[data-ld-back]')){ ldOpen = ''; ldRender(); return; }
   const card = t.closest('[data-ld-card]');
   if(card){ ldCard = card.dataset.ldCard; ldPillar = ''; ldRender(); return; }
