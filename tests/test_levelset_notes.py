@@ -31,17 +31,51 @@ store = {}
 
 
 class FakeRef:
-    """Paths as keys; a dict at a path is that path's children."""
+    """Paths as keys; a dict at a path is that path's children, and a child
+    path (levelsetNotes/<key>) reads and writes inside that dict."""
     def __init__(self, path):
         self.path = path.strip('/')
 
+    def _parent(self):
+        # Nested only under a dict already stored at the top path (the notes
+        # store); PIN hashes and the like stay flat keys.
+        if '/' in self.path and self.path not in store:
+            top, kid = self.path.split('/', 1)
+            if isinstance(store.get(top), dict):
+                return top, kid
+        return None, None
+
     def get(self):
+        top, kid = self._parent()
+        if top is not None:
+            return (store.get(top) or {}).get(kid)
         return store.get(self.path)
 
     def set(self, value):
-        store[self.path] = value
+        top, kid = self._parent()
+        if top is not None:
+            store.setdefault(top, {})[kid] = value
+        else:
+            store[self.path] = value
+
+    def delete(self):
+        top, kid = self._parent()
+        if top is not None:
+            (store.get(top) or {}).pop(kid, None)
+        else:
+            store.pop(self.path, None)
 
     def update(self, changes):
+        top, kid = self._parent()
+        if top is not None:
+            rec = dict(store.setdefault(top, {}).get(kid) or {})
+            for k, v in changes.items():
+                if v is None:
+                    rec.pop(k, None)
+                else:
+                    rec[k] = v
+            store[top][kid] = rec
+            return
         kids = dict(store.get(self.path) or {})
         for k, v in changes.items():
             if v is None:
@@ -209,7 +243,9 @@ class NotesRouteTest(unittest.TestCase):
         self.assertEqual(d.post('/api/pea/notes', json={}).status_code, 400)
         notes = d.post('/api/pea/notes', json={'name': ' TEST person '}).get_json()['notes']
         self.assertEqual([n['text'] for n in notes], ['Much faster on drinks.', 'Greets every guest; rushes the close.'])
-        self.assertEqual(set(notes[0]), {'at', 'position', 'leader', 'overall', 'text'})
+        self.assertEqual(set(notes[0]), {'at', 'position', 'leader', 'overall', 'text', 'key', 'tags'})
+        self.assertEqual(notes[0]['tags'], [])
+        self.assertNotIn('employee', notes[0])
 
     def test_old_notes_pruned(self):
         store[appmod.LEVELSET_NOTES_PATH] = {'old': {'at': '2024-01-01T08:00', 'employee': 'Test Person', 'text': 'x'}, 'bad': 'nope'}
@@ -239,11 +275,85 @@ class LeaderProfileCardTest(unittest.TestCase):
             ld = f.read()
         with open(os.path.join(root, 'team-pea.js'), encoding='utf-8') as f:
             tp = f.read()
-        self.assertIn("tpLsCardHtml(ldPeaName(name))", ld)
+        self.assertIn("tpLsCardHtml(ldPeaName(name), cards)", ld)
         self.assertIn("${tpLsCardHtml(P.peaName)}", tp)
         # One painter fills every card for that person, wherever it is.
         self.assertIn("document.querySelectorAll('.tp-ls-card')", tp)
         self.assertNotIn("getElementById('tpLsCard')", tp)
+
+
+class NoteTagsTest(unittest.TestCase):
+    """Directors tag the parts of a Levelset note that evidence a PEC pillar."""
+    def setUp(self):
+        reset()
+        store[appmod.DIRECTOR_PIN_PATH] = generate_password_hash('2222')
+        os.environ[ls.TOKEN_ENV] = 'ABC123XYZ'
+        self.real_fetch = ls.fetch_ratings
+        self.note = {'id': 'r1', 'at': '2026-10-01T12:00', 'employee': 'Test Person', 'position': 'Team Lead', 'leader': 'Test Leader', 'overall': 2.6,
+                     'text': 'Strong commitment to pre-huddles with the captains.\nAdvocating for second-mile service.  Samples, cow, contests.'}
+        ls.fetch_ratings = lambda token: {'ratings': [], 'summary': {}, 'warnings': [], 'notes': [dict(self.note)]}
+        self.d = appmod.app.test_client()
+        self.d.post('/api/manager/login', json={'pin': '2222'})
+        self.m = appmod.app.test_client()
+        self.m.post('/api/manager/login', json={'pin': '1111'})
+        self.m.post('/api/pea/levelset-sync')
+        self.key = self.d.post('/api/pea/notes', json={'name': 'Test Person'}).get_json()['notes'][0]['key']
+
+    def tearDown(self):
+        ls.fetch_ratings = self.real_fetch
+        os.environ.pop(ls.TOKEN_ENV, None)
+
+    def tag(self, c, **body):
+        return c.post('/api/pea/notes/tag', json=dict({'key': self.key}, **body))
+
+    def test_a_sentence_tagged_to_two_pillars_then_removed(self):
+        r = self.tag(self.d, text='Strong commitment to pre-huddles with the captains.', pillars=['tl:engage', 'tl:zone'])
+        self.assertEqual(r.status_code, 200, r.get_json())
+        tags = r.get_json()['note']['tags']
+        self.assertEqual(len(tags), 1)
+        self.assertEqual(tags[0]['pillars'], ['tl:engage', 'tl:zone'])
+        self.assertEqual(tags[0]['text'], 'Strong commitment to pre-huddles with the captains.')
+        # Another part of the same note goes to a different pillar.
+        r = self.tag(self.d, text='Advocating for second-mile service. Samples, cow, contests.', pillars=['tl:guest'])
+        self.assertEqual(r.status_code, 200, r.get_json())     # whitespace in the note doesn't matter
+        notes = self.d.post('/api/pea/notes', json={'name': 'Test Person'}).get_json()['notes']
+        self.assertEqual(len(notes[0]['tags']), 2)
+        # Two sentences that aren't next to each other, as the picker sends them.
+        r = self.tag(self.d, parts=['Strong commitment to pre-huddles with the captains.', 'Samples, cow, contests.'], pillars=['tl:standards'])
+        self.assertEqual(r.status_code, 200, r.get_json())
+        self.assertEqual(r.get_json()['note']['tags'][-1]['text'], 'Strong commitment to pre-huddles with the captains. … Samples, cow, contests.')
+        self.assertEqual(self.tag(self.d, parts=['Samples, cow, contests.', 'Not in it.'], pillars=['tl:zone']).status_code, 400)
+        # Remove one.
+        r = self.d.delete('/api/pea/notes/tag', json={'key': self.key, 'tagId': tags[0]['id']})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual([t['pillars'] for t in r.get_json()['note']['tags']], [['tl:guest'], ['tl:standards']])
+
+    def test_only_the_raters_words_and_real_pillars(self):
+        self.assertEqual(self.tag(self.d, text='Something the director made up.', pillars=['tl:engage']).status_code, 400)
+        self.assertEqual(self.tag(self.d, text='', pillars=['tl:engage']).status_code, 400)
+        self.assertEqual(self.tag(self.d, text='Samples, cow, contests.', pillars=[]).status_code, 400)
+        self.assertEqual(self.tag(self.d, text='Samples, cow, contests.', pillars=['<script>']).status_code, 400)
+        self.assertEqual(self.d.post('/api/pea/notes/tag', json={'key': 'nope', 'text': 'x', 'pillars': ['tl:zone']}).status_code, 400)
+        self.assertEqual(self.d.post('/api/pea/notes/tag', json={'key': '0' * 20, 'text': 'x', 'pillars': ['tl:zone']}).status_code, 404)
+        self.assertEqual(store[appmod.LEVELSET_NOTES_PATH][self.key].get('tags'), None)
+
+    def test_managers_and_signed_out_cannot_tag(self):
+        self.assertEqual(self.tag(self.m, text='Samples, cow, contests.', pillars=['tl:guest']).status_code, 403)
+        self.assertEqual(self.tag(appmod.app.test_client(), text='Samples, cow, contests.', pillars=['tl:guest']).status_code, 403)
+
+    def test_a_resync_keeps_the_tags(self):
+        self.tag(self.d, text='Samples, cow, contests.', pillars=['tl:guest'])
+        # The rater edits the note in Levelset (the hub sees a changed text), and syncs again.
+        self.note['text'] = self.note['text'] + ' Also the cow appearance.'
+        appmod._levelset_last.update(at=0.0, reply=None)
+        self.assertEqual(self.m.post('/api/pea/levelset-sync').status_code, 200)
+        rec = store[appmod.LEVELSET_NOTES_PATH][self.key]
+        self.assertIn('Also the cow appearance.', rec['text'])
+        self.assertEqual([t['pillars'] for t in rec['tags']], [['tl:guest']])
+        # An unchanged note isn't rewritten at all.
+        appmod._levelset_last.update(at=0.0, reply=None)
+        self.m.post('/api/pea/levelset-sync')
+        self.assertEqual([t['pillars'] for t in store[appmod.LEVELSET_NOTES_PATH][self.key]['tags']], [['tl:guest']])
 
 
 if __name__ == '__main__':

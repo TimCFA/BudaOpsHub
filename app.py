@@ -594,9 +594,17 @@ def pea_levelset_sync():
 # The notes raters write on a PEA in Levelset. Kept on the server, outside
 # the app state (no state route reads this path), and handed out one person
 # at a time to director sessions only. {key: {id, at, employee, position,
-# leader, overall, text}}; kept LEVELSET_NOTES_KEEP_DAYS.
+# leader, overall, text, tags}}; kept LEVELSET_NOTES_KEEP_DAYS.
+# tags (Tim, Oct 17 2026): the parts of a note a director tagged to a PEC
+# pillar, [{id, text, pillars: ['tl:engage'], at}], so one note can
+# evidence several pillars with different sentences. A re-sync rewrites the
+# note's own fields and keeps its tags.
 LEVELSET_NOTES_PATH = 'levelsetNotes'
 LEVELSET_NOTES_KEEP_DAYS = 400
+LEVELSET_TAG_MAX = 20                 # tags on one note
+LEVELSET_TAG_TEXT_MAX = 1500
+_PILLAR_TAG = re.compile(r'^[a-z0-9]{1,20}:[a-z0-9]{1,20}$')
+_NOTE_KEY = re.compile(r'^[0-9a-f]{20}$')
 
 def _note_key(n):
     raw = n.get('id') or '|'.join(str(n.get(k) or '') for k in ('at', 'employee', 'position', 'leader'))
@@ -612,10 +620,24 @@ def _save_levelset_notes(notes):
     changes = {k: None for k, v in stored.items() if not isinstance(v, dict) or str(v.get('at') or '') < cutoff}
     for n in notes:
         k = _note_key(n)
-        if n['at'] >= cutoff and stored.get(k) != n:
-            changes[k] = n
+        if n['at'] < cutoff:
+            continue
+        old = stored.get(k) if isinstance(stored.get(k), dict) else None
+        if old is None or any(old.get(f) != n.get(f) for f in n):
+            changes[k] = dict(n, tags=old['tags']) if old and isinstance(old.get('tags'), list) else n
     if changes:
         ref.update(changes)
+
+def _squash(text):
+    return ' '.join(str(text or '').split())
+
+def _note_tags(rec):
+    return [t for t in (rec.get('tags') or []) if isinstance(t, dict) and isinstance(t.get('text'), str)
+            and isinstance(t.get('pillars'), list)] if isinstance(rec, dict) else []
+
+def _note_out(key, v):
+    return dict({k: v.get(k) for k in ('at', 'position', 'leader', 'overall', 'text')}, key=key,
+                tags=[{k: t.get(k) for k in ('id', 'text', 'pillars', 'at')} for t in _note_tags(v)])
 
 @app.route('/api/pea/notes', methods=['POST'])
 def pea_notes():
@@ -626,9 +648,48 @@ def pea_notes():
     if not name:
         return jsonify({'error': 'Who?'}), 400
     stored = db.reference(LEVELSET_NOTES_PATH).get() or {}
-    notes = sorted((v for v in stored.values() if isinstance(v, dict) and _person_key(v.get('employee')) == name),
-                   key=lambda v: str(v.get('at') or ''), reverse=True)
-    return jsonify({'notes': [{k: v.get(k) for k in ('at', 'position', 'leader', 'overall', 'text')} for v in notes]})
+    notes = sorted(((k, v) for k, v in stored.items() if isinstance(v, dict) and _person_key(v.get('employee')) == name),
+                   key=lambda kv: str(kv[1].get('at') or ''), reverse=True)
+    return jsonify({'notes': [_note_out(k, v) for k, v in notes]})
+
+@app.route('/api/pea/notes/tag', methods=['POST', 'DELETE'])
+def pea_note_tag():
+    """Tag part of a Levelset note to PEC pillars (POST {key, text, pillars})
+    or remove a tag (DELETE {key, tagId}). Director sessions only. The text
+    has to be in the note, so a tag is always the rater's own words."""
+    if not session.get('manager') or not session.get('director'):
+        return jsonify({'error': 'Director sign-in required'}), 403
+    body = request.get_json(silent=True) or {}
+    key = str(body.get('key') or '')
+    if not _NOTE_KEY.match(key):
+        return jsonify({'error': 'Which note?'}), 400
+    ref = db.reference(f'{LEVELSET_NOTES_PATH}/{key}')
+    rec = ref.get()
+    if not isinstance(rec, dict) or not rec.get('text'):
+        return jsonify({'error': 'That note isn’t here any more. Sync from Levelset and try again.'}), 404
+    tags = _note_tags(rec)
+    if request.method == 'DELETE':
+        tag_id = str(body.get('tagId') or '')
+        tags = [t for t in tags if t.get('id') != tag_id]
+    else:
+        # The sentences picked (parts), or one stretch of text. Each has to be
+        # in the note; non-adjacent sentences are joined with an ellipsis.
+        parts = body.get('parts') if isinstance(body.get('parts'), list) else [body.get('text')]
+        parts = [_squash(x) for x in parts if isinstance(x, str) and _squash(x)]
+        text = ' … '.join(parts)
+        pillars = body.get('pillars')
+        if not parts or len(parts) > 40 or len(text) > LEVELSET_TAG_TEXT_MAX:
+            return jsonify({'error': 'Pick the part of the note to tag.'}), 400
+        if any(x not in _squash(rec['text']) for x in parts):
+            return jsonify({'error': 'That text isn’t in this note.'}), 400
+        if not isinstance(pillars, list) or not pillars or len(pillars) > 12 \
+                or not all(isinstance(p, str) and _PILLAR_TAG.match(p) for p in pillars):
+            return jsonify({'error': 'Pick at least one pillar.'}), 400
+        if len(tags) >= LEVELSET_TAG_MAX:
+            return jsonify({'error': f'A note can carry {LEVELSET_TAG_MAX} tags at most.'}), 400
+        tags.append({'id': secrets.token_hex(4), 'text': text, 'pillars': sorted(set(pillars)), 'at': int(time.time())})
+    ref.update({'tags': tags})
+    return jsonify({'success': True, 'note': _note_out(key, dict(rec, tags=tags))})
 
 # ===== STATE ROUTES (sections) =====
 
