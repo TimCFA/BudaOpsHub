@@ -1,15 +1,17 @@
 from datetime import date, datetime, timedelta, timezone
 from collections import Counter, defaultdict
+import base64
 import gzip
 import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
 import threading
 import time
 
-from flask import Flask, request, jsonify, send_file, session
+from flask import Flask, Response, request, jsonify, send_file, session
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 import firebase_admin
@@ -391,6 +393,85 @@ def manager_set_pin():
 
     db.reference('secure/managerPinHash').set(generate_password_hash(new_pin))
     return jsonify({'success': True})
+
+# ===== UNIFORM PICTURES =====
+# A picture per uniform item (Tim, Oct 16 2026), so the team member sees
+# what they're ordering. Managers upload them in Manage → Uniforms; the page
+# shrinks each one first (a JPEG about 640px wide). They're kept apart from
+# the app state ('uniformImages/<item id>': {type, data (base64), v}) so the
+# 30-second sync never carries them, and served with long caching: the
+# catalog item holds the version, so a new picture is a new URL.
+UNIFORM_IMAGES_PATH = 'uniformImages'
+UNIFORM_IMAGE_MAX_BYTES = 400 * 1024
+UNIFORM_IMAGE_TYPES = {'image/jpeg', 'image/png', 'image/webp'}
+_UNIFORM_ID = re.compile(r'^[A-Za-z0-9_-]{1,64}$')
+_uniform_image_cache = {}   # {item id: (v, type, bytes)}: a picture read once per server start
+
+def _uniform_image_signature(raw):
+    if raw.startswith(b'\xff\xd8\xff'):
+        return 'image/jpeg'
+    if raw.startswith(b'\x89PNG\r\n\x1a\n'):
+        return 'image/png'
+    if raw[:4] == b'RIFF' and raw[8:12] == b'WEBP':
+        return 'image/webp'
+    return None
+
+@app.route('/api/uniform-image/<item_id>', methods=['GET'])
+def uniform_image_get(item_id):
+    if not _UNIFORM_ID.match(item_id):
+        return jsonify({'error': 'Not found'}), 404
+    cached = _uniform_image_cache.get(item_id)
+    if not cached:
+        rec = db.reference(f'{UNIFORM_IMAGES_PATH}/{item_id}').get()
+        if not isinstance(rec, dict) or not rec.get('data'):
+            return jsonify({'error': 'Not found'}), 404
+        try:
+            raw = base64.b64decode(rec['data'], validate=True)
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Not found'}), 404
+        cached = (str(rec.get('v') or ''), _uniform_image_signature(raw) or 'image/jpeg', raw)
+        _uniform_image_cache[item_id] = cached
+    v, ctype, raw = cached
+    etag = f'"{v}"'
+    if v and request.headers.get('If-None-Match') == etag:
+        return Response(status=304)
+    res = Response(raw, mimetype=ctype)
+    # The URL carries the version, so a picture never changes under it.
+    res.headers['Cache-Control'] = 'public, max-age=31536000, immutable' if request.args.get('v') == v and v else 'no-cache'
+    res.headers['ETag'] = etag
+    res.headers['X-Content-Type-Options'] = 'nosniff'
+    return res
+
+@app.route('/api/uniform-image/<item_id>', methods=['POST', 'DELETE'])
+def uniform_image_set(item_id):
+    if not session.get('manager'):
+        return jsonify({'error': 'Manager sign-in required'}), 403
+    if not _UNIFORM_ID.match(item_id):
+        return jsonify({'error': 'Bad item'}), 400
+    ref = db.reference(f'{UNIFORM_IMAGES_PATH}/{item_id}')
+    if request.method == 'DELETE':
+        ref.delete()
+        _uniform_image_cache.pop(item_id, None)
+        return jsonify({'success': True})
+    if request.content_length and request.content_length > UNIFORM_IMAGE_MAX_BYTES * 2:
+        return jsonify({'error': 'That picture is too big.'}), 413
+    data = (request.get_json(silent=True) or {}).get('data')
+    m = re.match(r'^data:(image/[a-z]+);base64,([A-Za-z0-9+/=]+)$', data or '')
+    if not m:
+        return jsonify({'error': 'Send the picture as a JPEG, PNG or WebP.'}), 400
+    try:
+        raw = base64.b64decode(m.group(2), validate=True)
+    except (ValueError, TypeError):
+        return jsonify({'error': 'That picture couldn’t be read.'}), 400
+    ctype = _uniform_image_signature(raw)
+    if ctype not in UNIFORM_IMAGE_TYPES:
+        return jsonify({'error': 'Send the picture as a JPEG, PNG or WebP.'}), 400
+    if len(raw) > UNIFORM_IMAGE_MAX_BYTES:
+        return jsonify({'error': 'That picture is too big.'}), 413
+    v = hashlib.sha1(raw).hexdigest()[:12]
+    ref.set({'type': ctype, 'data': base64.b64encode(raw).decode('ascii'), 'v': v, 'at': int(time.time())})
+    _uniform_image_cache[item_id] = (v, ctype, raw)
+    return jsonify({'success': True, 'v': v})
 
 # ===== DIRECTOR PIN =====
 # Directors sign in on the same PIN screen with their own PIN. The first one

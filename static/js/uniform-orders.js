@@ -14,7 +14,7 @@
 //
 // uniformOrders [{id, at, by, name, role, split, lines: [{itemId, item, group,
 // color, size, qty, price}], status: 'new' | 'ordered' | 'done', orderedAt,
-// doneAt}] and uniformCatalog [{id, group, name, price, colors, sizes}] live
+// doneAt}] and uniformCatalog [{id, group, name, price, colors, sizes, img}] live
 // in the private 'orders' section (manager sessions only). Each line keeps
 // the item's name and price as ordered, so a later price change never
 // rewrites an old order.
@@ -31,6 +31,72 @@ const UNIFORM_SEED = [
   {id: 'uw-parka', group: 'Outerwear for Women', name: 'Parka', price: 131.5, colors: [], sizes: UNIFORM_SIZES},
 ];
 const UNIFORM_STATUS = {new: 'New', ordered: 'Ordered', done: 'Handed out'};
+
+// ----- Pictures (Tim, Oct 16 2026) -----
+// One per item, uploaded in Manage → Uniforms and kept on the server apart
+// from the saved data (app.py, /api/uniform-image); the item holds the
+// picture's version (img), so the URL changes when the picture does and a
+// phone downloads each picture once. The page shrinks a picture before it
+// goes up: a JPEG at most UO_IMG_MAX px on its long side.
+const UO_IMG_MAX = 800;
+const UO_IMG_BYTES = 380 * 1024;
+const uoImgUrl = it => `${API_BASE}/api/uniform-image/${encodeURIComponent(it.id)}?v=${encodeURIComponent(it.img)}`;
+function uoPicHtml(it, cls){
+  return it && it.img ? `<button type="button" class="uo-pic ${cls || ''}" data-uo-zoom="${escapeHtml(it.id)}" aria-label="See ${escapeHtml(it.name)} larger"><img src="${escapeHtml(uoImgUrl(it))}" alt="${escapeHtml(it.name)}" loading="lazy" decoding="async"></button>` : '';
+}
+// A chosen file → a data URL of a JPEG small enough to send.
+async function uoShrinkPicture(file){
+  if(!file || !/^image\//.test(file.type)) throw new Error('Pick a photo (JPEG, PNG or HEIC from the camera roll).');
+  const url = URL.createObjectURL(file);
+  try{
+    const img = await new Promise((ok, fail) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => fail(new Error('That picture couldn’t be opened. Try a JPEG or PNG.')); i.src = url; });
+    const scale = Math.min(1, UO_IMG_MAX / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    for(const q of [0.82, 0.7, 0.55, 0.4]){
+      const data = canvas.toDataURL('image/jpeg', q);
+      if(data.length * 0.75 <= UO_IMG_BYTES) return data;
+    }
+    throw new Error('That picture is too big even after shrinking it.');
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+async function uoUploadPicture(itemId, file){
+  const data = await uoShrinkPicture(file);
+  const res = await fetch(`${API_BASE}/api/uniform-image/${encodeURIComponent(itemId)}`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({data})});
+  const out = await res.json().catch(() => ({}));
+  if(!res.ok || !out.v) throw new Error(out.error || (res.status === 403 ? 'Manager sign-in expired. Sign in again.' : 'The picture didn’t upload.'));
+  return out.v;
+}
+function uoDeletePicture(itemId){
+  return fetch(`${API_BASE}/api/uniform-image/${encodeURIComponent(itemId)}`, {method: 'DELETE'}).catch(() => {});
+}
+// Tap a picture: it opens large; tap anywhere to close.
+document.addEventListener('click', e => {
+  const t = e.target && e.target.closest ? e.target : null;
+  if(!t) return;
+  const zoom = t.closest('[data-uo-zoom]');
+  if(zoom){
+    const it = uniformItems().find(i => i.id === zoom.dataset.uoZoom);
+    if(!it || !it.img) return;
+    const box = document.createElement('div');
+    box.className = 'uo-zoom';
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-label', it.name);
+    box.innerHTML = `<figure><img src="${escapeHtml(uoImgUrl(it))}" alt="${escapeHtml(it.name)}"><figcaption>${escapeHtml(it.name)} · ${uoMoney(uoCents(it.price))}</figcaption></figure>`;
+    document.body.appendChild(box);
+    return;
+  }
+  const open = t.closest('.uo-zoom');
+  if(open) open.remove();
+});
+document.addEventListener('keydown', e => { if(e.key === 'Escape') document.querySelectorAll('.uo-zoom').forEach(b => b.remove()); });
 
 function uniformItems(){ return Array.isArray(uniformCatalog) ? uniformCatalog : UNIFORM_SEED; }
 function uoEnsureOwnCatalog(){ if(!Array.isArray(uniformCatalog)) uniformCatalog = JSON.parse(JSON.stringify(UNIFORM_SEED)); }
@@ -88,7 +154,7 @@ function uoItemCardHtml(it){
   const pickBtn = (kind, v) => `<button type="button" class="uo-pick ${pick[kind] === v ? 'is-on' : ''}" aria-pressed="${pick[kind] === v}" data-uo-pick="${kind}" data-uo-item="${escapeHtml(it.id)}" data-uo-val="${escapeHtml(v)}">${escapeHtml(v)}</button>`;
   return `
     <div class="uo-item" data-uo-card="${escapeHtml(it.id)}">
-      <div class="uo-item-top"><b>${escapeHtml(it.name)}</b><span class="uo-price">${uoMoney(uoCents(it.price))}</span></div>
+      <div class="uo-item-top">${uoPicHtml(it)}<b>${escapeHtml(it.name)}</b><span class="uo-price">${uoMoney(uoCents(it.price))}</span></div>
       ${colors.length ? `<div class="uo-pick-row"><span>Color</span>${colors.map(c => pickBtn('color', c)).join('')}</div>` : ''}
       ${sizes.length ? `<div class="uo-pick-row"><span>Size</span>${sizes.map(s => pickBtn('size', s)).join('')}</div>` : ''}
       <div class="uo-item-add">
@@ -347,6 +413,7 @@ function renderUniformCatalogManage(){
       return `<h4 class="uo-m-group">${escapeHtml(g)}</h4>
         ${list.length ? `<ul class="ev-m-list">${list.map(i => `
           <li class="ev-m-row">
+            ${uoPicHtml(i, 'is-small')}
             <div class="ev-m-main"><b>${escapeHtml(i.name)} · ${uoMoney(uoCents(i.price))}</b><small>${escapeHtml([(i.colors || []).join(', '), (i.sizes || []).join(' ')].filter(Boolean).join(' · ') || 'No color or size')}</small></div>
             <button type="button" class="btn btn-ghost ev-m-btn" data-uo-edit="${escapeHtml(i.id)}">Edit</button>
           </li>`).join('')}</ul>` : '<p class="ev-empty">None yet.</p>'}`;
@@ -364,6 +431,10 @@ function uoCatalogFormHtml(it){
       </div>
       <div class="field"><label for="uoItemColors">Colors (comma between; blank = no color choice)</label><input type="text" id="uoItemColors" maxlength="120" value="${escapeHtml((it.colors || []).join(', '))}" placeholder="e.g. Red, Blue"></div>
       <div class="field"><label for="uoItemSizes">Sizes (comma between; blank = one size)</label><input type="text" id="uoItemSizes" maxlength="200" value="${escapeHtml((it.sizes || []).join(', '))}"></div>
+      <div class="field uo-pic-field"><label for="uoItemPic">Picture (what the team member sees on the order form)</label>
+        ${it.img ? `<div class="uo-pic-now">${uoPicHtml(it, 'is-small')}<label class="uo-pic-remove"><input type="checkbox" id="uoItemPicRemove"> Remove this picture</label></div>` : ''}
+        <input type="file" id="uoItemPic" accept="image/*">
+        <small>${it.img ? 'Pick a photo to replace it.' : 'A clear photo of the item on a plain background works best.'} It’s shrunk before it uploads.</small></div>
       <div class="ev-form-actions">
         <button type="submit" class="btn btn-primary">Save</button>
         <button type="button" class="btn btn-ghost" data-uo-cancel="1">Cancel</button>
@@ -404,22 +475,39 @@ document.addEventListener('click', e => {
     if(!it || !confirm(`Remove ${it.name} from the order form? Orders already placed keep it.`)) return;
     uoEnsureOwnCatalog();
     uniformCatalog = uniformCatalog.filter(i => i.id !== it.id);
+    if(it.img) uoDeletePicture(it.id);
     uoCatalogChanged('Item removed');
   }
 });
 
-document.addEventListener('submit', e => {
+document.addEventListener('submit', async e => {
   if(e.target.id !== 'uoCatalogForm') return;
   e.preventDefault();
   const {item, error} = uoReadCatalogForm();
   if(error){ showToast(error); return; }
+  const form = e.target, isNew = form.dataset.uoId === 'new';
+  const id = isNew ? 'uw-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) : form.dataset.uoId;
+  const old = uniformItems().find(i => i.id === id) || {};
+  const fileEl = document.getElementById('uoItemPic'), removeEl = document.getElementById('uoItemPicRemove');
+  const file = fileEl && fileEl.files && fileEl.files[0];
+  let img = old.img || '';
+  if(file){
+    const btn = form.querySelector('button[type="submit"]');
+    if(btn){ btn.disabled = true; btn.textContent = 'Uploading picture…'; }
+    try{ img = await uoUploadPicture(id, file); }
+    catch(err){ showToast(err.message); if(btn){ btn.disabled = false; btn.textContent = 'Save'; } return; }
+  } else if(removeEl && removeEl.checked && img){
+    uoDeletePicture(id);
+    img = '';
+  }
   uoEnsureOwnCatalog();
-  const id = e.target.dataset.uoId;
-  if(id === 'new'){
-    uniformCatalog.push({id: 'uw-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ...item});
+  const next = {...old, id, ...item};
+  if(img) next.img = img; else delete next.img;
+  if(isNew){
+    uniformCatalog.push(next);
     uoCatalogChanged('Item added');
   } else {
-    uniformCatalog = uniformCatalog.map(i => i.id === id ? {id, ...item} : i);
+    uniformCatalog = uniformCatalog.map(i => i.id === id ? next : i);
     uoCatalogChanged('Item saved');
   }
 });
