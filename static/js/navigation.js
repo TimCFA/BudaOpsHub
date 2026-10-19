@@ -25,6 +25,7 @@ function activateView(view){
   if(view === 'directors' && typeof renderDirectorsView === 'function') renderDirectorsView();
   if(view === 'manage' && typeof refreshManage === 'function') refreshManage();
   if(typeof launchSubnavRender === 'function') launchSubnavRender(view);
+  if(typeof hhNoteView === 'function') hhNoteView(view);
 }
 
 function sbShowPanel(key){
