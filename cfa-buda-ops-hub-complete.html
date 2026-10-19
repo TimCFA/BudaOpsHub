@@ -46,7 +46,8 @@
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="positionsView" data-view="positions">Set Ups <span class="sub"><i>Configuración</i></span></button>
 
       <!-- Launch mode (launch-mode.js): Home plus the team's essentials. -->
-      <button type="button" class="tab launch-only" role="tab" aria-selected="false" aria-controls="wastelogView" data-view="wastelog">Waste <span class="sub"><i>Desperdicio</i></span></button>
+      <!-- Waste logging, with the waste scoreboard as a pill at the top of the page (launch-mode.js). -->
+      <button type="button" class="tab launch-only" role="tab" aria-selected="false" aria-controls="wastelogView" data-view="wastelog" data-views="wastelog scoreboard">Waste <span class="sub"><i>Desperdicio</i></span></button>
       <!-- One tap opens Zone Resets; the other lists are pills at the top of the page (launch-mode.js). -->
       <button type="button" class="tab launch-only" role="tab" aria-selected="false" aria-controls="zoneresetView" data-view="zonereset" data-views="zonereset foodsafety safecount prepboard">Lists <span class="sub"><i>Listas</i></span></button>
 
@@ -420,6 +421,7 @@
 
   <!-- Log Waste View -->
   <div class="view" id="wastelogView">
+    <nav class="launch-subnav launch-only" aria-label="Waste" data-launch-subnav></nav>
     <div class="foh-boh-toggle" id="logToggle">
       <button type="button" class="toggle-btn active" aria-pressed="true" data-section="foh">FOH <span class="sub"><i>Frente</i></span></button>
       <button type="button" class="toggle-btn" aria-pressed="false" data-section="boh">BOH <span class="sub"><i>Atrás</i></span></button>
@@ -594,8 +596,12 @@
   </div>
 
   <!-- Scoreboard View (GX/TX/LX numeric scoreboards live here now — see TIM-15) -->
+  <!-- On the simplified site the team reaches the Waste panel alone (a pill on
+       the Waste tab): the other panels' tabs and the cards marked .sb-not-waste
+       are hidden there (launch-mode.js, theme-cfa.css). -->
   <div class="view" id="scoreboardView">
-    <nav class="sb-subtabs">
+    <nav class="launch-subnav launch-only" aria-label="Waste" data-launch-subnav></nav>
+    <nav class="sb-subtabs sb-not-waste">
       <button type="button" class="sb-subtab-btn active" data-sb-subtab="waste">Waste</button>
       <button type="button" class="sb-subtab-btn" data-sb-subtab="gx">Guest Obsession</button>
       <button type="button" class="sb-subtab-btn" data-sb-subtab="tx">TX</button>
@@ -604,7 +610,7 @@
 
     <div class="sb-panel active" id="sbPanelWaste">
     <div style="margin-bottom:20px;">
-      <p style="font-size:13px;color:var(--text-secondary);margin:0;">Combined waste totals, streaks, and status across FOH and BOH.</p>
+      <p style="font-size:13px;color:var(--text-secondary);margin:0;">Combined waste totals, streaks, and status across FOH and BOH.<span class="es es-line" lang="es">Totales de desperdicio, rachas y estado de FOH y BOH juntos.</span></p>
     </div>
 
     <div class="standup-card waste-today-card">
@@ -660,8 +666,8 @@
 
     <div class="standup-card">
       <h3>Active Streaks</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
-        <div class="streak-display">
+      <div class="sb-streak-grid" id="sbStreakGrid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+        <div class="streak-display sb-not-waste">
           <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;margin-bottom:8px;">Food Safety</div>
           <div class="streak-number" id="foodSafetyStreakNum">0</div>
           <div class="streak-label" id="foodSafetyStreakLabel">consecutive days</div>
@@ -671,7 +677,7 @@
           <div class="streak-number" id="wasteStreakNum">0</div>
           <div class="streak-label" id="wasteStreakLabel">consecutive days</div>
         </div>
-        <div class="streak-display">
+        <div class="streak-display sb-not-waste">
           <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;margin-bottom:8px;">OE Walkthrough</div>
           <div class="streak-number" id="fohOEStreakNum">0</div>
           <div class="streak-label" id="fohOEStreakLabel">consecutive days</div>
@@ -695,25 +701,25 @@
       <div id="oiDayOfWeek"></div>
     </div>
 
-    <div class="standup-card">
+    <div class="standup-card sb-not-waste">
       <h3>Safe Count Variance</h3>
       <div id="oiSafeCount"></div>
     </div>
 
-    <div class="standup-card">
+    <div class="standup-card sb-not-waste">
       <h3>Zone Reset Completion</h3>
       <div id="oiZoneReset"></div>
     </div>
 
-    <div class="standup-card">
+    <div class="standup-card sb-not-waste">
       <h3>Food Safety Compliance</h3>
       <div id="oiCompliance"></div>
     </div>
 
-    <div style="margin:20px 0 10px;">
+    <div class="sb-not-waste" style="margin:20px 0 10px;">
       <p class="sb-section-label" style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);font-weight:700;margin:0;">Custom Scoreboards</p>
     </div>
-    <div id="customScoreboardContainer"></div>
+    <div id="customScoreboardContainer" class="sb-not-waste"></div>
     </div>
 
     <div class="sb-panel" id="sbPanelGx">
