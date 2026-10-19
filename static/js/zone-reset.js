@@ -75,7 +75,7 @@ function pruneZoneChecklistData(){
 
 let currentChecklistZone = '';
 let currentZoneDaypart = '';
-let zoneHandoffChosen = false;   // a handoff tapped this visit (they all start closed; the current one is marked "now")
+let zoneHandoffChosen = false;   // a handoff or zone tapped this visit; until then the page opens on the handoff happening now
 
 // Handoffs as sky banners, the same look as the Set Ups dayparts: every
 // handoff down the page (Close included, no sideways scrolling), its progress
@@ -208,6 +208,7 @@ document.getElementById('zoneButtonRow').addEventListener('click', async (e)=>{
   if(e.target.closest('.zone-acc-head')){
     const opening = currentChecklistZone !== zoneName;
     currentChecklistZone = opening ? zoneName : '';
+    zoneHandoffChosen = true;   // keep this handoff open as the clock moves on
     renderZoneResetCard();
     if(opening && zrSetupExists(today, currentZoneDaypart) && !zrZoneOwners(today, currentZoneDaypart, zoneName).all.length) zrOpenOwnerModal(today, currentZoneDaypart, zoneName, renderZoneResetCard);
     return;
@@ -351,8 +352,9 @@ function renderZoneResetScoreboard(){
 }
 
 function renderZoneResetView(){
-  // Every handoff starts closed; the team opens the one they're resetting.
-  if(!zoneHandoffChosen) currentZoneDaypart = '';
+  // The page opens on the handoff happening now (Tim, Oct 18 2026); once
+  // someone taps a handoff or a zone, their choice stays.
+  if(!zoneHandoffChosen) currentZoneDaypart = zrCurrentHandoff();
   renderZoneResetCard();
   renderZoneResetScoreboard();
 }

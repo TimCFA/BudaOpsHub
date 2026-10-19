@@ -1,6 +1,7 @@
 """Zone Reset page flow (Tim, Oct 18 2026): the intro matches the page (the
 Walkthroughs it used to mention are hidden), and a zone's last tick closes
-the zone and says what's left. Checked in a headless browser when made;
+the zone and says what's left, and the page opens on the handoff happening
+now. Checked in a headless browser when made;
 this pins the wiring.
 
 Run: python3 -m unittest discover tests
@@ -30,6 +31,13 @@ class ZoneResetFlow(unittest.TestCase):
         self.assertIn("if(!total || checked < total) return;", body)      # unticking never closes it
         self.assertIn("currentChecklistZone = '';", body)
         self.assertIn("every zone reset", body)
+
+    def test_opens_on_the_current_handoff(self):
+        js = read('static', 'js', 'zone-reset.js')
+        self.assertIn("if(!zoneHandoffChosen) currentZoneDaypart = zrCurrentHandoff();", js)
+        self.assertNotIn("if(!zoneHandoffChosen) currentZoneDaypart = '';", js)
+        # A tapped zone pins its handoff, so a re-render as the clock moves on doesn't switch it.
+        self.assertIn("currentChecklistZone = opening ? zoneName : '';\n    zoneHandoffChosen = true;", js)
 
 
 if __name__ == '__main__':
