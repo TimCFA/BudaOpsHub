@@ -55,7 +55,7 @@ const dirOverlap = (a, b) => a && b && a.start < b.end && b.start < a.end;
 function dirFloor(iso){
   const out = [];
   [['foh', fohRoster[iso]], ['boh', bohRoster[iso]]].forEach(([section, list]) => {
-    (Array.isArray(list) ? list : []).forEach(p => { const span = dirSpan(p); if(span) out.push({name: p.name, section, leader: !!p.leader || leaderListed(p.name), span}); });
+    (Array.isArray(list) ? list : []).forEach(p => { const span = dirSpan(p); if(span) out.push({name: p.name, section, leader: !!p.leader || dirOnLeaderList(p.name), span}); });
   });
   // Lead Captains set on Set Ups count as leaders for their day.
   const caps = new Set();
@@ -64,6 +64,18 @@ function dirFloor(iso){
   return out;
 }
 function dirLeaders(iso){ return dirFloor(iso).filter(p => p.leader); }
+
+// On the leader list in Manage → Settings → Leaders (exactly, or by the PEA
+// name matcher). The Leaders page's wider set (PEA givers, people with
+// notes) isn't a roster leader here: it made most of the floor "leaders"
+// (28 of 38 one Monday; Tim, Oct 18 2026).
+function dirOnLeaderList(name){
+  const list = (Array.isArray(leaderRoster) ? leaderRoster : []).map(r => r && r.name ? String(r.name).trim() : '').filter(Boolean);
+  if(!list.length || !name) return false;
+  const k = dirKey(name);
+  if(list.some(n => dirKey(n) === k)) return true;
+  return typeof peaMatchName === 'function' && !!peaMatchName(name, list);
+}
 function dirDirectorShifts(iso){
   return (Array.isArray(adminShifts[iso]) ? adminShifts[iso] : []).filter(s => dirIsDirector(s.name)).map(s => ({...s, span: dirSpan(s)})).filter(s => s.span);
 }
@@ -155,6 +167,26 @@ const dirSpanText = s => `${dirClock(s.start)}–${dirClock(s.end)}`;
 
 function dirShown(){ return typeof launchManager === 'undefined' || !!launchManager; }
 
+// A day as a timeline (Tim, Oct 18 2026): one row per leader and per
+// director shift, a bar across the open hours, and a coverage row on top
+// with the leader-less stretches in red. Reads in a glance where the chips
+// were a wall of names.
+const DIR_DAY_START = 5 * 60 + 30, DIR_DAY_END = 22 * 60 + 30;   // 5:30a–10:30p, wider if a shift is
+function dirTimelineHtml(iso, leaders, dirs, gaps){
+  const floor = dirFloor(iso);
+  const lo = Math.min(DIR_DAY_START, ...floor.map(p => p.span.start)), hi = Math.max(DIR_DAY_END, ...floor.map(p => p.span.end));
+  const pct = m => Math.max(0, Math.min(100, (m - lo) / (hi - lo) * 100));
+  const bar = (s, cls) => `<span class="dir-tl-bar ${cls}" style="left:${pct(s.start).toFixed(1)}%;width:${(pct(s.end) - pct(s.start)).toFixed(1)}%"></span>`;
+  const row = (p, cls) => `<div class="dir-tl-row"><span class="dir-tl-name ${cls}">${escapeHtml(dirShort(p.name))}</span><span class="dir-tl-track">${bar(p.span, cls)}</span><small class="dir-tl-span">${escapeHtml(dirSpanText(p.span))}</small></div>`;
+  const ticks = [];
+  for(let m = Math.ceil(lo / 240) * 240; m <= hi; m += 240) ticks.push(m);
+  return `<div class="dir-tl">
+    <div class="dir-tl-row is-cover"><span class="dir-tl-name">Leader on</span><span class="dir-tl-track">${gaps.map(g => bar(g, 'is-gap')).join('')}</span><small class="dir-tl-span">${gaps.length ? escapeHtml(gaps.map(g => 'gap ' + dirSpanText(g)).join(', ')) : 'all day'}</small></div>
+    ${leaders.map(p => row(p, 'is-leader')).join('')}${dirs.map(d => row(d, 'is-director')).join('')}
+    <div class="dir-tl-row dir-tl-ticks" aria-hidden="true"><span></span><span class="dir-tl-track">${ticks.map(m => `<i style="left:${pct(m).toFixed(1)}%">${dirClock(m)}</i>`).join('')}</span><span></span></div>
+  </div>`;
+}
+
 function renderDirectorsView(){
   const root = document.getElementById('directorsRoot');
   if(!root) return;
@@ -218,8 +250,8 @@ function renderDirectorsView(){
     return `
       <div class="dir-day ${flags.length ? 'is-flag' : ''} ${iso === today ? 'is-today' : ''}">
         <div class="dir-day-head"><b>${escapeHtml(dirDay(iso))}</b>${floor.length ? `<span>${leaders.length} leader${leaders.length === 1 ? '' : 's'} · ${floor.length - leaders.length} team</span>` : '<span>no roster yet</span>'}</div>
-        ${leaders.length ? `<div class="dir-people">${leaders.sort((a, b) => a.span.start - b.span.start).map(p => `<span class="dir-chip is-leader">${escapeHtml(dirShort(p.name))} <small>${escapeHtml(dirSpanText(p.span))}</small></span>`).join('')}</div>` : ''}
-        ${dirs.length ? `<div class="dir-people">${dirs.sort((a, b) => a.span.start - b.span.start).map(d => `<span class="dir-chip is-director">${escapeHtml(dirShort(d.name))} <small>${escapeHtml(dirSpanText(d.span))}</small></span>`).join('')}</div>` : (floor.length ? '<div class="dir-none">No director shift</div>' : '')}
+        ${floor.length ? dirTimelineHtml(iso, leaders.sort((a, b) => a.span.start - b.span.start), dirs.sort((a, b) => a.span.start - b.span.start), gaps) : ''}
+        ${floor.length && !dirs.length ? '<div class="dir-none">No director shift</div>' : ''}
         ${flags.length ? `<div class="dir-flags">${flags.map(f => `<span>${DIR_ICON_WARN}${escapeHtml(f)}</span>`).join('')}</div>` : ''}
       </div>`;
   }).join('');
@@ -252,7 +284,7 @@ function renderDirectorsView(){
       </div>
     </div>
     ${!hasRoster ? `<p class="dir-empty">No roster for this week yet. Import the week's HotSchedules CSV in Manage → Uploads and the days fill in.</p>` : ''}
-    <section class="dir-card"><h3>The week at a glance</h3><p class="dir-note">Leaders are the leader list in Manage, Team Leader shifts and anyone set as Lead Captain. Directors’ time is their Administrative shifts. A gap is ${DIR_GAP_MIN} minutes or more with no leader on.</p><div class="dir-days">${dayRows}</div></section>
+    <section class="dir-card"><h3>The week at a glance</h3><p class="dir-note">Leaders are the leader list in Manage, Team Leader shifts and anyone set as Lead Captain. Directors’ time is their Administrative shifts. A gap is ${DIR_GAP_MIN} minutes or more with no leader on.</p><div class="dir-days">${dayRows}</div><p class="dir-note dir-tl-key"><span class="is-leader">■</span> leaders <span class="is-director">■</span> directors <span class="is-gap">■</span> no leader on</p></section>
     <section class="dir-card"><h3>Where directors overlap leaders</h3>
       ${overlapRows.length ? `<ul class="dir-list">${overlapRows.join('')}</ul>` : '<p class="dir-empty">No director shifts on the roster this week.</p>'}
       ${unseen.length ? `<p class="dir-note"><b>Leaders no director overlaps this week:</b> ${escapeHtml(unseen.map(dirShort).join(', '))}</p>` : ''}
