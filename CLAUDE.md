@@ -62,9 +62,14 @@ every phone unable to save for a day (PRs #148, #149).
 - **Never merge during service hours** (Mon–Sat, roughly 6am–10pm Central).
   Default to after close. If something can't wait, say so and let Tim
   decide; never assume.
-- **One merge a day.** Batch ready PRs into a single merge window so the
+- **One merge a day, Mon–Sat.** Batch ready PRs into a single merge window so the
   server restarts once, and tell Tim the time it went live so everyone can
   reload once before the next shift.
+- **Sundays are open** (the store is closed; Tim, Oct 18, 2026): merging is
+  fine, more than once if needed. Still batch PRs that are ready together,
+  since leaders may be filling in Monday's Set Ups and each deploy briefly
+  risks a save landing on the old server. Do the full live check after every
+  merge.
 - **Tests are not the deploy check.** After every merge, watch
   `/api/state/sync` until its `build` matches the merge commit, then load
   the live site headlessly as a team device (Playwright is installed) and
