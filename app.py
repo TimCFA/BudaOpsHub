@@ -16,6 +16,8 @@ from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 import firebase_admin
 from firebase_admin import credentials, db
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token
 
 from pea_parser import parse_pea_pdf, PeaParseError
 from reports_parser import parse_report_file, ReportParseError
@@ -347,36 +349,278 @@ def manager_login():
     stored_hash = db.reference('secure/managerPinHash').get()
     if not stored_hash:
         return jsonify({'error': 'No manager PIN has been configured yet'}), 500
+    if not isinstance(pin, str) or not pin:
+        _record_failure(ip)
+        return jsonify({'error': 'Incorrect PIN'}), 401
 
-    # The director PIN opens everything the manager PIN does, plus what's
-    # for directors only (the raters' Levelset notes).
-    director = False
-    if not pin or not check_password_hash(stored_hash, pin):
-        director_hash = db.reference(DIRECTOR_PIN_PATH).get()
-        if not director_hash or not check_password_hash(director_hash, pin):
-            _record_failure(ip)
-            return jsonify({'error': 'Incorrect PIN'}), 401
-        director = True
-
-    session.permanent = True
-    session['manager'] = True
-    if director:
-        session['director'] = True
-    else:
-        session.pop('director', None)
-    return jsonify({'success': True, 'director': director})
+    # The manager PIN and the director PIN open Manage (the director PIN
+    # adds the directors-only content). A team member's 6-digit clock-in PIN
+    # (ACCOUNTS) signs them in by name with their role and NEVER opens
+    # Manage, whatever the role.
+    if check_password_hash(stored_hash, pin):
+        return jsonify(_sign_in({'role': 'manager', 'manager': True, 'via': 'pin'}))
+    director_hash = db.reference(DIRECTOR_PIN_PATH).get()
+    if director_hash and check_password_hash(director_hash, pin):
+        return jsonify(_sign_in({'role': 'director', 'manager': True, 'via': 'pin'}))
+    who = _team_pin_lookup(pin)
+    if who:
+        return jsonify(_sign_in({'role': who['role'], 'name': who['name'], 'via': 'pin'}))
+    _record_failure(ip)
+    return jsonify({'error': 'Incorrect PIN'}), 401
 
 @app.route('/api/manager/logout', methods=['POST'])
 def manager_logout():
-    session.pop('manager', None)
-    session.pop('director', None)
+    _sign_out()
     return jsonify({'success': True})
 
 @app.route('/api/manager/status', methods=['GET'])
 def manager_status():
     manager = bool(session.get('manager'))
-    return jsonify({'isManager': manager, 'isDirector': manager and bool(session.get('director')),
-                    'directorPinSet': manager and bool(db.reference(DIRECTOR_PIN_PATH).get())})
+    user = session.get('user') if isinstance(session.get('user'), dict) else None
+    out = {'isManager': manager, 'isDirector': manager and bool(session.get('director')),
+           'isOwner': manager and bool(session.get('owner')),
+           'directorPinSet': manager and bool(db.reference(DIRECTOR_PIN_PATH).get()),
+           'user': {k: user.get(k) for k in ('name', 'role', 'via')} if user else None}
+    if GOOGLE_CLIENT_ID:
+        out['googleClientId'] = GOOGLE_CLIENT_ID   # public by design: the sign-in button needs it
+    return jsonify(out)
+
+# ===== ACCOUNTS (Tim, Oct 17 2026) =====
+# Who someone is, and what they may see, from one of two sign-ins on the
+# PIN screen:
+#  - Sign in with Google. The page gets an ID token from Google; the server
+#    checks it against GOOGLE_CLIENT_ID. An account at a DIRECTOR_EMAIL_DOMAINS
+#    address (cfabuda.com) is a director; ACCOUNT_OWNER_EMAILS are directors
+#    who also manage the lists below (Tim); any other address has to be on
+#    the Google accounts list (secure/accounts) with a role.
+#  - A 6-digit clock-in PIN from the team PIN list (secure/teamPins): the
+#    owner uploads name, PIN and role; the PIN is kept as an HMAC with a
+#    server-side salt, so the list never holds the PINs themselves. The
+#    manager and director PINs keep working beside these.
+# Manage and everything behind it is for DIRECTORS AND UP only (Tim, Oct 18
+# 2026): a store Google account (director), an owner-listed Google account,
+# or the manager and director PINs. A team PIN, whatever its role (Team
+# Lead, Trainer, Team Member), signs the person in by name for what we build
+# for those roles later; it never opens Manage and never reads private data.
+# Their session ends at 3 AM so a shared phone doesn't carry it into the
+# next day. The page is told name and role; the server decides what each
+# role may read and change.
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '').strip()
+ACCOUNT_OWNER_EMAILS = {e.strip().lower() for e in os.environ.get('ACCOUNT_OWNER_EMAILS', '').split(',') if e.strip()}
+DIRECTOR_EMAIL_DOMAINS = {d.strip().lower().lstrip('@') for d in os.environ.get('DIRECTOR_EMAIL_DOMAINS', 'cfabuda.com').split(',') if d.strip()}
+ACCOUNTS_PATH = 'secure/accounts'        # {key: {email, name, role, addedAt}}
+TEAM_PINS_PATH = 'secure/teamPins'       # {hmac: {name, role, addedAt}}
+TEAM_PIN_SALT_PATH = 'secure/teamPinSalt'
+TEAM_ROLES = ('lead', 'trainer', 'member')            # what a team PIN can carry: never Manage
+ROLES = ('director',) + TEAM_ROLES
+ROLE_LABELS = {'director': 'Director', 'manager': 'Manager PIN', 'lead': 'Team Lead', 'trainer': 'Trainer', 'member': 'Team Member'}
+TEAM_PIN_RE = re.compile(r'^\d{6}$')
+TEAM_SESSION_ENDS_HOUR = 3               # a trainer's or team member's sign-in ends at 3 AM store time
+_EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+
+def _email_key(email):
+    return hashlib.sha1(email.strip().lower().encode('utf-8')).hexdigest()[:20]
+
+def _sign_in(who):
+    """Sets the session for a signed-in person and returns the reply."""
+    role = who.get('role') if who.get('role') in ROLES + ('manager',) else 'member'
+    name = str(who.get('name') or '').strip()
+    session.clear()
+    session.permanent = True
+    # Manage is for directors and up: Google directors and the manager and
+    # director PINs. Never a team role.
+    manager = role in ('director', 'manager') and (role == 'director' or bool(who.get('manager')))
+    if manager:
+        session['manager'] = True
+    if role == 'director':
+        session['director'] = True
+    if who.get('owner') and role == 'director':
+        session['owner'] = True
+    if not manager:
+        now = datetime.now(levelset_sync.STORE_TZ)
+        ends = now.replace(hour=TEAM_SESSION_ENDS_HOUR, minute=0, second=0, microsecond=0)
+        if ends <= now:
+            ends += timedelta(days=1)
+        session['teamEnds'] = int(ends.timestamp())
+    session['user'] = {'name': name, 'role': role, 'via': who.get('via') or 'pin', 'email': who.get('email') or ''}
+    return {'success': True, 'director': role == 'director', 'manager': manager,
+            'owner': bool(session.get('owner')), 'role': role, 'roleLabel': ROLE_LABELS[role], 'name': name}
+
+def _sign_out():
+    for k in ('manager', 'director', 'owner', 'user', 'teamEnds'):
+        session.pop(k, None)
+
+@app.before_request
+def _end_team_sessions():
+    ends = session.get('teamEnds')
+    if isinstance(ends, int) and time.time() > ends and not session.get('manager'):
+        _sign_out()
+
+def _is_manage_pin(pin):
+    """True when `pin` is the manager or director PIN, which would otherwise
+    shadow (or be mistaken for) a team member's."""
+    for path in ('secure/managerPinHash', DIRECTOR_PIN_PATH):
+        h = db.reference(path).get()
+        if h and check_password_hash(h, pin):
+            return True
+    return False
+
+def _team_pin_salt(create=False):
+    salt = db.reference(TEAM_PIN_SALT_PATH).get()
+    if (not isinstance(salt, str) or len(salt) < 32) and create:
+        salt = secrets.token_hex(32)
+        db.reference(TEAM_PIN_SALT_PATH).set(salt)
+    return salt if isinstance(salt, str) and len(salt) >= 32 else None
+
+def _team_pin_key(pin, salt):
+    return hmac.new(salt.encode('ascii'), str(pin).encode('utf-8'), 'sha256').hexdigest()
+
+def _team_pin_lookup(pin):
+    if not TEAM_PIN_RE.match(str(pin)):
+        return None
+    salt = _team_pin_salt()
+    if not salt:
+        return None
+    rec = db.reference(f'{TEAM_PINS_PATH}/{_team_pin_key(pin, salt)}').get()
+    if isinstance(rec, dict) and rec.get('name') and rec.get('role') in TEAM_ROLES:
+        return {'name': str(rec['name']), 'role': rec['role']}
+    return None
+
+def _google_role(email):
+    """The role for a verified Google address, or None when it isn't welcome."""
+    email = email.strip().lower()
+    domain = email.rsplit('@', 1)[-1]
+    if email in ACCOUNT_OWNER_EMAILS:
+        return {'role': 'director', 'owner': True}
+    if domain in DIRECTOR_EMAIL_DOMAINS:
+        return {'role': 'director'}
+    rec = db.reference(f'{ACCOUNTS_PATH}/{_email_key(email)}').get()
+    # Listed addresses are directors (Manage is for directors and up); a
+    # record from an earlier build with a team role still isn't let in.
+    if isinstance(rec, dict) and rec.get('role') == 'director' and str(rec.get('email') or '').lower() == email:
+        return {'role': 'director', 'name': rec.get('name') or ''}
+    return None
+
+@app.route('/api/auth/google', methods=['POST'])
+def auth_google():
+    ip = _client_ip()
+    if _too_many_attempts(ip):
+        return jsonify({'error': 'Too many attempts. Try again in a minute.'}), 429
+    if not GOOGLE_CLIENT_ID:
+        return jsonify({'error': 'Google sign-in isn’t set up on the server yet.'}), 400
+    credential = (request.get_json(silent=True) or {}).get('credential')
+    if not isinstance(credential, str) or not credential:
+        return jsonify({'error': 'No sign-in received.'}), 400
+    try:
+        claims = id_token.verify_oauth2_token(credential, google_requests.Request(), GOOGLE_CLIENT_ID, clock_skew_in_seconds=10)
+    except ValueError:
+        _record_failure(ip)
+        return jsonify({'error': 'Google didn’t confirm that sign-in. Try again.'}), 401
+    except Exception as e:
+        print(f"[GOOGLE SIGN-IN ERROR] {type(e).__name__}")
+        return jsonify({'error': 'Couldn’t reach Google to check the sign-in.'}), 502
+    email = str(claims.get('email') or '').strip().lower()
+    if not email or not claims.get('email_verified'):
+        _record_failure(ip)
+        return jsonify({'error': 'That Google account’s email isn’t verified.'}), 401
+    who = _google_role(email)
+    if not who:
+        _record_failure(ip)
+        return jsonify({'error': 'That Google account isn’t on the hub’s list. Ask Tim to add it.'}), 403
+    name = str(claims.get('name') or who.get('name') or email.split('@')[0]).strip()
+    print(f"[SIGN-IN] google {who['role']}")
+    return jsonify(_sign_in(dict(who, name=who.get('name') or name, email=email, via='google')))
+
+def _owner_only():
+    if not session.get('manager') or not session.get('owner'):
+        return jsonify({'error': 'Only the hub’s owner can change accounts.'}), 403
+    return None
+
+def _accounts_out():
+    accounts = db.reference(ACCOUNTS_PATH).get() or {}
+    pins = db.reference(TEAM_PINS_PATH).get() or {}
+    google = sorted(({'email': v.get('email'), 'name': v.get('name') or '', 'role': v.get('role'), 'addedAt': v.get('addedAt')}
+                     for v in accounts.values() if isinstance(v, dict)), key=lambda a: str(a['email']))
+    team = sorted(({'name': v.get('name'), 'role': v.get('role'), 'addedAt': v.get('addedAt')} for v in pins.values() if isinstance(v, dict)),
+                  key=lambda a: str(a['name']).lower())
+    return {'google': google, 'pins': team, 'owners': sorted(ACCOUNT_OWNER_EMAILS), 'directorDomains': sorted(DIRECTOR_EMAIL_DOMAINS),
+            'googleReady': bool(GOOGLE_CLIENT_ID), 'roles': [{'id': r, 'label': ROLE_LABELS[r]} for r in TEAM_ROLES]}
+
+@app.route('/api/accounts', methods=['GET'])
+def accounts_get():
+    gate = _owner_only()
+    if gate:
+        return gate
+    return jsonify(_accounts_out())
+
+@app.route('/api/accounts/google', methods=['POST', 'DELETE'])
+def accounts_google():
+    gate = _owner_only()
+    if gate:
+        return gate
+    body = request.get_json(silent=True) or {}
+    email = str(body.get('email') or '').strip().lower()
+    if not _EMAIL_RE.match(email) or len(email) > 120:
+        return jsonify({'error': 'That isn’t an email address.'}), 400
+    ref = db.reference(f'{ACCOUNTS_PATH}/{_email_key(email)}')
+    if request.method == 'DELETE':
+        ref.delete()
+    else:
+        # Every listed Google account is a director for now (executive and
+        # operator permissions come later).
+        ref.set({'email': email, 'name': str(body.get('name') or '').strip()[:80], 'role': 'director', 'addedAt': int(time.time())})
+    return jsonify(dict(_accounts_out(), success=True))
+
+@app.route('/api/accounts/pins', methods=['POST', 'DELETE'])
+def accounts_pins():
+    """Replace or add to the team PIN list (POST {rows: [{name, pin, role}],
+    replace}); remove one person (DELETE {name}). The PINs themselves are
+    never stored or echoed."""
+    gate = _owner_only()
+    if gate:
+        return gate
+    body = request.get_json(silent=True) or {}
+    ref = db.reference(TEAM_PINS_PATH)
+    if request.method == 'DELETE':
+        name = str(body.get('name') or '').strip().lower()
+        pins = ref.get() or {}
+        gone = [k for k, v in pins.items() if isinstance(v, dict) and str(v.get('name') or '').strip().lower() == name]
+        for k in gone:
+            db.reference(f'{TEAM_PINS_PATH}/{k}').delete()
+        return jsonify(dict(_accounts_out(), success=True, removed=len(gone)))
+    rows = body.get('rows')
+    if not isinstance(rows, list) or not rows or len(rows) > 500:
+        return jsonify({'error': 'Send the list as rows of name, PIN and role.'}), 400
+    salt = _team_pin_salt(create=True)
+    clean, skipped, seen = {}, [], set()
+    for i, r in enumerate(rows):
+        if not isinstance(r, dict):
+            skipped.append(f'row {i + 1}: not a row')
+            continue
+        name = str(r.get('name') or '').strip()[:80]
+        pin = str(r.get('pin') or '').strip()
+        role = str(r.get('role') or 'member').strip().lower()
+        role = {'team member': 'member', 'tm': 'member', 'team lead': 'lead', 'team leader': 'lead', 'tl': 'lead'}.get(role, role)
+        if not name:
+            skipped.append(f'row {i + 1}: no name')
+        elif not TEAM_PIN_RE.match(pin):
+            skipped.append(f'{name}: the PIN isn’t 6 digits')
+        elif role == 'director':
+            skipped.append(f'{name}: directors sign in with Google or the director PIN; a clock-in PIN never opens Manage')
+        elif role not in TEAM_ROLES:
+            skipped.append(f'{name}: role “{r.get("role")}” isn’t one of Team Member, Trainer, Team Lead')
+        elif _is_manage_pin(pin):
+            skipped.append(f'{name}: that PIN is the manager or director PIN')
+        elif pin in seen:
+            skipped.append(f'{name}: the same PIN as someone else in the list')
+        else:
+            seen.add(pin)
+            clean[_team_pin_key(pin, salt)] = {'name': name, 'role': role, 'addedAt': int(time.time())}
+    if body.get('replace'):
+        ref.set(clean)
+    elif clean:
+        ref.update(clean)
+    return jsonify(dict(_accounts_out(), success=True, added=len(clean), skipped=skipped))
 
 @app.route('/api/manager/set-pin', methods=['POST'])
 def manager_set_pin():
