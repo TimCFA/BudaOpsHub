@@ -73,6 +73,25 @@ class Week(unittest.TestCase):
         got = run("c => { " + WEEK + " leaderRoster = [{name: 'Someone Else', roles: []}]; return dirLeaders('2026-10-13').map(p => p.name); }")
         self.assertNotIn('Priya Nair', got)
 
+    def test_pea_givers_and_note_holders_are_not_roster_leaders(self):
+        # The Leaders page profiles anyone who gave a PEA or has notes; the
+        # week's day cards count only the roster's leaders (Oct 18 2026).
+        got = run("c => { " + WEEK + """ peaRows = [{at: '2026-10-08T12:00', date: '2026-10-08', leader: 'Priya Nair', employee: 'Noah Bennett', role: 'Team Member', position: 'iPOS', overall: 3}];
+          leaderNotes = {'Noah Bennett': [{text: 'x', by: 'TL', ts: 1}]};
+          return [ldLeaderNames(ldQuarterNow()).includes('Priya Nair'), dirLeaders('2026-10-13').map(p => p.name)]; }""")
+        self.assertEqual(got, [True, ['Maya Torres', 'Ava Morales']])
+
+    def test_day_card_is_a_timeline(self):
+        html = run("c => { " + WEEK + """ const root = {innerHTML: ''}; document.getElementById = id => id === 'directorsRoot' ? root : null; renderDirectorsView();
+          return root.innerHTML.split('The week at a glance')[1].split('Where directors overlap')[0]; }""")
+        tue = html.split('Tue, Oct 13')[1].split('class="dir-day')[0]
+        self.assertEqual(tue.count('class="dir-tl-row"'), 3)                 # Maya, Ava, the director
+        self.assertEqual(tue.count('dir-tl-name is-leader'), 2)
+        self.assertEqual(tue.count('dir-tl-bar is-director'), 1)
+        self.assertIn('dir-tl-bar is-gap', tue)                              # 2p–4p
+        self.assertIn('gap 2p–4p', tue)
+        self.assertNotIn('dir-chip', html)                                   # no wall of chips in the day cards
+
     def test_leaders_page_names_are_team_leads_on_set_ups(self):
         # Priya gives PEAs, so Directors → Leaders lists her; Set Ups lets her
         # be Lead Captain though HotSchedules has her on an ordinary shift.
