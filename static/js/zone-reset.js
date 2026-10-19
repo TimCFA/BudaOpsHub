@@ -75,7 +75,7 @@ function pruneZoneChecklistData(){
 
 let currentChecklistZone = '';
 let currentZoneDaypart = '';
-let zoneHandoffChosen = false;   // a handoff tapped this visit (they all start closed; the current one is marked "now")
+let zoneHandoffChosen = false;   // a handoff or zone tapped this visit; until then the page opens on the handoff happening now
 
 // Handoffs as sky banners, the same look as the Set Ups dayparts: every
 // handoff down the page (Close included, no sideways scrolling), its progress
@@ -208,6 +208,7 @@ document.getElementById('zoneButtonRow').addEventListener('click', async (e)=>{
   if(e.target.closest('.zone-acc-head')){
     const opening = currentChecklistZone !== zoneName;
     currentChecklistZone = opening ? zoneName : '';
+    zoneHandoffChosen = true;   // keep this handoff open as the clock moves on
     renderZoneResetCard();
     if(opening && zrSetupExists(today, currentZoneDaypart) && !zrZoneOwners(today, currentZoneDaypart, zoneName).all.length) zrOpenOwnerModal(today, currentZoneDaypart, zoneName, renderZoneResetCard);
     return;
@@ -234,11 +235,23 @@ document.getElementById('zoneButtonRow').addEventListener('click', async (e)=>{
       return;
     }
     bucket[itemText] = {initials, ts: Date.now()};
+    zrNoteZoneDone(daypart, zoneName);
   }
   recomputeChecklistHistory(today);
   renderZoneResetCard();
   await saveState();
 });
+
+// The last tick of a zone closes it and says what's left of the handoff
+// (Tim, Oct 18 2026), so nobody scrolls past a finished list.
+function zrNoteZoneDone(daypart, zoneName){
+  const {checked, total} = getZoneCompletion(today, daypart, zoneName);
+  if(!total || checked < total) return;
+  currentChecklistZone = '';
+  const left = ALL_ZONE_NAMES.filter(z => { const c = getZoneCompletion(today, daypart, z); return c.total && c.checked < c.total; });
+  const {title} = zrHandoffParts(daypart);
+  showToast(left.length ? `${zoneName} reset ✓ · ${left.length} zone${left.length === 1 ? '' : 's'} left` : `${title}: every zone reset ✓`);
+}
 
 // ----- The owner sheet: hand a zone's reset to someone -----
 // Lists everyone on the FOH roster during the handoff's daypart, with the
@@ -339,8 +352,9 @@ function renderZoneResetScoreboard(){
 }
 
 function renderZoneResetView(){
-  // Every handoff starts closed; the team opens the one they're resetting.
-  if(!zoneHandoffChosen) currentZoneDaypart = '';
+  // The page opens on the handoff happening now (Tim, Oct 18 2026); once
+  // someone taps a handoff or a zone, their choice stays.
+  if(!zoneHandoffChosen) currentZoneDaypart = zrCurrentHandoff();
   renderZoneResetCard();
   renderZoneResetScoreboard();
 }
