@@ -103,9 +103,18 @@ function zrHandoffLead(handoff){
   return dp ? (posAssignments['foh||' + today + '||' + dp.name + '||' + SU_LEAD_CAPTAIN] || '') : '';
 }
 
+// The handoffs in the order shown (Tim, Oct 18 2026): the one happening now
+// first, then the rest of the day, then the ones already past. Each keeps
+// its own sky (by its place in the day).
+function zrHandoffOrder(nowName){
+  const i = zoneResetDayparts.findIndex(dp => dp.name === nowName);
+  if(i < 0) return zoneResetDayparts.map((dp, n) => n);
+  return zoneResetDayparts.map((dp, n) => n).slice(i).concat(zoneResetDayparts.map((dp, n) => n).slice(0, i));
+}
+
 function zrHandoffBannersHtml(kind, current, progressFor, bodyHtml){
   const nowName = zrCurrentHandoff();
-  return `<div class="su-dp-list zr-dp-list">${zoneResetDayparts.map((dp, i)=>{
+  return `<div class="su-dp-list zr-dp-list">${zrHandoffOrder(nowName).map(i => [zoneResetDayparts[i], i]).map(([dp, i])=>{
     const open = dp.name === current;
     const isNow = dp.name === nowName;
     const {title, time} = zrHandoffParts(dp.name);

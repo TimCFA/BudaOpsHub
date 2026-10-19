@@ -351,6 +351,10 @@ body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="z
 /* ===== Zone Reset & Walkthroughs ===== */
 #zoneresetView{--su-card:var(--cfa-white);--su-ink:#1C1B19;--su-muted:#5F5A52;--su-line:#E4DCCF;}
 .zr-history-label{font-family:var(--font-ui);font-size:11px;font-weight:600;letter-spacing:0.12em;color:var(--text-secondary);}
+/* On Zone Reset the zone list sits under the banner, not inside it, so an
+   open banner keeps all four corners (Set Ups squares the bottom two for the
+   content that attaches there). */
+.zr-dp-list .su-dp.is-open .su-dp-head{border-radius:14px;}
 .zr-dp-track{background:var(--cfa-soft);}
 .zr-dp-bar,.su-dp .zr-dp-bar{background:var(--cfa-navy);}
 .su-dp.is-done .zr-dp-bar{background:var(--success);}
