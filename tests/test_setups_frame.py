@@ -175,5 +175,24 @@ class Spanish(unittest.TestCase):
             self.assertIn(f"'{key}':", es)
 
 
+class SofterLook(unittest.TestCase):
+    """Tim, Oct 19 2026: the look from the mock, nothing about how it works."""
+    def test_needed_open_spot_says_choose(self):
+        sheet = read('static', 'js', 'setups-sheet.js')
+        self.assertIn("""return t.needed ? `<span class="su-row-choose">+ Choose${esHtml('Choose')}</span>` : '<span class="su-row-open">—</span>';""", sheet)
+        self.assertIn("'Choose': 'Elegir',", read('static', 'js', 'spanish.js'))
+
+    def test_rows_are_cards_and_the_picker_is_two_across(self):
+        css = read('static', 'css', 'theme-cfa.css')
+        self.assertRegex(css, r'#allDayparts \.su-sheet-list \.su-rowwrap\{background:var\(--cfa-white\);border:1px solid var\(--border\);border-radius:14px;')
+        self.assertIn('#allDayparts .su-sheet-list .su-row-who{color:var(--cfa-navy);}', css)
+        self.assertIn('#allDayparts .su-sheet-list .su-row-name{justify-content:flex-end;text-align:right;', css)
+        self.assertRegex(css, r'#posModalOptions\{display:grid;grid-template-columns:1fr 1fr;')
+        # The wide choices still span the sheet.
+        self.assertIn('#posModalOptions .more-option,#posModalOptions .split-option,#posModalOptions .unassign-option{grid-column:1 / -1;}', css)
+        # Scoped: the other pickers that share .pos-option are untouched.
+        self.assertNotRegex(css, r'(^|\})\.pos-option-list\{display:grid')
+
+
 if __name__ == '__main__':
     unittest.main()

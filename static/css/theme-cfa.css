@@ -1811,3 +1811,41 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .su-dp-now{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--cfa-red);color:#fff;font-family:var(--font-ui);font-size:9.5px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;vertical-align:2px;}
 .su-dp{scroll-margin-top:70px;}
 .su-dp-list + .su-tier-key{margin-top:4px;}
+
+/* ===== Set Ups: the softer look from the mock (Tim, Oct 19 2026) =====
+   Looks only: each spot is its own rounded card on the ivory ground with
+   its zone color down the left edge, the name sits on the right in navy,
+   the number and the note pencil go quiet, a needed open spot says
+   "+ Choose", and the name picker lays names out two to a row. What a tap
+   does, and what is saved, is unchanged. */
+#allDayparts .su-sheet-zone.su-sheet-list{background:transparent;box-shadow:none;border:0;padding:6px 0 4px;display:flex;flex-direction:column;gap:6px;}
+#allDayparts .su-sheet-list .su-rowwrap{background:var(--cfa-white);border:1px solid var(--border);border-radius:14px;overflow:hidden;padding-right:4px;}
+#allDayparts .su-sheet-list .su-rowwrap + .su-rowwrap{border-top:1px solid var(--border);}
+#allDayparts .su-sheet-list .su-rowwrap:has(.su-row.is-needed){border-color:#EDB3BE;}
+#allDayparts .su-sheet-list .su-row{background:transparent;border-radius:0;min-height:54px;padding:8px 8px 8px 14px;box-shadow:inset 4px 0 0 var(--zc);grid-template-columns:minmax(0,1fr) auto;gap:12px;}
+#allDayparts .su-sheet-list .su-row.is-needed{background:transparent;}
+#allDayparts .su-sheet-list .su-row:hover{background:var(--cfa-light);}
+#allDayparts .su-sheet-list .su-row-rank{box-shadow:none;background:transparent;color:var(--text-tertiary);font-family:var(--font-ui);font-size:12px;font-weight:600;min-width:16px;margin-right:6px;}
+#allDayparts .su-sheet-list .su-row-name{justify-content:flex-end;text-align:right;max-width:58vw;}
+#allDayparts .su-sheet-list .su-row-who{color:var(--cfa-navy);}
+#allDayparts .su-sheet-list .su-row-note{flex-basis:100%;text-align:right;}
+#allDayparts .su-sheet-list .su-row-notebtn{border-color:transparent;background:transparent;color:#B3AC9F;}
+#allDayparts .su-sheet-list .su-row-notebtn:hover{color:var(--cfa-navy);}
+#allDayparts .su-sheet-list .su-row-notebtn.has{border-color:transparent;background:#E3EEF4;color:var(--cfa-navy);}
+.su-row-choose{font-family:var(--font-ui);font-size:14px;font-weight:700;color:var(--cfa-red);}
+.su-row-choose .es{display:block;font-family:var(--font-display);font-style:italic;font-weight:400;font-size:12px;color:var(--cfa-dark-red);}
+#allDayparts .su-sheet-list .su-more,#allDayparts .su-sheet-list .su-resets{margin-top:4px;}
+
+#posModalOptions{display:grid;grid-template-columns:1fr 1fr;gap:8px;border:0;background:transparent;padding:2px;}
+#posModalOptions .pos-option{flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;min-height:58px;padding:8px 12px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-white);}
+#posModalOptions .pos-option:hover{border-color:var(--cfa-navy);background:var(--cfa-white);}
+#posModalOptions .pos-option.is-current{border-color:var(--cfa-navy);background:#E3EEF4;}
+#posModalOptions .pos-option-name{white-space:normal;line-height:1.2;}
+#posModalOptions .pos-option-whens{padding-left:0;flex-direction:column;gap:0;}
+#posModalOptions .pos-option-whens .es{display:block;}
+#posModalOptions .pos-option .pos-option-tag{white-space:normal;}
+#posModalOptions .pos-option.is-other{background:var(--cfa-light);}
+#posModalOptions .pos-option-group,#posModalOptions .pos-option-empty{grid-column:1 / -1;}
+#posModalOptions .more-option,#posModalOptions .split-option,#posModalOptions .unassign-option{grid-column:1 / -1;}
+#posModalOptions .more-option,#posModalOptions .split-option,#posModalOptions .unassign-option{align-items:center;min-height:50px;}
+#posModalOptions .su-skip{grid-column:1 / -1;}
