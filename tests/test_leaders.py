@@ -171,7 +171,7 @@ class Page(unittest.TestCase):
     def test_brief_carries_the_scoreboard(self):
         html = self.render(QUARTER)
         self.assertIn('PEA scoreboard', html)
-        self.assertIn('data-dir-view="leaders"', html)
+        self.assertIn('data-dir-view="people" data-dir-people="leaders"', html)
         self.assertIn('PEA SCOREBOARD (Q4 2026)', run("c => { " + QUARTER + " return dirBriefText(); }"))
 
     def test_page_wiring(self):
