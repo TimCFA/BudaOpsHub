@@ -1752,3 +1752,6 @@ html.is-standalone .clock{display:none;}
 body.launch-mode .sb-not-waste{display:none !important;}
 body.launch-mode #sbStreakGrid{grid-template-columns:1fr;}
 body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justify-self:center;}
+
+/* Manage → Settings → Leaders: what the list does (leaders.js renderLeadersManage) */
+.ld-m-note{margin:0 0 10px;padding:8px 10px;border-radius:10px;background:var(--cfa-light);font-size:12.5px;line-height:1.45;color:var(--text-secondary);}

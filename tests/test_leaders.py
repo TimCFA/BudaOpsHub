@@ -98,7 +98,11 @@ class Scoreboard(unittest.TestCase):
     def test_who_gets_a_profile(self):
         got = run("c => { " + QUARTER + " leaderRoster = [{name: 'Grace Kim', roles: []}]; leaderNotes = {'Liam Patel': [{text: 'x', ts: 1}]};"
                   " fohRoster = {'2026-10-13': [{name: 'Sofia Alvarez', start: '6:00a', end: '2:00p', leader: true}, {name: 'Noah Bennett', start: '6:00a', end: '2:00p'}]}; return ldLeaderNames('2026-Q4'); }")
-        self.assertEqual(got, ['Grace Kim', 'Jordan Reyes', 'Maya Torres', 'Liam Patel', 'Sofia Alvarez'])   # listed, rated as a Team Lead, a PEA giver, noted, rostered; not the directors
+        # A name on the list: the list decides (Oct 18 2026), plus the roster's Team Leader shifts.
+        self.assertEqual(got, ['Grace Kim', 'Sofia Alvarez'])
+        got = run("c => { " + QUARTER + " leaderRoster = []; leaderNotes = {'Liam Patel': [{text: 'x', ts: 1}]};"
+                  " fohRoster = {'2026-10-13': [{name: 'Sofia Alvarez', start: '6:00a', end: '2:00p', leader: true}, {name: 'Noah Bennett', start: '6:00a', end: '2:00p'}]}; return ldLeaderNames('2026-Q4'); }")
+        self.assertEqual(got, ['Jordan Reyes', 'Maya Torres', 'Liam Patel', 'Sofia Alvarez'])   # empty list, so the guess: rated as a Team Lead, a PEA giver, noted, rostered; not the directors
         got = run("c => { " + QUARTER + " leaderRoster = [{name: 'Timothy Lane', roles: ['Senior Leader']}]; return ldLeaderNames('2026-Q4').includes('Timothy Lane'); }")
         self.assertTrue(got)                                   # unless he's on the list
 
