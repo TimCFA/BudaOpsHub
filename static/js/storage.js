@@ -692,6 +692,26 @@ function stateNoteBuild(build){
   document.body.appendChild(bar);
 }
 
+// Opened from the home screen the hub runs full screen, with no address bar
+// and no pull-to-refresh, so a reload button takes the clock's place (the
+// phone shows the time). It reloads once every change is on the server.
+function stateStandalone(){
+  return navigator.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+}
+document.documentElement.classList.toggle('is-standalone', stateStandalone());
+
+async function stateReloadNow(){
+  if(!stateEverythingSaved()){
+    try{ await saveState(); }catch(e){ /* saveState retries on its own */ }
+  }
+  if(!stateEverythingSaved()){
+    showToast('Still saving — try again in a moment');
+    return;
+  }
+  location.reload();
+}
+document.getElementById('hdrReload').addEventListener('click', stateReloadNow);
+
 // Streaks count open days in a row. The store is closed Sundays, so
 // Saturday → Monday still counts as "in a row". Today doesn't have to be
 // earned yet, but a streak whose last day is before the last open day has

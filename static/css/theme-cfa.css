@@ -1714,3 +1714,10 @@ body:not(.is-manager) .manager-only{display:none !important;}
   .tp-row.is-team .tp-row-growth{justify-self:start;grid-auto-flow:column;gap:6px;align-items:baseline;}
   .tp-crit > span small{font-size:9px;}
 }
+
+/* Home screen app (storage.js stateStandalone): a reload button where the
+   clock was, since there's no address bar or pull-to-refresh. */
+.hdr-reload{display:none;align-items:center;justify-content:center;width:40px;height:40px;padding:0;border:1px solid var(--border);border-radius:999px;background:var(--cfa-white);color:var(--text-primary);cursor:pointer;}
+.hdr-reload:active{background:var(--cfa-soft);}
+html.is-standalone .hdr-reload{display:inline-flex;}
+html.is-standalone .clock{display:none;}
