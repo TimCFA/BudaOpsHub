@@ -1,8 +1,10 @@
 """Home screen icon (Tim, Oct 18 2026): Add to Home Screen on an iPhone shows
-the store's logo mark instead of a generic icon.
+the store's logo mark instead of a generic icon, and opens the hub full
+screen with a reload button in place of pull-to-refresh.
 
 Run: python3 -m unittest discover tests
 """
+import json
 import os
 import sys
 import unittest
@@ -23,7 +25,7 @@ class HomeScreenIcon(unittest.TestCase):
 
     def test_icons_are_square_and_opaque(self):
         # iOS paints see-through corners black, so the icon has no alpha.
-        for name, size in (('apple-touch-icon.png', 180), ('icon-192.png', 192), ('favicon-32.png', 32)):
+        for name, size in (('apple-touch-icon.png', 180), ('icon-192.png', 192), ('icon-512.png', 512), ('favicon-32.png', 32)):
             im = Image.open(os.path.join(ROOT, 'static', 'icons', name))
             self.assertEqual(im.size, (size, size), name)
             self.assertEqual(im.mode, 'RGB', name)
@@ -32,6 +34,33 @@ class HomeScreenIcon(unittest.TestCase):
         r = appmod.app.test_client().get('/static/icons/apple-touch-icon.png')
         self.assertEqual((r.status_code, r.mimetype), (200, 'image/png'))
         r.close()
+
+
+class FullScreen(unittest.TestCase):
+    def test_manifest(self):
+        with open(os.path.join(ROOT, 'static', 'manifest.json'), encoding='utf-8') as f:
+            m = json.load(f)
+        self.assertEqual((m['display'], m['start_url'], m['scope'], m['short_name']), ('standalone', '/', '/', 'Ops Hub'))
+        for icon in m['icons']:
+            self.assertTrue(os.path.exists(os.path.join(ROOT, icon['src'].lstrip('/'))), icon['src'])
+        r = appmod.app.test_client().get('/static/manifest.json')
+        self.assertEqual((r.status_code, r.mimetype), (200, 'application/json'))
+        r.close()
+
+    def test_page_runs_full_screen_with_a_reload_button(self):
+        with open(os.path.join(ROOT, 'cfa-buda-ops-hub-complete.html'), encoding='utf-8') as f:
+            page = f.read()
+        head = page.split('</head>')[0]
+        self.assertIn('<link rel="manifest" href="/static/manifest.json">', head)
+        self.assertIn('<meta name="apple-mobile-web-app-capable" content="yes">', head)
+        self.assertIn('id="hdrReload"', page)
+        with open(os.path.join(ROOT, 'static', 'css', 'theme-cfa.css'), encoding='utf-8') as f:
+            css = f.read()
+        self.assertIn('html.is-standalone .hdr-reload{display:inline-flex;}', css)
+        with open(os.path.join(ROOT, 'static', 'js', 'storage.js'), encoding='utf-8') as f:
+            js = f.read()
+        # Never reloads over a change that hasn't reached the server.
+        self.assertRegex(js, r"if\(!stateEverythingSaved\(\)\)\{\s*showToast\('Still saving")
 
 
 if __name__ == '__main__':
