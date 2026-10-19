@@ -42,6 +42,16 @@ QUARTER = """
 """
 
 
+class GoalTypes(unittest.TestCase):
+    def test_profile_marks_a_director_pea_that_does_not_count(self):
+        # Only Team Lead PEAs count toward the leader goals (Tim, Oct 18 2026):
+        # Maya's profile flags the 3H Week; Noah's (a team member) flags nothing.
+        got = run("c => { " + QUARTER + """ setRatings(peaAllRatings().concat([pea('2026-10-03', 'Timothy Lane', 'Maya Torres', 'Team Lead', 3, 'Team Lead'), pea('2026-10-09', 'Timothy Lane', 'Maya Torres', '3H Week', 3, 'Team Lead')]));
+          tpOpen = 'Maya Torres'; const m = tpBodyHtml(); tpOpen = 'Noah Bennett'; const n = tpBodyHtml();
+          return [m.split('not toward the goal').length - 1, m.includes('3H Week'), m.split('not toward the goal')[0].slice(-200).includes('3H Week'), n.split('not toward the goal').length - 1]; }""")
+        self.assertEqual(got, [1, True, True, 0])
+
+
 class Data(unittest.TestCase):
     def test_team_notes_are_private_and_manager_only(self):
         self.assertEqual(appmod.SECTION_OF_KEY['teamNotes'], 'people')

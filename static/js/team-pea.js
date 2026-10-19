@@ -216,7 +216,9 @@ function tpPerson(name, q){
     return {q: hq, b: hb, peas: got.length, avg: got.length ? got.reduce((s, r) => s + (+r.overall || 0), 0) / got.length : null, green: at ? tpGreenOf(at) : 0, rated: at ? Object.keys(at.positions).length : 0, gave,
       notes: notes.filter(n => n.date >= hb.from && n.date <= hb.to).length};
   }).filter(h => h.peas || h.gave || h.notes || h.q === q);
-  return {...C, name, peaName, role: now ? now.role : (row ? row.role : ''), row, positions, ratings, rater, notes, history, cert: row ? row.cert : {}, sides: row ? row.sides : []};
+  // A leader's profile marks the director PEAs that don't count toward the goals (leaders.js ldCountsForGoal).
+  const leaderProfile = typeof ldLeaderNames === 'function' && ldLeaderNames(q).some(n => dirKey(n) === k);
+  return {...C, name, peaName, role: now ? now.role : (row ? row.role : ''), row, positions, ratings, rater, notes, history, cert: row ? row.cert : {}, sides: row ? row.sides : [], leaderProfile};
 }
 
 // ----- Rendering -----
@@ -350,7 +352,7 @@ function tpProfileHtml(){
     </section>
     ${tpLsCardHtml(P.peaName)}
     ${P.ratings.length ? `<section class="dir-card"><h3>${escapeHtml(b.label)} ratings</h3>
-      <ul class="dir-list dir-list-sm tp-timeline">${P.ratings.map(r => `<li><span>${escapeHtml(ldDate(r.date))} · <b>${escapeHtml(r.position)}</b>${r.leader ? ` by ${escapeHtml(ldShort(r.leader))}` : ''}</span><span><span class="tp-tier is-${peaTierFor(+r.overall || 0).key}">${r.overall}</span> <small class="dir-muted">${escapeHtml(r.criteria.map(c => c === '' || c == null ? '–' : c).join(' · '))}</small></span></li>`).join('')}</ul>
+      <ul class="dir-list dir-list-sm tp-timeline">${P.ratings.map(r => { const noGoal = P.leaderProfile && dirIsDirector(r.leader) && typeof ldCountsForGoal === 'function' && !ldCountsForGoal(r); return `<li class="${noGoal ? 'is-nogoal' : ''}"><span>${escapeHtml(ldDate(r.date))} · <b>${escapeHtml(r.position)}</b>${r.leader ? ` by ${escapeHtml(ldShort(r.leader))}` : ''}${noGoal ? ' <em class="tp-nogoal">not toward the goal</em>' : ''}</span><span><span class="tp-tier is-${peaTierFor(+r.overall || 0).key}">${r.overall}</span> <small class="dir-muted">${escapeHtml(r.criteria.map(c => c === '' || c == null ? '–' : c).join(' · '))}</small></span></li>`; }).join('')}</ul>
     </section>` : ''}
     <section class="dir-card"><h3>Quarter by quarter</h3>
       <table class="ld-history"><thead><tr><th>Quarter</th><th>PEAs</th><th>Avg</th><th>Green</th>${P.history.some(h => h.gave) ? '<th>Gave</th>' : ''}<th>Notes</th></tr></thead><tbody>${P.history.map(h => `<tr class="${h.q === tpQuarterOn() ? 'is-on' : ''}"><td><button type="button" class="ld-link" data-tp-quarter="${h.q}">${escapeHtml(h.b.label)}</button></td><td>${h.peas}</td><td>${h.avg == null ? '—' : h.avg.toFixed(2)}</td><td>${h.rated ? `${h.green}/${h.rated}` : '—'}</td>${P.history.some(x => x.gave) ? `<td>${h.gave || '—'}</td>` : ''}<td>${h.notes}</td></tr>`).join('')}</tbody></table>

@@ -28,6 +28,11 @@ const LD_TYPES = [
   {id: 'talk', label: 'Conversation', hint: 'A talk you had'},
 ];
 const PEA_GOALS_SEED = {team: 50, leader: 12};
+// Which PEAs count toward the leader goals: Levelset's "Team Lead" type (the
+// FOH/BOH suffix is dropped at sync), set in Manage → Settings → Leaders
+// (peaGoals.positions). A sample 3H Week on a leader counted (Tim, Oct 18
+// 2026). Empty means every PEA counts.
+const LD_GOAL_POSITIONS_SEED = ['Team Lead'];
 
 // Role Clarity Cards (Chick-fil-A Buda PEC), as Tim's Leader Notes page
 // carries them. Every leader is calibrated to the Team Leader card plus
@@ -172,7 +177,16 @@ function ldWeeksOf(b){
 // ----- Goals, the leader list and their notes -----
 function ldGoals(){
   const g = peaGoals && typeof peaGoals === 'object' ? peaGoals : {};
-  return {team: +g.team > 0 ? Math.round(+g.team) : PEA_GOALS_SEED.team, leader: +g.leader > 0 ? Math.round(+g.leader) : PEA_GOALS_SEED.leader};
+  const positions = Array.isArray(g.positions) ? g.positions.map(p => String(p || '').trim()).filter(Boolean) : LD_GOAL_POSITIONS_SEED;
+  return {team: +g.team > 0 ? Math.round(+g.team) : PEA_GOALS_SEED.team, leader: +g.leader > 0 ? Math.round(+g.leader) : PEA_GOALS_SEED.leader, positions};
+}
+const ldPosKey = p => dirKey(p).replace(/\s+(foh|boh)$/, '');
+// A rating of a kind that counts toward the leader goals (ldGoals().positions).
+function ldCountsForGoal(r, goals){
+  const positions = (goals || ldGoals()).positions;
+  if(!positions.length) return true;
+  const k = ldPosKey(r.position);
+  return positions.some(p => ldPosKey(p) === k);
 }
 function ldRoster(){ return Array.isArray(leaderRoster) ? leaderRoster : []; }
 function ldRolesFor(name){ const k = dirKey(name); const r = ldRoster().find(x => dirKey(x.name) === k); return r && Array.isArray(r.roles) ? r.roles.filter(x => LD_ROLE_CARDS[x]) : []; }
@@ -230,7 +244,8 @@ function ldScore(q){
   q = q || ldQuarterOn();
   const b = ldQuarterBounds(q), goals = ldGoals();
   const rows = ldRatings().filter(r => r.date >= b.from && r.date <= b.to);
-  const dirRows = rows.filter(r => dirIsDirector(r.leader));
+  // Toward the goals: a director's PEA of a counting kind (ldCountsForGoal).
+  const dirRows = rows.filter(r => dirIsDirector(r.leader) && ldCountsForGoal(r, goals));
   const days = ldDaysBetween(b.from, b.to) + 1;
   const elapsed = today < b.from ? 0 : today > b.to ? days : ldDaysBetween(b.from, today) + 1;
   const frac = elapsed / days;
@@ -563,7 +578,7 @@ function renderLeadersManage(){
     <p class="ld-m-note">${ldListDecides()
       ? 'This list decides who the hub treats as a leader (Set Ups badges, Lead Captain choices, the Leaders page, the Directors brief), plus Team Leader shifts on the roster. Take a name off and they stop counting.'
       : 'Empty, so the hub guesses: anyone who gave a PEA this quarter, was rated as a leader or has notes counts. Add the real leaders here and the list takes over.'}</p>
-    <div class="ld-goals"><label>Team, per quarter <input type="number" min="1" max="999" value="${goals.team}" data-ld-goal="team"></label><label>Each leader, per quarter <input type="number" min="1" max="99" value="${goals.leader}" data-ld-goal="leader"></label></div>
+    <div class="ld-goals"><label>Team, per quarter <input type="number" min="1" max="999" value="${goals.team}" data-ld-goal="team"></label><label>Each leader, per quarter <input type="number" min="1" max="99" value="${goals.leader}" data-ld-goal="leader"></label><label class="ld-goal-pos">PEA types that count toward the goals (as Levelset names them, comma-separated; blank = every PEA) <input type="text" value="${escapeHtml(goals.positions.join(', '))}" placeholder="Team Lead" maxlength="200" data-ld-goal-pos="1"></label></div>
     <datalist id="ldKnownLeaders">${known.map(n => `<option value="${escapeHtml(n)}">`).join('')}</datalist>
     <div class="dir-m-list">${ldRoster().map((r, i) => `
       <div class="ld-m-row">
@@ -579,6 +594,11 @@ document.addEventListener('change', e => {
   if(t.dataset.ldGoal){
     const g = ldGoals(); const v = Math.round(+t.value);
     if(v > 0) g[t.dataset.ldGoal] = v;
+    peaGoals = g; saveState(); dirRerender(); return;
+  }
+  if(t.dataset.ldGoalPos){
+    const g = ldGoals();
+    g.positions = t.value.split(',').map(s => s.trim()).filter(Boolean);
     peaGoals = g; saveState(); dirRerender(); return;
   }
   if(t.dataset.ldMName !== undefined){ ldEnsureOwn(); const r = leaderRoster[+t.dataset.ldMName]; if(r){ r.name = t.value.trim(); saveState(); dirRerender(); } }

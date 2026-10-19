@@ -25,12 +25,16 @@ def run(op, **extra):
 # The directors' PEAs on two leaders this quarter, one from last quarter on a
 # third, and two PEAs by a leader (on a team member, and on another leader)
 # that don't count.
+# Directors' PEAs on leaders are Levelset's "Team Lead" type; the Oct 9 "3H
+# Week" on Maya is a director's PEA of another kind and never counts toward
+# the goals (Tim, Oct 18 2026).
 QUARTER = """
   peaRows = [
-    pea('2026-10-01', 'Timothy Lane', 'Maya Torres'), pea('2026-10-02', 'Kianna Ramos', 'Maya Torres', 'Bagging', 2),
-    pea('2026-10-06', 'Timothy Lane', 'Maya Torres', 'Drinks 2'), pea('2026-10-12', 'Timothy Lane', 'Maya Torres'),
-    pea('2026-10-05', 'Timothy Lane', 'Jordan Reyes', 'Host', 3, 'Team Lead'),
-    pea('2026-09-28', 'Kianna Ramos', 'Ava Morales'),
+    pea('2026-10-01', 'Timothy Lane', 'Maya Torres', 'Team Lead'), pea('2026-10-02', 'Kianna Ramos', 'Maya Torres', 'Team Lead', 2),
+    pea('2026-10-06', 'Timothy Lane', 'Maya Torres', 'Team Lead'), pea('2026-10-12', 'Timothy Lane', 'Maya Torres', 'Team Lead'),
+    pea('2026-10-09', 'Timothy Lane', 'Maya Torres', '3H Week'),
+    pea('2026-10-05', 'Timothy Lane', 'Jordan Reyes', 'Team Lead', 3, 'Team Lead'),
+    pea('2026-09-28', 'Kianna Ramos', 'Ava Morales', 'Team Lead'),
     pea('2026-10-07', 'Maya Torres', 'Noah Bennett'),
     pea('2026-10-08', 'Maya Torres', 'Jordan Reyes', 'Host', 3, 'Team Lead')];
   leaderNotes = {'Ava Morales': [{text: 'Shadowed the close', ts: 1, date: '2026-10-02', type: 'talk'}]};
@@ -46,8 +50,8 @@ class Data(unittest.TestCase):
             self.assertIn(key, appmod.MANAGER_ONLY_KEYS)
 
     def test_goals_default_to_tims_numbers(self):
-        self.assertEqual(run('c => ldGoals()'), {'team': 50, 'leader': 12})
-        self.assertEqual(run('c => { peaGoals = {team: 60, leader: 0}; return ldGoals(); }'), {'team': 60, 'leader': 12})
+        self.assertEqual(run('c => ldGoals()'), {'team': 50, 'leader': 12, 'positions': ['Team Lead']})
+        self.assertEqual(run('c => { peaGoals = {team: 60, leader: 0}; return ldGoals(); }'), {'team': 60, 'leader': 12, 'positions': ['Team Lead']})
 
     def test_quarters(self):
         got = run("c => [ldQuarterKey('2026-10-12'), ldQuarterBounds('2026-Q4'), ldQuarterBounds('2026-Q1').to]")
@@ -82,7 +86,7 @@ class Scoreboard(unittest.TestCase):
         self.assertEqual(got, [True, 0])
 
     def test_goal_met_and_a_closed_quarter(self):
-        got = run("c => { leaderRoster = [{name: 'Maya Torres', roles: []}]; peaRows = Array.from({length: 13}, (_, i) => pea('2026-10-0' + (1 + i % 9), 'Timothy Lane', 'Maya Torres', 'P' + i)); peaGoals = {team: 50, leader: 12};"
+        got = run("c => { leaderRoster = [{name: 'Maya Torres', roles: []}]; peaRows = Array.from({length: 13}, (_, i) => pea('2026-10-0' + (1 + i % 9), 'Timothy Lane', 'Maya Torres', 'Team Lead')); peaGoals = {team: 50, leader: 12};"
                   " const S = ldScore(); const L = S.leaders[0]; return [L.status, S.done, ldPaceText(L, S)]; }")
         self.assertEqual(got, ['done', 1, '13 of 12, 1 over. Goal met.'])
         got = run("c => { " + QUARTER + " const S = ldScore('2026-Q3'); return [S.over, S.teamStatus, S.leaders.map(L => [L.name, L.count, L.status])]; }")
@@ -94,6 +98,15 @@ class Scoreboard(unittest.TestCase):
         got = run("c => { " + QUARTER + " const S = ldScore(); return S.leaders.map(L => ldPaceText(L, S)); }")
         self.assertEqual(got[0], '8 to go in 12 weeks: about one every other week. Ahead of the 1 expected by today.')
         self.assertEqual(got[2], '12 to go in 12 weeks: about one a week. Expected 1 by today.')
+
+    def test_only_the_chosen_pea_types_count(self):
+        # Maya has five director PEAs this quarter; the 3H Week isn't a Team Lead PEA.
+        got = run("c => { " + QUARTER + " const S = ldScore(); const M = S.leaders.find(L => L.name === 'Maya Torres'); return [M.count, S.total, ldRatings().filter(r => r.employee === 'Maya Torres' && dirIsDirector(r.leader) && r.date >= '2026-10-01').length]; }")
+        self.assertEqual(got, [4, 5, 5])
+        # Levelset's side suffix, spacing and case don't matter; blank means every PEA counts.
+        got = run("c => { " + QUARTER + " peaGoals = {positions: ['team lead FOH']}; const a = ldScore().leaders.find(L => L.name === 'Maya Torres').count;"
+                  " peaGoals = {positions: []}; const b = ldScore().leaders.find(L => L.name === 'Maya Torres').count; peaGoals = {positions: ['3H Week']}; const t = ldScore().total; return [a, b, t]; }")
+        self.assertEqual(got, [4, 5, 1])
 
     def test_who_gets_a_profile(self):
         got = run("c => { " + QUARTER + " leaderRoster = [{name: 'Grace Kim', roles: []}]; leaderNotes = {'Liam Patel': [{text: 'x', ts: 1}]};"
