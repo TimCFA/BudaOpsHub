@@ -171,13 +171,30 @@ def _split_state(state):
 
 # The latest saved data is kept in memory with a version tag per section, so
 # a page asking "anything new?" costs Firebase nothing, and a save applies its
-# changes to the latest data. Page loads re-read Firebase (as before), which
-# also picks up any change made outside the app. This assumes one server
-# process (Render runs `gunicorn app:app`: one worker); the lock covers
-# threads within it.
+# changes to the latest data. This assumes one server process (Render runs
+# `gunicorn app:app`: one worker); the lock covers threads within it.
+#
+# Page loads are answered from memory too (Oct 18 2026, after the data
+# audit): each one used to re-read the whole state/ tree (~1.3 MB) while
+# holding the lock, so phones opening at shift change queued behind each
+# other and every save and sync waited. Only this server writes state/, so
+# memory is current. Firebase is still read on a cold start, a few times in
+# the first minutes after a start (the old server can take a save while a
+# deploy overlaps), at most every CACHE_REFRESH_SECONDS in the background
+# while pages are open, and fresh for the full backup. The read runs outside the
+# lock, and a section saved during it keeps what was saved.
 _state_lock = threading.RLock()
-_cache = {}            # section name -> {'data': dict, 'ver': str}
+_cache = {}            # section name -> {'data': dict, 'ver': str, 'canon': str}
 _cache_ready = False
+_refresh_lock = threading.Lock()   # one Firebase read of state/ at a time
+_refresh_running = False           # a background re-read is under way
+_cache_read_at = 0.0               # time.monotonic() of the last full read
+_write_gen = 0                     # counts section writes
+_written_gen = {}                  # section name -> _write_gen of its last write
+CACHE_REFRESH_SECONDS = 30 * 60
+BOOT_REFRESH_SECONDS = (60, 180, 600)
+_booted_at = time.monotonic()      # the first fill (a start); BOOT_REFRESH_SECONDS count from it
+_boot_refreshes_done = 0
 BUILD = (os.environ.get('RENDER_GIT_COMMIT') or '')[:12] or format(int(time.time()), 'x')
 
 def _new_version():
@@ -192,21 +209,80 @@ def _parse_section(value):
         return None
     return parsed if isinstance(parsed, dict) else None
 
-def _refresh_cache():
+def _refresh_cache(only_if_cold=False):
     """Re-read every section from Firebase. False when nothing is stored yet
-    (before the split)."""
-    global _cache_ready
-    raw = db.reference(STATE_ROOT).get()
-    if not isinstance(raw, dict):
-        return False
-    _move_stored_keys(raw)
-    for name in STATE_SECTIONS:
-        data = _parse_section(raw.get(name)) or {}
-        old = _cache.get(name)
-        if old is None or canon(old['data']) != canon(data):
-            _cache[name] = {'data': data, 'ver': _new_version()}
-    _cache_ready = True
-    return True
+    (before the split). The download and parsing happen outside _state_lock,
+    so syncs and saves carry on meanwhile; a section saved during the read
+    keeps what was saved (the read may predate it). With only_if_cold, a
+    request that waited while another filled the cache doesn't read again."""
+    global _cache_ready, _cache_read_at, _booted_at, _boot_refreshes_done
+    with _refresh_lock:
+        if only_if_cold and not _cache_cold():
+            return True
+        with _state_lock:
+            gen = _write_gen
+        raw = db.reference(STATE_ROOT).get()
+        if not isinstance(raw, dict):
+            return False
+        if any(isinstance(_parse_section(raw.get(old)), dict) and key in _parse_section(raw.get(old)) for key, (old, _) in MOVED_KEYS.items()):
+            # A key still in its old section: move it with saves held, from
+            # a read no save can have overtaken (rare: once per moved key).
+            with _state_lock:
+                raw = db.reference(STATE_ROOT).get()
+                if not isinstance(raw, dict):
+                    return False
+                _move_stored_keys(raw)
+                gen = _write_gen
+        fresh = {}
+        for name in STATE_SECTIONS:
+            data = _parse_section(raw.get(name)) or {}
+            fresh[name] = (data, canon(data))
+        with _state_lock:
+            if _cache_cold():
+                _booted_at, _boot_refreshes_done = time.monotonic(), 0
+            for name, (data, data_canon) in fresh.items():
+                if _written_gen.get(name, 0) > gen:
+                    continue
+                old = _cache.get(name)
+                if old is None or old['canon'] != data_canon:
+                    _cache[name] = {'data': data, 'ver': _new_version(), 'canon': data_canon}
+            _cache_ready = True
+            _cache_read_at = time.monotonic()
+        return True
+
+def _cache_cold():
+    return not _cache_ready or not _cache
+
+def _cache_due():
+    """Time for a background re-read: the follow-ups after a start (a save
+    the old server took while a deploy overlapped), then every
+    CACHE_REFRESH_SECONDS."""
+    now = time.monotonic()
+    if _boot_refreshes_done < len(BOOT_REFRESH_SECONDS) and now - _booted_at >= BOOT_REFRESH_SECONDS[_boot_refreshes_done]:
+        return True
+    return now - _cache_read_at >= CACHE_REFRESH_SECONDS
+
+def _refresh_if_due():
+    """Start a background re-read when one is due and none is running; the
+    reply in hand doesn't wait for it."""
+    global _boot_refreshes_done, _refresh_running
+    with _state_lock:
+        if _refresh_running or _cache_cold() or not _cache_due():
+            return
+        _refresh_running = True
+        now = time.monotonic()
+        while _boot_refreshes_done < len(BOOT_REFRESH_SECONDS) and now - _booted_at >= BOOT_REFRESH_SECONDS[_boot_refreshes_done]:
+            _boot_refreshes_done += 1
+    def run():
+        global _refresh_running
+        try:
+            _refresh_cache()
+        except Exception as e:
+            print(f"[STATE REFRESH ERROR] {e}")
+        finally:
+            with _state_lock:
+                _refresh_running = False
+    threading.Thread(target=run, daemon=True).start()
 
 def _move_stored_keys(raw):
     """Move any key still stored in its old section (MOVED_KEYS) to its new
@@ -228,22 +304,40 @@ def _move_stored_keys(raw):
             db.reference(f'{STATE_ROOT}/{name}').set(raw[name])
         print(f"[STATE] Moved {key} from {old_name} to {new_name}")
 
+def _ensure_cache(migrate=False):
+    """Fill a cold cache from Firebase (with migrate, from the old appState
+    blob on the very first run). True once there's data. Never call it, or
+    anything that may refresh, while holding _state_lock: _refresh_cache
+    takes _refresh_lock first, and the background read holds that while it
+    waits for _state_lock."""
+    if not _cache_cold() or _refresh_cache(only_if_cold=True):
+        return True
+    if not migrate:
+        return False
+    with _state_lock:
+        _migrate_legacy_state()
+    return _refresh_cache()
+
 def _read_sections():
     """{name: dict} for every section, or None before the split."""
+    if not _ensure_cache():
+        return None
     with _state_lock:
-        if not _cache_ready and not _refresh_cache():
-            return None
         return {name: entry['data'] for name, entry in _cache.items()}
 
 def _dumps(value):
     return json.dumps(value, separators=(',', ':'), ensure_ascii=False)
 
 def _write_section(name, section_dict):
+    global _write_gen
     with _state_lock:
         db.reference(f'{STATE_ROOT}/{name}').set(_dumps(section_dict))
+        _write_gen += 1
+        _written_gen[name] = _write_gen
         old = _cache.get(name)
-        if old is None or canon(old['data']) != canon(section_dict):
-            _cache[name] = {'data': section_dict, 'ver': _new_version()}
+        new_canon = canon(section_dict)
+        if old is None or old['canon'] != new_canon:
+            _cache[name] = {'data': section_dict, 'ver': _new_version(), 'canon': new_canon}
 
 def _gate_section(name, new_section, old_section):
     """A save without a manager session keeps the stored manager-only
@@ -962,11 +1056,11 @@ def _state_reply(names):
 @app.route('/api/state/load', methods=['POST'])
 def state_load():
     try:
+        # From memory (see _cache above); Firebase only when cold, and now and
+        # then in the background.
+        _ensure_cache(migrate=True)
+        _refresh_if_due()
         with _state_lock:
-            # Always from Firebase, so a change made outside the app shows up.
-            if not _refresh_cache():
-                _migrate_legacy_state()
-                _refresh_cache()
             return jsonify(_state_reply(list(_cache)))
     except Exception as e:
         print(f"[STATE LOAD ERROR] {e}")
@@ -987,9 +1081,10 @@ def state_sync():
     if only is not None and (not isinstance(only, list) or not all(isinstance(n, str) for n in only)):
         return jsonify({'error': 'only must be a list of section names'}), 400
     try:
+        if not _ensure_cache():
+            return jsonify({'sections': {}, 'versions': {}, 'build': BUILD, 'now': int(time.time() * 1000)})
+        _refresh_if_due()
         with _state_lock:
-            if _read_sections() is None:
-                return jsonify({'sections': {}, 'versions': {}, 'build': BUILD, 'now': int(time.time() * 1000)})
             names = [n for n in _cache if have.get(n) != _cache[n]['ver'] and (only is None or n in only)]
             return jsonify(_state_reply(names))
     except Exception as e:
@@ -1047,10 +1142,8 @@ def state_patch():
             patch['ops'] = [op for op in patch['ops'] if op not in dropped_ops]
 
     try:
+        _ensure_cache(migrate=True)
         with _state_lock:
-            if _read_sections() is None:
-                _migrate_legacy_state()
-                _refresh_cache()
             ignored, returned = set(), []
             for name, patch in patches.items():
                 ops = patch['ops']
@@ -1245,9 +1338,9 @@ def state_export():
     if not session.get('manager'):
         return jsonify({'error': 'Manager sign-in required'}), 403
     try:
+        if not _refresh_cache():
+            return jsonify({'error': 'Nothing has been saved yet'}), 404
         with _state_lock:
-            if not _refresh_cache():
-                return jsonify({'error': 'Nothing has been saved yet'}), 404
             sections = {name: _cache[name]['data'] for name in STATE_SECTIONS}
     except Exception as e:
         print(f"[STATE EXPORT ERROR] {e}")

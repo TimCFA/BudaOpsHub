@@ -7,6 +7,7 @@ import json
 import os
 import re
 import sys
+import threading
 import time
 import unittest
 
@@ -45,6 +46,13 @@ LEGACY = {
 
 def section(name):
     return json.loads(store[f'state/{name}'])
+
+
+def wait_for_refresh():
+    """A background re-read (state_load) has finished."""
+    deadline = time.time() + 5
+    while appmod._refresh_running and time.time() < deadline:
+        time.sleep(0.01)
 
 
 class StateTest(unittest.TestCase):
@@ -312,8 +320,14 @@ class PatchTest(unittest.TestCase):
         news = self.a.post('/api/state/sync', json={'versions': have}).get_json()
         self.assertEqual(list(news['sections']), ['waste'])
 
-    def test_changes_outside_the_app_show_up_on_load(self):
+    def test_changes_outside_the_app_show_up_after_a_re_read(self):
+        # Page loads come from memory; a re-read (in the background once due)
+        # brings a change made outside the app, and only that section moves.
         store['state/cem'] = json.dumps({'cemEntries': [{'month': '2026-08'}]})
+        self.assertNotIn('cemEntries', json.loads(self.b.post('/api/state/load', json={}).get_json()['sections']['cem']))
+        appmod._cache_read_at -= appmod.CACHE_REFRESH_SECONDS
+        self.b.post('/api/state/load', json={})
+        wait_for_refresh()
         again = self.b.post('/api/state/load', json={}).get_json()
         self.assertEqual(json.loads(again['sections']['cem'])['cemEntries'], [{'month': '2026-08'}])
         self.assertNotEqual(again['versions']['cem'], self.ver('cem'))
@@ -383,6 +397,7 @@ class PatchTest(unittest.TestCase):
 
     def test_replies_are_zipped_when_asked(self):
         store['state/history'] = json.dumps({'setupHistory': {'rows': ['Josh on iPOS 1'] * 400}})
+        appmod._cache.clear()      # as after a restart: read from the store
         r = self.a.post('/api/state/load', json={}, headers={'Accept-Encoding': 'gzip'})
         self.assertEqual(r.headers.get('Content-Encoding'), 'gzip')
         import gzip
@@ -485,6 +500,117 @@ class SafeCountTest(unittest.TestCase):
     def test_no_cross_site_access_by_default(self):
         r = self.team.post('/api/state/load', json={}, headers={'Origin': 'https://example.com'})
         self.assertNotIn('Access-Control-Allow-Origin', r.headers)
+
+
+
+class LoadFromMemoryTest(unittest.TestCase):
+    """Page loads are answered from memory (Oct 18 2026 data audit): Firebase
+    is read when cold, now and then in the background, and fresh for the
+    backup, never while holding the lock that saves and syncs wait on."""
+
+    def setUp(self):
+        self.gets = []
+        test = self
+
+        class CountingRef(FakeRef):
+            def get(self):
+                if self.path == appmod.STATE_ROOT:
+                    test.gets.append(self.path)
+                    time.sleep(getattr(test, 'read_seconds', 0))
+                    hook = getattr(test, 'on_read', None)
+                    if hook:
+                        test.on_read = None
+                        hook()
+                return FakeRef.get(self)
+        appmod.db.reference = lambda path: CountingRef(path)
+        appmod._cache.clear()
+        appmod._cache_ready = False
+        store.clear()
+        store['appState'] = json.dumps(LEGACY)
+        self.c = appmod.app.test_client()
+        self.first = self.c.post('/api/state/load', json={}).get_json()
+        self.gets.clear()
+
+    def load(self):
+        return self.c.post('/api/state/load', json={}).get_json()
+
+    def test_loads_read_firebase_only_when_due(self):
+        for _ in range(5):
+            self.assertEqual(self.load()['versions'], self.first['versions'])
+        self.assertEqual(self.gets, [])
+        appmod._cache_read_at -= appmod.CACHE_REFRESH_SECONDS
+        self.load()
+        wait_for_refresh()
+        self.assertEqual(len(self.gets), 1)
+        self.load()
+        wait_for_refresh()
+        self.assertEqual(len(self.gets), 1)          # read just now: not due again
+        # Phones checking in (sync) start a due re-read too.
+        appmod._cache_read_at -= appmod.CACHE_REFRESH_SECONDS
+        self.c.post('/api/state/sync', json={'versions': self.first['versions']})
+        wait_for_refresh()
+        self.assertEqual(len(self.gets), 2)
+
+    def test_phones_arriving_at_a_cold_start_read_once(self):
+        self.read_seconds = 0.3      # a slow read, so they all arrive during it
+        appmod._cache.clear()
+        appmod._cache_ready = False
+        clients = [appmod.app.test_client() for _ in range(6)]
+        threads = [threading.Thread(target=lambda c=c: c.post('/api/state/sync', json={'versions': {}}), daemon=True) for c in clients]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(5)
+        self.assertEqual(len(self.gets), 1)
+
+    def test_follow_up_reads_after_a_start(self):
+        booted, done = appmod._booted_at, appmod._boot_refreshes_done
+        try:
+            appmod._boot_refreshes_done = 0
+            appmod._booted_at = time.monotonic() - appmod.BOOT_REFRESH_SECONDS[0] - 1
+            self.load()
+            wait_for_refresh()
+            self.assertEqual(len(self.gets), 1)
+            self.assertEqual(appmod._boot_refreshes_done, 1)
+            self.load()
+            wait_for_refresh()
+            self.assertEqual(len(self.gets), 1)      # the next one is minutes later
+        finally:
+            appmod._booted_at, appmod._boot_refreshes_done = booted, done
+
+    def test_read_happens_outside_the_lock(self):
+        got = []
+        def other_thread_can_save():
+            t = threading.Thread(target=lambda: got.append(appmod._state_lock.acquire(timeout=1) and (appmod._state_lock.release() or True)), daemon=True)
+            t.start()
+            t.join()
+        self.on_read = other_thread_can_save
+        self.assertTrue(appmod._refresh_cache())
+        self.assertEqual(got, [True])
+
+    def test_a_save_during_the_read_is_kept(self):
+        v = self.first['versions']['setups']
+        def save_meanwhile():
+            # The read already has the old setups; a save lands before it's applied.
+            snapshot = dict(store)
+            t = threading.Thread(target=lambda: self.c.post('/api/state/patch', json={'patches': {'setups': {'ver': v, 'ops': [{'o': 'set', 'p': ['posAssignments', 'foh||d||Lunch||Runner'], 'v': 'Ava'}]}}}), daemon=True)
+            t.start()
+            t.join(2)
+            self.assertFalse(t.is_alive(), 'the save waited on the read')
+            store.clear()
+            store.update(snapshot)                    # what the read sees: from before the save
+        self.on_read = save_meanwhile
+        appmod._refresh_cache()
+        reply = self.c.post('/api/state/sync', json={'versions': {}}).get_json()
+        self.assertEqual(json.loads(reply['sections']['setups'])['posAssignments'].get('foh||d||Lunch||Runner'), 'Ava')
+
+    def test_backup_reads_fresh(self):
+        with self.c.session_transaction() as sess:
+            sess['manager'] = True
+        store['state/cem'] = json.dumps({'cemEntries': [{'month': '2026-09'}]})
+        body = json.loads(self.c.post('/api/state/export').get_data())
+        self.assertEqual(body['sections']['cem']['cemEntries'], [{'month': '2026-09'}])
+        self.assertEqual(len(self.gets), 1)
 
 
 if __name__ == '__main__':
