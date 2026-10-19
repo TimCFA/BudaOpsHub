@@ -25,6 +25,8 @@ function renderDayPicker(pickerId, selectId, offsetWeeks, onSelect){
 }
 
 function updateSelectedDayInfo(selectId, infoContainerId, skipDate){
+  // Set Ups' day line is the status row now (renderSetupsStatus).
+  if(infoContainerId === 'daySelectedInfo'){ renderSetupsStatus(); return; }
   const dateISO = document.getElementById(selectId).value;
   const el = document.getElementById(infoContainerId);
   if(!dateISO){ el.innerHTML = ''; return; }
@@ -49,8 +51,13 @@ function getSetupsWeekDays(offsetWeeks){
     const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
     const iso = toLocalISODate(d);
     const shortDate = d.toLocaleDateString('en-US', {month: 'numeric', day: 'numeric'});
-    return {weekday: name, date: iso, label: name.slice(0, 3) + ' ' + shortDate};
+    return {weekday: name, date: iso, label: name.slice(0, 3) + ' ' + shortDate, dayNum: d.getDate()};
   });
+}
+
+// The day for the status line: "Mon, Oct 19".
+function suShortDate(iso){
+  return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric'});
 }
 
 function pickDefaultSetupsDay(days, previousValue){
@@ -68,17 +75,12 @@ function formatWeekRangeLabel(days){
   return fmt(days[0].date) + '-' + fmt(days[days.length - 1].date);
 }
 
+// The arrows move a week; their titles say which week is on screen.
 function updateSetupsPrevBtn(days){
-  const btn = document.getElementById('setupsPrevWeekBtn');
-  if(setupsWeekOffset === 0 || setupsWeekOffset === 1){
-    btn.className = 'rolling-arrow';
-    btn.textContent = '‹';
-    btn.title = 'Previous week';
-  } else {
-    btn.className = 'rolling-arrow-expanded';
-    btn.textContent = '‹ ' + formatWeekRangeLabel(days);
-    btn.title = 'Go back another week';
-  }
+  const range = formatWeekRangeLabel(days);
+  const prev = document.getElementById('setupsPrevWeekBtn'), next = document.getElementById('setupsNextWeekBtn');
+  if(prev) prev.title = `Previous week (showing ${range})`;
+  if(next) next.title = `Next week (showing ${range})`;
 }
 
 function renderSetupsDayPicker(onSelect){
@@ -89,40 +91,45 @@ function renderSetupsDayPicker(onSelect){
   
   updateSetupsPrevBtn(days);
   
-  picker.innerHTML = days.map(d=>`<div class="day-pill ${d.date === targetValue ? 'active' : ''}" data-date="${d.date}">${d.label}</div>`).join('');
+  // Two-line tiles: the weekday over the day of the month; today outlined,
+  // the chosen day filled.
+  picker.innerHTML = days.map(d=>`<button type="button" class="day-pill ${d.date === targetValue ? 'active' : ''} ${d.date === today ? 'is-today' : ''}" data-date="${d.date}" aria-pressed="${d.date === targetValue}" aria-label="${escapeHtml(d.weekday)} ${d.dayNum}"><small>${d.label.slice(0, 3)}</small><b>${d.dayNum}</b></button>`).join('');
   select.innerHTML = '<option value="">Choose a day</option>' + days.map(d=>`<option value="${d.date}">${d.weekday}</option>`).join('');
   select.value = targetValue;
-  
+
   picker.querySelectorAll('.day-pill').forEach(pill=>{
     pill.addEventListener('click', ()=>{
-      picker.querySelectorAll('.day-pill').forEach(p=>p.classList.remove('active'));
+      picker.querySelectorAll('.day-pill').forEach(p=>{ p.classList.remove('active'); p.setAttribute('aria-pressed', 'false'); });
       pill.classList.add('active');
+      pill.setAttribute('aria-pressed', 'true');
       select.value = pill.dataset.date;
       onSelect();
     });
   });
+  const active = picker.querySelector('.day-pill.active');
+  if(active && active.scrollIntoView) active.scrollIntoView({block: 'nearest', inline: 'nearest'});
+}
+
+// The status line under the strip: the day, when its set up last changed
+// (or what the last Refresh found), Refresh, and the Set up / Coach switch.
+function renderSetupsStatus(){
+  const el = document.getElementById('daySelectedInfo');
+  if(!el) return;
+  const dateISO = document.getElementById('daySelect').value;
+  el.innerHTML = dateISO && typeof suStatusHtml === 'function' ? suStatusHtml(dateISO) : '';
 }
 
 function setSetupsWeekOffset(offset){
   setupsWeekOffset = offset;
-  document.querySelectorAll('#setupsWeekToggle .su-week-toggle-btn').forEach(b=>{
-    const isActive = parseInt(b.dataset.offset, 10) === offset;
-    b.classList.toggle('active', isActive);
-    b.setAttribute('aria-pressed', String(isActive));
-  });
-  renderSetupsDayPicker(()=>{ renderAllDayparts(); updateSelectedDayInfo('daySelect', 'daySelectedInfo'); });
+  renderSetupsDayPicker(()=>{ renderAllDayparts(); });
   renderAllDayparts();
-  updateSelectedDayInfo('daySelect', 'daySelectedInfo');
 }
-
-document.querySelectorAll('#setupsWeekToggle .su-week-toggle-btn').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    setSetupsWeekOffset(parseInt(btn.dataset.offset, 10));
-  });
-});
 
 document.getElementById('setupsPrevWeekBtn').addEventListener('click', ()=>{
   setSetupsWeekOffset(setupsWeekOffset - 1);
+});
+document.getElementById('setupsNextWeekBtn').addEventListener('click', ()=>{
+  setSetupsWeekOffset(setupsWeekOffset + 1);
 });
 
 function parseShiftTimeToMinutes(str){
@@ -193,24 +200,31 @@ function assignedNamesForDaypart(dayName, dpName){
 }
 
 function renderPositionsTab(){
-  renderSetupsDayPicker(()=>{ renderAllDayparts(); updateSelectedDayInfo('daySelect', 'daySelectedInfo'); });
+  renderSetupsDayPicker(()=>{ renderAllDayparts(); });
   renderAllDayparts();
-  updateSelectedDayInfo('daySelect', 'daySelectedInfo');
 }
 
 function renderAllDayparts(){
   const dayName = document.getElementById('daySelect').value;
+  renderSetupsStatus();
   if(!dayName){
     document.getElementById('daypartContainer').style.display = 'none';
     document.getElementById('rosterContainer').style.display = 'none';
     return;
   }
-  
+
   document.getElementById('daypartContainer').style.display = 'block';
   document.getElementById('rosterContainer').style.display = 'block';
   // One daypart at a time: chips, game plan, zones, toolbar (setups-board.js).
   document.getElementById('allDayparts').innerHTML = renderSetupsBoard(dayName);
   renderRoster();
+  // The daypart that opened by itself (the one on the clock) comes into
+  // view under the strip, once, when it sits below the fold.
+  if(typeof suAutoOpened !== 'undefined' && suAutoOpened){
+    const name = suAutoOpened; suAutoOpened = '';
+    const card = [...document.querySelectorAll('#allDayparts [data-su-card]')].find(c => c.dataset.suCard === name);
+    if(card && card.getBoundingClientRect().top > window.innerHeight - 220) card.scrollIntoView({block: 'start'});
+  }
 }
 
 let currentPosKey = '';
