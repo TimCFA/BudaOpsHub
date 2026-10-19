@@ -15,7 +15,13 @@
      still works. */
   html, button, input, select, textarea, a, label, [role="button"], [onclick], .day-pill{touch-action:manipulation;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{margin:0;padding:0;background:var(--cfa-bg);color:var(--text-primary);font-family:'Inter',sans-serif;height:100%;overflow-x:hidden;overflow-y:visible;}
+  /* The page itself scrolls, never the body: a body of exactly the viewport's
+     height with overflow set was a scroll box, and on iPhones the keyboard
+     opening or closing left everything below the fold unpainted (Tim, Oct 18
+     2026). overflow-x on html stops sideways scrolling; clip on body doesn't
+     make it a scroll box the way hidden would. */
+  html{margin:0;padding:0;background:var(--cfa-bg);color:var(--text-primary);font-family:'Inter',sans-serif;min-height:100%;overflow-x:hidden;}
+  body{margin:0;padding:0;background:var(--cfa-bg);color:inherit;font-family:inherit;min-height:100%;overflow-x:clip;}
   ::selection{background:var(--cfa-red);color:var(--cfa-white);}
 
   .app{max-width:1100px;margin:0 auto;padding:24px 20px 60px;min-height:100vh;}
