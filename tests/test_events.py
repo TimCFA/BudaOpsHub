@@ -94,9 +94,27 @@ class CalendarPage(unittest.TestCase):
         got = run("c => evNotesForMonth('2026-10').map(e => e.title)")[0]
         self.assertEqual(got, ['Free Breakfast Tuesday', 'Pack the Drive Thru', 'Family Night: Pumpkins & Play', 'Halloween Week Promo'])
 
-    def test_hidden_without_a_manager_session(self):
+    def test_set_ups_chips_need_a_manager_session(self):
         got = run("c => { const a = evCalendarShown(); launchManager = false; const b = evCalendarShown(); launchManager = true; return [a, b, evCalendarShown()]; }")[0]
         self.assertEqual(got, [True, False, True])
+
+    def test_team_sees_everything_but_meetings(self):
+        # The Calendar tab is for the whole team (Tim, Oct 18 2026); leadership meetings stay on managers' devices.
+        got = run("""c => { storeEvents = [{id: 'a', kind: 'instore', title: 'Family Night', date: '2026-10-22'},
+                                         {id: 'b', kind: 'meeting', title: 'Leadership meeting', date: '2026-10-22'}];
+            const mgr = eventsOn('2026-10-22').map(e => e.title);
+            launchManager = false; const team = eventsOn('2026-10-22').map(e => e.title);
+            launchManager = true; storeEvents = null; return [mgr, team]; }""")[0]
+        self.assertEqual(got, [['Family Night', 'Leadership meeting'], ['Family Night']])
+
+    def test_tab_open_to_everyone(self):
+        root = os.path.join(os.path.dirname(__file__), '..')
+        read = lambda *p: open(os.path.join(root, *p), encoding='utf-8').read()
+        page, nav, launch = read('cfa-buda-ops-hub-complete.html'), read('static', 'js', 'navigation.js'), read('static', 'js', 'launch-mode.js')
+        self.assertIn('<button type="button" class="tab" role="tab" aria-selected="false" aria-controls="calendarView" data-view="calendar">', page)
+        self.assertNotIn("view === 'calendar' ||", nav)
+        self.assertRegex(launch, r"const LAUNCH_VIEWS = \[[^\]]*'calendar'")
+        self.assertNotIn("'calendarView', 'uniformsView'", launch)
 
 
 class KnowTheNumbers(unittest.TestCase):

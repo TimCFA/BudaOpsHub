@@ -60,7 +60,7 @@
 
       <button type="button" class="tab full-only" role="tab" aria-selected="false" aria-controls="scoreboardView" data-view="scoreboard">Scoreboard <span class="sub"><i>Tableros</i></span></button>
       <button type="button" class="tab full-only" role="tab" aria-selected="false" aria-controls="forecastView" data-view="forecast">Forecast <span class="sub"><i>Pronóstico</i></span></button>
-      <button type="button" class="tab manager-only" role="tab" aria-selected="false" aria-controls="calendarView" data-view="calendar">Calendar <span class="sub"><i>Calendario</i></span></button>
+      <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="calendarView" data-view="calendar">Calendar <span class="sub"><i>Calendario</i></span></button>
       <button type="button" class="tab manager-only" role="tab" aria-selected="false" aria-controls="uniformsView" data-view="uniforms">Uniforms <span class="sub"><i>Uniformes</i></span></button>
       <button type="button" class="tab manager-only" role="tab" aria-selected="false" aria-controls="directorsView" data-view="directors">Directors <span class="sub"><i>Directores</i></span></button>
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="manageView" data-view="manage">Manage <span class="sub"><i>Gestionar</i></span></button>
@@ -821,8 +821,8 @@
     <div class="fc-tip" id="fcTip" hidden></div>
   </div>
 
-  <!-- Calendar View: the store's events calendar (events.js). Managers only
-       for now: the tab shows once the PIN is entered in Manage. -->
+  <!-- Calendar View: the store's events calendar (events.js), for the whole
+       team; it's changed in Manage → Events Calendar. -->
   <div class="view" id="calendarView">
     <div class="cal-page" id="calendarRoot"></div>
   </div>
