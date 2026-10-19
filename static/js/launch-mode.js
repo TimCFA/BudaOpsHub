@@ -1,6 +1,6 @@
 // ===== LAUNCH MODE =====
 // While the team is getting started, the site shows only Home and the
-// essentials: Set Ups, Waste, and Lists. The Lists tab opens Zone Reset &
+// essentials: Set Ups, Waste, Lists and the store's Calendar. The Lists tab opens Zone Reset &
 // Walkthroughs in one tap; Food Safety Walkthrough, Daily Safe Count and the
 // Prep Board are pills at the top of each list page. Everything else is still there:
 // a device signed in with the manager PIN (Manage tab) sees every tab again,
@@ -14,7 +14,7 @@
 // (app.py PRIVATE_SECTIONS), so signing in fetches it right away, and
 // locking reloads the page to clear it from the device.
 
-const LAUNCH_VIEWS = ['home', 'positions', 'wastelog', 'zonereset', 'foodsafety', 'safecount', 'prepboard', 'manage'];
+const LAUNCH_VIEWS = ['home', 'positions', 'wastelog', 'zonereset', 'foodsafety', 'safecount', 'prepboard', 'calendar', 'manage'];
 // Zone Resets and the Leader Transition List share a view; `page` picks
 // which of its cards show (data-launch-page on the cards).
 const LAUNCH_LISTS = [
@@ -83,16 +83,18 @@ function launchApply(){
 // A manager session found (on load, or the PIN just entered).
 async function launchSetManager(isManager){
   launchManager = isManager;
-  // Tabs marked .manager-only (the Calendar, Uniforms) show only with the
+  // Tabs marked .manager-only (Uniforms, Directors) show only with the
   // PIN, launch mode or not; Set Ups' event chips follow the same session.
   document.body.classList.toggle('is-manager', !!isManager);
-  if(!isManager && ['calendarView', 'uniformsView', 'directorsView'].some(id => document.getElementById(id).classList.contains('active'))) launchShowTab('home');
+  if(!isManager && ['uniformsView', 'directorsView'].some(id => document.getElementById(id).classList.contains('active'))) launchShowTab('home');
   launchApply();
   if(typeof renderAllDayparts === 'function' && document.getElementById('positionsView').classList.contains('active')) renderAllDayparts();
   // Pick up the private sections this page wasn't sent without a session,
   // and the waste log whole (a team device is sent two days of it).
   if(isManager && typeof stateForget === 'function') stateForget(['waste']);
   if(isManager && typeof syncState === 'function') await syncState();
+  // Meetings on the Calendar come and go with the session (events.js).
+  if(typeof evRerender === 'function') evRerender();
   // The forecast fills Know the Numbers on a manager's device (forecast.js).
   if(isManager && typeof fcAutoCheck === 'function') fcAutoCheck();
   // A week sent from HotSchedules was waiting for a manager.

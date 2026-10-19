@@ -1,6 +1,7 @@
 function activateView(view){
-  // The Calendar and Uniforms are managers-only for now (Tim, Oct 2026).
-  if((view === 'calendar' || view === 'uniforms' || view === 'directors') && typeof launchManager !== 'undefined' && !launchManager) view = 'home';
+  // Uniforms and Directors are managers-only (Tim, Oct 2026); the Calendar
+  // is for everyone (Oct 18).
+  if((view === 'uniforms' || view === 'directors') && typeof launchManager !== 'undefined' && !launchManager) view = 'home';
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
   document.getElementById(view+'View').classList.add('active');
   if(view === 'positions') renderPositionsTab();

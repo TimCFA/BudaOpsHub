@@ -3,10 +3,11 @@
 // community outreach, family nights and heads-ups like "No School". Its own
 // Calendar tab, drawn like the store's printed calendar, to look at only;
 // it's added to and changed in Manage → Events Calendar, behind the PIN
-// (Tim). Set Ups shows each event on the daypart cards it overlaps. Managers
-// only for now: the tab and the chips show once the PIN is entered. Saved
-// as storeEvents in the manager section (manager-only on the server, like
-// the scoreboards).
+// (Tim). Set Ups shows each event on the daypart cards it overlaps. The
+// whole team sees the Calendar tab (Tim, Oct 18 2026), all but leadership
+// meetings; the Set Ups chips still show once the PIN is entered. Saved as
+// storeEvents in the manager section: every device is sent it, only a
+// manager session changes it (app.py MANAGER_ONLY_KEYS).
 //
 // An event: {id, title, detail, kind, date, end, days, from, to, notes}
 //   date / end  'YYYY-MM-DD', end inclusive (a one-day event has no end)
@@ -62,7 +63,10 @@ const EVENTS_SEED = [
 ];
 
 function eventsList(){
-  return Array.isArray(storeEvents) ? storeEvents : EVENTS_SEED;
+  const all = Array.isArray(storeEvents) ? storeEvents : EVENTS_SEED;
+  // Leadership meetings stay off team phones (hidden, not secret: the
+  // section reaches every device).
+  return evCalendarShown() ? all : all.filter(ev => ev.kind !== 'meeting');
 }
 
 const evMinutes = t => { const m = String(t || '').match(/^(\d{1,2}):(\d{2})$/); return m ? +m[1] * 60 + +m[2] : null; };
@@ -178,8 +182,9 @@ let evManageMonth = null; // Manage: 'YYYY-MM' listed
 
 const EV_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-// Managers only for now (Tim, Oct 2026): the tab and the Set Ups chips show
-// with the PIN session (launch-mode.js).
+// A manager session (launch-mode.js): the Set Ups chips, meetings on the
+// Calendar and the "how to change it" line. The Calendar tab itself is for
+// everyone.
 function evCalendarShown(){
   return typeof launchManager === 'undefined' || !!launchManager;
 }
@@ -304,14 +309,13 @@ function evDayPanelHtml(){
             ${Array.isArray(ev.notes) && ev.notes.length ? `<ul>${ev.notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : ''}
           </div>
         </li>`).join('')}</ul>` : `<p class="ev-empty">${evWeekday(calDay) === 0 ? 'Closed Sunday. ' : ''}Nothing on the calendar this day.</p>`}
-      <p class="cal-dayp-month">To add or change events: Manage → Events Calendar.</p>
+      ${evCalendarShown() ? '<p class="cal-dayp-month">To add or change events: Manage → Events Calendar.</p>' : ''}
     </section>`;
 }
 
 function renderCalendarView(){
   const root = document.getElementById('calendarRoot');
   if(!root) return;
-  if(!evCalendarShown()){ root.innerHTML = ''; return; }
   if(!calMonth) calMonth = evMonthOf(today);
   if(!calDay || evMonthOf(calDay) !== calMonth) calDay = evMonthOf(today) === calMonth ? today : calMonth + '-01';
   const goals = eventsForMonth(calMonth, 'goal');
