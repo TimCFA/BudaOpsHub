@@ -191,10 +191,27 @@ function ldNoteKey(name){ const k = dirKey(name); return Object.keys(leaderNotes
 function ldNotesFor(name){ const list = leaderNotes[ldNoteKey(name)]; return Array.isArray(list) ? list : []; }
 function ldFocusFor(name, q){ const f = leaderFocus[`${dirKey(name)}__${q || ldQuarterOn()}`]; return Array.isArray(f) ? f : []; }
 
-// Everyone with a profile for the quarter: the Leaders list, PEA givers
-// who aren't directors, anyone rated under a leader role, anyone with
-// notes, Team Leader shifts on the rosters the hub holds.
+// The quarter's leaders. With names in Manage → Settings → Leaders, that
+// list decides (Tim, Oct 18 2026: guessing from PEAs made trainers and team
+// members "Team Leads" across the hub), plus Team Leader shifts on the
+// rosters the hub holds. With the list empty, the hub guesses
+// (ldInferredLeaderNames) so nothing goes blank.
+function ldListDecides(){ return ldRoster().some(r => r && dirKey(r.name)); }
+
 function ldLeaderNames(q){
+  if(!ldListDecides()) return ldInferredLeaderNames(q);
+  const names = new Map();
+  const add = n => { const k = dirKey(n); if(k && !names.has(k)) names.set(k, n); };
+  ldRoster().forEach(r => add(r.name));
+  [fohRoster, bohRoster].forEach(rost => Object.values(rost).forEach(list => (Array.isArray(list) ? list : []).forEach(p => { if(p.leader) add(p.name); })));
+  return [...names.values()];
+}
+
+// Everyone who looks like a leader for the quarter: the Leaders list, PEA
+// givers who aren't directors, anyone rated under a leader role, anyone
+// with notes, Team Leader shifts on the rosters the hub holds. The guess
+// when the list is empty, and the name suggestions in Manage.
+function ldInferredLeaderNames(q){
   const names = new Map();
   const listed = new Set(ldRoster().map(r => dirKey(r.name)));
   const add = (n, force) => { const k = dirKey(n); if(!k || names.has(k)) return; if(!force && !listed.has(k) && dirIsDirector(n)) return; names.set(k, n); };
@@ -541,8 +558,11 @@ function renderLeadersManage(){
   const root = document.getElementById('leadersManageRoot');
   if(!root) return;
   const goals = ldGoals();
-  const known = [...new Set([...ldRatings().map(r => r.leader), ...ldLeaderNames(ldQuarterNow())].filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const known = [...new Set([...ldRatings().map(r => r.leader), ...ldInferredLeaderNames(ldQuarterNow())].filter(Boolean))].sort((a, b) => a.localeCompare(b));
   root.innerHTML = `
+    <p class="ld-m-note">${ldListDecides()
+      ? 'This list decides who the hub treats as a leader (Set Ups badges, Lead Captain choices, the Leaders page, the Directors brief), plus Team Leader shifts on the roster. Take a name off and they stop counting.'
+      : 'Empty, so the hub guesses: anyone who gave a PEA this quarter, was rated as a leader or has notes counts. Add the real leaders here and the list takes over.'}</p>
     <div class="ld-goals"><label>Team, per quarter <input type="number" min="1" max="999" value="${goals.team}" data-ld-goal="team"></label><label>Each leader, per quarter <input type="number" min="1" max="99" value="${goals.leader}" data-ld-goal="leader"></label></div>
     <datalist id="ldKnownLeaders">${known.map(n => `<option value="${escapeHtml(n)}">`).join('')}</datalist>
     <div class="dir-m-list">${ldRoster().map((r, i) => `

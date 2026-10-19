@@ -92,6 +92,20 @@ class Week(unittest.TestCase):
         self.assertIn('gap 2p–4p', tue)
         self.assertNotIn('dir-chip', html)                                   # no wall of chips in the day cards
 
+    def test_a_filled_leader_list_decides(self):
+        # With names in Manage → Settings → Leaders, giving a PEA or having
+        # notes no longer makes a leader (Tim, Oct 18 2026); Team Leader
+        # shifts on the roster still count.
+        got = run("c => { " + WEEK + """ peaRows = [{at: '2026-10-08T12:00', date: '2026-10-08', leader: 'Priya Nair', employee: 'Noah Bennett', role: 'Team Lead', position: 'iPOS', overall: 3}];
+          leaderNotes = {'Noah Bennett': [{text: 'x', by: 'TL', ts: 1}]};
+          leaderRoster = [{name: 'Jordan Reyes', roles: []}, {name: '', roles: []}];
+          const names = ldLeaderNames(ldQuarterNow());
+          return [names.sort(), suLeaderRole('foh', '2026-10-13', 'Priya Nair', {}), suLeaderRole('foh', '2026-10-13', 'Maya Torres', {}), ldInferredLeaderNames(ldQuarterNow()).includes('Priya Nair'), ldListDecides()]; }""")
+        self.assertEqual(got, [['Ava Morales', 'Jordan Reyes', 'Maya Torres'], None, 'Team Lead', True, True])
+        # Only blank rows: the list doesn't decide yet.
+        got = run("c => { " + WEEK + " leaderRoster = [{name: '  ', roles: []}]; return ldListDecides(); }")
+        self.assertEqual(got, False)
+
     def test_leaders_page_names_are_team_leads_on_set_ups(self):
         # Priya gives PEAs, so Directors → Leaders lists her; Set Ups lets her
         # be Lead Captain though HotSchedules has her on an ordinary shift.
