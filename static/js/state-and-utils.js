@@ -98,8 +98,16 @@ function beginEditInitials(){
   const input = document.getElementById('initialsInput');
   input.focus();
   input.select();
-  const commit = () => setInitials(input.value);
-  input.addEventListener('blur', commit);
+  let done = false;
+  const commit = () => { if(!done){ done = true; setInitials(input.value); } };
+  // A tap elsewhere closes the box, and the redrawn badge (the "Set initials"
+  // prompt has a Spanish line) can make the header taller, moving the tabs
+  // out from under the finger so the tap missed (Oct 18 2026). Close it once
+  // that tap is over.
+  input.addEventListener('blur', () => {
+    const fallback = setTimeout(commit, 700);
+    document.addEventListener('click', () => { clearTimeout(fallback); setTimeout(commit, 0); }, {once: true, capture: true});
+  });
   input.addEventListener('keydown', (e) => { if(e.key === 'Enter') commit(); });
 }
 
