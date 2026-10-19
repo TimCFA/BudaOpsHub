@@ -359,11 +359,46 @@ function tpProfileHtml(){
 }
 
 // ----- Levelset notes (directors only) -----
-function tpLsNoteHtml(n){
-  const day = String(n.at || '').slice(0, 10);
-  return `<li class="ld-note"><div class="dir-note-meta"><span>${day ? escapeHtml(ldDateY(day)) : ''}${n.position ? ` · <b>${escapeHtml(n.position)}</b>` : ''}${n.leader ? ` · ${escapeHtml(ldShort(n.leader))}` : ''}</span>${n.overall != null ? `<span class="tp-tier is-${peaTierFor(+n.overall || 0).key}">${escapeHtml(String(n.overall))}</span>` : ''}</div><p>${escapeHtml(n.text)}</p></li>`;
+// Tagging (Tim, Oct 17 2026): on the Leaders profile a director picks the
+// sentences of a note that evidence a PEC pillar and tags them, so one note
+// can feed several pillars with different sentences. The tags are kept with
+// the note on the server (app.py, /api/pea/notes/tag) and count as evidence
+// in Calibrate to the PEC (leaders.js) for directors.
+let tpLsTag = null;   // the picker that's open: {key, picked: Set(sentence index)}
+// Sentences, with a semicolon or a new line counting as a break too: raters write run-ons.
+const tpLsSentences = text => (String(text || '').match(/[^.!?;\n]+(?:[.!?;]+|$)/g) || []).map(x => x.trim()).filter(Boolean);
+function tpLsTagsHtml(n, canEdit){
+  const tags = Array.isArray(n.tags) ? n.tags : [];
+  if(!tags.length) return '';
+  return `<ul class="ls-excerpts">${tags.map(t => `<li class="ls-excerpt"><q>${escapeHtml(t.text)}</q><span class="ls-excerpt-meta">${(t.pillars || []).map(p => `<em class="ld-pill is-ls">${escapeHtml(typeof ldPillarLabel === 'function' ? ldPillarLabel(p) : p)}</em>`).join('')}${canEdit ? `<button type="button" class="dir-x" data-ls-tag-del="${escapeHtml(t.id)}" data-ls-key="${escapeHtml(n.key)}" aria-label="Remove this tag">${UO_X_ICON}</button>` : ''}</span></li>`).join('')}</ul>`;
 }
-function tpLsCardInner(peaName){
+function tpLsPickerHtml(n, cards){
+  const sentences = tpLsSentences(n.text);
+  const picked = tpLsTag.picked;
+  return `<div class="ls-tagbox" id="tpLsTagBox" data-ls-key="${escapeHtml(n.key)}">
+    <p class="dir-note">Tap the sentences that show this pillar, then pick the pillar${cards.length > 1 ? 's' : ''}. Tag again for another pillar.</p>
+    <div class="ls-sents">${sentences.map((x, i) => `<button type="button" class="ls-sent ${picked.has(i) ? 'is-on' : ''}" aria-pressed="${picked.has(i)}" data-ls-sent="${i}">${escapeHtml(x)}</button>`).join('')}</div>
+    <div class="ls-sent-all"><button type="button" class="ld-link" data-ls-sent-all="${picked.size === sentences.length ? '0' : '1'}">${picked.size === sentences.length ? 'Clear' : 'Whole note'}</button></div>
+    ${typeof ldPillarChecks === 'function' ? ldPillarChecks(cards, []) : ''}
+    <div class="ld-acts"><button type="button" class="btn btn-primary dir-btn" data-ls-tag-save="1">Save tag</button><button type="button" class="btn btn-ghost dir-btn" data-ls-tag-cancel="1">Cancel</button></div>
+  </div>`;
+}
+function tpLsNoteHtml(n, cards){
+  const day = String(n.at || '').slice(0, 10);
+  const canEdit = Array.isArray(cards) && cards.length > 0;
+  const open = canEdit && tpLsTag && tpLsTag.key === n.key;
+  return `<li class="ld-note"><div class="dir-note-meta"><span>${day ? escapeHtml(ldDateY(day)) : ''}${n.position ? ` · <b>${escapeHtml(n.position)}</b>` : ''}${n.leader ? ` · ${escapeHtml(ldShort(n.leader))}` : ''}</span><span class="ld-note-acts">${canEdit && !open ? `<button type="button" class="ld-link" data-ls-tag-open="${escapeHtml(n.key)}">Tag to a pillar</button>` : ''}${n.overall != null ? `<span class="tp-tier is-${peaTierFor(+n.overall || 0).key}">${escapeHtml(String(n.overall))}</span>` : ''}</span></div><p>${escapeHtml(n.text)}</p>${tpLsTagsHtml(n, canEdit)}${open ? tpLsPickerHtml(n, cards) : ''}</li>`;
+}
+// Every tagged excerpt of a person's Levelset notes (directors only):
+// [{text, pillars, date, leader, position}] for Calibrate to the PEC.
+function tpLsTagged(peaName){
+  const got = tpLs[dirKey(peaName)];
+  if(!tpDirector || !got || got.state !== 'ok') return [];
+  const out = [];
+  got.notes.forEach(n => (Array.isArray(n.tags) ? n.tags : []).forEach(t => out.push({text: t.text, pillars: t.pillars || [], date: String(n.at || '').slice(0, 10), leader: n.leader || '', position: n.position || ''})));
+  return out;
+}
+function tpLsCardInner(peaName, cards){
   const head = '<div class="ld-row"><h3>Raters’ notes from Levelset</h3><em class="ld-pill">Directors only</em></div>';
   if(!tpDirector){
     return head + `<p class="dir-empty">${tpDirectorPinSet
@@ -378,18 +413,78 @@ function tpLsCardInner(peaName){
   const note = '<p class="dir-note">Written by the rater in Levelset, newest first. They come in with each Levelset sync (the PDF upload doesn’t carry them) and aren’t in the copy or the PDF.</p>';
   if(!list.length) return head + note + '<p class="dir-empty">No notes on this person’s PEAs yet.</p>';
   const more = list.slice(TP_LS_SHOWN);
-  return head + note + `<ul class="dir-notes">${list.slice(0, TP_LS_SHOWN).map(tpLsNoteHtml).join('')}</ul>`
-    + (more.length ? `<details class="tp-log"><summary>${more.length} more</summary><ul class="dir-notes">${more.map(tpLsNoteHtml).join('')}</ul></details>` : '');
+  const row = n => tpLsNoteHtml(n, cards);
+  const tagNote = cards && cards.length ? ' Tag the sentences that evidence a pillar and they count in Calibrate to the PEC below.' : '';
+  return head + note.replace('</p>', tagNote + '</p>') + `<ul class="dir-notes">${list.slice(0, TP_LS_SHOWN).map(row).join('')}</ul>`
+    + (more.length ? `<details class="tp-log" ${tpLsTag && more.some(n => n.key === tpLsTag.key) ? 'open' : ''}><summary>${more.length} more</summary><ul class="dir-notes">${more.map(row).join('')}</ul></details>` : '');
 }
 // The card, on the Team profile and the Leaders profile (leaders.js): a
-// Team Lead's notes show on both.
-function tpLsCardHtml(peaName){
-  return `<section class="dir-card tp-ls-card" data-ls-name="${escapeHtml(dirKey(peaName))}">${tpLsCardInner(peaName)}</section>`;
+// Team Lead's notes show on both. With `cards` (the leader's PEC role
+// cards, Leaders profile) a director can tag sentences to pillars.
+function tpLsCardHtml(peaName, cards){
+  return `<section class="dir-card tp-ls-card" data-ls-name="${escapeHtml(dirKey(peaName))}" data-ls-cards="${escapeHtml((cards || []).join(','))}">${tpLsCardInner(peaName, cards || [])}</section>`;
 }
 function tpLsPaint(peaName){
   const k = dirKey(peaName);
-  document.querySelectorAll('.tp-ls-card').forEach(el => { if(el.dataset.lsName === k) el.innerHTML = tpLsCardInner(peaName); });
+  // On the Leaders profile the pillar counts read these notes too, so the
+  // whole profile redraws; elsewhere just the card.
+  if(typeof dirView !== 'undefined' && dirView === 'leaders' && typeof ldOpen !== 'undefined' && ldOpen && typeof ldRender === 'function'){ ldRender(); return; }
+  document.querySelectorAll('.tp-ls-card').forEach(el => { if(el.dataset.lsName === k) el.innerHTML = tpLsCardInner(peaName, (el.dataset.lsCards || '').split(',').filter(Boolean)); });
 }
+// Tagging: the picker's taps, save and remove.
+document.addEventListener('click', async e => {
+  const t = e.target && e.target.closest ? e.target : null;
+  if(!t || !t.closest('.tp-ls-card')) return;
+  const card = t.closest('.tp-ls-card');
+  const name = card.dataset.lsName, got = tpLs[name];
+  const paint = () => tpLsPaint(name);
+  const noteOf = key => got && got.notes.find(n => n.key === key);
+  const openBtn = t.closest('[data-ls-tag-open]');
+  if(openBtn){ tpLsTag = {key: openBtn.dataset.lsTagOpen, picked: new Set()}; paint(); return; }
+  if(t.closest('[data-ls-tag-cancel]')){ tpLsTag = null; paint(); return; }
+  const sent = t.closest('[data-ls-sent]');
+  if(sent && tpLsTag){ const i = +sent.dataset.lsSent; if(tpLsTag.picked.has(i)) tpLsTag.picked.delete(i); else tpLsTag.picked.add(i); paint(); return; }
+  const all = t.closest('[data-ls-sent-all]');
+  if(all && tpLsTag){ const n = noteOf(tpLsTag.key); tpLsTag.picked = all.dataset.lsSentAll === '1' && n ? new Set(tpLsSentences(n.text).map((x, i) => i)) : new Set(); paint(); return; }
+  if(t.closest('[data-ls-tag-save]') && tpLsTag){
+    const n = noteOf(tpLsTag.key);
+    const box = document.getElementById('tpLsTagBox');
+    const pillars = box ? [...box.querySelectorAll('input[name="ldPec"]:checked')].map(x => x.value) : [];
+    const sentences = n ? tpLsSentences(n.text) : [];
+    const idx = [...tpLsTag.picked].sort((a, b) => a - b).filter(i => sentences[i]);
+    if(!idx.length){ showToast('Tap the sentences to tag first.'); return; }
+    if(!pillars.length){ showToast('Pick at least one pillar.'); return; }
+    // Sentences next to each other read as one stretch; an ellipsis only
+    // marks a real skip. If the note has no space between two sentences the
+    // stretch won't match it, so the server's refusal falls back to one
+    // sentence per part.
+    const runs = [];
+    idx.forEach((i, k) => { if(k && i === idx[k - 1] + 1) runs[runs.length - 1].push(sentences[i]); else runs.push([sentences[i]]); });
+    const btn = t.closest('[data-ls-tag-save]'); btn.disabled = true;
+    try{
+      const post = parts => fetch(`${API_BASE}/api/pea/notes/tag`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({key: tpLsTag.key, parts, pillars})});
+      let res = await post(runs.map(r => r.join(' ')));
+      let d = await res.json().catch(() => ({}));
+      if(res.status === 400 && /isn’t in this note/.test(d.error || '')){ res = await post(idx.map(i => sentences[i])); d = await res.json().catch(() => ({})); }
+      if(!res.ok) throw new Error(d.error || 'The tag didn’t save.');
+      if(n && d.note) n.tags = d.note.tags;
+      tpLsTag = null; paint(); showToast('Tagged');
+    }catch(err){ btn.disabled = false; showToast(err.message); }
+    return;
+  }
+  const del = t.closest('[data-ls-tag-del]');
+  if(del){
+    const key = del.dataset.lsKey, n = noteOf(key);
+    if(!confirm('Remove this tag? The note itself stays.')) return;
+    try{
+      const res = await fetch(`${API_BASE}/api/pea/notes/tag`, {method: 'DELETE', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({key, tagId: del.dataset.lsTagDel})});
+      const d = await res.json().catch(() => ({}));
+      if(!res.ok) throw new Error(d.error || 'The tag didn’t go.');
+      if(n && d.note) n.tags = d.note.tags;
+      paint();
+    }catch(err){ showToast(err.message); }
+  }
+});
 // Fetched each time a profile opens, so a new sync's notes show.
 async function tpLoadLevelsetNotes(peaName){
   const k = dirKey(peaName);
@@ -493,7 +588,7 @@ function tpProfileText(name){
 // ----- Events (inside #directorsRoot, Team view) -----
 function tpRender(){ if(typeof renderDirectorsView === 'function') renderDirectorsView(); }
 function tpOpenProfile(name){
-  tpOpen = name; tpPos = ''; tpTag = ''; tpHide = {}; tpNoteOpen = false; tpLs = {};
+  tpOpen = name; tpPos = ''; tpTag = ''; tpHide = {}; tpNoteOpen = false; tpLs = {}; tpLsTag = null;
   tpRender(); window.scrollTo(0, 0);
 }
 
