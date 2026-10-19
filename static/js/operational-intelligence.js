@@ -5,7 +5,45 @@
 
 function getEntriesForDates(dateList){
   const dateSet = new Set(dateList);
-  return entries.filter(e => dateSet.has(toLocalISODate(new Date(e.ts))));
+  return entries.filter(e => dateSet.has(wasteEntryDay(e)));
+}
+
+// Waste by day. A manager's device has the whole log; a team device is sent
+// two days of entries, so it asks the server for each day's totals
+// (/api/waste/days, from memory) and lays its own fresher days over them.
+// The cards draw at once from what's on hand and again when the totals land.
+let wasteDayTotals = null;     // {iso: {total, foh, boh, entries}} from the server
+let wasteDayTotalsAt = 0;
+const WASTE_DAY_TOTALS_TTL = 2 * 60 * 1000;
+
+function wasteHasWholeLog(){
+  return typeof launchManager !== 'undefined' && !!launchManager;
+}
+
+function wasteTotalsByDay(){
+  const byDay = {};
+  const mine = {};
+  entries.forEach(e => { const d = wasteEntryDay(e); mine[d] = (mine[d] || 0) + (Number(e.cost) || 0); });
+  if(!wasteHasWholeLog() && wasteDayTotals){
+    Object.keys(wasteDayTotals).forEach(d => { byDay[d] = Number(wasteDayTotals[d].total) || 0; });
+  }
+  Object.assign(byDay, mine);
+  return byDay;
+}
+
+async function wasteFetchDayTotals(){
+  if(wasteHasWholeLog()) return;
+  if(wasteDayTotals && Date.now() - wasteDayTotalsAt < WASTE_DAY_TOTALS_TTL) return;
+  try{
+    const r = await fetch(`${API_BASE}/api/waste/days`);
+    if(!r.ok) return;
+    const body = await r.json();
+    if(!body || typeof body.days !== 'object') return;
+    wasteDayTotals = body.days;
+    wasteDayTotalsAt = Date.now();
+    const view = document.getElementById('scoreboardView');
+    if(view && view.classList.contains('active')){ renderWasteTrendCard(); renderDayOfWeekCard(); }
+  }catch(e){ /* offline: the cards keep what they have */ }
 }
 
 function sumEntryCosts(list){
@@ -28,20 +66,20 @@ function renderWasteTrendCard(){
   const el = document.getElementById('oiWasteTrend');
   if(!el) return;
 
+  const byDay = wasteTotalsByDay();
+  const sumDays = dates => dates.reduce((s, d) => s + (byDay[d] || 0), 0);
   const thisWeekDates = getWeekDays(0).map(d=>d.date);
   const lastWeekDates = getWeekDays(-1).map(d=>d.date);
-  const thisWeekEntries = getEntriesForDates(thisWeekDates);
-  const lastWeekEntries = getEntriesForDates(lastWeekDates);
-  const thisWeekTotal = sumEntryCosts(thisWeekEntries);
-  const lastWeekTotal = sumEntryCosts(lastWeekEntries);
-  const lastWeekStartMs = new Date(lastWeekDates[0] + 'T00:00:00').getTime();
+  const thisWeekTotal = sumDays(thisWeekDates);
+  const lastWeekTotal = sumDays(lastWeekDates);
   const lastWeekReliable = true;   // nothing clears the log any more: 90 days stay on file
 
   let html = '';
   if(lastWeekReliable && lastWeekTotal > 0){
     const pct = Math.round(((thisWeekTotal - lastWeekTotal) / lastWeekTotal) * 100);
     const improved = pct <= 0;
-    const driver = topProductDelta(lastWeekEntries, thisWeekEntries);
+    // The biggest mover needs the entries themselves (a manager's device).
+    const driver = wasteHasWholeLog() ? topProductDelta(getEntriesForDates(lastWeekDates), getEntriesForDates(thisWeekDates)) : null;
     html += `
       <div class="oi-stat-row">
         <div class="oi-stat-label">This Week vs Last Week</div>
@@ -59,11 +97,12 @@ function renderWasteTrendCard(){
   const [cy, cm] = currentMonthKey.split('-').map(Number);
   const prevMonthDate = new Date(cy, cm - 2, 1);
   const prevMonthKey = prevMonthDate.getFullYear() + '-' + String(prevMonthDate.getMonth()+1).padStart(2,'0');
-  const currentMonthTotal = sumEntryCosts(entries.filter(e => toLocalISODate(new Date(e.ts)).slice(0,7) === currentMonthKey));
-  // Last month from its entries while they're on file (90 days), else the
+  const monthDays = key => Object.keys(byDay).filter(d => d.slice(0, 7) === key);
+  const currentMonthTotal = sumDays(monthDays(currentMonthKey));
+  // Last month from its days while they're on file (90 days), else the
   // summary saved by a month export.
-  const prevMonthEntries = entries.filter(e => toLocalISODate(new Date(e.ts)).slice(0,7) === prevMonthKey);
-  const prevMonthSummary = prevMonthEntries.length ? {total: sumEntryCosts(prevMonthEntries)} : wasteMonthlyHistory[prevMonthKey];
+  const prevDays = monthDays(prevMonthKey);
+  const prevMonthSummary = prevDays.length ? {total: sumDays(prevDays)} : wasteMonthlyHistory[prevMonthKey];
 
   if(prevMonthSummary && prevMonthSummary.total > 0){
     const pct = Math.round(((currentMonthTotal - prevMonthSummary.total) / prevMonthSummary.total) * 100);
@@ -86,11 +125,7 @@ function renderDayOfWeekCard(){
   const el = document.getElementById('oiDayOfWeek');
   if(!el) return;
 
-  const byDate = {};
-  entries.forEach(e=>{
-    const dateISO = toLocalISODate(new Date(e.ts));
-    byDate[dateISO] = (byDate[dateISO]||0) + e.cost;
-  });
+  const byDate = wasteTotalsByDay();
 
   const weekdayStats = {};
   Object.keys(byDate).forEach(dateISO=>{
@@ -121,7 +156,7 @@ function renderDayOfWeekCard(){
       <div class="oi-dow-track"><div class="oi-dow-fill" style="width:${(s.avg/maxAvg)*100}%"></div></div>
       <span class="oi-dow-value">${s.days ? '$' + s.avg.toFixed(2) : '—'}</span>
     </div>
-  `).join('') + `<div class="oi-stat-sub" style="margin-top:10px;">Based on ${totalDaysLogged} logged day${totalDaysLogged===1?'':'s'} in the current period — resets with each monthly close-out for now</div>`;
+  `).join('') + `<div class="oi-stat-sub" style="margin-top:10px;">Average per weekday, over ${totalDaysLogged} logged day${totalDaysLogged===1?'':'s'} (the last ${typeof WASTE_KEEP_DAYS !== 'undefined' ? WASTE_KEEP_DAYS : 90} days)</div>`;
 }
 
 function getSafeCountsForDates(dateList){
@@ -259,6 +294,7 @@ function renderComplianceTrendCard(){
 }
 
 function renderOperationalIntelligence(){
+  if(typeof wasteFetchDayTotals === 'function') wasteFetchDayTotals();
   renderWasteTrendCard();
   renderDayOfWeekCard();
   renderSafeCountVarianceCard();

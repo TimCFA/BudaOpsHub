@@ -11,6 +11,8 @@ function activateView(view){
   if(view === 'foodsafety'){ renderFoodSafety(); rpRenderFoodSafetyFindings(); }
   if(view === 'prepboard') renderPrepBoard();
   if(view === 'scoreboard'){
+    // The simplified site has the Waste panel only (launch-mode.js).
+    if(typeof launchIsOn === 'function' && launchIsOn()) sbShowPanel('waste');
     renderScoreboardView(); renderOperationalIntelligence(); renderCustomScoreboards();
     renderGXScoreboard(); renderCemTrends(); renderTXScoreboard(); renderTrainerTrial(); renderTeamLeadTrial(); renderLXScoreboard();
   }
@@ -25,14 +27,17 @@ function activateView(view){
   if(typeof launchSubnavRender === 'function') launchSubnavRender(view);
 }
 
+function sbShowPanel(key){
+  document.querySelectorAll('.sb-subtab-btn').forEach(b => b.classList.toggle('active', b.dataset.sbSubtab === key));
+  document.querySelectorAll('.sb-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('sbPanel' + key.charAt(0).toUpperCase() + key.slice(1)).classList.add('active');
+}
+
 document.querySelector('.sb-subtabs').addEventListener('click', function(e){
   const btn = e.target.closest('[data-sb-subtab]');
   if(!btn) return;
-  const key = btn.dataset.sbSubtab;
-  document.querySelectorAll('.sb-subtab-btn').forEach(b => b.classList.toggle('active', b === btn));
-  document.querySelectorAll('.sb-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('sbPanel' + key.charAt(0).toUpperCase() + key.slice(1)).classList.add('active');
-  if(key === 'waste') renderScoreboardView();
+  sbShowPanel(btn.dataset.sbSubtab);
+  if(btn.dataset.sbSubtab === 'waste') renderScoreboardView();
 });
 
 function clearActiveTabs(){

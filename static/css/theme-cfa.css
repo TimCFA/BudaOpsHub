@@ -1721,3 +1721,9 @@ body:not(.is-manager) .manager-only{display:none !important;}
 .hdr-reload:active{background:var(--cfa-soft);}
 html.is-standalone .hdr-reload{display:inline-flex;}
 html.is-standalone .clock{display:none;}
+
+/* The team's waste scoreboard (launch-mode.js LAUNCH_WASTE): the Waste panel's
+   waste cards only; the other panels' tabs and the non-waste cards hide. */
+body.launch-mode .sb-not-waste{display:none !important;}
+body.launch-mode #sbStreakGrid{grid-template-columns:1fr;}
+body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justify-self:center;}

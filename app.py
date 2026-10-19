@@ -1194,6 +1194,46 @@ def safe_counts_today():
     counts = (sections.get('safe') or {}).get('safeCounts') or []
     return jsonify({'counts': [c for c in counts if isinstance(c, dict) and c.get('date') == day.isoformat()]})
 
+# Waste by day, for the team's waste scoreboard (Tim, Oct 18 2026). A team
+# device is sent two days of waste entries (WASTE_TEAM_WINDOW_MS), so its
+# trend cards read these totals instead: each day's cost, FOH and BOH, over
+# the kept log. Totals only, no items or names; from memory.
+WASTE_DAYS_KEPT = 90
+
+def _waste_day_of(entry):
+    day = entry.get('day')
+    if isinstance(day, str) and len(day) == 10:
+        return day
+    ts = entry.get('ts')
+    if not isinstance(ts, (int, float)):
+        return None
+    return datetime.fromtimestamp(ts / 1000, levelset_sync.STORE_TZ).date().isoformat()
+
+@app.route('/api/waste/days', methods=['GET'])
+def waste_days():
+    try:
+        sections = _read_sections() or {}
+    except Exception as e:
+        print(f"[WASTE DAYS ERROR] {e}")
+        return jsonify({'error': 'Could not read the waste log'}), 500
+    cutoff = (datetime.now(levelset_sync.STORE_TZ).date() - timedelta(days=WASTE_DAYS_KEPT)).isoformat()
+    days = {}
+    for e in (sections.get('waste') or {}).get('entries') or []:
+        if not isinstance(e, dict):
+            continue
+        day = _waste_day_of(e)
+        if not day or day < cutoff:
+            continue
+        cost = e.get('cost')
+        if not isinstance(cost, (int, float)):
+            continue
+        d = days.setdefault(day, {'total': 0.0, 'foh': 0.0, 'boh': 0.0, 'entries': 0})
+        d['total'] = round(d['total'] + cost, 2)
+        side = 'boh' if e.get('section') == 'boh' else 'foh'
+        d[side] = round(d[side] + cost, 2)
+        d['entries'] += 1
+    return jsonify({'days': days, 'kept': WASTE_DAYS_KEPT})
+
 # ===== SET UP FEED (read-only, for the daily briefing) =====
 # A day's set up for an outside reader that can't sign in: each daypart, its
 # Lead Captain, and who is in which position, by the names Set Ups shows. It

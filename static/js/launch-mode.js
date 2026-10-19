@@ -14,7 +14,7 @@
 // (app.py PRIVATE_SECTIONS), so signing in fetches it right away, and
 // locking reloads the page to clear it from the device.
 
-const LAUNCH_VIEWS = ['home', 'positions', 'wastelog', 'zonereset', 'foodsafety', 'safecount', 'prepboard', 'calendar', 'manage'];
+const LAUNCH_VIEWS = ['home', 'positions', 'wastelog', 'scoreboard', 'zonereset', 'foodsafety', 'safecount', 'prepboard', 'calendar', 'manage'];
 // Zone Resets and the Leader Transition List share a view; `page` picks
 // which of its cards show (data-launch-page on the cards).
 const LAUNCH_LISTS = [
@@ -24,21 +24,29 @@ const LAUNCH_LISTS = [
   {view: 'safecount', label: 'Safe Count', sub: 'Caja Fuerte'},
   {view: 'prepboard', label: 'Prep Board', sub: 'Preparación'},
 ];
+// The Waste tab: logging, and the waste scoreboard (Tim, Oct 18 2026). On
+// the scoreboard the team sees the Waste panel's waste cards only.
+const LAUNCH_WASTE = [
+  {view: 'wastelog', label: 'Log Waste', sub: 'Registrar'},
+  {view: 'scoreboard', label: 'Scoreboard', sub: 'Tablero'},
+];
+const LAUNCH_SUBNAVS = [LAUNCH_LISTS, LAUNCH_WASTE];
 let launchManager = false;
 let launchListPage = null;   // the page a pill asked for; the tab itself opens the first
 
 // The pill row at the top of a list page, with the open one marked. The
 // view's cards for other pages hide on the simplified site (CSS).
 function launchSubnavRender(view){
-  const here = LAUNCH_LISTS.filter(l => l.view === view);
-  if(!here.length) return;
+  const group = LAUNCH_SUBNAVS.find(g => g.some(l => l.view === view));
+  if(!group) return;
+  const here = group.filter(l => l.view === view);
   const page = here.some(l => l.page === launchListPage) ? launchListPage : (here[0].page || '');
   launchListPage = null;
   const root = document.getElementById(view + 'View');
   if(page) root.dataset.launchPage = page; else delete root.dataset.launchPage;
   const nav = root.querySelector('[data-launch-subnav]');
   if(!nav) return;
-  nav.innerHTML = LAUNCH_LISTS.map(l => {
+  nav.innerHTML = group.map(l => {
     const on = l.view === view && (l.page || '') === page;
     return `<button type="button" class="launch-pill ${on ? 'active' : ''}" aria-current="${on ? 'page' : 'false'}" data-launch-go="${l.view}" data-launch-pick="${l.page || ''}">${l.label}<span>${l.sub}</span></button>`;
   }).join('');
@@ -78,6 +86,8 @@ function launchApply(){
   const active = document.querySelector('.view.active');
   const view = active ? active.id.replace(/View$/, '') : '';
   if(!LAUNCH_VIEWS.includes(view)) launchShowTab('positions');
+  // Locked while on another scoreboard: back to the Waste one.
+  else if(view === 'scoreboard' && typeof activateView === 'function') activateView('scoreboard');
 }
 
 // A manager session found (on load, or the PIN just entered).
