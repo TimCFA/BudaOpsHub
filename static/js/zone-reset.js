@@ -234,11 +234,23 @@ document.getElementById('zoneButtonRow').addEventListener('click', async (e)=>{
       return;
     }
     bucket[itemText] = {initials, ts: Date.now()};
+    zrNoteZoneDone(daypart, zoneName);
   }
   recomputeChecklistHistory(today);
   renderZoneResetCard();
   await saveState();
 });
+
+// The last tick of a zone closes it and says what's left of the handoff
+// (Tim, Oct 18 2026), so nobody scrolls past a finished list.
+function zrNoteZoneDone(daypart, zoneName){
+  const {checked, total} = getZoneCompletion(today, daypart, zoneName);
+  if(!total || checked < total) return;
+  currentChecklistZone = '';
+  const left = ALL_ZONE_NAMES.filter(z => { const c = getZoneCompletion(today, daypart, z); return c.total && c.checked < c.total; });
+  const {title} = zrHandoffParts(daypart);
+  showToast(left.length ? `${zoneName} reset ✓ · ${left.length} zone${left.length === 1 ? '' : 's'} left` : `${title}: every zone reset ✓`);
+}
 
 // ----- The owner sheet: hand a zone's reset to someone -----
 // Lists everyone on the FOH roster during the handoff's daypart, with the
