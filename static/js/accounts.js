@@ -6,9 +6,11 @@
 //  - A team member's 6-digit clock-in PIN, from the list the owner uploads
 //    in Manage → Settings → Accounts (name, PIN, role).
 // The server (app.py, ACCOUNTS) checks both and says who it is and their
-// role; the page shows the name, fills the initials badge from it, and opens
-// Manage for leads and directors. Trainers and team members stay on the
-// team view, signed in by name until the store's close.
+// role; the page shows the name and fills the initials badge from it.
+// MANAGE IS FOR DIRECTORS AND UP ONLY (Tim, Oct 18 2026): a store Google
+// account, or the manager and director PINs. A team PIN (Team Lead, Trainer
+// or Team Member) signs the person in by name and never opens Manage; they
+// stay on the team view until the store's close.
 // Manage → Settings → Accounts is the owner's (Tim): the Google accounts
 // list, and the team PIN list (names and roles only; PINs are never shown).
 
@@ -19,7 +21,7 @@ let acGoogleReady = false;
 let acAccounts = null;      // the owner's lists, once loaded
 let acPinRows = null;       // rows read from the pasted or dropped list, before upload
 
-const AC_ROLE_LABELS = {director: 'Director', lead: 'Team Lead', trainer: 'Trainer', member: 'Team Member'};
+const AC_ROLE_LABELS = {director: 'Director', manager: 'Manager PIN', lead: 'Team Lead', trainer: 'Trainer', member: 'Team Member'};
 const acRoleLabel = r => AC_ROLE_LABELS[r] || r || '';
 
 // ----- Status from the server -----
@@ -75,9 +77,9 @@ function acRenderGate(){
     extra.className = 'ac-gate';
     gate.appendChild(extra);
   }
-  const teamUser = acUser && (acUser.role === 'trainer' || acUser.role === 'member');
+  const teamUser = acUser && ['lead', 'trainer', 'member'].includes(acUser.role);
   extra.innerHTML = `
-    ${teamUser ? `<p class="ac-signed">Signed in as <b>${escapeHtml(acUser.name)}</b> · ${escapeHtml(acRoleLabel(acUser.role))}. Manage is for leaders. <button type="button" class="ld-link" data-ac-signout>Sign out</button></p>` : ''}
+    ${teamUser ? `<p class="ac-signed">Signed in as <b>${escapeHtml(acUser.name)}</b> · ${escapeHtml(acRoleLabel(acUser.role))}. Manage is for directors. <button type="button" class="ld-link" data-ac-signout>Sign out</button></p>` : ''}
     ${acGoogleClientId ? `<div class="ac-or"><span>or</span></div><div id="acGoogleBtn" class="ac-google"></div><p class="ac-hint">Directors sign in with their store Google account.</p>` : ''}`;
   if(acGoogleClientId) acMountGoogle();
 }
@@ -125,20 +127,18 @@ function acRenderSettings(){
   if(!acOwner) return;
   if(!acAccounts){ root.innerHTML = '<p class="dir-empty">Loading…</p>'; acLoadAccounts(); return; }
   const A = acAccounts;
-  const roleOpts = sel => A.roles.map(r => `<option value="${r.id}" ${r.id === sel ? 'selected' : ''}>${escapeHtml(r.label)}</option>`).join('');
   root.innerHTML = `
     <h4>Sign in with Google</h4>
     <p class="dir-note">${A.googleReady ? 'On.' : '<b>Not set up yet:</b> set GOOGLE_CLIENT_ID on the server.'} Anyone at ${A.directorDomains.map(d => `<b>@${escapeHtml(d)}</b>`).join(', ') || 'no domain'} signs in as a director. Owner${A.owners.length === 1 ? '' : 's'}: ${A.owners.map(escapeHtml).join(', ') || 'none set (ACCOUNT_OWNER_EMAILS)'}.</p>
-    <p class="dir-note">Other Google accounts, with the role they get:</p>
+    <p class="dir-note">Other Google accounts that sign in as directors (Manage is for directors and up):</p>
     ${A.google.length ? `<ul class="ev-m-list">${A.google.map(a => `<li class="ev-m-row"><div class="ev-m-main"><b>${escapeHtml(a.email)}</b><small>${escapeHtml([a.name, acRoleLabel(a.role)].filter(Boolean).join(' · '))}</small></div><button type="button" class="dir-x" data-ac-google-del="${escapeHtml(a.email)}" aria-label="Remove ${escapeHtml(a.email)}">${UO_X_ICON}</button></li>`).join('')}</ul>` : '<p class="dir-empty">None yet.</p>'}
     <form class="ac-form" id="acGoogleForm">
       <input type="email" id="acGEmail" placeholder="email@example.com" required maxlength="120" autocomplete="off">
       <input type="text" id="acGName" placeholder="Name (optional)" maxlength="80" autocomplete="off">
-      <select id="acGRole" aria-label="Role">${roleOpts('director')}</select>
-      <button type="submit" class="btn btn-primary dir-btn">Add</button>
+      <button type="submit" class="btn btn-primary dir-btn">Add a director</button>
     </form>
     <h4>Team clock-in PINs</h4>
-    <p class="dir-note">A team member types their 6-digit clock-in PIN on the PIN screen and the hub knows who they are and their role. Paste the list below or drop a CSV: one person a line, <b>Name, PIN, Role</b> (Team Member, Trainer, Team Lead or Director). Only names and roles are kept here; the PINs themselves are never stored or shown.</p>
+    <p class="dir-note">A team member types their 6-digit clock-in PIN on the PIN screen and the hub knows who they are and their role. Paste the list below or drop a CSV: one person a line, <b>Name, PIN, Role</b> (Team Member, Trainer or Team Lead). A clock-in PIN never opens Manage, whatever the role. Only names and roles are kept here; the PINs themselves are never stored or shown.</p>
     ${A.pins.length ? `<details class="tp-log"><summary>${A.pins.length} on the list</summary><ul class="ev-m-list">${A.pins.map(p => `<li class="ev-m-row"><div class="ev-m-main"><b>${escapeHtml(p.name)}</b><small>${escapeHtml(acRoleLabel(p.role))}</small></div><button type="button" class="dir-x" data-ac-pin-del="${escapeHtml(p.name)}" aria-label="Remove ${escapeHtml(p.name)}">${UO_X_ICON}</button></li>`).join('')}</ul></details>` : '<p class="dir-empty">No team PINs yet.</p>'}
     <form class="ac-form ac-pins" id="acPinForm">
       <textarea id="acPinText" rows="4" placeholder="Jordan Testcase, 123456, Team Member&#10;Riley Sample, 234567, Trainer" spellcheck="false"></textarea>
@@ -209,8 +209,8 @@ document.addEventListener('change', async e => {
 document.addEventListener('submit', async e => {
   if(e.target.id === 'acGoogleForm'){
     e.preventDefault();
-    const email = document.getElementById('acGEmail').value.trim(), name = document.getElementById('acGName').value.trim(), role = document.getElementById('acGRole').value;
-    try{ acAccounts = await acPost('/api/accounts/google', 'POST', {email, name, role}); acRenderSettings(); showToast('Added'); }catch(err){ showToast(err.message); }
+    const email = document.getElementById('acGEmail').value.trim(), name = document.getElementById('acGName').value.trim();
+    try{ acAccounts = await acPost('/api/accounts/google', 'POST', {email, name}); acRenderSettings(); showToast('Added'); }catch(err){ showToast(err.message); }
     return;
   }
   if(e.target.id !== 'acPinForm') return;

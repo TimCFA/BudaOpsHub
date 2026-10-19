@@ -145,7 +145,7 @@ class DirectorPinTest(unittest.TestCase):
         self.assertTrue(self.status()['isDirector'])
         # The manager PIN on the same device drops director.
         r = self.login('1111').get_json()
-        self.assertEqual((r['success'], r['director'], r['role']), (True, False, 'lead'))
+        self.assertEqual((r['success'], r['director'], r['role']), (True, False, 'manager'))
         self.assertFalse(self.status()['isDirector'])
         self.assertEqual(self.login('3333').status_code, 401)
         self.login('2222')

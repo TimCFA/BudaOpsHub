@@ -118,12 +118,17 @@ class GoogleSignInTest(unittest.TestCase):
         self.assertTrue(self.status()['isOwner'])
         self.assertEqual(self.c.get('/api/accounts').status_code, 200)
 
-    def test_listed_address_gets_its_role_and_others_are_refused(self):
+    def test_listed_address_is_a_director_and_others_are_refused(self):
         self.assertEqual(self.google(email='someone@gmail.com').status_code, 403)
-        store['secure/accounts'][appmod._email_key('someone@gmail.com')] = {'email': 'someone@gmail.com', 'name': 'Listed Person', 'role': 'lead'}
+        store['secure/accounts'][appmod._email_key('someone@gmail.com')] = {'email': 'someone@gmail.com', 'name': 'Listed Person', 'role': 'director'}
         d = self.google(email='someone@gmail.com').get_json()
-        self.assertEqual((d['role'], d['manager'], d['director'], d['name']), ('lead', True, False, 'Listed Person'))
-        self.assertEqual(self.c.post('/api/pea/notes', json={'name': 'x'}).status_code, 403)   # a lead isn't a director
+        self.assertEqual((d['role'], d['manager'], d['director'], d['owner'], d['name']), ('director', True, True, False, 'Listed Person'))
+        # An old record with a team role (or a made-up one) never opens Manage.
+        for role in ('lead', 'trainer', 'member', 'boss'):
+            self.c = appmod.app.test_client()            # a fresh phone each time
+            store['secure/accounts'][appmod._email_key('other@gmail.com')] = {'email': 'other@gmail.com', 'name': 'Old Record', 'role': role}
+            self.assertEqual(self.google(email='other@gmail.com').status_code, 403, role)
+            self.assertFalse(self.status()['isManager'], role)
 
     def test_bad_or_unverified_tokens(self):
         self.claims = {'email': 'director@cfabuda.com', 'email_verified': True}
@@ -164,11 +169,15 @@ class TeamPinTest(unittest.TestCase):
                          {'name': 'Casey Example', 'pin': '345678', 'role': 'Team Lead'},
                          {'name': 'Bad Row', 'pin': '12345', 'role': 'Team Member'},
                          {'name': 'Twin', 'pin': '123456', 'role': 'Team Member'},
-                         {'name': 'Odd Role', 'pin': '999999', 'role': 'Boss'}])
+                         {'name': 'Odd Role', 'pin': '999999', 'role': 'Boss'},
+                         {'name': 'Dee Rector', 'pin': '456789', 'role': 'Director'},
+                         {'name': 'Same As Manager', 'pin': '1111', 'role': 'Team Member'},
+                         {'name': 'Same As Director', 'pin': '2222', 'role': 'Team Member'}])
         self.assertEqual(r.status_code, 200, r.get_json())
         d = r.get_json()
         self.assertEqual(d['added'], 3)
-        self.assertEqual(len(d['skipped']), 3)
+        self.assertEqual(len(d['skipped']), 6)
+        self.assertTrue(any('directors sign in with Google' in x for x in d['skipped']))
         self.assertEqual([p['name'] for p in d['pins']], ['Casey Example', 'Jordan Testcase', 'Riley Sample'])
         # No PIN anywhere in what's stored or returned.
         self.assertNotIn('123456', repr(store['secure/teamPins']))
@@ -182,16 +191,45 @@ class TeamPinTest(unittest.TestCase):
         self.assertEqual((st['isManager'], st['user']['name'], st['user']['role']), (False, 'Jordan Testcase', 'member'))
         self.assertEqual(c.post('/api/pea/notes', json={'name': 'x'}).status_code, 403)
 
+        # A Team Lead's PIN signs them in by name and does NOT open Manage.
         c, r = self.login('345678')
-        self.assertEqual((r.get_json()['role'], r.get_json()['manager'], r.get_json()['director']), ('lead', True, False))
-        self.assertTrue(c.get('/api/manager/status').get_json()['isManager'])
+        self.assertEqual((r.get_json()['role'], r.get_json()['manager'], r.get_json()['director'], r.get_json()['name']), ('lead', False, False, 'Casey Example'))
+        st = c.get('/api/manager/status').get_json()
+        self.assertEqual((st['isManager'], st['isDirector'], st['user']['role']), (False, False, 'lead'))
 
         c, r = self.login('234567')
-        self.assertEqual(r.get_json()['role'], 'trainer')
+        self.assertEqual((r.get_json()['role'], r.get_json()['manager']), ('trainer', False))
+
+    def test_a_team_pin_never_opens_manage_or_private_data(self):
+        """Whatever the role, a clock-in PIN gets no manager session: no
+        private state sections, no manager routes, no accounts."""
+        self.upload([{'name': 'Jordan Testcase', 'pin': '123456', 'role': 'Team Member'},
+                     {'name': 'Riley Sample', 'pin': '234567', 'role': 'Trainer'},
+                     {'name': 'Casey Example', 'pin': '345678', 'role': 'Team Lead'}])
+        store['state/pea'] = '{"peaRatings":{"rows":[]}}'
+        for pin in ('123456', '234567', '345678'):
+            c, r = self.login(pin)
+            self.assertEqual(r.status_code, 200)
+            self.assertFalse(r.get_json()['manager'], pin)
+            with c.session_transaction() as sess:
+                self.assertNotIn('manager', sess)
+                self.assertNotIn('director', sess)
+                self.assertNotIn('owner', sess)
+            for method, path in (('post', '/api/pea/levelset-sync'), ('post', '/api/pea/parse'), ('post', '/api/manager/set-pin'),
+                                 ('post', '/api/director/set-pin'), ('post', '/api/pea/notes'), ('get', '/api/accounts'),
+                                 ('post', '/api/uniform-image/x'), ('post', '/api/firebase/read')):
+                self.assertIn(getattr(c, method)(path, json={'pin': '999999', 'name': 'x'}).status_code, (400, 403), f'{pin} {path}')
+
+    def test_manager_pin_is_still_the_way_in_with_a_pin(self):
+        c, r = self.login('1111')
+        self.assertEqual((r.get_json()['role'], r.get_json()['manager'], r.get_json()['director']), ('manager', True, False))
+        self.assertTrue(c.get('/api/manager/status').get_json()['isManager'])
+        c, r = self.login('2222')
+        self.assertEqual((r.get_json()['role'], r.get_json()['manager'], r.get_json()['director']), ('director', True, True))
 
     def test_manager_and_director_pins_still_work_and_a_wrong_pin_counts(self):
         c, r = self.login('1111')
-        self.assertEqual((r.get_json()['role'], r.get_json()['manager']), ('lead', True))
+        self.assertEqual((r.get_json()['role'], r.get_json()['manager']), ('manager', True))
         c, r = self.login('2222')
         self.assertEqual((r.get_json()['role'], r.get_json()['director']), ('director', True))
         c, r = self.login('000000')
@@ -214,7 +252,7 @@ class TeamPinTest(unittest.TestCase):
         for c in (director, appmod.app.test_client()):
             self.assertEqual(c.get('/api/accounts').status_code, 403)
             self.assertEqual(self.upload([{'name': 'X', 'pin': '111111', 'role': 'member'}], c=c).status_code, 403)
-            self.assertEqual(c.post('/api/accounts/google', json={'email': 'a@b.co', 'role': 'lead'}).status_code, 403)
+            self.assertEqual(c.post('/api/accounts/google', json={'email': 'a@b.co'}).status_code, 403)
         self.assertEqual(store['secure/teamPins'], {})
 
     def test_replace_remove_and_google_list(self):
@@ -226,13 +264,14 @@ class TeamPinTest(unittest.TestCase):
         d = self.owner.delete('/api/accounts/pins', json={'name': 'c person'}).get_json()
         self.assertEqual((d['removed'], d['pins']), (1, []))
         # Google accounts: add, list, remove; bad input refused.
-        self.assertEqual(self.owner.post('/api/accounts/google', json={'email': 'not an email', 'role': 'lead'}).status_code, 400)
-        self.assertEqual(self.owner.post('/api/accounts/google', json={'email': 'a@b.co', 'role': 'boss'}).status_code, 400)
-        d = self.owner.post('/api/accounts/google', json={'email': 'Lead@Example.com', 'name': 'A Lead', 'role': 'lead'}).get_json()
-        self.assertEqual(d['google'], [{'email': 'lead@example.com', 'name': 'A Lead', 'role': 'lead', 'addedAt': d['google'][0]['addedAt']}])
+        self.assertEqual(self.owner.post('/api/accounts/google', json={'email': 'not an email'}).status_code, 400)
+        # Whatever role is asked for, a listed Google account is a director.
+        d = self.owner.post('/api/accounts/google', json={'email': 'Dir@Example.com', 'name': 'A Director', 'role': 'lead'}).get_json()
+        self.assertEqual(d['google'], [{'email': 'dir@example.com', 'name': 'A Director', 'role': 'director', 'addedAt': d['google'][0]['addedAt']}])
+        self.assertEqual([r['id'] for r in d['roles']], ['lead', 'trainer', 'member'])
         self.assertEqual(d['owners'], ['owner@example.com'])
         self.assertEqual(d['directorDomains'], ['cfabuda.com'])
-        d = self.owner.delete('/api/accounts/google', json={'email': 'lead@example.com'}).get_json()
+        d = self.owner.delete('/api/accounts/google', json={'email': 'dir@example.com'}).get_json()
         self.assertEqual(d['google'], [])
 
     def test_page_wiring(self):
