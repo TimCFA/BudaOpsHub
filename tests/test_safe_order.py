@@ -126,8 +126,21 @@ class TheOrder(unittest.TestCase):
         d = model(WEEK, {'buildTo': {'1': 500}, 'leadDays': 30})
         self.assertEqual((d['by']['1'][6], d['by']['1'][3]), (0, 500))
 
-    def test_no_pars_no_order(self):
+    def test_the_stores_build_tos_until_others_are_saved(self):
+        """Tim's sheet (Oct 20 2026): $5 $1,000 · $1 $520 · quarters $300 ·
+        dimes $200 · nickels $80 · pennies $0."""
         d = model(WEEK)
+        self.assertEqual({k: v[7] for k, v in d['by'].items() if v[7]}, {'5': 1000, '1': 520, 'Quarters': 300, 'Dimes': 200, 'Nickels': 80})
+        # $1s: 360 on hand, 20 a day for the 2 days to delivery → 320; 520 − 320 = 200 bills.
+        self.assertEqual(d['by']['1'][3:5], [200, 200])
+        self.assertEqual(d['by']['5'][3:5], [156, 780])           # 52 on hand − 8 by delivery = 44; 200 − 44
+        self.assertEqual(d['by']['10'][3:5], [0, 0])              # no $10s or $20s on the sheet
+        # Saved build-tos replace the sheet's.
+        d = model(WEEK, {'buildTo': {'1': 400}})
+        self.assertEqual({k: v[7] for k, v in d['by'].items() if v[7]}, {'1': 400})
+
+    def test_no_counts_no_order(self):
+        d = model([])
         self.assertEqual(d['total'], 0)
         self.assertEqual(d['text'], '')
 

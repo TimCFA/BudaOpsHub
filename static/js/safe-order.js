@@ -3,9 +3,9 @@
 // 20 2026). The leaders' counts already say how many of each bill and roll
 // the safe holds; this card turns them into her order:
 //  - On hand: the latest count, per bill and coin roll.
-//  - Build-to: the dollars of each the change fund should hold, set once
-//    (safeOrderSettings, manager section; a suggestion is the most the last
-//    four weeks held).
+//  - Build-to: the dollars of each the change fund should hold: the store's
+//    sheet (SO_BUILD_TO_STORE) until a director saves others on the card
+//    (safeOrderSettings, manager section).
 //  - At delivery: what will be left when the order arrives, using the pace
 //    below over the days from ordering to delivery (also set once; Tim,
 //    Oct 20 2026: the bills keep going out while the order is on its way).
@@ -30,6 +30,10 @@ const SO_ITEMS = [
 ];
 const SO_WINDOW_DAYS = 28;
 const SO_LEAD_DEFAULT = 2;      // days from ordering to delivery until it's set
+// The store's change fund build-tos, in dollars (Tim's sheet, Oct 20 2026;
+// pennies $0, and no $10s or $20s ordered). They stand until a director
+// saves others on the card.
+const SO_BUILD_TO_STORE = {'5': 1000, '1': 520, Quarters: 300, Dimes: 200, Nickels: 80};
 const SO_DAY_MS = 86400000;
 let soEditing = false;
 
@@ -56,7 +60,9 @@ function soModel(list, settings, now){
   const latest = counts[counts.length - 1] || null;
   const recent = counts.filter(e => e.timestamp >= now - SO_WINDOW_DAYS * SO_DAY_MS);
   const S = settings || {};
-  const buildTo = S.buildTo || {}, par = S.par || {}, step = S.step || {};
+  const par = S.par || {}, step = S.step || {};
+  const saved = S.buildTo && Object.keys(S.buildTo).length;
+  const buildTo = saved ? S.buildTo : Object.keys(par).length ? {} : SO_BUILD_TO_STORE;
   const lead = soLeadDays(S);
   const rows = SO_ITEMS.map(item => {
     const onHand = soHeld(latest, item);
