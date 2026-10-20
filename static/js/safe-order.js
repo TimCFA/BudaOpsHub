@@ -3,10 +3,14 @@
 // 20 2026). The leaders' counts already say how many of each bill and roll
 // the safe holds; this card turns them into her order:
 //  - On hand: the latest count, per bill and coin roll.
-//  - Par: what a full safe should hold of each, set once (safeOrderSettings,
-//    manager section; a suggestion is the most the last four weeks held).
-//  - Order: par minus on hand, rounded up to how the bank sells it (straps,
-//    rolls, boxes: "order in multiples of", also set once).
+//  - Build-to: the dollars of each the change fund should hold, set once
+//    (safeOrderSettings, manager section; a suggestion is the most the last
+//    four weeks held).
+//  - At delivery: what will be left when the order arrives, using the pace
+//    below over the days from ordering to delivery (also set once; Tim,
+//    Oct 20 2026: the bills keep going out while the order is on its way).
+//  - Order: build-to minus what's left at delivery, rounded up to how the
+//    bank sells it (straps, rolls, boxes: "order in multiples of").
 //  - Lasts: how fast each runs down, from the counts' drops over the last
 //    four weeks, and the day it would run out at that pace. A stretch
 //    between two counts where it rose (an order or a swap came in) hides
@@ -25,6 +29,7 @@ const SO_ITEMS = [
   {key: 'Nickels', label: 'Nickels', unit: 'roll', value: 2}
 ];
 const SO_WINDOW_DAYS = 28;
+const SO_LEAD_DEFAULT = 2;      // days from ordering to delivery until it's set
 const SO_DAY_MS = 86400000;
 let soEditing = false;
 
@@ -50,7 +55,9 @@ function soModel(list, settings, now){
   const counts = soCounts(list);
   const latest = counts[counts.length - 1] || null;
   const recent = counts.filter(e => e.timestamp >= now - SO_WINDOW_DAYS * SO_DAY_MS);
-  const par = (settings && settings.par) || {}, step = (settings && settings.step) || {};
+  const S = settings || {};
+  const buildTo = S.buildTo || {}, par = S.par || {}, step = S.step || {};
+  const lead = soLeadDays(S);
   const rows = SO_ITEMS.map(item => {
     const onHand = soHeld(latest, item);
     let drop = 0, days = 0, stretches = 0, prev = null, most = null;
@@ -68,14 +75,22 @@ function soModel(list, settings, now){
     // A pace needs a couple of stretches covering at least two days; one
     // that only ever rose (twenties coming in as change goes out) isn't used.
     const perDay = stretches >= 2 && days >= 2 ? drop / days : recent.length >= 3 && !stretches ? 0 : null;
-    const p = Number(par[item.key]) > 0 ? Math.floor(Number(par[item.key])) : 0;
+    // The build-to in dollars, as bills or rolls (an older par was a count).
+    const target = Number(buildTo[item.key]) > 0 ? Math.floor(Number(buildTo[item.key]) / item.value)
+      : Number(par[item.key]) > 0 ? Math.floor(Number(par[item.key])) : 0;
     const s = Number(step[item.key]) > 0 ? Math.floor(Number(step[item.key])) : 1;
-    const need = onHand === null || !p ? 0 : Math.max(0, p - onHand);
+    const atDelivery = onHand === null ? null : Math.max(0, Math.floor(onHand - (perDay || 0) * lead));
+    const need = atDelivery === null || !target ? 0 : Math.max(0, target - atDelivery);
     const order = need ? Math.ceil(need / s) * s : 0;
     const daysLeft = onHand === null || !perDay ? null : onHand / perDay;
-    return {...item, onHand, perDay, most, par: p, step: s, order, dollars: order * item.value, daysLeft};
+    return {...item, onHand, perDay, most, target, buildTo: target * item.value, atDelivery, step: s, order, dollars: order * item.value, daysLeft};
   });
-  return {latest, rows, total: rows.reduce((t, r) => t + r.dollars, 0), counts: recent.length};
+  return {latest, rows, lead, total: rows.reduce((t, r) => t + r.dollars, 0), counts: recent.length};
+}
+
+function soLeadDays(S){
+  const n = Number(S && S.leadDays);
+  return S && S.leadDays !== undefined && S.leadDays !== '' && Number.isFinite(n) && n >= 0 ? Math.min(n, 30) : SO_LEAD_DEFAULT;
 }
 
 function soMoney(n){ return '$' + Math.round(n).toLocaleString('en-US'); }
@@ -105,25 +120,27 @@ function renderSafeOrder(){
   }
   const at = new Date(m.latest.timestamp);
   const asOf = `${m.latest.shift || 'Count'}, ${at.toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric'})} ${at.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'})}`;
-  const noPars = !m.rows.some(r => r.par);
-  const shown = m.rows.filter(r => soEditing || r.par || r.onHand || r.order || r.key === '1' || r.key === '5' || r.unit === 'roll');
+  const noPars = !m.rows.some(r => r.target);
+  const shown = m.rows.filter(r => soEditing || r.target || r.onHand || r.order || r.key === '1' || r.key === '5' || r.unit === 'roll');
+  const leadText = `${m.lead} day${m.lead === 1 ? '' : 's'}`;
   const row = r => {
     const tone = r.daysLeft === null ? '' : r.daysLeft < 3 ? 'is-bad' : r.daysLeft < 7 ? 'is-warn' : 'is-ok';
     const lasts = r.perDay ? `${soRunsOut(r.daysLeft, now)} · uses ~${r.perDay < 10 ? r.perDay.toFixed(1) : Math.round(r.perDay)}/day` : r.perDay === 0 ? 'not running down' : 'not enough counts yet for a pace';
     if(soEditing) return `
       <div class="so-row so-edit">
         <b class="so-label">${escapeHtml(r.label)} <small>${r.unit}s</small></b>
-        <label>Par <input type="number" min="0" step="1" inputmode="numeric" data-so-par="${r.key}" value="${r.par || ''}" placeholder="${r.most === null ? '' : r.most}"></label>
-        <label>Order in multiples of <input type="number" min="1" step="1" inputmode="numeric" data-so-step="${r.key}" value="${r.step > 1 ? r.step : ''}" placeholder="1"></label>
+        <label>Build to ($) <input type="number" min="0" step="${r.value}" inputmode="numeric" data-so-par="${r.key}" value="${r.buildTo || ''}" placeholder="${r.most === null ? '' : r.most * r.value}"></label>
+        <label>Order in ${r.unit}s, multiples of <input type="number" min="1" step="1" inputmode="numeric" data-so-step="${r.key}" value="${r.step > 1 ? r.step : ''}" placeholder="1"></label>
       </div>`;
     return `
       <div class="so-row">
         <div class="so-main">
           <b class="so-label">${escapeHtml(r.label)}</b>
-          <span class="so-have">${r.onHand === null ? 'not counted' : `${soUnits(r.onHand, r.unit)} on hand${r.par ? ` of ${r.par}` : ''}`}</span>
+          <span class="so-have">${r.onHand === null ? 'not counted' : `${soUnits(r.onHand, r.unit)} on hand${r.target ? ` · build to ${soMoney(r.buildTo)}` : ''}`}</span>
+          ${r.target && r.perDay && r.atDelivery !== null ? `<span class="so-have so-at">~${r.atDelivery.toLocaleString('en-US')} left when the order arrives</span>` : ''}
           <span class="so-lasts ${tone}">${escapeHtml(lasts)}</span>
         </div>
-        ${r.order ? `<span class="so-order"><b>${soUnits(r.order, r.unit)}</b><small>${soMoney(r.dollars)}</small></span>` : r.par ? '<span class="so-order is-none">Full</span>' : ''}
+        ${r.order ? `<span class="so-order"><b>${soUnits(r.order, r.unit)}</b><small>${soMoney(r.dollars)}</small></span>` : r.target ? '<span class="so-order is-none">Full</span>' : ''}
       </div>`;
   };
   root.innerHTML = `
@@ -132,12 +149,15 @@ function renderSafeOrder(){
         <div><h3 class="so-title">Change order</h3><p class="so-note">On hand as of the ${escapeHtml(asOf)}${m.latest.countedBy ? `, counted by ${escapeHtml(m.latest.countedBy)}` : ''}.</p></div>
         ${soEditing ? '' : `<div class="so-total"><span>To order</span><b>${soMoney(m.total)}</b></div>`}
       </div>
-      ${noPars && !soEditing ? '<p class="so-note so-hint">Set a par for each bill and roll (what a full safe holds) and the order works itself out. <button type="button" class="ld-link" data-so-edit>Set pars</button></p>' : ''}
+      ${noPars && !soEditing ? '<p class="so-note so-hint">Set the build-to for each bill and roll (the dollars the change fund should hold) and the order works itself out. <button type="button" class="ld-link" data-so-edit>Set build-tos</button></p>' : ''}
+      ${soEditing
+        ? `<label class="so-lead">Days from placing the order to delivery <input type="number" min="0" max="30" step="1" inputmode="numeric" id="soLeadDays" value="${m.lead}"></label>`
+        : noPars ? '' : `<p class="so-note">Orders back up to each build-to, counting what goes out over the ${leadText} until delivery. <button type="button" class="ld-link" data-so-edit>Change</button></p>`}
       <div class="so-list">${shown.map(row).join('')}</div>
       <div class="so-go">
         ${soEditing
-          ? `<button type="button" class="btn btn-primary" data-so-save>Save pars</button><button type="button" class="btn btn-ghost" data-so-suggest>Use the most held in ${SO_WINDOW_DAYS} days</button><button type="button" class="ld-link" data-so-cancel>Cancel</button>`
-          : `${m.total ? '<button type="button" class="btn btn-primary" data-so-copy>Copy order</button>' : ''}<button type="button" class="btn btn-ghost" data-so-edit>${noPars ? 'Set pars' : 'Edit pars'}</button>`}
+          ? `<button type="button" class="btn btn-primary" data-so-save>Save</button><button type="button" class="btn btn-ghost" data-so-suggest>Use the most held in ${SO_WINDOW_DAYS} days</button><button type="button" class="ld-link" data-so-cancel>Cancel</button>`
+          : `${m.total ? '<button type="button" class="btn btn-primary" data-so-copy>Copy order</button>' : ''}<button type="button" class="btn btn-ghost" data-so-edit>${noPars ? 'Set build-tos' : 'Edit build-tos'}</button>`}
       </div>
       <p class="so-note so-foot">Pace and run-out days come from the last ${SO_WINDOW_DAYS} days of counts (${m.counts}). Bills coming in from an order or a swap don't count as use.</p>
     </section>`;
@@ -153,14 +173,16 @@ document.getElementById('safeOrderRoot').addEventListener('click', async e => {
     return;
   }
   if(t.hasAttribute('data-so-save')){
-    const par = {}, step = {};
-    document.querySelectorAll('#safeOrderRoot [data-so-par]').forEach(inp => { const n = Math.floor(Number(inp.value)); if(n > 0) par[inp.dataset.soPar] = n; });
+    const buildTo = {}, step = {};
+    document.querySelectorAll('#safeOrderRoot [data-so-par]').forEach(inp => { const n = Math.round(Number(inp.value) * 100) / 100; if(n > 0) buildTo[inp.dataset.soPar] = n; });
     document.querySelectorAll('#safeOrderRoot [data-so-step]').forEach(inp => { const n = Math.floor(Number(inp.value)); if(n > 1) step[inp.dataset.soStep] = n; });
-    safeOrderSettings = {par, step};
+    const leadIn = document.getElementById('soLeadDays');
+    const lead = leadIn && leadIn.value !== '' ? Math.max(0, Math.min(30, Math.floor(Number(leadIn.value)) || 0)) : SO_LEAD_DEFAULT;
+    safeOrderSettings = {buildTo, step, leadDays: lead};
     soEditing = false;
     renderSafeOrder();
     await saveState();
-    showToast('Pars saved');
+    showToast('Build-tos saved');
     return;
   }
   if(t.hasAttribute('data-so-copy')){

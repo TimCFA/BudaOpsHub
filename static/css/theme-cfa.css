@@ -2067,3 +2067,7 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .so-edit input{width:120px;min-height:40px;padding:6px 10px;border:1px solid var(--border);border-radius:10px;font-family:var(--font-ui);font-size:15px;}
 .so-go{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:10px;}
 .so-go .btn{width:auto;}
+/* Change order: build-to and delivery days (safe-order.js) */
+.so-at{font-size:13px;color:var(--text-secondary);}
+.so-lead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:8px 0 2px;font-size:13px;font-weight:600;color:var(--text-secondary);}
+.so-lead input{width:90px;min-height:40px;padding:6px 10px;border:1px solid var(--border);border-radius:10px;font-family:var(--font-ui);font-size:15px;}
