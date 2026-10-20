@@ -99,8 +99,8 @@ class Reader(unittest.TestCase):
         self.assertEqual(pin_report.tidy_name('RUIZ LOPEZ, ANA M'), 'Ana M Ruiz Lopez')
         self.assertEqual(pin_report.tidy_name("o'neil, KATE"), "Kate O'Neil")
         self.assertEqual(pin_report.tidy_name('Ana  Ruiz'), 'Ana Ruiz')
-        self.assertEqual([pin_report.role_of(t)[0] for t in ('Team Leader', 'TL Trainer', 'Operator', 'Team Member', 'Cashier')],
-                         ['Team Lead', 'Team Lead', 'Director', 'Team Member', 'Team Member'])
+        self.assertEqual([pin_report.role_of(t)[0] for t in ('Team Leader', 'TL Trainer', 'Operator', 'Team Member', 'Cashier', 'Admin', 'Administrative Assistant', 'Admin Director')],
+                         ['Team Lead', 'Team Lead', 'Director', 'Team Member', 'Team Member', 'Admin Team', 'Admin Team', 'Director'])
         self.assertEqual(pin_report.role_of('Cashier')[1], False)
 
 

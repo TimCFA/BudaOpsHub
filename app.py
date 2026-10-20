@@ -506,9 +506,9 @@ DIRECTOR_EMAIL_DOMAINS = {d.strip().lower().lstrip('@') for d in os.environ.get(
 ACCOUNTS_PATH = 'secure/accounts'        # {key: {email, name, role, addedAt}}
 TEAM_PINS_PATH = 'secure/teamPins'       # {hmac: {name, role, addedAt}}
 TEAM_PIN_SALT_PATH = 'secure/teamPinSalt'
-TEAM_ROLES = ('lead', 'trainer', 'member')            # what a team PIN can carry: never Manage
+TEAM_ROLES = ('lead', 'trainer', 'member', 'admin')   # what a team PIN can carry: never Manage
 ROLES = ('director',) + TEAM_ROLES
-ROLE_LABELS = {'director': 'Director', 'manager': 'Manager PIN', 'lead': 'Team Lead', 'trainer': 'Trainer', 'member': 'Team Member'}
+ROLE_LABELS = {'director': 'Director', 'manager': 'Manager PIN', 'lead': 'Team Lead', 'trainer': 'Trainer', 'member': 'Team Member', 'admin': 'Admin Team'}
 TEAM_PIN_RE = re.compile(r'^\d{6}$')
 TEAM_SESSION_ENDS_HOUR = 3               # a trainer's or team member's sign-in ends at 3 AM store time
 _EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
@@ -678,16 +678,19 @@ def accounts_pins():
     ref = db.reference(TEAM_PINS_PATH)
     if request.method == 'DELETE':
         name = str(body.get('name') or '').strip().lower()
-        pins = ref.get() or {}
+        pins = dict(ref.get() or {})
         gone = [k for k, v in pins.items() if isinstance(v, dict) and str(v.get('name') or '').strip().lower() == name]
         for k in gone:
             db.reference(f'{TEAM_PINS_PATH}/{k}').delete()
+        if gone:
+            _turnover_after_pins(pins, {k: v for k, v in pins.items() if k not in gone}, source='pin-removed')
         return jsonify(dict(_accounts_out(), success=True, removed=len(gone)))
     rows = body.get('rows')
     if not isinstance(rows, list) or not rows or len(rows) > 500:
         return jsonify({'error': 'Send the list as rows of name, PIN and role.'}), 400
     salt = _team_pin_salt(create=True)
     clean, skipped, seen = {}, [], set()
+    directors = 0
     for i, r in enumerate(rows):
         if not isinstance(r, dict):
             skipped.append(f'row {i + 1}: not a row')
@@ -695,15 +698,16 @@ def accounts_pins():
         name = str(r.get('name') or '').strip()[:80]
         pin = str(r.get('pin') or '').strip()
         role = str(r.get('role') or 'member').strip().lower()
-        role = {'team member': 'member', 'tm': 'member', 'team lead': 'lead', 'team leader': 'lead', 'tl': 'lead'}.get(role, role)
+        role = {'team member': 'member', 'tm': 'member', 'team lead': 'lead', 'team leader': 'lead', 'tl': 'lead', 'admin team': 'admin'}.get(role, role)
         if not name:
             skipped.append(f'row {i + 1}: no name')
         elif not TEAM_PIN_RE.match(pin):
             skipped.append(f'{name}: the PIN isn’t 6 digits')
         elif role == 'director':
+            directors += 1
             skipped.append(f'{name}: directors sign in with Google or the director PIN; a clock-in PIN never opens Manage')
         elif role not in TEAM_ROLES:
-            skipped.append(f'{name}: role “{r.get("role")}” isn’t one of Team Member, Trainer, Team Lead')
+            skipped.append(f'{name}: role “{r.get("role")}” isn’t one of Team Member, Trainer, Team Lead, Admin Team')
         elif _is_manage_pin(pin):
             skipped.append(f'{name}: that PIN is the manager or director PIN')
         elif pin in seen:
@@ -711,13 +715,219 @@ def accounts_pins():
         else:
             seen.add(pin)
             clean[_team_pin_key(pin, salt)] = {'name': name, 'role': role, 'addedAt': int(time.time())}
+    before = dict(ref.get() or {})
     if body.get('replace'):
         ref.set(clean)
-    elif clean:
-        ref.update(clean)
+        after = clean
+    else:
+        if clean:
+            ref.update(clean)
+        after = dict(before, **clean)
+    # The whole report replaces the list: whoever dropped off it left.
+    _turnover_after_pins(before, after, source='pin-report' if body.get('replace') else '',
+                         directors=directors if body.get('replace') else None)
     return jsonify(dict(_accounts_out(), success=True, added=len(clean), skipped=skipped))
 
 PIN_REPORT_MAX_BYTES = 5 * 1024 * 1024
+
+# ===== TEAM HEADCOUNT AND DEPARTURES =====
+# Ashley on the admin team (TIM-81, Oct 20 2026): the real number on the team,
+# who left most recently, quit or let go, and why. The team is the clock-in
+# PIN list (the store's PIN report: everyone with a PIN is on payroll), plus
+# the directors the last full report named. Each change to the list records
+# the day's count; whoever drops off a full report, or has their PIN removed,
+# waits as a departure to explain. Departures can also be logged by hand.
+# Why someone left is an HR record: it is kept here, outside the page's
+# shared data and every export, and only a director (any manager session) or
+# an Admin Team sign-in reads or writes it.
+TURNOVER_PATH = 'secure/teamTurnover'     # {counts: {iso: {...}}, departures: {id: {...}}, hires: {key: {name, date}}}
+DEPARTURE_TYPES = {'quit': 'Quit', 'let-go': 'Let go', 'no-show': 'No-call / no-show', 'moved': 'School or moved',
+                   'transfer': 'Transfer', 'other': 'Other'}
+REHIRE_CHOICES = ('yes', 'no', 'unsure')
+TURNOVER_COUNTS_KEPT = 400
+# Team profiles (TIM-82): per person, the food handler permit's expiry, hire
+# date, birthday (minors) and notes. Same keeping and access as above.
+PROFILES_PATH = 'secure/teamProfiles'     # {key: {name, permitExpires, hireDate, birthday, notes, by, at}}
+PROFILE_DATES = ('permitExpires', 'hireDate', 'birthday')
+_turnover_lock = threading.Lock()
+
+
+def _turnover_today():
+    return datetime.now(levelset_sync.STORE_TZ).date().isoformat()
+
+
+def _turnover_key(name):
+    return re.sub(r'\s+', ' ', str(name or '')).strip().lower()
+
+
+def _turnover_access():
+    if session.get('manager'):
+        return True
+    user = session.get('user') or {}
+    return user.get('role') == 'admin'
+
+
+def _turnover_after_pins(before, after, source, directors=None):
+    """Record the day's headcount after the PIN list changed and, for a full
+    report or a removed PIN (source), the people who dropped off it. Never
+    fails the PIN save it follows."""
+    try:
+        names = lambda pins: {_turnover_key(v.get('name')): v for v in (pins or {}).values() if isinstance(v, dict) and v.get('name')}
+        old, new = names(before), names(after)
+        with _turnover_lock:
+            ref = db.reference(TURNOVER_PATH)
+            data = ref.get() or {}
+            counts = data.get('counts') or {}
+            departures = data.get('departures') or {}
+            hires = data.get('hires') or {}
+            today = _turnover_today()
+            last = counts[max(counts)] if counts else {}
+            if directors is None:
+                directors = int(last.get('directors') or 0)
+            by_role = Counter(v.get('role') or 'member' for v in new.values())
+            left = [old[k] for k in old if k not in new] if source else []
+            joined = [new[k] for k in new if k not in old] if old else []
+            prev = counts.get(today) or {}
+            counts[today] = {'total': len(new) + directors, 'team': len(new), 'directors': directors,
+                             'byRole': dict(by_role), 'joined': int(prev.get('joined') or 0) + len(joined),
+                             'left': int(prev.get('left') or 0) + len(left), 'at': int(time.time())}
+            for k in sorted(counts)[:-TURNOVER_COUNTS_KEPT]:
+                counts.pop(k)
+            for v in joined:
+                hires[secrets.token_hex(5)] = {'name': v.get('name'), 'role': v.get('role') or 'member', 'date': today}
+            # Still waiting to be explained but back on the list: a false alarm.
+            for d in departures.values():
+                if isinstance(d, dict) and d.get('status') == 'pending' and _turnover_key(d.get('name')) in new:
+                    d.update(status='dismissed', note='back on the PIN list')
+            open_names = {_turnover_key(d.get('name')) for d in departures.values() if isinstance(d, dict) and d.get('status') == 'pending'}
+            for v in left:
+                if _turnover_key(v.get('name')) in open_names:
+                    continue
+                departures[secrets.token_hex(6)] = {'name': v.get('name'), 'role': v.get('role') or 'member', 'status': 'pending',
+                                                    'source': source, 'noticed': today, 'at': int(time.time())}
+            ref.set({'counts': counts, 'departures': departures, 'hires': hires})
+        if left or joined:
+            print(f"[TEAM] {len(new) + directors} on the team; {len(left)} left, {len(joined)} joined")
+    except Exception as e:
+        print(f"[TEAM] couldn’t record the headcount: {type(e).__name__}")
+
+
+def _turnover_out():
+    data = db.reference(TURNOVER_PATH).get() or {}
+    pins = db.reference(TEAM_PINS_PATH).get() or {}
+    counts = data.get('counts') or {}
+    last = counts[max(counts)] if counts else {}
+    team = [{'name': v.get('name'), 'role': v.get('role') or 'member'} for v in pins.values() if isinstance(v, dict) and v.get('name')]
+    directors = int(last.get('directors') or 0)
+    departures = sorted(({**v, 'id': k} for k, v in (data.get('departures') or {}).items() if isinstance(v, dict)),
+                        key=lambda d: (d.get('lastDay') or d.get('noticed') or '', d.get('at') or 0), reverse=True)
+    hires = sorted((v for v in (data.get('hires') or {}).values() if isinstance(v, dict)), key=lambda h: h.get('date') or '', reverse=True)
+    return {'now': {'total': len(team) + directors, 'team': len(team), 'directors': directors,
+                    'byRole': dict(Counter(p['role'] for p in team))},
+            'counts': [dict(v, date=k) for k, v in sorted(counts.items())],
+            'departures': departures, 'hires': hires[:200],
+            'names': sorted(p['name'] for p in team),
+            'team': sorted(team, key=lambda p: _turnover_key(p['name'])),
+            'types': [{'id': k, 'label': v} for k, v in DEPARTURE_TYPES.items()],
+            'profiles': sorted((v for v in (db.reference(PROFILES_PATH).get() or {}).values() if isinstance(v, dict) and v.get('name')),
+                               key=lambda p: _turnover_key(p['name']))}
+
+
+def _profile_key(name):
+    return hashlib.sha256(_turnover_key(name).encode()).hexdigest()[:20]
+
+
+@app.route('/api/team/profiles', methods=['POST'])
+def team_profiles():
+    """Save one person's profile ({name, permitExpires, hireDate, birthday,
+    notes}; a blank date clears it). {name, remove: true} deletes it."""
+    if not _turnover_access():
+        return jsonify({'error': 'Directors and the admin team only.'}), 403
+    body = request.get_json(silent=True) or {}
+    name = re.sub(r'\s+', ' ', str(body.get('name') or '')).strip()[:80]
+    if not name:
+        return jsonify({'error': 'Whose profile?'}), 400
+    ref = db.reference(f'{PROFILES_PATH}/{_profile_key(name)}')
+    if body.get('remove'):
+        ref.delete()
+    else:
+        rec = {'name': name}
+        for k in PROFILE_DATES:
+            v = str(body.get(k) or '').strip()
+            if v and not re.fullmatch(r'\d{4}-\d{2}-\d{2}', v):
+                return jsonify({'error': 'Dates as year-month-day.'}), 400
+            if v:
+                rec[k] = v
+        notes = str(body.get('notes') or '').strip()[:1500]
+        if notes:
+            rec['notes'] = notes
+        rec['by'] = str((session.get('user') or {}).get('name') or ('Director' if session.get('manager') else '')).strip()[:80]
+        rec['at'] = int(time.time())
+        ref.set(rec)
+    resp = jsonify(dict(_turnover_out(), success=True))
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
+
+
+@app.route('/api/team/headcount', methods=['GET'])
+def team_headcount():
+    if not _turnover_access():
+        return jsonify({'error': 'Directors and the admin team only.'}), 403
+    resp = jsonify(_turnover_out())
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
+
+
+@app.route('/api/team/departures', methods=['POST', 'DELETE'])
+def team_departures():
+    """Log or update a departure ({id?, name, lastDay, type, reason, rehire}),
+    dismiss a false alarm ({id, status: 'dismissed'}), or remove one logged
+    by mistake (DELETE {id})."""
+    if not _turnover_access():
+        return jsonify({'error': 'Directors and the admin team only.'}), 403
+    body = request.get_json(silent=True) or {}
+    did = str(body.get('id') or '')
+    if did and not re.fullmatch(r'[0-9a-f]{8,16}', did):
+        return jsonify({'error': 'Unknown departure.'}), 400
+    by = str((session.get('user') or {}).get('name') or ('Director' if session.get('manager') else '')).strip()[:80]
+    with _turnover_lock:
+        ref = db.reference(TURNOVER_PATH)
+        data = ref.get() or {}
+        departures = data.get('departures') or {}
+        if did and did not in departures:
+            return jsonify({'error': 'That departure isn’t there any more. Reload.'}), 404
+        if request.method == 'DELETE':
+            if not did:
+                return jsonify({'error': 'Which departure?'}), 400
+            departures.pop(did)
+        elif body.get('status') == 'dismissed':
+            if not did:
+                return jsonify({'error': 'Which departure?'}), 400
+            departures[did] = dict(departures[did], status='dismissed', by=by, at=int(time.time()))
+        else:
+            name = re.sub(r'\s+', ' ', str(body.get('name') or '')).strip()[:80]
+            last_day = str(body.get('lastDay') or '')
+            kind = body.get('type')
+            rehire = body.get('rehire') or 'unsure'
+            if not name:
+                return jsonify({'error': 'Who left?'}), 400
+            if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', last_day):
+                return jsonify({'error': 'Pick their last day.'}), 400
+            if kind not in DEPARTURE_TYPES:
+                return jsonify({'error': 'Pick quit, let go or another reason.'}), 400
+            if rehire not in REHIRE_CHOICES:
+                return jsonify({'error': 'Eligible for rehire: yes, no or not sure.'}), 400
+            old = departures.get(did) or {}
+            rec = {'name': name, 'role': str(body.get('role') or old.get('role') or '')[:20], 'lastDay': last_day, 'type': kind,
+                   'reason': str(body.get('reason') or '').strip()[:600], 'rehire': rehire, 'status': 'logged',
+                   'source': old.get('source') or 'manual', 'noticed': old.get('noticed') or _turnover_today(),
+                   'by': by, 'at': int(time.time())}
+            departures[did or secrets.token_hex(6)] = rec
+        data['departures'] = departures
+        ref.set(data)
+    resp = jsonify(dict(_turnover_out(), success=True))
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 @app.route('/api/accounts/pins/read', methods=['POST'])
 def accounts_pins_read():
@@ -1588,7 +1798,7 @@ HEALTH_PATH = 'health'
 HEALTH_DAYS_KEPT = 35
 HEALTH_FLUSH_SECONDS = 30 * 60
 HEALTH_READY_SAMPLES = 300           # load times kept per day
-HEALTH_ROLES = ('none', 'member', 'trainer', 'lead', 'director', 'manager')
+HEALTH_ROLES = ('none', 'member', 'trainer', 'lead', 'admin', 'director', 'manager')
 HEALTH_VIEW_RE = re.compile(r'^[a-z]{2,20}$')
 STARTED_AT = int(time.time() * 1000)
 _health_lock = threading.Lock()

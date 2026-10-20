@@ -1829,6 +1829,20 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .rn-row.is-go:focus-visible,.rn-first.is-go:focus-visible{outline:2px solid var(--cfa-navy);outline-offset:2px;border-radius:10px;}
 .rn:not(.rn-boh) .es{display:none;}
 @media (max-width:600px){ .rn{padding:14px 16px 6px;} .rn-title{font-size:24px;} }
+/* The day's roster (Admin Team's card; a tap away on the director's): by
+   group in start order, a green dot for on now, done shifts faded. */
+.rn-roster{position:relative;display:grid;gap:14px;border-top:1px solid var(--border);margin-top:2px;padding:12px 0 8px;}
+.rn-rg-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:0 0 2px;font-family:var(--font-ui);font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--cfa-navy);}
+.rn-rg-h span{letter-spacing:0;text-transform:none;font-weight:600;color:var(--text-tertiary);}
+.rn-rg-list{list-style:none;margin:0;padding:0;}
+.rn-rp{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--border);font-family:var(--font-ui);font-size:14.5px;line-height:1.3;}
+.rn-rp:first-child{border-top:0;}
+.rn-rp-name{min-width:0;font-weight:600;color:var(--text-primary);}
+.rn-rp-name::before{content:"";display:inline-block;width:7px;height:7px;margin-right:8px;border-radius:50%;background:var(--border);vertical-align:1px;}
+.rn-rp.is-now .rn-rp-name::before{background:#2E7D45;}
+.rn-rp.is-done{opacity:.5;}
+.rn-rp-time{flex:none;font-size:13.5px;font-variant-numeric:tabular-nums;color:var(--text-secondary);}
+.rn-rp-tag{margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--cfa-soft);font-size:11px;font-weight:700;color:var(--text-secondary);vertical-align:1px;}
 
 /* Waste: Top Items Today, each bar its share of the day's waste (waste-log.js; Tim, Oct 19 2026). */
 .bar-item .bi-top .bv-share{font-family:var(--font-ui);font-size:12px;font-weight:600;opacity:.7;}
@@ -1958,3 +1972,68 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .du-result.is-skip{border-left-color:var(--border);background:transparent;}
 .du-result.is-skip div{color:var(--text-secondary);}
 .du-result .du-result-act{margin-top:6px;}
+
+/* ===== Our Team: headcount and departures (headcount.js, TIM-81) =====
+   The navy summary card from the Forecast, then calm white cards. */
+.hc-page{max-width:760px;margin:0 auto;font-family:var(--font-ui);color:var(--text-primary);}
+.hc-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 16px;margin:4px 0 14px;}
+.hc-title{margin:0;font-family:var(--font-display);font-size:clamp(28px,6vw,40px);font-weight:700;line-height:1.05;}
+.hc-note{margin:0 0 10px;font-size:13px;color:var(--text-secondary);}
+.hc-start{padding:14px 16px;border:1px dashed var(--border);border-radius:14px;background:var(--cfa-white);}
+.hc-card{background:var(--cfa-white);border:1px solid var(--border);border-radius:16px;padding:14px 16px;margin-bottom:12px;}
+.hc-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:0 0 8px;font-family:var(--font-display);font-size:20px;font-weight:700;}
+.hc-h span{font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--text-tertiary);}
+.hc-pending{border-color:#EDB3BE;}
+.hc-pending .hc-h span{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 7px;border-radius:11px;background:var(--cfa-red);color:#fff;font-size:12px;font-weight:700;}
+.hc-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;padding:10px 0;border-top:1px solid var(--border);}
+.hc-row-main{display:grid;gap:2px;min-width:0;}
+.hc-row-main small,.hc-dep-foot{font-size:12.5px;color:var(--text-tertiary);}
+.hc-row-go{display:flex;align-items:center;gap:12px;}
+.hc-dep{padding:10px 0;border-top:1px solid var(--border);}
+.hc-dep:first-of-type{border-top:0;}
+.hc-dep-top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;font-size:15px;}
+.hc-dep-date{margin-left:auto;font-size:13px;font-variant-numeric:tabular-nums;color:var(--text-secondary);}
+.hc-dep-why{margin:4px 0 2px;font-size:14px;line-height:1.4;color:var(--text-primary);}
+.hc-dep-foot{display:flex;justify-content:space-between;gap:10px;}
+.hc-chip{padding:2px 9px;border-radius:999px;background:var(--cfa-soft);font-size:11.5px;font-weight:700;color:var(--text-secondary);}
+.hc-chip.is-let-go,.hc-chip.is-no-show{background:#FDECEF;color:var(--cfa-dark-red);}
+.hc-chip.is-quit{background:rgba(0,79,113,.1);color:var(--cfa-navy);}
+.hc-more{margin-top:6px;}
+.hc-why{display:grid;grid-template-columns:minmax(110px,auto) 1fr 28px;align-items:center;gap:10px;padding:5px 0;font-size:14px;}
+.hc-why-bar{height:10px;border-radius:5px;background:var(--cfa-soft);overflow:hidden;}
+.hc-why-bar i{display:block;height:100%;border-radius:5px;background:var(--cfa-navy);}
+.hc-why b{text-align:right;font-variant-numeric:tabular-nums;}
+.hc-hist{display:grid;grid-template-columns:70px 44px 1fr;align-items:baseline;gap:10px;padding:6px 0;border-top:1px solid var(--border);font-size:14px;}
+.hc-hist:first-of-type{border-top:0;}
+.hc-hist b{font-family:var(--font-display);font-size:18px;}
+.hc-hist small{color:var(--text-tertiary);}
+.hc-form{display:grid;gap:14px;background:var(--cfa-white);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px;}
+.hc-form .hc-h{margin:0;}
+.hc-form .field{margin:0;}
+.hc-form-row{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;}
+.hc-form-go{display:flex;flex-wrap:wrap;align-items:center;gap:10px;}
+.hc-remove{margin-left:auto;color:var(--cfa-red);}
+@media (max-width:600px){ .hc-form-row{grid-template-columns:1fr 1fr;} .hc-form-row .field:first-child{grid-column:1 / -1;} .hc-summary{grid-template-columns:1fr;} }
+/* Our Team profiles (TIM-82): one row a person, the permit's state on a chip. */
+.hc-find{width:100%;box-sizing:border-box;min-height:44px;margin:0 0 6px;padding:8px 12px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-light);font-family:var(--font-ui);font-size:15px;}
+.hc-plist{display:grid;}
+.hc-prow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;width:100%;min-height:52px;padding:8px 0;border:0;border-top:1px solid var(--border);background:transparent;text-align:left;font-family:var(--font-ui);font-size:15px;color:var(--text-primary);cursor:pointer;}
+.hc-prow[hidden]{display:none;}
+.hc-prow:hover b{color:var(--cfa-red);}
+.hc-prow-name{display:grid;gap:1px;flex:1;min-width:0;}
+.hc-prow-name small{font-size:12px;color:var(--text-tertiary);}
+.hc-permit.is-ok{background:#E6F2EA;color:#2E7D45;}
+.hc-permit.is-soon{background:#FFF1DA;color:#8A5300;}
+.hc-permit.is-expired{background:#FDECEF;color:var(--cfa-dark-red);}
+.hc-permit.is-missing{background:transparent;border:1px dashed var(--border);color:var(--text-tertiary);}
+.hc-chip.is-minor{background:rgba(0,79,113,.1);color:var(--cfa-navy);}
+.hc-bad{color:var(--cfa-red);}
+.hc-others{margin-top:8px;}
+.hc-others summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--text-secondary);padding:6px 0;}
+.hc-profile-head{display:grid;gap:2px;}
+.hc-profile-head span{font-size:13px;color:var(--text-secondary);}
+.hc-form-row3{grid-template-columns:1fr 1fr 1fr;}
+.hc-hint{display:block;margin-top:4px;font-size:12px;color:var(--text-tertiary);}
+.hc-hint.is-minor{color:var(--cfa-navy);font-weight:600;}
+@media (max-width:600px){ .hc-form-row3{grid-template-columns:1fr;} }
+.hc-alert{border-color:#EDB3BE;}
