@@ -297,10 +297,13 @@ function eviLoadImage(file){
   });
 }
 
-// The grid's lines: rows and columns of the template's gray rule.
-function eviFindGrid(data, W, H){
+// The grid's lines: rows and columns of the template's gray rule. `light`:
+// a screenshot of the calendar rather than the template's PNG draws the rule
+// lighter (and scaling it up lightens it more), so a second look takes paler
+// gray (Tim's November calendar, Oct 19 2026).
+function eviFindGrid(data, W, H, light){
   const px = (x, y) => { const i = (y * W + x) * 4; return [data[i], data[i + 1], data[i + 2]]; };
-  const isRule = (r, g, b) => Math.abs(r - g) < 16 && Math.abs(g - b) < 16 && r > 85 && r < 175;
+  const isRule = (r, g, b) => Math.abs(r - g) < 16 && Math.abs(g - b) < 16 && r > 85 && r < (light ? 222 : 175);
   const merge = list => list.reduce((acc, v) => { if(acc.length && v - acc[acc.length - 1].last <= 3){ acc[acc.length - 1].last = v; } else acc.push({first: v, last: v}); return acc; }, []).map(g => Math.round((g.first + g.last) / 2));
   const xs = [], ys = [];
   const xMax = Math.round(W * 0.82);
@@ -438,7 +441,7 @@ async function eviReadCalendar(file, progress){
   pg.fillStyle = '#fff'; pg.fillRect(0, 0, W, H);
   pg.drawImage(img, 0, 0, W, H);
   let data = pg.getImageData(0, 0, W, H).data;
-  const grid = eviFindGrid(data, W, H);
+  const grid = eviFindGrid(data, W, H) || eviFindGrid(data, W, H, true);
   if(!grid) throw new Error('Couldn’t find the calendar grid. Use the month’s calendar page (the PNG of the template), not the events page.');
   const {cols, rows} = grid;
   const colW = (cols[7] - cols[0]) / 7;

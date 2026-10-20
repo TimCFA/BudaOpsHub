@@ -585,6 +585,8 @@
       </div>
     </div>
 
+    <!-- The change order for the bank, from the counts (safe-order.js). Directors only. -->
+    <div id="safeOrderRoot"></div>
     <div class="standup-card fohoe-card fohoe-red">
       <h3>Safe Count Log <span class="sub"><i>Registro de Conteos</i></span></h3>
       <div id="safeCountLogContainer"></div>
@@ -860,6 +862,12 @@
     <div class="dir-page" id="directorsRoot"></div>
   </div>
 
+  <!-- Our Team: headcount and departures (headcount.js, TIM-81). Directors
+       and the Admin Team only; opened from the Right Now card. -->
+  <div class="view" id="headcountView">
+    <div class="hc-page" id="headcountRoot"></div>
+  </div>
+
   <div class="view" id="manageView">
     <div id="pinGate" class="pin-gate">
       <div style="font-size:14px;margin-bottom:20px;font-weight:600;">Enter PIN to manage <span style="display:block;font-size:12px;font-style:italic;color:var(--text-secondary);font-weight:400;">Ingrese PIN</span></div>
@@ -1129,6 +1137,7 @@
 <script src="/static/js/waste-dash.js"></script>
 <script src="/static/js/waste-export.js"></script>
 <script src="/static/js/fohoe-and-safecount.js"></script>
+<script src="/static/js/safe-order.js"></script>
 <script src="/static/js/food-safety.js"></script>
 <script src="/static/js/shift-time.js"></script>
 <script src="/static/js/daypicker-and-positions.js"></script>
@@ -1146,6 +1155,7 @@
 <script src="/static/js/prep-times.js"></script>
 <script src="/static/js/cem-trends.js"></script>
 <script src="/static/js/data-uploads.js"></script>
+<script src="/static/js/upload-bundle.js"></script>
 <script src="/static/js/hs-sync.js"></script>
 <script src="/static/js/all-green.js"></script>
 <script src="/static/js/pea-coach.js"></script>
@@ -1154,6 +1164,7 @@
 <script src="/static/js/forecast.js"></script>
 <script src="/static/js/kn-actuals.js"></script>
 <script src="/static/js/directors.js"></script>
+<script src="/static/js/headcount.js"></script>
 <script src="/static/js/leaders.js"></script>
 <script src="/static/js/team-pea.js"></script>
 <script src="/static/js/leader-report.js"></script>

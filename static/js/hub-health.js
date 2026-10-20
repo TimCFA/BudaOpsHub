@@ -20,7 +20,7 @@ function hhNoteView(view){
 function hhRole(){
   const role = typeof acUser !== 'undefined' && acUser ? acUser.role : '';
   if(typeof launchManager !== 'undefined' && launchManager) return role === 'manager' ? 'manager' : 'director';
-  return ['lead', 'trainer', 'member'].includes(role) ? role : 'none';
+  return ['lead', 'trainer', 'member', 'admin'].includes(role) ? role : 'none';
 }
 
 function hhSend(body, beacon){
@@ -57,7 +57,7 @@ setInterval(() => hhFlushViews(false), 5 * 60 * 1000);
 const HH_VIEW_LABELS = {home: 'Home', positions: 'Set Ups', wastelog: 'Waste', scoreboard: 'Scoreboard', zonereset: 'Zone Reset',
   foodsafety: 'Food Safety', safecount: 'Safe Count', prepboard: 'Prep Board', calendar: 'Calendar', manage: 'Manage',
   directors: 'Directors', forecast: 'Forecast', uniforms: 'Uniforms', tx: 'TX', lx: 'LX'};
-const HH_ROLE_LABELS = {member: 'Team Members', trainer: 'Trainers', lead: 'Team Leads', director: 'Directors', manager: 'Manager PIN', none: 'not signed in'};
+const HH_ROLE_LABELS = {member: 'Team Members', trainer: 'Trainers', lead: 'Team Leads', admin: 'Admin Team', director: 'Directors', manager: 'Manager PIN', none: 'not signed in'};
 let hhData = null, hhBusy = false, hhError = '';
 
 async function hhLoad(){
