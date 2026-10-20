@@ -300,6 +300,27 @@ const ES = {
   'Enter the minutes and seconds it took': 'Escribe los minutos y segundos que tomó',
   'Remove this time from the leaderboard?': '¿Quitar este tiempo de la tabla?',
   'N times': (n, last) => `${n} ${n === 1 ? 'vez' : 'veces'}${last ? ` · la más reciente ${last}` : ''}`,
+  // Home: the Right Now card (right-now.js).
+  'Right now': 'Ahora mismo',
+  'First thing': 'Lo primero',
+  'Your spot now': 'Tu lugar ahora',
+  'Next spot': 'Tu siguiente lugar',
+  'Your shift': 'Tu turno',
+  'Your break': 'Tu descanso',
+  'Waste today': 'Desperdicio de hoy',
+  'Open spots now': 'Lugares abiertos ahora',
+  'Scheduled with no spot': 'En el horario sin lugar',
+  'Breaks due soon': 'Descansos pronto',
+  'Food Safety walkthrough': 'Recorrido de seguridad alimentaria',
+  'Set Ups filled': 'Configuración llena',
+  'Sign in to see your spot': 'Inicia sesión con tu PIN para ver tu lugar y tu descanso',
+  'Not on the schedule': 'No estás en el horario',
+  'You are on SPOT until TIME': (spot, time) => `Estás en ${spot} hasta las ${time}`,
+  'Your shift starts at TIME': time => `Tu turno empieza a las ${time}`,
+  'No spot yet for DP': dp => `Aún no tienes lugar para ${dp}. Pregunta a tu líder.`,
+  'Next: SPOT at DP': (spot, dp) => `Siguiente: ${spot} en ${dp}`,
+  'Nobody is on SPOT for DP': (spot, dp) => `Nadie está en ${spot} para ${dp}`,
+  'Everything is covered for DP': dp => `Todo está cubierto para ${dp}`,
 };
 
 // Words of the BOH stations (zone-reset.js bohPositions), lower case. A spot

@@ -1,0 +1,424 @@
+// ===== RIGHT NOW (Tim, Oct 19 2026) =====
+// Home opens on the welcome banner and the quote: culture first, always
+// (Tim). Under it, this card: what matters this minute, for whoever is
+// holding the phone. Who that is comes from the sign-in (accounts.js
+// acUser, launch-mode.js launchManager):
+//  - Team Member: their spot now and next, their shift, their break, the
+//    zone they reset at the coming handoff, the day's waste.
+//  - Trainer: the same, plus the open spots on their side now.
+//  - Team Lead: their side's shift: open spots, people on the floor with no
+//    spot, the handoff's zones, breaks coming up, waste, Food Safety.
+//  - Director (or the manager PIN): the whole store now, the rest of the
+//    day, the leaders on, tomorrow's Set Ups, waste, Food Safety.
+//  - A phone nobody signed in on: the shift as a whole, and a way to sign in.
+// It reads only what that phone already has (a team PIN never reads the
+// private sections), and every row opens the screen that fixes it. On the
+// kitchen's side the lines carry Spanish; FOH stays English.
+
+const RN_ICON_GO = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+
+function rnNowMins(){ const d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
+
+// 14:05 → "2:05"
+function rnClock(min){
+  const h = Math.floor(min / 60) % 24, m = min % 60;
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')}`;
+}
+function rnShort(dpName){ return String(dpName || '').replace(/\s*\(.*\)\s*$/, ''); }
+// End a sentence once, even after a short name ("Alyssa C.").
+function rnSentence(t){ return /[.!?]$/.test(t) ? t : t + '.'; }
+function rnFirst(name){ return String(name || '').trim().split(/\s+/)[0] || ''; }
+
+// Names from the PIN list and the schedule can differ by a middle or second
+// last name ("Ana Ruiz" / "Ana Ruiz Lopez"): same first name, and the
+// shorter one's last name somewhere in the longer.
+function rnSame(a, b){
+  const x = String(a || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const y = String(b || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if(!x.length || !y.length) return false;
+  if(x.join(' ') === y.join(' ')) return true;
+  if(x[0] !== y[0] || x.length < 2 || y.length < 2) return false;
+  const [short, long] = x.length <= y.length ? [x, y] : [y, x];
+  return long.slice(1).includes(short[short.length - 1]);
+}
+
+function rnViewer(){
+  const role = typeof acUser !== 'undefined' && acUser ? acUser.role : '';
+  if(typeof launchManager !== 'undefined' && launchManager) return {role: role === 'manager' ? 'manager' : 'director', name: (acUser && acUser.name) || ''};
+  if(['lead', 'trainer', 'member'].includes(role)) return {role, name: acUser.name || ''};
+  return {role: 'none', name: ''};
+}
+
+function rnAddDays(iso, n){
+  const d = new Date(iso + 'T12:00:00');
+  d.setDate(d.getDate() + n);
+  return toLocalISODate(d);
+}
+
+// The store's day: open Monday to Saturday from the first daypart to the end
+// of Close. Before it opens, the first daypart is "next"; after it closes
+// (and on Sunday) the card looks at the next open day.
+function rnDay(){
+  const now = rnNowMins();
+  const sunday = new Date().getDay() === 0;
+  const last = fohDayparts[fohDayparts.length - 1];
+  const closeAt = daypartTimeWindow(fohDayparts, fohDayparts.length - 1).endMin;
+  const closed = sunday || now >= closeAt;
+  let next = rnAddDays(today, 1);
+  if(new Date(next + 'T12:00:00').getDay() === 0) next = rnAddDays(next, 1);
+  return {now, closed, opensAt: parseDaypartTimeToMinutes(fohDayparts[0].time), closeAt, last, next};
+}
+
+// The daypart on the clock for a side today (the first one before opening).
+function rnDaypartIndex(side, now){
+  const dps = suDaypartsFor(side);
+  let i = 0;
+  dps.forEach((dp, n) => { if(parseDaypartTimeToMinutes(dp.time) <= now) i = n; });
+  return i;
+}
+
+function rnRoster(side, date){
+  return ((side === 'foh' ? fohRoster : bohRoster)[date]) || [];
+}
+
+// The viewer on the schedule: [{side, entry}] for the day.
+function rnOnRoster(name, date){
+  if(!name) return [];
+  const out = [];
+  ['foh', 'boh'].forEach(side => rnRoster(side, date).forEach(p => { if(rnSame(p.name, name)) out.push({side, entry: p}); }));
+  return out;
+}
+
+// Where someone is placed on a day: [{side, dpIndex, dp, slot}] in time order.
+function rnSpotsFor(names, date){
+  const out = [];
+  ['foh', 'boh'].forEach(side => {
+    const posMap = side === 'foh' ? fohPositions : bohPositions;
+    suDaypartsFor(side).forEach((dp, dpIndex) => {
+      [...(posMap[dp.name] || []), SU_LEAD_CAPTAIN].forEach(slot => {
+        const placed = suSplitNames(posAssignments[[side, date, dp.name, slot].join('||')]);
+        if(placed.some(n => names.some(x => rnSame(n, x)))) out.push({side, dpIndex, dp, slot});
+      });
+    });
+  });
+  return out.sort((a, b) => parseDaypartTimeToMinutes(a.dp.time) - parseDaypartTimeToMinutes(b.dp.time));
+}
+
+function rnShiftText(entry){
+  return (entry.blocks && entry.blocks.length > 1 ? entry.blocks : [entry]).map(b => `${b.start}–${b.end}`).join(', ');
+}
+
+function rnShiftStart(entry){
+  const b = entry.blocks && entry.blocks.length ? entry.blocks[0] : entry;
+  return parseShiftTimeToMinutes(b.start);
+}
+
+// The coming Zone Reset handoff (FOH): its zones, who owns them, how far along.
+function rnHandoff(date){
+  const name = zrCurrentHandoff();
+  const h = zoneResetDayparts.find(x => x.name === name);
+  if(!h) return null;
+  const zones = ALL_ZONE_NAMES.map(z => {
+    const c = getZoneCompletion(date, name, z);
+    return {zone: z, done: c.total > 0 && c.checked === c.total, checked: c.checked, total: c.total, owners: zrZoneOwners(date, name, z).all};
+  });
+  return {name, title: zrHandoffParts(name).title, at: parseDaypartTimeToMinutes(h.time), zones};
+}
+
+// Breaks starting from 15 minutes ago to 30 minutes from now, not yet taken.
+function rnBreaksSoon(side, now){
+  const plan = typeof breakPlanFor === 'function' ? breakPlanFor(side, today) : {breaks: []};
+  return (plan.breaks || []).filter(b => b.start !== null && b.start >= now - 15 && b.start <= now + 30 && !completedBreaks[breakKeyFor(b.name, today, side)])
+    .sort((a, b) => a.start - b.start);
+}
+
+// The open spots, the people on the floor with no spot, for a side's daypart.
+function rnDaypartGaps(side, date, dpIndex){
+  const dp = suDaypartsFor(side)[dpIndex];
+  const m = suDaypartModel(side, date, dp, dpIndex);
+  const open = m.tiles.filter(t => t.needed);
+  return {dp, m, open, unplaced: m.unplaced};
+}
+
+function rnWaste(){
+  const limit = Number(wasteTarget) || 0;
+  const total = wasteTodayTotal('foh') + wasteTodayTotal('boh');
+  return {total, limit, over: limit > 0 && total > limit, near: limit > 0 && total >= limit * 0.8};
+}
+function rnMoney(n){ return n >= 100 ? '$' + Math.round(n) : '$' + n.toFixed(2).replace(/\.00$/, ''); }
+
+function rnFoodSafety(){
+  const rec = typeof fsRecord === 'function' ? fsRecord(today) : null;
+  const t = typeof fsTotals === 'function' ? fsTotals(rec) : null;
+  return t && t.total ? t : null;
+}
+
+// One row: big value, line, its Spanish (BOH), and where a tap goes.
+function rnRow(n, text, es, go, tone){ return {n, text, es: es || '', go: go || '', tone: tone || ''}; }
+
+// ----- Per role -----
+function rnPersonCard(v, day, trainer){
+  const date = day.closed ? day.next : today;
+  const on = rnOnRoster(v.name, date);
+  const side = on.length ? on[0].side : 'foh';
+  const names = [v.name, ...on.map(o => o.entry.name)];
+  const spots = rnSpotsFor(names, date);
+  const rows = [];
+  let first = null;
+  const first1 = rnFirst(v.name);
+
+  if(day.closed){
+    const dayName = new Date(date + 'T12:00:00').toLocaleDateString('en-US', {weekday: 'long'});
+    if(!on.length){
+      first = {text: `You’re not on ${dayName}’s schedule.`, es: esText('Not on the schedule')};
+    } else {
+      const s = spots[0];
+      first = s
+        ? {text: `${dayName}: ${s.slot} at ${rnShort(s.dp.name)}.`, es: esText('Next: SPOT at DP', esPlace(s.slot) || s.slot, esDaypart(s.dp.name)), go: `setups:${s.side}|${date}|${s.dp.name}`}
+        : {text: `${dayName}: your shift is ${rnShiftText(on[0].entry)}. No spot yet.`, es: esText('Your shift starts at TIME', rnShiftText(on[0].entry))};
+      rows.push(rnRow('', `Your shift ${dayName}: ${rnShiftText(on[0].entry)}`, esText('Your shift'), ''));
+      spots.forEach(x => rows.push(rnRow(rnClock(parseDaypartTimeToMinutes(x.dp.time)), `${x.slot} at ${rnShort(x.dp.name)}`, esPlace(x.slot), `setups:${x.side}|${date}|${x.dp.name}`)));
+    }
+    return {side, first, rows, kicker: `${dayName}`, title: `Hi, ${first1}`};
+  }
+
+  const entry = on.length ? on[0].entry : null;
+  const startsAt = entry ? rnShiftStart(entry) : null;
+  const nowSpot = spots.find(s => s.dpIndex === rnDaypartIndex(s.side, day.now) && parseDaypartTimeToMinutes(s.dp.time) <= day.now);
+  const nextSpot = spots.find(s => parseDaypartTimeToMinutes(s.dp.time) > day.now);
+  const brk = entry ? breakFor(side, today, entry.name) : null;
+  const brkKey = entry ? breakKeyFor(entry.name, today, side) : '';
+  const onBreak = entry && breakCountdowns[brkKey] && breakCountdowns[brkKey] > serverNow();
+  const brkTaken = entry && !!completedBreaks[brkKey];
+  const hand = side === 'foh' ? rnHandoff(today) : null;
+  const myZones = hand ? hand.zones.filter(z => z.owners.some(o => names.some(n => rnSame(o, n)))) : [];
+  let nowFirst = false;
+
+  if(!entry && !spots.length){
+    first = {text: 'You’re not on today’s schedule.', es: esText('Not on the schedule')};
+  } else if(onBreak){
+    first = {text: `On break until ${rnClock(Math.round((breakCountdowns[brkKey] - serverNow()) / 60000) + day.now)}.`, es: esText('On break')};
+  } else if(myZones.some(z => !z.done) && day.now >= hand.at - 30){
+    const z = myZones.find(x => !x.done);
+    first = {text: `Reset ${z.zone} for the ${hand.title} handoff (${z.checked} of ${z.total} done).`, go: `zone:${hand.name}`};
+  } else if(nowSpot){
+    nowFirst = true;
+    const end = daypartTimeWindow(suDaypartsFor(nowSpot.side), nowSpot.dpIndex).endMin;
+    first = {text: `You’re on ${nowSpot.slot} until ${rnClock(end)}.`, es: esText('You are on SPOT until TIME', esPlace(nowSpot.slot) || nowSpot.slot, rnClock(end)), go: `setups:${nowSpot.side}|${today}|${nowSpot.dp.name}`};
+  } else if(startsAt !== null && startsAt > day.now){
+    first = {text: `Your shift starts at ${rnClock(startsAt)}${nextSpot ? `, on ${nextSpot.slot}` : ''}.`, es: esText('Your shift starts at TIME', rnClock(startsAt))};
+  } else {
+    const dp = suDaypartsFor(side)[rnDaypartIndex(side, day.now)];
+    first = {text: `No spot yet for ${rnShort(dp.name)}. Check with your leader.`, es: esText('No spot yet for DP', esDaypart(dp.name)), go: `setups:${side}|${today}|${dp.name}`};
+  }
+
+  if(nowSpot && !nowFirst) rows.push(rnRow('', `Now: ${nowSpot.slot} (${rnShort(nowSpot.dp.name)})`, esText('Your spot now') + (esPlace(nowSpot.slot) ? ': ' + esPlace(nowSpot.slot) : ''), `setups:${nowSpot.side}|${today}|${nowSpot.dp.name}`));
+  if(nextSpot) rows.push(rnRow(rnClock(parseDaypartTimeToMinutes(nextSpot.dp.time)), `Next: ${nextSpot.slot} (${rnShort(nextSpot.dp.name)})`, esText('Next spot') + (esPlace(nextSpot.slot) ? ': ' + esPlace(nextSpot.slot) : ''), `setups:${nextSpot.side}|${today}|${nextSpot.dp.name}`));
+  if(entry) rows.push(rnRow('', `Your shift: ${rnShiftText(entry)}`, esText('Your shift'), ''));
+  // A planned break still ahead (or just due); one long past is the leader's to sort out.
+  if(brk && brk.start !== null && brk.start >= day.now - 15 && !brkTaken && !onBreak) rows.push(rnRow(rnClock(brk.start), 'your break', esText('Your break'), `setups:${side}|${today}|`, brk.start <= day.now ? 'warn' : ''));
+  myZones.forEach(z => rows.push(rnRow(`${z.checked}/${z.total}`, `your zone: ${z.zone} · ${hand.title} at ${rnClock(hand.at)}`, '', `zone:${hand.name}`, z.done ? 'ok' : '')));
+  if(trainer && entry){
+    const g = rnDaypartGaps(side, today, rnDaypartIndex(side, day.now));
+    rows.push(rnRow(String(g.open.length), `open spot${g.open.length === 1 ? '' : 's'} on ${side.toUpperCase()} for ${rnShort(g.dp.name)}`, esText('Open spots now'), g.open.length ? `spot:${side}|${g.dp.name}|${g.open[0].slot}` : `setups:${side}|${today}|${g.dp.name}`, g.open.length ? 'bad' : 'ok'));
+  }
+  const w = rnWaste();
+  rows.push(rnRow(rnMoney(w.total), `waste today, limit ${rnMoney(w.limit)}`, esText('Waste today'), 'waste', w.over ? 'bad' : w.near ? 'warn' : 'ok'));
+  return {side, first, rows, title: `Hi, ${first1}`};
+}
+
+function rnLeadCard(v, day, store){
+  const on = v.name ? rnOnRoster(v.name, today) : [];
+  const sides = store || !on.length ? ['foh', 'boh'] : [...new Set(on.map(o => o.side))];
+  const rows = [];
+  let first = null;
+
+  if(day.closed){
+    const date = day.next;
+    const dayName = new Date(date + 'T12:00:00').toLocaleDateString('en-US', {weekday: 'long'});
+    sides.forEach(side => {
+      let open = 0, spots = 0;
+      suDaypartsFor(side).forEach((dp, i) => { const g = rnDaypartGaps(side, date, i); open += g.open.length; spots += g.m.filled + g.open.length; });
+      rows.push(rnRow(`${spots - open}/${spots}`, `${side.toUpperCase()} Set Ups filled for ${dayName}`, side === 'boh' ? esText('Set Ups filled') : '', `setups:${side}|${date}|`, open ? 'warn' : 'ok'));
+      if(!first && open) first = {text: `${dayName}’s ${side.toUpperCase()} Set Ups have ${open} open spot${open === 1 ? '' : 's'}.`, go: `setups:${side}|${date}|`};
+    });
+    if(!first) first = {text: `${dayName}’s Set Ups are filled. Rest up.`};
+    return {side: sides.length === 1 ? sides[0] : 'foh', first, rows, kicker: `${dayName}`, title: v.name ? `Hi, ${rnFirst(v.name)}` : 'Tomorrow'};
+  }
+
+  // Now, side by side.
+  const gaps = sides.map(side => rnDaypartGaps(side, today, rnDaypartIndex(side, day.now)));
+  gaps.forEach(g => {
+    const side = sides[gaps.indexOf(g)];
+    const label = sides.length > 1 ? `${side.toUpperCase()} ` : '';
+    rows.push(rnRow(String(g.open.length), `${label}open spot${g.open.length === 1 ? '' : 's'} for ${rnShort(g.dp.name)}`, side === 'boh' ? esText('Open spots now') : '', g.open.length ? `spot:${side}|${g.dp.name}|${g.open[0].slot}` : `setups:${side}|${today}|${g.dp.name}`, g.open.length ? 'bad' : 'ok'));
+    if(!first && g.open.length) first = {text: `Nobody is on ${g.open[0].slot} for ${rnShort(g.dp.name)}${sides.length > 1 ? ` (${side.toUpperCase()})` : ''}.`, es: side === 'boh' ? esText('Nobody is on SPOT for DP', esPlace(g.open[0].slot) || g.open[0].slot, esDaypart(g.dp.name)) : '', go: `spot:${side}|${g.dp.name}|${g.open[0].slot}`};
+  });
+  // Someone on both schedules counts once.
+  const seen = new Set();
+  const unplaced = gaps.flatMap((g, i) => g.unplaced.map(n => ({n, side: sides[i], dp: g.dp})))
+    .filter(x => { const k = x.n.trim().toLowerCase(); if(seen.has(k)) return false; seen.add(k); return true; });
+  if(unplaced.length){
+    const u = unplaced[0];
+    const when = day.now < day.opensAt ? `scheduled for ${rnShort(u.dp.name)}` : 'on the clock';
+    rows.push(rnRow(String(unplaced.length), `${when} with no spot: ${unplaced.slice(0, 3).map(x => suDisplayName(x.n)).join(', ')}${unplaced.length > 3 ? '…' : ''}`, sides.includes('boh') ? esText('Scheduled with no spot') : '', `setups:${u.side}|${today}|${u.dp.name}`, 'bad'));
+    if(!first) first = {text: rnSentence(`${unplaced.length} ${when} with no spot, starting with ${suDisplayName(u.n)}`), go: `setups:${u.side}|${today}|${u.dp.name}`};
+  }
+  // The Zone Reset handoff (FOH).
+  if(sides.includes('foh')){
+    const hand = rnHandoff(today);
+    if(hand){
+      const done = hand.zones.filter(z => z.done).length, nobody = hand.zones.filter(z => !z.owners.length && !z.done).length;
+      rows.push(rnRow(`${done}/${hand.zones.length}`, `zones reset · ${hand.title} at ${rnClock(hand.at)}${nobody ? ` · ${nobody} with nobody` : ''}`, '', `zone:${hand.name}`, done === hand.zones.length ? 'ok' : day.now >= hand.at ? 'bad' : ''));
+      if(!first && done < hand.zones.length && day.now >= hand.at - 30) first = {text: `${hand.zones.length - done} zone${hand.zones.length - done === 1 ? '' : 's'} still to reset for ${hand.title}.`, go: `zone:${hand.name}`};
+    }
+  }
+  // Breaks coming up.
+  const soon = sides.flatMap(side => rnBreaksSoon(side, day.now).map(b => ({...b, side})));
+  if(soon.length){
+    rows.push(rnRow(String(soon.length), `break${soon.length === 1 ? '' : 's'} due: ${soon.slice(0, 3).map(b => `${suDisplayName(b.name)} ${rnClock(b.start)}`).join(', ')}`, sides.includes('boh') ? esText('Breaks due soon') : '', `setups:${soon[0].side}|${today}|`, ''));
+  }
+  // The director's extras: the rest of the day, the leaders on.
+  if(store){
+    const later = [];
+    sides.forEach(side => suDaypartsFor(side).forEach((dp, i) => {
+      if(parseDaypartTimeToMinutes(dp.time) <= day.now) return;
+      const g = rnDaypartGaps(side, today, i);
+      if(g.open.length) later.push({side, dp, n: g.open.length});
+    }));
+    if(later.length) rows.push(rnRow(String(later.reduce((s, x) => s + x.n, 0)), `open later today: ${later.slice(0, 3).map(x => `${rnShort(x.dp.name)} ${x.side.toUpperCase()} ${x.n}`).join(', ')}`, '', `setups:${later[0].side}|${today}|${later[0].dp.name}`, 'warn'));
+    const leaders = sides.flatMap(side => rnRoster(side, today).filter(p => p.leader && rosterOverlaps(p, day.now, day.now + 1)).map(p => p.name));
+    rows.push(rnRow(String(leaders.length), leaders.length ? `leader${leaders.length === 1 ? '' : 's'} on: ${leaders.slice(0, 4).map(suDisplayName).join(', ')}${leaders.length > 4 ? '…' : ''}` : 'leaders on the schedule right now', '', '', leaders.length ? '' : 'bad'));
+  }
+  const w = rnWaste();
+  rows.push(rnRow(rnMoney(w.total), `waste today, limit ${rnMoney(w.limit)}`, sides.includes('boh') ? esText('Waste today') : '', 'waste', w.over ? 'bad' : w.near ? 'warn' : 'ok'));
+  const fs = rnFoodSafety();
+  rows.push(rnRow(fs ? `${fs.done}/${fs.total}` : '0', 'Food Safety walkthrough today', sides.includes('boh') ? esText('Food Safety walkthrough') : '', 'foodsafety', fs && fs.done === fs.total ? 'ok' : ''));
+  if(!first){
+    const dp = gaps[0].dp;
+    first = {text: `${rnShort(dp.name)} is covered. Go catch someone doing it right.`, es: sides.length === 1 && sides[0] === 'boh' ? esText('Everything is covered for DP', esDaypart(dp.name)) : ''};
+  }
+  return {side: sides.length === 1 ? sides[0] : 'foh', first, rows, title: v.name ? `Hi, ${rnFirst(v.name)}` : ''};
+}
+
+// Nobody signed in: the shift as a whole.
+function rnTeamCard(day){
+  const rows = [];
+  if(!day.closed){
+    ['foh', 'boh'].forEach(side => {
+      const g = rnDaypartGaps(side, today, rnDaypartIndex(side, day.now));
+      rows.push(rnRow(`${g.m.filled}/${g.m.filled + g.open.length}`, `${side.toUpperCase()} spots set for ${rnShort(g.dp.name)}`, side === 'boh' ? esText('Set Ups filled') : '', `setups:${side}|${today}|${g.dp.name}`, g.open.length ? 'warn' : 'ok'));
+    });
+    const hand = rnHandoff(today);
+    if(hand){
+      const done = hand.zones.filter(z => z.done).length;
+      rows.push(rnRow(`${done}/${hand.zones.length}`, `zones reset · ${hand.title} at ${rnClock(hand.at)}`, '', `zone:${hand.name}`, done === hand.zones.length ? 'ok' : ''));
+    }
+    const w = rnWaste();
+    rows.push(rnRow(rnMoney(w.total), `waste today, limit ${rnMoney(w.limit)}`, esText('Waste today'), 'waste', w.over ? 'bad' : w.near ? 'warn' : 'ok'));
+  }
+  rows.push(rnRow('', 'Sign in with your clock-in PIN to see your spot and your break', esText('Sign in to see your spot'), 'signin', ''));
+  return {side: 'foh', first: null, rows, title: ''};
+}
+
+function rnCardFor(v, day){
+  if(v.role === 'member') return rnPersonCard(v, day, false);
+  if(v.role === 'trainer') return rnPersonCard(v, day, true);
+  if(v.role === 'lead') return rnLeadCard(v, day, false);
+  if(v.role === 'director' || v.role === 'manager') return rnLeadCard(v, day, true);
+  return rnTeamCard(day);
+}
+
+const RN_ROLE_LABELS = {member: 'Team Member', trainer: 'Trainer', lead: 'Team Lead', director: 'Director', manager: 'Manager', none: ''};
+
+function renderRightNow(){
+  const root = document.getElementById('rightNow');
+  if(!root) return;
+  let card, day, v;
+  try{
+    day = rnDay();
+    v = rnViewer();
+    card = rnCardFor(v, day);
+  }catch(err){
+    console.warn('Right Now card:', err);
+    root.innerHTML = '';
+    return;
+  }
+  const boh = card.side === 'boh';
+  const dp = day.closed ? null : suDaypartsFor(card.side)[rnDaypartIndex(card.side, day.now)];
+  const kicker = card.kicker ? `Next up · ${card.kicker}` : day.closed ? 'Closed' : day.now < day.opensAt ? `Before open · ${rnShort(dp.name)} at ${rnClock(day.opensAt)}` : `Right now · ${rnShort(dp.name)}`;
+  const kickerEs = card.kicker || day.closed ? '' : esText('Right now') + ' · ' + esDaypart(dp.name);
+  const title = card.title || (day.closed ? 'The store is closed' : rnShort(dp.name));
+  const roleLabel = RN_ROLE_LABELS[v.role];
+  const es = t => boh && t ? esSpan(t, true) : '';
+  const go = g => g ? ` data-rn-go="${escapeHtml(g)}" role="button" tabindex="0"` : '';
+  root.className = `rn${boh ? ' rn-boh' : ''}`;
+  root.innerHTML = `
+    <div class="rn-top">
+      <span class="rn-kicker">${escapeHtml(kicker)}${boh && kickerEs ? `<span class="es" lang="es"> · ${escapeHtml(kickerEs)}</span>` : ''}</span>
+      ${roleLabel ? `<span class="rn-role">${escapeHtml(roleLabel)}</span>` : ''}
+    </div>
+    <h2 class="rn-title">${escapeHtml(title)}${day.closed ? '' : ` <span class="rn-time">${escapeHtml(rnClock(day.now))}</span>`}</h2>
+    ${card.first ? `<div class="rn-first${card.first.go ? ' is-go' : ''}"${go(card.first.go)}><b>First thing${boh ? `<span class="es" lang="es"> · ${escapeHtml(esText('First thing'))}</span>` : ''}</b><span>${escapeHtml(card.first.text)}</span>${es(card.first.es)}</div>` : ''}
+    <div class="rn-list">
+      ${card.rows.map(r => `<div class="rn-row${r.go ? ' is-go' : ''}"${go(r.go)}>
+          ${r.n !== '' ? `<span class="rn-n${r.tone ? ' is-' + r.tone : ''}">${escapeHtml(r.n)}</span>` : '<span class="rn-n rn-n-dot" aria-hidden="true"></span>'}
+          <span class="rn-t">${escapeHtml(r.text)}${es(r.es)}</span>
+          ${r.go ? `<span class="rn-go">${RN_ICON_GO}</span>` : ''}
+        </div>`).join('')}
+    </div>`;
+}
+
+// Taps: open the screen that fixes it.
+function rnOpenSetups(side, date, dpName){
+  launchShowTab('positions');
+  if(currentPosSection !== side){
+    const b = document.querySelector(`#posToggle .toggle-btn[data-section="${side}"]`);
+    if(b) b.click();
+  }
+  const pill = date && document.querySelector(`#dayPicker .day-pill[data-date="${date}"]`);
+  if(pill && document.getElementById('daySelect').value !== date) pill.click();
+  if(dpName){
+    suSelectedDaypart[side] = dpName;
+    suOpenCards[side].add(dpName);
+    renderAllDayparts();
+    const card = [...document.querySelectorAll('#allDayparts [data-su-card]')].find(c => c.dataset.suCard === dpName);
+    if(card) card.scrollIntoView({block: 'start'});
+  } else {
+    window.scrollTo({top: 0});
+  }
+}
+
+function rnGo(g){
+  const [what, rest = ''] = g.split(/:(.*)/s);
+  const parts = rest.split('|');
+  if(what === 'setups') rnOpenSetups(parts[0], parts[1] || today, parts[2] || '');
+  else if(what === 'spot'){
+    const [side, dpName, slot] = parts;
+    rnOpenSetups(side, today, dpName);
+    openPosModal([side, today, dpName, slot].join('||'), slot, dpName);
+  }
+  else if(what === 'zone'){
+    currentZoneDaypart = rest;
+    zoneHandoffChosen = true;
+    launchShowTab('zonereset');
+    window.scrollTo({top: 0});
+  }
+  else if(what === 'waste'){ launchShowTab('wastelog'); window.scrollTo({top: 0}); }
+  else if(what === 'foodsafety'){ launchShowTab('foodsafety'); window.scrollTo({top: 0}); }
+  else if(what === 'signin'){ launchShowTab('manage'); window.scrollTo({top: 0}); const pin = document.getElementById('pinInput'); if(pin) pin.focus(); }
+}
+
+document.getElementById('rightNow').addEventListener('click', e => {
+  const t = e.target.closest('[data-rn-go]');
+  if(t) rnGo(t.dataset.rnGo);
+});
+document.getElementById('rightNow').addEventListener('keydown', e => {
+  const t = e.target.closest('[data-rn-go]');
+  if(t && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); rnGo(t.dataset.rnGo); }
+});
+
+// The minute moves on: keep it current while Home is showing.
+setInterval(() => {
+  if(document.visibilityState === 'visible' && document.getElementById('homeView').classList.contains('active')) renderRightNow();
+}, 60000);
