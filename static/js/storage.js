@@ -12,7 +12,7 @@ const STATE_SECTIONS = {
   manager: ['wasteTarget', 'safeTarget', 'products', 'deletedProductIds', 'productFixesVersion',
             'productCategoryOrder', 'lxPillars', 'lxMetrics', 'lxLastUpdated', 'gxData', 'txData',
             'homeData', 'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData',
-            'launchMode', 'storeEvents', 'directors', 'leaderRoster', 'peaGoals'],
+            'launchMode', 'storeEvents', 'directors', 'leaderRoster', 'peaGoals', 'safeOrderSettings'],
   pea: ['peaRatings', 'peaNameAliases'],
   rosters: ['fohRoster', 'bohRoster', 'rosterPosted', 'truckShifts', 'adminShifts'],
   setups: ['posAssignments', 'posVacancyFlags', 'setupDayTypes', 'lastUpdated',
@@ -84,7 +84,7 @@ function stateSnapshot(){
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
     prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, launchMode, prepTimes, prepTimers,
     salesHistory, forecastSettings, forecastLog, daypartWeeks, zoneOwners, posNotes, storeEvents, truckShifts,
-    uniformOrders, uniformCatalog, directors, adminShifts, leaderNotes, leaderRoster, peaGoals, leaderFocus, teamNotes,
+    uniformOrders, uniformCatalog, directors, adminShifts, leaderNotes, leaderRoster, peaGoals, leaderFocus, teamNotes, safeOrderSettings,
     pointsRecords, pointsUploads, pointsSettings, pointsTeam, pointsMemos
   };
 }
@@ -533,6 +533,9 @@ function applyStateData(data){
   // The leaders, their PEC roles, the PEA goals and each quarter's focus (leaders.js).
   leaderRoster = Array.isArray(data.leaderRoster) ? data.leaderRoster : null;
   peaGoals = (data.peaGoals && typeof data.peaGoals === 'object' && !Array.isArray(data.peaGoals)) ? data.peaGoals : null;
+  // The change fund's pars and order sizes (safe-order.js).
+  safeOrderSettings = (data.safeOrderSettings && typeof data.safeOrderSettings === 'object' && !Array.isArray(data.safeOrderSettings)) ? data.safeOrderSettings : {};
+  if(typeof renderSafeOrder === 'function') renderSafeOrder();
   leaderFocus = (data.leaderFocus && typeof data.leaderFocus === 'object' && !Array.isArray(data.leaderFocus)) ? data.leaderFocus : {};
   // The directors' notes on each team member (team-pea.js).
   teamNotes = (data.teamNotes && typeof data.teamNotes === 'object' && !Array.isArray(data.teamNotes)) ? data.teamNotes : {};

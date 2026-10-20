@@ -61,7 +61,7 @@ MANAGER_ONLY_KEYS = {
     'gxData', 'txData', 'homeData', 'storeEvents', 'directors', 'leaderRoster', 'peaGoals',
     'peaRatings', 'peaNameAliases',
     'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData',
-    'launchMode',
+    'launchMode', 'safeOrderSettings',
     # People data (below): private, so only a manager session changes it.
     'eoiSubmissions', 'trainerTrainees', 'trainerProgress', 'teamLeadTrainees',
     'teamLeadProgress', 'scoreboardItems', 'leaderNotes', 'leaderFocus', 'teamNotes',
@@ -141,7 +141,7 @@ STATE_SECTIONS = {
     'manager': ['wasteTarget', 'safeTarget', 'products', 'deletedProductIds', 'productFixesVersion',
                 'productCategoryOrder', 'lxPillars', 'lxMetrics', 'lxLastUpdated', 'gxData', 'txData',
                 'homeData', 'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData',
-                'launchMode', 'storeEvents', 'directors', 'leaderRoster', 'peaGoals'],
+                'launchMode', 'storeEvents', 'directors', 'leaderRoster', 'peaGoals', 'safeOrderSettings'],
     'pea': ['peaRatings', 'peaNameAliases'],
     'rosters': ['fohRoster', 'bohRoster', 'rosterPosted', 'truckShifts', 'adminShifts'],
     'setups': ['posAssignments', 'posVacancyFlags', 'setupDayTypes', 'lastUpdated',
