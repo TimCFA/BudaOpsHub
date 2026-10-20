@@ -334,7 +334,7 @@ function tpProfileHtml(){
   const tagOptions = P.positions.map(x => `<optgroup label="${escapeHtml(x.pos)}">${x.criteria.map(c => `<option value="${escapeHtml(`${x.pos}:${c.i}`)}">${escapeHtml(c.label)}</option>`).join('')}</optgroup>`).join('');
   const R = P.rater;
   return `
-    <button type="button" class="ld-back" data-tp-back>← ${tpTab === 'team' ? 'Team scoreboard' : 'Rater leaderboard'}</button>
+    <button type="button" class="ld-back" data-tp-back>← People</button>
     <section class="dir-card ld-profile">
       <div class="ld-profile-head"><div><h3>${escapeHtml(name)}</h3><p class="dir-sub">${escapeHtml(tpWhoText({role: P.role, leader: P.leaderProfile, sides: P.sides}) || 'Team member')} · ${escapeHtml(b.label)}${cert ? ` · ${escapeHtml(cert)}` : ''}</p></div>${row && row.allGreen ? '<span class="ld-status is-done">All green</span>' : row && row.stale ? `<span class="ld-status is-behind">Due a PEA</span>` : ''}</div>
       ${stats.length ? `<div class="ld-stats">${stats.map(([v, l]) => `<div><b>${escapeHtml(String(v))}</b><span>${escapeHtml(l)}</span></div>`).join('')}</div>` : '<p class="dir-empty">No Levelset rating on this name yet.</p>'}
@@ -438,7 +438,7 @@ function tpLsPaint(peaName){
   const k = dirKey(peaName);
   // On the Leaders profile the pillar counts read these notes too, so the
   // whole profile redraws; elsewhere just the card.
-  if(typeof dirView !== 'undefined' && dirView === 'leaders' && typeof ldOpen !== 'undefined' && ldOpen && typeof ldRender === 'function'){ ldRender(); return; }
+  if(typeof dirShowsLeaders === 'function' && dirShowsLeaders() && typeof ldOpen !== 'undefined' && ldOpen && typeof ldRender === 'function'){ ldRender(); return; }
   document.querySelectorAll('.tp-ls-card').forEach(el => { if(el.dataset.lsName === k) el.innerHTML = tpLsCardInner(peaName, (el.dataset.lsCards || '').split(',').filter(Boolean)); });
 }
 // Tagging: the picker's taps, save and remove.
@@ -517,7 +517,7 @@ function tpSetDirector(isDirector, pinSet){
   tpDirectorPinSet = !!pinSet || tpDirector;
   tpLs = {};
   tpRenderDirectorPin();
-  if(typeof dirView !== 'undefined' && dirView === 'team' && tpOpen && !document.getElementById('tpNoteForm')) tpRender();
+  if(typeof dirShowsTeam === 'function' && dirShowsTeam() && tpOpen && !document.getElementById('tpNoteForm')) tpRender();
 }
 async function tpRefreshDirector(){
   try{
@@ -558,6 +558,13 @@ document.addEventListener('click', async e => {
 function tpBodyHtml(){
   if(tpOpen){ const P = tpPerson(tpOpen); if(!P.positions.length && !P.notes.length && !P.rater) tpOpen = ''; }
   return tpOpen ? tpProfileHtml() : tpBoardsHtml();
+}
+// Inside Directors → People the Team / Raters chips in the page frame pick
+// the board, so the body is the board alone (or the open profile).
+function tpPeopleHtml(){
+  if(tpOpen){ const P = tpPerson(tpOpen); if(!P.positions.length && !P.notes.length && !P.rater) tpOpen = ''; }
+  if(tpOpen) return tpProfileHtml();
+  return tpTab === 'team' ? tpTeamHtml() : tpRatersHtml();
 }
 
 // ----- As text (copy / PDF) -----
@@ -604,7 +611,7 @@ function tpOpenProfile(name){
 
 document.addEventListener('click', e => {
   const t = e.target && e.target.closest ? e.target : null;
-  if(!t || !t.closest('#directorsRoot') || typeof dirView === 'undefined' || dirView !== 'team') return;
+  if(!t || !t.closest('#directorsRoot') || !(typeof dirShowsTeam === 'function' && dirShowsTeam())) return;
   const open = t.closest('[data-tp-open]');
   if(open){ tpOpenProfile(open.dataset.tpOpen); return; }
   if(t.closest('[data-tp-back]')){ tpOpen = ''; tpRender(); return; }

@@ -1760,3 +1760,34 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .ld-goals .ld-goal-pos{grid-column:1 / -1;}
 .tp-timeline li.is-nogoal > span:first-child{color:var(--text-tertiary);}
 .tp-nogoal{font-style:normal;font-size:11px;font-weight:600;color:#8A5600;background:#FFF3DD;border-radius:999px;padding:1px 7px;margin-left:4px;}
+
+/* ----- Directors: one frame (Oct 19 2026) -----
+   Title and the week/quarter picker on one line with a share icon; the four
+   destinations as one segmented row under it; chips for the People boards
+   and the Points sections. */
+.dir-head{align-items:center;flex-wrap:nowrap;gap:8px 12px;margin:4px 0 10px;}
+.dir-head-main{flex:1 1 auto;min-width:0;}
+.dir-head .dir-title{font-size:clamp(24px,6vw,34px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dir-head .dir-sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dir-head-side{display:flex;align-items:center;gap:8px;flex:none;}
+.dir-nav{display:grid;grid-template-columns:repeat(4,1fr);margin:0 0 12px;}
+.dir-nav .uo-pane-btn{min-height:40px;padding:6px 4px;font-size:13.5px;white-space:nowrap;}
+.dir-pick select{min-height:36px;max-width:150px;padding:4px 8px;font-size:13.5px;}
+.dir-share{position:relative;flex:none;}
+.dir-share-btn{width:38px;height:38px;padding:0;border:1px solid var(--border);border-radius:999px;background:var(--cfa-white);color:var(--text-primary);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;}
+.dir-share-btn[aria-expanded="true"]{background:var(--text-primary);border-color:var(--text-primary);color:#F6F1E8;}
+.dir-share-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:30;min-width:170px;padding:6px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-white);box-shadow:0 8px 24px rgba(28,27,25,0.14);display:grid;gap:2px;}
+.dir-share-menu[hidden]{display:none;}
+.dir-share-item{display:block;width:100%;padding:10px 12px;border:0;border-radius:8px;background:transparent;text-align:left;font-family:var(--font-ui);font-size:14px;font-weight:600;color:var(--text-primary);cursor:pointer;white-space:nowrap;}
+.dir-share-item:hover{background:var(--cfa-light);}
+.dir-people-chips{margin:0 0 12px;}
+.dir-people-chips .ld-chip::before,.pt-sub .ld-chip::before{display:none;}
+.dir-people-chips .ld-chip[aria-pressed="true"],.pt-sub .ld-chip[aria-pressed="true"]{background:var(--text-primary);border-color:var(--text-primary);color:#F6F1E8;}
+.uo-panes.dir-sub.pt-panes{display:grid;grid-template-columns:repeat(3,1fr);margin:0 0 10px;font-size:inherit;color:inherit;}
+.pt-panes{flex-wrap:nowrap;}
+.pt-panes .uo-pane-btn{white-space:nowrap;padding:6px 6px;}
+.pt-sub{margin:0 0 12px;}
+@media (max-width:430px){
+  .ld-q.dir-pick > span{display:none;}
+  .dir-head .dir-title{font-size:22px;}
+}
