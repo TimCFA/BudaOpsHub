@@ -218,10 +218,13 @@ function lrHeadHtml(rep){
   return `<p class="dir-sub">${escapeHtml(dirDay(rep.dates[0]))} – ${escapeHtml(dirDay(rep.dates[rep.dates.length - 1]))}${lrWeekOffset === 0 ? ' · through yesterday' : ''}</p>`;
 }
 
+// The week picker and share items as the page frame lays them out
+// (directors.js, dirHeadHtml); kept as one piece for anything rendering the
+// report on its own.
 function lrActionsHtml(){
-  return `<div class="uo-panes" role="tablist" aria-label="Week">${LR_WEEKS.map(w => `<button type="button" class="uo-pane-btn ${lrWeekOffset === w.offset ? 'active' : ''}" data-lr-week="${w.offset}">${w.label}</button>`).join('')}</div>
-    <button type="button" class="btn btn-ghost dir-btn" data-lr-copy>Copy report</button>
-    <button type="button" class="btn btn-ghost dir-btn" data-lr-pdf>PDF</button>`;
+  return `<div class="uo-panes dir-pick-row" role="tablist" aria-label="Week">${LR_WEEKS.map(w => `<button type="button" class="uo-pane-btn ${lrWeekOffset === w.offset ? 'active' : ''}" data-lr-week="${w.offset}">${w.label}</button>`).join('')}</div>
+    <button type="button" class="dir-share-item" data-lr-copy>Copy report</button>
+    <button type="button" class="dir-share-item" data-lr-pdf>PDF</button>`;
 }
 
 function lrLeaderHtml(L){
@@ -293,8 +296,11 @@ function lrText(){
 document.addEventListener('click', e => {
   const t = e.target && e.target.closest ? e.target : null;
   if(!t || !t.closest('#directorsRoot')) return;
-  const wk = t.closest('[data-lr-week]');
+  const wk = t.closest('button[data-lr-week]');
   if(wk){ lrWeekOffset = +wk.dataset.lrWeek; renderDirectorsView(); return; }
   if(t.closest('[data-lr-copy]')){ dirCopy(t.closest('[data-lr-copy]'), lrText()); return; }
   if(t.closest('[data-lr-pdf]')){ dirPdf(lrText(), `leader-report-${getWeekDays(lrWeekOffset)[0].date}.pdf`); return; }
+});
+document.addEventListener('change', e => {
+  if(e.target && e.target.id === 'lrWeekPick'){ lrWeekOffset = +e.target.value; renderDirectorsView(); }
 });
