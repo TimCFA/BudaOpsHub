@@ -42,6 +42,20 @@ QUARTER = """
 """
 
 
+class WhoIsWho(unittest.TestCase):
+    def test_leaders_filter_and_tags_mean_the_real_leaders(self):
+        # Priya is a trainer rated on a Trainer PEA and given a 3H Week: not a
+        # leader, not a new hire (Tim, Oct 18 2026). With the leader list
+        # filled, only its names (plus roster Team Leader shifts) are leaders.
+        got = run("c => { " + QUARTER + """ setRatings(peaAllRatings().concat([pea('2026-10-04', 'Maya Torres', 'Priya Nair', 'Trainer', 3, 'Trainer'), pea('2026-10-05', 'Maya Torres', 'Priya Nair', '3H Week', 3, 'Trainer')]));
+          leaderRoster = [{name: 'Maya Torres', roles: []}];
+          const T = tpTeam(); tpSide = 'lead'; const leaders = tpTeamShown(T).map(p => p.name); tpSide = '';
+          const priya = T.people.find(p => p.name === 'Priya Nair'), maya = T.people.find(p => p.name === 'Maya Torres');
+          const html = tpTeamHtml();
+          return [leaders, priya.leader, tpWhoText(priya), tpWhoText({role: 'Team Member', leader: true, sides: ['foh', 'lead', 'new']}), html.includes('Leadership'), html.includes('New hire'), html.includes('>Leaders<')]; }""")
+        self.assertEqual(got, [['Maya Torres'], False, 'Trainer', 'Team Lead · FOH', False, False, True])
+
+
 class GoalTypes(unittest.TestCase):
     def test_profile_marks_a_director_pea_that_does_not_count(self):
         # Only Team Lead PEAs count toward the leader goals (Tim, Oct 18 2026):

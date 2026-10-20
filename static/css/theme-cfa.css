@@ -1772,3 +1772,127 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .ac-pin-name b{font-size:14px;font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .ac-pin-name small{font-size:12px;color:var(--text-tertiary);}
 .ac-form .ac-pin-item select{flex:none;width:auto;max-width:46%;min-height:40px;padding:6px 8px;border:1px solid var(--border);border-radius:10px;background:var(--cfa-white);font-family:var(--font-ui);font-size:13px;color:var(--text-primary);}
+
+/* Waste: Top Items Today, each bar its share of the day's waste (waste-log.js; Tim, Oct 19 2026). */
+.bar-item .bi-top .bv-share{font-family:var(--font-ui);font-size:12px;font-weight:600;opacity:.7;}
+.bar-list-note{font-size:12px;opacity:.75;text-transform:none;letter-spacing:0;}
+
+/* ===== Set Ups frame (Tim, Oct 18 2026) =====
+   One pinned strip (FOH/BOH, a week back, the days, a week forward), a
+   status line, a chip row, two-line closed cards, the tier key once. */
+.su-strip{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:4px;margin:0 -20px 8px;padding:8px 12px;background:var(--cfa-bg);box-shadow:0 8px 8px -8px rgba(28,27,25,0.14);}
+.su-strip .foh-boh-toggle{margin:0;flex:none;padding:2px;}
+.su-strip .toggle-btn{min-height:36px;padding:4px 7px;font-size:12.5px;line-height:1.1;}
+.su-strip .toggle-btn .sub{font-size:8px;line-height:1;}
+.su-strip-arrow{flex:none;width:26px;height:30px;padding:0;border-radius:999px;border:1px solid var(--border);background:var(--cfa-white);color:var(--text-secondary);font-family:var(--font-ui);font-size:16px;line-height:1;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;}
+.su-strip-arrow:hover{border-color:var(--cfa-red);color:var(--cfa-dark-red);}
+.su-strip .day-picker{flex:1;min-width:0;display:flex;gap:4px;overflow-x:auto;margin:0;padding:0;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+.su-strip .day-picker::-webkit-scrollbar{display:none;}
+.su-strip .day-pill{flex:1 1 0;min-width:0;max-width:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:40px;padding:3px 1px;border-radius:11px;border:1px solid var(--border);background:var(--cfa-white);line-height:1.1;font-family:var(--font-ui);cursor:pointer;}
+.su-strip .day-pill small{font-size:10px;font-weight:600;color:var(--text-secondary);letter-spacing:-0.01em;}
+.su-strip .day-pill b{font-family:var(--font-display);font-size:15px;font-weight:700;color:var(--text-primary);}
+.su-strip .day-pill.is-today{border-color:var(--cfa-red);}
+.su-strip .day-pill.active{background:var(--cfa-red);border-color:var(--cfa-red);}
+.su-strip .day-pill.active small{color:rgba(255,255,255,0.82);} .su-strip .day-pill.active b{color:#fff;}
+.su-status{display:flex;align-items:center;gap:8px;margin:0 0 10px;min-height:36px;}
+.su-status:empty{display:none;}
+.su-status-date{font-family:var(--font-display);font-size:20px;font-weight:700;white-space:nowrap;flex:none;line-height:1.1;}
+.su-status .su-status-upd{flex:1;min-width:0;margin:0;font-family:var(--font-ui);font-size:12px;color:var(--text-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;font-variant-numeric:tabular-nums;}
+.su-status-refresh{flex:none;width:34px;height:34px;padding:0;border-radius:999px;border:1px solid var(--border);background:var(--cfa-white);color:var(--text-primary);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;}
+.su-status .su-mode{flex:none;padding:2px;}
+.su-status .su-mode-btn{min-height:30px;padding:4px 9px;font-size:11.5px;}
+/* With Set up / Coach on the line, a narrow phone shows the time without the word. */
+@media (max-width:430px){ body:not(.launch-mode) .su-status-upd-k{display:none;} }
+.su-chips-row{display:flex;align-items:center;gap:6px;overflow-x:auto;margin:0 0 12px;padding-bottom:2px;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+.su-chips-row::-webkit-scrollbar{display:none;}
+.su-rowchip{flex:none;display:inline-flex;flex-direction:row;align-items:center;gap:6px;min-height:36px;padding:6px 12px;border-radius:999px;border:1px solid var(--border);background:var(--cfa-white);font-family:var(--font-ui);font-size:12.5px;font-weight:600;color:var(--text-primary);cursor:pointer;white-space:nowrap;}
+.su-chip-changes{border-color:#C47A00;color:#8A5600;background:#FFF8EA;}
+.su-chip-changes .su-changes-title{font-family:var(--font-ui);font-size:12.5px;font-weight:700;color:inherit;}
+.su-chip-changes .su-changes-count{min-width:20px;height:20px;font-size:11px;}
+.su-chip-changes .su-changes-flag{font-size:11.5px;}
+.su-chip-changes .su-changes-sub{font-size:12px;color:inherit;opacity:0.8;}
+.su-chip-changes .su-changes-chev{font-size:11px;color:inherit;transition:transform .2s ease;}
+.su-chip-changes.is-open .su-changes-chev{transform:rotate(180deg);}
+.su-chips-row .ev-chip{flex:none;max-width:76vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
+.su-chips-row .ev-chip.is-full{white-space:normal;max-width:none;}
+.su-changes .su-changes-body{border-top:0;}
+.su-changes .su-changes-body > .su-changes-sub{font-size:12px;color:var(--text-secondary);padding:2px 0 4px;}
+/* One line, always: the Lead, then the numbers, cut short with an ellipsis rather than wrapping. */
+.su-dp-brief{display:block;padding:0 14px 11px;margin-top:-4px;font-family:var(--font-ui);font-size:12.5px;line-height:1.4;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
+.su-dp-brief > span{display:inline;}
+.su-dp-brief b{font-family:var(--font-display);font-size:14px;color:var(--text-primary);font-weight:600;}
+.su-dp-brief-dot{font-style:normal;color:var(--border);margin:0 6px;}
+.su-dp-brief-lead{display:inline;border:0;background:none;padding:0;margin:0;font:inherit;font-weight:700;color:var(--cfa-navy);cursor:pointer;}
+.su-dp-brief-lead.is-none{color:var(--cfa-red);}
+.su-dp-now{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--cfa-red);color:#fff;font-family:var(--font-ui);font-size:9.5px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;vertical-align:2px;}
+.su-dp{scroll-margin-top:70px;}
+.su-dp-list + .su-tier-key{margin-top:4px;}
+
+/* ===== Set Ups: the softer look from the mock (Tim, Oct 19 2026) =====
+   Looks only: each spot is its own rounded card on the ivory ground with
+   its zone color down the left edge, the name sits on the right in navy,
+   the number and the note pencil go quiet, a needed open spot says
+   "+ Choose", and the name picker lays names out two to a row. What a tap
+   does, and what is saved, is unchanged. */
+#allDayparts .su-sheet-zone.su-sheet-list{background:transparent;box-shadow:none;border:0;padding:6px 0 4px;display:flex;flex-direction:column;gap:6px;}
+#allDayparts .su-sheet-list .su-rowwrap{background:var(--cfa-white);border:1px solid var(--border);border-radius:14px;overflow:hidden;padding-right:4px;}
+#allDayparts .su-sheet-list .su-rowwrap + .su-rowwrap{border-top:1px solid var(--border);}
+#allDayparts .su-sheet-list .su-rowwrap:has(.su-row.is-needed){border-color:#EDB3BE;}
+#allDayparts .su-sheet-list .su-row{background:transparent;border-radius:0;min-height:54px;padding:8px 8px 8px 14px;box-shadow:inset 4px 0 0 var(--zc);grid-template-columns:minmax(0,1fr) auto;gap:12px;}
+#allDayparts .su-sheet-list .su-row.is-needed{background:transparent;}
+#allDayparts .su-sheet-list .su-row:hover{background:var(--cfa-light);}
+#allDayparts .su-sheet-list .su-row-rank{box-shadow:none;background:transparent;color:var(--text-tertiary);font-family:var(--font-ui);font-size:12px;font-weight:600;min-width:16px;margin-right:6px;}
+#allDayparts .su-sheet-list .su-row-name{justify-content:flex-end;text-align:right;max-width:58vw;}
+#allDayparts .su-sheet-list .su-row-who{color:var(--cfa-navy);}
+#allDayparts .su-sheet-list .su-row-note{flex-basis:100%;text-align:right;}
+#allDayparts .su-sheet-list .su-row-notebtn{border-color:transparent;background:transparent;color:#B3AC9F;}
+#allDayparts .su-sheet-list .su-row-notebtn:hover{color:var(--cfa-navy);}
+#allDayparts .su-sheet-list .su-row-notebtn.has{border-color:transparent;background:#E3EEF4;color:var(--cfa-navy);}
+.su-row-choose{font-family:var(--font-ui);font-size:14px;font-weight:700;color:var(--cfa-red);}
+.su-row-choose .es{display:block;font-family:var(--font-display);font-style:italic;font-weight:400;font-size:12px;color:var(--cfa-dark-red);}
+#allDayparts .su-sheet-list .su-more,#allDayparts .su-sheet-list .su-resets{margin-top:4px;}
+
+#posModalOptions{display:grid;grid-template-columns:1fr 1fr;gap:8px;border:0;background:transparent;padding:2px;}
+#posModalOptions .pos-option{flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;min-height:58px;padding:8px 12px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-white);}
+#posModalOptions .pos-option:hover{border-color:var(--cfa-navy);background:var(--cfa-white);}
+#posModalOptions .pos-option.is-current{border-color:var(--cfa-navy);background:#E3EEF4;}
+#posModalOptions .pos-option-name{white-space:normal;line-height:1.2;}
+#posModalOptions .pos-option-whens{padding-left:0;flex-direction:column;gap:0;}
+#posModalOptions .pos-option-whens .es{display:block;}
+#posModalOptions .pos-option .pos-option-tag{white-space:normal;}
+#posModalOptions .pos-option.is-other{background:var(--cfa-light);}
+#posModalOptions .pos-option-group,#posModalOptions .pos-option-empty{grid-column:1 / -1;}
+#posModalOptions .more-option,#posModalOptions .split-option,#posModalOptions .unassign-option{grid-column:1 / -1;}
+#posModalOptions .more-option,#posModalOptions .split-option,#posModalOptions .unassign-option{align-items:center;min-height:50px;}
+#posModalOptions .su-skip{grid-column:1 / -1;}
+
+/* ----- Directors: one frame (Oct 19 2026) -----
+   Title and the week/quarter picker on one line with a share icon; the four
+   destinations as one segmented row under it; chips for the People boards
+   and the Points sections. */
+.dir-head{align-items:center;flex-wrap:nowrap;gap:8px 12px;margin:4px 0 10px;}
+.dir-head-main{flex:1 1 auto;min-width:0;}
+.dir-head .dir-title{font-size:clamp(24px,6vw,34px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dir-head .dir-sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dir-head-side{display:flex;align-items:center;gap:8px;flex:none;}
+.dir-nav{display:grid;grid-template-columns:repeat(4,1fr);margin:0 0 12px;}
+.dir-nav .uo-pane-btn{min-height:40px;padding:6px 4px;font-size:13.5px;white-space:nowrap;}
+.dir-pick select{min-height:36px;max-width:150px;padding:4px 8px;font-size:13.5px;}
+.dir-share{position:relative;flex:none;}
+.dir-share-btn{width:38px;height:38px;padding:0;border:1px solid var(--border);border-radius:999px;background:var(--cfa-white);color:var(--text-primary);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;}
+.dir-share-btn[aria-expanded="true"]{background:var(--text-primary);border-color:var(--text-primary);color:#F6F1E8;}
+.dir-share-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:30;min-width:170px;padding:6px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-white);box-shadow:0 8px 24px rgba(28,27,25,0.14);display:grid;gap:2px;}
+.dir-share-menu[hidden]{display:none;}
+.dir-share-item{display:block;width:100%;padding:10px 12px;border:0;border-radius:8px;background:transparent;text-align:left;font-family:var(--font-ui);font-size:14px;font-weight:600;color:var(--text-primary);cursor:pointer;white-space:nowrap;}
+.dir-share-item:hover{background:var(--cfa-light);}
+.dir-people-chips{margin:0 0 12px;}
+.dir-people-chips .ld-chip::before,.pt-sub .ld-chip::before{display:none;}
+.dir-people-chips .ld-chip[aria-pressed="true"],.pt-sub .ld-chip[aria-pressed="true"]{background:var(--text-primary);border-color:var(--text-primary);color:#F6F1E8;}
+.uo-panes.dir-sub.pt-panes{display:grid;grid-template-columns:repeat(3,1fr);margin:0 0 10px;font-size:inherit;color:inherit;}
+.pt-panes{flex-wrap:nowrap;}
+.pt-panes .uo-pane-btn{white-space:nowrap;padding:6px 6px;}
+.pt-sub{margin:0 0 12px;}
+@media (max-width:430px){
+  .ld-q.dir-pick > span{display:none;}
+  .dir-head .dir-title{font-size:22px;}
+}
