@@ -179,8 +179,11 @@ function rosterOverlaps(p, startMin, endMin){
 
 // People on the roster whose shift overlaps this daypart — the people
 // available to be assigned a position.
-function availableForDaypart(dayName, dpIndex, dayparts){
-  const roster = currentPosSection === 'foh' ? fohRoster : bohRoster;
+// Who's on the schedule in a daypart, on a side: the side asked about, not
+// the one the Set Ups page shows (Home's Right Now asks about both; Tim,
+// Oct 20 2026: it counted FOH people against BOH positions).
+function availableForDaypart(dayName, dpIndex, dayparts, side){
+  const roster = (side || currentPosSection) === 'foh' ? fohRoster : bohRoster;
   const dayRoster = roster[dayName] || [];
   const {startMin, endMin} = daypartTimeWindow(dayparts, dpIndex);
   return dayRoster.filter(p => rosterOverlaps(p, startMin, endMin));

@@ -56,7 +56,7 @@ function suDefaultDaypart(section, date){
   const dayparts = suDaypartsFor(section);
   if(date !== today){
     let best = dayparts[0].name, most = 0;
-    dayparts.forEach((dp, i) => { const n = availableForDaypart(date, i, dayparts).length; if(n > most){ most = n; best = dp.name; } });
+    dayparts.forEach((dp, i) => { const n = availableForDaypart(date, i, dayparts, section).length; if(n > most){ most = n; best = dp.name; } });
     return best;
   }
   const now = new Date();
@@ -134,7 +134,7 @@ function suDaypartModel(section, date, dp, dpIndex){
   const posMap = section === 'foh' ? fohPositions : bohPositions;
   const slots = posMap[dp.name] || [];
   const key = suEvalKey(section, date, dp.name);
-  const onShift = availableForDaypart(date, dpIndex, suDaypartsFor(section));
+  const onShift = availableForDaypart(date, dpIndex, suDaypartsFor(section), section);
   const timing = suDaypartTiming(section, date, dpIndex);
   const strength = peaStrengthByPerson();
   const peaNames = Object.keys(strength);

@@ -355,6 +355,8 @@ function rnRosterHtml(groups){
 function rnHeadcountRows(rows, withLast){
   const s = typeof hcSummary === 'function' ? hcSummary() : null;
   if(!s) return;
+  // No PIN report yet: say how the count starts rather than show a 0.
+  if(!s.now.total && !s.pending.length){ rows.push(rnRow('', 'team count: starts with the PIN report upload (Manage → Accounts)', '', 'headcount', '')); return; }
   rows.push(rnRow(String(s.now.total), `on the team${s.pending.length ? ` · ${s.pending.length} left to explain` : ''}`, '', 'headcount', s.pending.length ? 'warn' : ''));
   const P = s.permits;
   if(P && (P.expired || P.soon)) rows.push(rnRow(String(P.expired + P.soon), `food handler permit${P.expired + P.soon === 1 ? '' : 's'} ${P.expired ? `expired${P.soon ? ' or due' : ''}` : 'due in 30 days'}`, '', 'headcount', P.expired ? 'bad' : 'warn'));
