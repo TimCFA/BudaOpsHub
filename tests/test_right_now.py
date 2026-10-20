@@ -225,6 +225,11 @@ class AdminTeam(unittest.TestCase):
         self.assertIn(['52', 'on the team · 1 left to explain', 'headcount', ''], got[1]['rows'])
         self.assertFalse(any(r[1].startswith('last to leave') for r in got[1]['rows']))
         self.assertFalse(any(r[2] == 'headcount' for r in got[2]['rows']))
+        # Food handler permits expired or due (TIM-82).
+        got = run({'op': card('admin', 'Avery Office', extra=DAY + hc.replace("last:", "permits: {expired: 1, soon: 2}, last:"))},
+                  {'op': card('admin', 'Avery Office', extra=DAY + hc.replace("last:", "permits: {expired: 0, soon: 1}, last:"))})
+        self.assertIn(['3', 'food handler permits expired or due', 'headcount', ''], got[0]['rows'])
+        self.assertIn(['1', 'food handler permit due in 30 days', 'headcount', ''], got[1]['rows'])
 
     def test_directors_get_it_a_tap_away_and_the_team_does_not(self):
         got = run({'op': card('director', '', extra=DAY)},

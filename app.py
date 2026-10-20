@@ -745,6 +745,10 @@ DEPARTURE_TYPES = {'quit': 'Quit', 'let-go': 'Let go', 'no-show': 'No-call / no-
                    'transfer': 'Transfer', 'other': 'Other'}
 REHIRE_CHOICES = ('yes', 'no', 'unsure')
 TURNOVER_COUNTS_KEPT = 400
+# Team profiles (TIM-82): per person, the food handler permit's expiry, hire
+# date, birthday (minors) and notes. Same keeping and access as above.
+PROFILES_PATH = 'secure/teamProfiles'     # {key: {name, permitExpires, hireDate, birthday, notes, by, at}}
+PROFILE_DATES = ('permitExpires', 'hireDate', 'birthday')
 _turnover_lock = threading.Lock()
 
 
@@ -823,7 +827,46 @@ def _turnover_out():
             'counts': [dict(v, date=k) for k, v in sorted(counts.items())],
             'departures': departures, 'hires': hires[:200],
             'names': sorted(p['name'] for p in team),
-            'types': [{'id': k, 'label': v} for k, v in DEPARTURE_TYPES.items()]}
+            'team': sorted(team, key=lambda p: _turnover_key(p['name'])),
+            'types': [{'id': k, 'label': v} for k, v in DEPARTURE_TYPES.items()],
+            'profiles': sorted((v for v in (db.reference(PROFILES_PATH).get() or {}).values() if isinstance(v, dict) and v.get('name')),
+                               key=lambda p: _turnover_key(p['name']))}
+
+
+def _profile_key(name):
+    return hashlib.sha256(_turnover_key(name).encode()).hexdigest()[:20]
+
+
+@app.route('/api/team/profiles', methods=['POST'])
+def team_profiles():
+    """Save one person's profile ({name, permitExpires, hireDate, birthday,
+    notes}; a blank date clears it). {name, remove: true} deletes it."""
+    if not _turnover_access():
+        return jsonify({'error': 'Directors and the admin team only.'}), 403
+    body = request.get_json(silent=True) or {}
+    name = re.sub(r'\s+', ' ', str(body.get('name') or '')).strip()[:80]
+    if not name:
+        return jsonify({'error': 'Whose profile?'}), 400
+    ref = db.reference(f'{PROFILES_PATH}/{_profile_key(name)}')
+    if body.get('remove'):
+        ref.delete()
+    else:
+        rec = {'name': name}
+        for k in PROFILE_DATES:
+            v = str(body.get(k) or '').strip()
+            if v and not re.fullmatch(r'\d{4}-\d{2}-\d{2}', v):
+                return jsonify({'error': 'Dates as year-month-day.'}), 400
+            if v:
+                rec[k] = v
+        notes = str(body.get('notes') or '').strip()[:1500]
+        if notes:
+            rec['notes'] = notes
+        rec['by'] = str((session.get('user') or {}).get('name') or ('Director' if session.get('manager') else '')).strip()[:80]
+        rec['at'] = int(time.time())
+        ref.set(rec)
+    resp = jsonify(dict(_turnover_out(), success=True))
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 
 @app.route('/api/team/headcount', methods=['GET'])

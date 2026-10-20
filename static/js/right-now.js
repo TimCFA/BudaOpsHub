@@ -356,6 +356,8 @@ function rnHeadcountRows(rows, withLast){
   const s = typeof hcSummary === 'function' ? hcSummary() : null;
   if(!s) return;
   rows.push(rnRow(String(s.now.total), `on the team${s.pending.length ? ` · ${s.pending.length} left to explain` : ''}`, '', 'headcount', s.pending.length ? 'warn' : ''));
+  const P = s.permits;
+  if(P && (P.expired || P.soon)) rows.push(rnRow(String(P.expired + P.soon), `food handler permit${P.expired + P.soon === 1 ? '' : 's'} ${P.expired ? `expired${P.soon ? ' or due' : ''}` : 'due in 30 days'}`, '', 'headcount', P.expired ? 'bad' : 'warn'));
   if(withLast && s.last) rows.push(rnRow('', `last to leave: ${s.last.name}, ${hcTypeLabel(s.last.type).toLowerCase()} · ${hcDate(s.last.lastDay)}`, '', 'headcount', ''));
 }
 

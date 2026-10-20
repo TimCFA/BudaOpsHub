@@ -6,6 +6,9 @@
 // the clock-in PIN list plus the directors the last PIN report named.
 // Whoever drops off a full PIN report (or has their PIN removed) waits under
 // "To explain" until someone logs why, or marks it a false alarm.
+// Profiles (TIM-82, Oct 20 2026): each person's food handler permit expiry,
+// hire date, birthday (who's under 18) and notes; a permit expired or due in
+// 30 days shows here and on the Right Now card.
 
 let hcData = null;        // the server's answer, once loaded
 let hcLoading = false;
@@ -13,6 +16,8 @@ let hcFailedAt = 0;
 let hcForm = null;        // the departure being logged or edited
 let hcBusy = false;
 let hcShowAll = false;
+let hcProfile = null;     // the profile open: {name, role, ...the saved fields}
+const HC_PERMIT_SOON_DAYS = 30;
 
 const HC_ROLE_LABELS = {member: 'Team Member', trainer: 'Trainer', lead: 'Team Lead', admin: 'Admin Team', director: 'Director'};
 const HC_REHIRE = [['yes', 'Yes'], ['no', 'No'], ['unsure', 'Not sure']];
@@ -73,8 +78,127 @@ function hcSummary(){
   const counted = first ? recent.filter(d => hcWhen(d) >= first.date).length : 0;   // only since the counts began
   const pace = days >= 14 && avg > 0 ? Math.round(counted / avg * 365 / days * 100) : null;
   const last = logged.slice().sort((a, b) => hcWhen(b).localeCompare(hcWhen(a)))[0] || null;
-  return {now: hcData.now, pending, logged, recent, joined, pace, days, last,
+  return {now: hcData.now, pending, logged, recent, joined, pace, days, last, permits: hcPermits(),
     quit: recent.filter(d => d.type === 'quit').length, letGo: recent.filter(d => d.type === 'let-go').length};
+}
+
+// ----- Profiles (TIM-82): the food handler permit, hire date, birthday, notes -----
+const hcKey = n => String(n || '').trim().replace(/\s+/g, ' ').toLowerCase();
+function hcProfileFor(name){ return (hcData && hcData.profiles || []).find(p => hcKey(p.name) === hcKey(name)) || null; }
+
+// expired | soon | missing | ok
+function hcPermitState(p){
+  if(!p || !p.permitExpires) return 'missing';
+  if(p.permitExpires < today) return 'expired';
+  return p.permitExpires <= hcAddDays(today, HC_PERMIT_SOON_DAYS) ? 'soon' : 'ok';
+}
+function hcAge(birthday){
+  if(!birthday) return null;
+  const [y, m, d] = birthday.split('-').map(Number), [ty, tm, td] = today.split('-').map(Number);
+  return ty - y - (tm < m || (tm === m && td < d) ? 1 : 0);
+}
+function hcYearsMonths(from){
+  if(!from || from > today) return '';
+  const [y, m] = from.split('-').map(Number), [ty, tm] = today.split('-').map(Number);
+  const months = (ty - y) * 12 + (tm - m);
+  return months < 1 ? 'new this month' : months < 12 ? `${months} mo` : `${Math.floor(months / 12)} yr${months >= 24 ? 's' : ''}${months % 12 ? ` ${months % 12} mo` : ''}`;
+}
+
+// Everyone on the PIN list, with their permit state.
+function hcPermits(){
+  const team = (hcData && hcData.team) || [];
+  const rows = team.map(p => ({...p, profile: hcProfileFor(p.name)})).map(p => ({...p, state: hcPermitState(p.profile)}));
+  const n = st => rows.filter(r => r.state === st).length;
+  return {rows, expired: n('expired'), soon: n('soon'), missing: n('missing'), ok: n('ok')};
+}
+
+function hcPermitChip(p){
+  const st = hcPermitState(p);
+  const label = st === 'missing' ? 'No permit date' : st === 'expired' ? `Permit expired ${hcDate(p.permitExpires)}` : st === 'soon' ? `Permit due ${hcDate(p.permitExpires)}` : `Permit to ${hcDate(p.permitExpires)}${p.permitExpires.slice(0, 4) !== today.slice(0, 4) ? ' ' + p.permitExpires.slice(0, 4) : ''}`;
+  return `<span class="hc-chip hc-permit is-${st}">${escapeHtml(label)}</span>`;
+}
+
+function hcPermitsHtml(s){
+  const P = s.permits;
+  if(!P.rows.length) return '';
+  const urgent = P.rows.filter(r => r.state === 'expired' || r.state === 'soon')
+    .sort((a, b) => (a.profile.permitExpires || '').localeCompare(b.profile.permitExpires || ''));
+  return `
+    <section class="hc-card${P.expired ? ' hc-alert' : ''}">
+      <h3 class="hc-h">Food handler permits <span>${P.ok} of ${P.rows.length} current</span></h3>
+      <p class="hc-note">${[P.expired ? `<b class="hc-bad">${P.expired} expired</b>` : '', P.soon ? `${P.soon} due in ${HC_PERMIT_SOON_DAYS} days` : '', P.missing ? `${P.missing} with no date yet` : ''].filter(Boolean).join(' · ') || 'Everyone’s permit is current.'}</p>
+      ${urgent.map(r => `
+        <button type="button" class="hc-prow" data-hc-profile="${escapeHtml(r.name)}"><b>${escapeHtml(r.name)}</b>${hcPermitChip(r.profile)}</button>`).join('')}
+    </section>`;
+}
+
+function hcTeamHtml(){
+  const team = (hcData && hcData.team) || [];
+  if(!team.length) return '';
+  const others = (hcData.profiles || []).filter(p => !team.some(t => hcKey(t.name) === hcKey(p.name)));
+  const row = (name, role, p) => {
+    const age = hcAge(p && p.birthday);
+    return `<button type="button" class="hc-prow" data-hc-profile="${escapeHtml(name)}" data-hc-find="${escapeHtml(hcKey(name))}">
+      <span class="hc-prow-name"><b>${escapeHtml(name)}</b><small>${escapeHtml([HC_ROLE_LABELS[role] || '', p && p.hireDate ? hcYearsMonths(p.hireDate) : ''].filter(Boolean).join(' · '))}</small></span>
+      ${age !== null && age < 18 ? '<span class="hc-chip is-minor">Under 18</span>' : ''}${hcPermitChip(p)}</button>`;
+  };
+  return `
+    <section class="hc-card">
+      <h3 class="hc-h">Profiles <span>${team.length} on the PIN list</span></h3>
+      <input type="search" class="hc-find" id="hcFind" placeholder="Find someone" aria-label="Find someone" autocomplete="off">
+      <div class="hc-plist">${team.map(t => row(t.name, t.role, hcProfileFor(t.name))).join('')}</div>
+      ${others.length ? `<details class="hc-others"><summary>Not on the PIN list (${others.length})</summary><div class="hc-plist">${others.map(p => row(p.name, '', p)).join('')}</div></details>` : ''}
+      <button type="button" class="ld-link hc-more" data-hc-profile-new>Add a profile for someone not on the list</button>
+    </section>`;
+}
+
+function hcProfileHtml(){
+  const p = hcProfile;
+  const age = hcAge(p.birthday);
+  const hire = (hcData.hires || []).find(h => hcKey(h.name) === hcKey(p.name));
+  const left = (hcData.departures || []).filter(d => hcKey(d.name) === hcKey(p.name) && d.status === 'logged');
+  return `
+    <form class="hc-form hc-profile" data-hc-profile-form>
+      <div class="hc-profile-head">
+        <h3 class="hc-h">${p.isNew ? 'New profile' : escapeHtml(p.name)}</h3>
+        <span>${escapeHtml([HC_ROLE_LABELS[p.role] || '', age !== null ? `${age} years old` : '', p.hireDate ? `with us ${hcYearsMonths(p.hireDate)}` : ''].filter(Boolean).join(' · '))}</span>
+      </div>
+      ${p.isNew ? `<div class="field"><label for="hcpName">Name</label><input type="text" id="hcpName" maxlength="80" required></div>` : ''}
+      <div class="hc-form-row hc-form-row3">
+        <div class="field"><label for="hcpPermit">Food handler permit expires</label><input type="date" id="hcpPermit" value="${escapeHtml(p.permitExpires || '')}"></div>
+        <div class="field"><label for="hcpHire">Hire date</label><input type="date" id="hcpHire" value="${escapeHtml(p.hireDate || '')}" max="${today}">${!p.hireDate && hire ? `<small class="hc-hint">New on the PIN list ${escapeHtml(hcDate(hire.date))}</small>` : ''}</div>
+        <div class="field"><label for="hcpBirthday">Birthday</label><input type="date" id="hcpBirthday" value="${escapeHtml(p.birthday || '')}" max="${today}">${age !== null && age < 18 ? '<small class="hc-hint is-minor">Under 18: minor hour rules apply</small>' : ''}</div>
+      </div>
+      <div class="field"><label for="hcpNotes">Notes</label><textarea id="hcpNotes" rows="3" maxlength="1500" placeholder="Anything the admin team needs to know">${escapeHtml(p.notes || '')}</textarea></div>
+      ${left.length ? `<p class="hc-note">Left before: ${left.map(d => `${escapeHtml(hcTypeLabel(d.type))} ${escapeHtml(hcDate(d.lastDay))}`).join(', ')}</p>` : ''}
+      ${p.by ? `<p class="hc-note">Last saved by ${escapeHtml(p.by)}${p.at ? ` · ${escapeHtml(new Date(p.at * 1000).toLocaleDateString('en-US', {month: 'short', day: 'numeric'}))}` : ''}</p>` : ''}
+      <div class="hc-form-go">
+        <button type="submit" class="btn btn-primary" ${hcBusy ? 'disabled' : ''}>Save</button>
+        <button type="button" class="btn btn-ghost" data-hc-profile-close>Close</button>
+      </div>
+    </form>`;
+}
+
+async function hcSaveProfile(){
+  const v = id => (document.getElementById(id) || {}).value || '';
+  const name = hcProfile.isNew ? v('hcpName').trim() : hcProfile.name;
+  if(!name){ showToast('Whose profile?'); return; }
+  hcBusy = true;
+  try{
+    const res = await fetch(`${API_BASE}/api/team/profiles`, {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name, permitExpires: v('hcpPermit'), hireDate: v('hcpHire'), birthday: v('hcpBirthday'), notes: v('hcpNotes')})});
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok){ showToast(data.error || 'Couldn’t save. Try again.'); return; }
+    hcData = data;
+    hcProfile = null;
+    showToast(`Saved: ${name}`);
+    renderHeadcountView();
+    if(typeof renderRightNow === 'function') renderRightNow();
+  }catch(err){
+    showToast('Couldn’t reach the server. Try again.');
+  }finally{
+    hcBusy = false;
+  }
 }
 
 function hcRolesLine(now){
@@ -209,7 +333,10 @@ function renderHeadcountView(){
     </div>
     ${empty ? '<p class="hc-note hc-start">The count starts with the store’s PIN report: upload it in Manage → Accounts (Tim). Everyone with a clock-in PIN counts, and each new report shows who left.</p>' : hcSummaryHtml(s)}
     ${hcForm ? hcFormHtml() : ''}
+    ${hcProfile ? hcProfileHtml() : ''}
     ${hcPendingHtml(s)}
+    ${hcPermitsHtml(s)}
+    ${hcTeamHtml()}
     ${hcDeparturesHtml(s)}
     ${hcWhyHtml(s)}
     ${hcHistoryHtml()}`;
@@ -237,7 +364,17 @@ document.getElementById('headcountRoot').addEventListener('click', async e => {
   const t = e.target.closest('button');
   if(!t) return;
   if(t.hasAttribute('data-hc-retry')){ hcLoad(true); return; }
-  if(t.hasAttribute('data-hc-new')){ hcForm = {type: '', rehire: 'unsure'}; renderHeadcountView(); return; }
+  if(t.dataset.hcProfile){
+    const team = (hcData.team || []).find(x => hcKey(x.name) === hcKey(t.dataset.hcProfile));
+    hcProfile = {name: t.dataset.hcProfile, role: team ? team.role : '', ...(hcProfileFor(t.dataset.hcProfile) || {})};
+    hcForm = null;
+    renderHeadcountView();
+    document.getElementById('headcountRoot').scrollIntoView({block: 'start'});
+    return;
+  }
+  if(t.hasAttribute('data-hc-profile-new')){ hcProfile = {isNew: true}; hcForm = null; renderHeadcountView(); document.getElementById('headcountRoot').scrollIntoView({block: 'start'}); return; }
+  if(t.hasAttribute('data-hc-profile-close')){ hcProfile = null; renderHeadcountView(); return; }
+  if(t.hasAttribute('data-hc-new')){ hcForm = {type: '', rehire: 'unsure'}; hcProfile = null; renderHeadcountView(); return; }
   if(t.hasAttribute('data-hc-cancel')){ hcForm = null; renderHeadcountView(); return; }
   if(t.hasAttribute('data-hc-all')){ hcShowAll = true; renderHeadcountView(); return; }
   if(t.dataset.hcExplain || t.dataset.hcEdit){
@@ -271,7 +408,15 @@ function hcFormRead(){
   });
 }
 
+// Find someone: hide the other rows (no re-render, so typing keeps going).
+document.getElementById('headcountRoot').addEventListener('input', e => {
+  if(e.target.id !== 'hcFind') return;
+  const q = hcKey(e.target.value);
+  document.querySelectorAll('#headcountRoot .hc-plist [data-hc-find]').forEach(r => { r.hidden = !!q && !r.dataset.hcFind.includes(q); });
+});
+
 document.getElementById('headcountRoot').addEventListener('submit', async e => {
+  if(e.target.closest('[data-hc-profile-form]')){ e.preventDefault(); if(!hcBusy) hcSaveProfile(); return; }
   if(!e.target.closest('[data-hc-form]')) return;
   e.preventDefault();
   if(hcBusy) return;

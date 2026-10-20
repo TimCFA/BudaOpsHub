@@ -79,6 +79,7 @@ class HeadcountTest(unittest.TestCase):
         store['secure/directorPinHash'] = generate_password_hash('2222')
         store['secure/accounts'] = {}
         store['secure/teamPins'] = {}
+        store['secure/teamProfiles'] = {}
         appmod.app.config['SESSION_COOKIE_SECURE'] = False
         self.owner = appmod.app.test_client()
         with self.owner.session_transaction() as sess:
@@ -186,6 +187,35 @@ class HeadcountTest(unittest.TestCase):
         self.assertEqual(post({'id': aid, 'status': 'dismissed'}, c=self.owner).status_code, 200)
         self.assertEqual(sorted((x['name'], x['status']) for x in self.get().get_json()['departures']),
                          [('Avery Office', 'dismissed'), ('Jordan Testcase', 'logged')])
+
+    def test_profiles(self):
+        """TIM-82: a profile per person: food handler permit expiry, hire
+        date, birthday, notes. Directors and the Admin Team only."""
+        self.upload(TEAM)
+        admin = self.login('567890')
+        save = lambda body, c=admin: c.post('/api/team/profiles', json=body)
+        self.assertEqual(save({'name': 'Jordan Testcase', 'permitExpires': '2027-03-01'}, c=self.login('345678')).status_code, 403)   # a Team Lead
+        self.assertEqual(save({'name': ''}).status_code, 400)
+        self.assertEqual(save({'name': 'Jordan Testcase', 'birthday': '3/1/2009'}).status_code, 400)
+        r = save({'name': 'Jordan  Testcase', 'permitExpires': '2027-03-01', 'hireDate': '2026-05-12', 'birthday': '2009-03-01', 'notes': 'Prefers mornings.'})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.headers['Cache-Control'], 'no-store')
+        p = r.get_json()['profiles']
+        self.assertEqual([(x['name'], x['permitExpires'], x['hireDate'], x['birthday'], x['notes'], x['by']) for x in p],
+                         [('Jordan Testcase', '2027-03-01', '2026-05-12', '2009-03-01', 'Prefers mornings.', 'Avery Office')])
+        # Saved again: one profile per person; a blank date clears it.
+        r = save({'name': 'jordan testcase', 'permitExpires': '2027-04-01', 'hireDate': '', 'birthday': '2009-03-01'}, c=self.owner)
+        p = r.get_json()['profiles']
+        self.assertEqual(len(p), 1)
+        self.assertEqual((p[0]['permitExpires'], 'hireDate' in p[0], 'notes' in p[0], p[0]['by']), ('2027-04-01', False, False, 'Tim Owner'))
+        # The team list carries roles for the profiles page; never a PIN.
+        d = self.get(admin).get_json()
+        self.assertEqual(d['team'][0], {'name': 'Avery Office', 'role': 'admin'})
+        self.assertNotIn('567890', repr(d))
+        self.assertTrue(appmod.PROFILES_PATH.startswith('secure/'))
+        save({'name': 'Jordan Testcase', 'remove': True})
+        self.assertEqual(self.get(admin).get_json()['profiles'], [])
+        self.assertEqual(self.get(appmod.app.test_client()).status_code, 403)
 
     def test_page_wiring(self):
         page = read('cfa-buda-ops-hub-complete.html')

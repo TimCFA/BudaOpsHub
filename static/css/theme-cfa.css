@@ -2009,3 +2009,26 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .hc-form-go{display:flex;flex-wrap:wrap;align-items:center;gap:10px;}
 .hc-remove{margin-left:auto;color:var(--cfa-red);}
 @media (max-width:600px){ .hc-form-row{grid-template-columns:1fr 1fr;} .hc-form-row .field:first-child{grid-column:1 / -1;} .hc-summary{grid-template-columns:1fr;} }
+/* Our Team profiles (TIM-82): one row a person, the permit's state on a chip. */
+.hc-find{width:100%;box-sizing:border-box;min-height:44px;margin:0 0 6px;padding:8px 12px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-light);font-family:var(--font-ui);font-size:15px;}
+.hc-plist{display:grid;}
+.hc-prow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;width:100%;min-height:52px;padding:8px 0;border:0;border-top:1px solid var(--border);background:transparent;text-align:left;font-family:var(--font-ui);font-size:15px;color:var(--text-primary);cursor:pointer;}
+.hc-prow[hidden]{display:none;}
+.hc-prow:hover b{color:var(--cfa-red);}
+.hc-prow-name{display:grid;gap:1px;flex:1;min-width:0;}
+.hc-prow-name small{font-size:12px;color:var(--text-tertiary);}
+.hc-permit.is-ok{background:#E6F2EA;color:#2E7D45;}
+.hc-permit.is-soon{background:#FFF1DA;color:#8A5300;}
+.hc-permit.is-expired{background:#FDECEF;color:var(--cfa-dark-red);}
+.hc-permit.is-missing{background:transparent;border:1px dashed var(--border);color:var(--text-tertiary);}
+.hc-chip.is-minor{background:rgba(0,79,113,.1);color:var(--cfa-navy);}
+.hc-bad{color:var(--cfa-red);}
+.hc-others{margin-top:8px;}
+.hc-others summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--text-secondary);padding:6px 0;}
+.hc-profile-head{display:grid;gap:2px;}
+.hc-profile-head span{font-size:13px;color:var(--text-secondary);}
+.hc-form-row3{grid-template-columns:1fr 1fr 1fr;}
+.hc-hint{display:block;margin-top:4px;font-size:12px;color:var(--text-tertiary);}
+.hc-hint.is-minor{color:var(--cfa-navy);font-weight:600;}
+@media (max-width:600px){ .hc-form-row3{grid-template-columns:1fr;} }
+.hc-alert{border-color:#EDB3BE;}
