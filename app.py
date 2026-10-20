@@ -1549,6 +1549,158 @@ def firebase_write():
         print(f"[FIREBASE WRITE ERROR] Path: {path}, {e}")
         return jsonify({'error': 'Write failed'}), 500
 
+# ===== HUB HEALTH (Tim, Oct 19 2026) =====
+# Manage → Hub Health: is the hub doing its job? Counted here, with no names:
+#  - saves: every save that landed, every one refused (by status), and the
+#    retries (the page says which try a save is, X-Save-Attempt);
+#  - visits: one note per page load from each phone (hub-health.js): how long
+#    until the page was usable, home-screen app or browser, the signed-in
+#    role (never the name), and which tabs it opened.
+# Counts gather in memory and are added to the day's record in Firebase
+# (HEALTH_PATH/<date>, outside the saved state; no page syncs it) every half
+# hour and when the server stops, so a restart loses at most that much.
+HEALTH_PATH = 'health'
+HEALTH_DAYS_KEPT = 35
+HEALTH_FLUSH_SECONDS = 30 * 60
+HEALTH_READY_SAMPLES = 300           # load times kept per day
+HEALTH_ROLES = ('none', 'member', 'trainer', 'lead', 'director', 'manager')
+HEALTH_VIEW_RE = re.compile(r'^[a-z]{2,20}$')
+STARTED_AT = int(time.time() * 1000)
+_health_lock = threading.Lock()
+_health_pending = {}                 # {date: counts not yet in Firebase}
+_health_flushed_at = time.time()
+_health_flushing = False
+_health_last_save = None             # ms, the last save that landed
+
+
+def _health_today():
+    return datetime.now(levelset_sync.STORE_TZ).date().isoformat()
+
+
+def _health_add(into, delta):
+    """Add one day's counts to another (numbers add, maps add per key, load
+    times join and keep the latest HEALTH_READY_SAMPLES)."""
+    for k, v in delta.items():
+        if k == 'ready':
+            into['ready'] = ((into.get('ready') or []) + list(v))[-HEALTH_READY_SAMPLES:]
+        elif k == 'lastSaveAt':
+            into[k] = max(into.get(k) or 0, v or 0)
+        elif isinstance(v, dict):
+            sub = into.setdefault(k, {})
+            for kk, n in v.items():
+                sub[kk] = (sub.get(kk) or 0) + n
+        else:
+            into[k] = (into.get(k) or 0) + v
+    return into
+
+
+def _health_note(delta):
+    global _health_flushing
+    day = _health_today()
+    with _health_lock:
+        _health_add(_health_pending.setdefault(day, {}), delta)
+        due = not _health_flushing and time.time() - _health_flushed_at >= HEALTH_FLUSH_SECONDS
+        if due:
+            _health_flushing = True
+    if due:
+        threading.Thread(target=_health_flush, daemon=True).start()
+
+
+def _health_flush():
+    """Add what's pending to each day's record in Firebase."""
+    global _health_flushed_at, _health_flushing
+    with _health_lock:
+        pending = dict(_health_pending)
+        _health_pending.clear()
+        _health_flushed_at = time.time()
+    try:
+        for day, delta in pending.items():
+            ref = db.reference(f'{HEALTH_PATH}/{day}')
+            rec = ref.get()
+            ref.set(_health_add(rec if isinstance(rec, dict) else {}, delta))
+            old = (date.fromisoformat(day) - timedelta(days=HEALTH_DAYS_KEPT)).isoformat()
+            db.reference(f'{HEALTH_PATH}/{old}').delete()
+    except Exception as e:
+        # Not written: put it back for the next try.
+        print(f'[HEALTH] flush failed: {e}')
+        with _health_lock:
+            for day, delta in pending.items():
+                _health_pending[day] = _health_add(delta, _health_pending.get(day, {}))
+    finally:
+        with _health_lock:
+            _health_flushing = False
+
+
+@app.after_request
+def _health_count_saves(response):
+    global _health_last_save
+    if request.path == '/api/state/patch' and request.method == 'POST':
+        try:
+            attempt = int(request.headers.get('X-Save-Attempt') or 1)
+        except ValueError:
+            attempt = 1
+        delta = {'retried': 1} if attempt > 1 else {}
+        if response.status_code == 200:
+            _health_last_save = int(time.time() * 1000)
+            delta.update({'saves': 1, 'lastSaveAt': _health_last_save})
+        else:
+            delta['refused'] = {str(response.status_code): 1}
+        _health_note(delta)
+    return response
+
+
+@app.route('/api/health/visit', methods=['POST'])
+def health_visit():
+    """One phone's note: {visit: 1, ready: ms, app: bool, role, views: {view: n}}.
+    Anyone may send it; it carries no names and every field is bounded."""
+    body = request.get_json(force=True, silent=True)
+    if not isinstance(body, dict):
+        return jsonify({'error': 'Send JSON'}), 400
+    delta = {}
+    if body.get('visit'):
+        delta['visits'] = 1
+        if body.get('app'):
+            delta['app'] = 1
+        role = body.get('role') if body.get('role') in HEALTH_ROLES else 'none'
+        delta['roles'] = {role: 1}
+        ready = body.get('ready')
+        if isinstance(ready, (int, float)) and 0 < ready < 120000:
+            delta['ready'] = [int(ready)]
+    views = body.get('views')
+    if isinstance(views, dict):
+        clean = {k: min(int(n), 50) for k, n in list(views.items())[:30]
+                 if isinstance(k, str) and HEALTH_VIEW_RE.match(k) and isinstance(n, int) and n > 0}
+        if clean:
+            delta['views'] = clean
+    if delta:
+        _health_note(delta)
+    return jsonify({'success': True})
+
+
+@app.route('/api/health', methods=['GET'])
+def health_read():
+    """The last week, day by day (what Firebase has plus what's pending), and
+    the deploy: its build, when it went live, the last save that landed."""
+    if not session.get('manager'):
+        return jsonify({'error': 'Manager sign-in required'}), 403
+    today = date.fromisoformat(_health_today())
+    days = {}
+    try:
+        for n in range(7):
+            day = (today - timedelta(days=n)).isoformat()
+            rec = db.reference(f'{HEALTH_PATH}/{day}').get()
+            days[day] = rec if isinstance(rec, dict) else {}
+    except Exception as e:
+        print(f'[HEALTH] read failed: {e}')
+        return jsonify({'error': 'Could not read the counts'}), 500
+    with _health_lock:
+        for day, delta in _health_pending.items():
+            if day in days:
+                _health_add(days[day], json.loads(json.dumps(delta)))
+    return jsonify({'build': BUILD, 'liveSince': STARTED_AT, 'lastSaveAt': _health_last_save,
+                    'today': today.isoformat(), 'days': days, 'now': int(time.time() * 1000)})
+
+
 # ===== COMPRESSION =====
 # Saved-data replies are JSON that shrinks ~5-10x zipped: less phone data and
 # faster loads on a slow connection.

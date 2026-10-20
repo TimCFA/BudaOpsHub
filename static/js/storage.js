@@ -53,12 +53,12 @@ function serverClockNote(now, sentAt, gotAt){
   if(typeof now === 'number' && isFinite(now)) serverClockOffset = Math.round(now - (sentAt + gotAt) / 2);
 }
 
-async function statePost(path, body){
+async function statePost(path, body, headers){
   try{
     const sentAt = Date.now();
     const response = await fetch(`${API_BASE}${path}`, {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: Object.assign({'Content-Type': 'application/json'}, headers || {}),
       body: JSON.stringify(body)
     });
     if(!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -132,7 +132,8 @@ async function saveOnce(){
     sent[name] = sections[name];
   });
   if(!Object.keys(patches).length){ setSyncStatus('Synced', 'ok'); return true; }
-  const result = await statePost('/api/state/patch', {patches});
+  // Which try this is, so Manage → Health can count the retries (app.py).
+  const result = await statePost('/api/state/patch', {patches}, {'X-Save-Attempt': String(saveRetryN + 1)});
   if(result){
     Object.keys(sent).forEach(name=>{
       if(result.sections && name in result.sections) return;   // someone else changed it too: merged below

@@ -10,3 +10,13 @@ threads = 8
 worker_class = 'gthread'
 # Smart Shop PDFs take a few seconds to read.
 timeout = 60
+
+
+# Hub Health (app.py): add the counts still in memory to Firebase before the
+# worker stops (a deploy or a restart).
+def worker_exit(server, worker):
+    try:
+        import app
+        app._health_flush()
+    except Exception as e:
+        print(f'[HEALTH] flush on exit failed: {e}')
