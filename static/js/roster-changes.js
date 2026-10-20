@@ -146,11 +146,34 @@ const RC_ICONS = {
   warn: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5M12 17.5v.01"/></svg>'
 };
 
+// The chip on the Set Ups chip row ("3 Shift changes ▾") and, open, the
+// list under the row (Tim, Oct 18 2026); rosterChangesHtml is both.
 function rosterChangesHtml(side, date){
+  return rosterChangesChipHtml(side, date) + rosterChangesBodyHtml(side, date);
+}
+
+function rosterChangesChipHtml(side, date){
   const changes = rosterDayChanges(date, side);
   const other = side === 'foh' ? 'boh' : 'foh';
   const otherN = rosterDayChanges(date, other).length;
   if(!changes.length && !otherN) return '';
+  const placedAt = n => rosterPlacedAt(date, side, n);
+  const stillPlaced = changes.filter(c => (c.kind === 'swap' && placedAt(c.for).length) || (c.kind === 'off' && placedAt(c.name).length)).length;
+  const n = changes.length;
+  return `<button type="button" class="su-rowchip su-chip-changes ${rcOpen ? 'is-open' : ''}" data-rc-toggle="1" aria-expanded="${rcOpen}">
+      ${n ? `<span class="su-changes-count" aria-label="${n} change${n === 1 ? '' : 's'}">${n}</span>` : ''}
+      <span class="su-changes-title">Shift changes${esHtml('Shift changes')}</span>
+      ${stillPlaced ? `<span class="su-changes-flag">${RC_ICONS.warn}${stillPlaced} still placed${esHtml('N still placed', stillPlaced)}</span>` : ''}
+      ${n ? '' : `<span class="su-changes-sub">none on ${side.toUpperCase()}${esHtml('none on SIDE', side.toUpperCase())}</span>`}
+      <span class="su-changes-chev" aria-hidden="true">▾</span>
+    </button>`;
+}
+
+function rosterChangesBodyHtml(side, date){
+  const changes = rosterDayChanges(date, side);
+  const other = side === 'foh' ? 'boh' : 'foh';
+  const otherN = rosterDayChanges(date, other).length;
+  if(!rcOpen || (!changes.length && !otherN)) return '';
   const nm = n => `<b>${escapeHtml(suDisplayName(n))}</b>`;
   const placedAt = n => rosterPlacedAt(date, side, n);
   const placed = n => {
@@ -174,23 +197,16 @@ function rosterChangesHtml(side, date){
     return `<li>${ic}<span>${nm(c.name)} <span class="su-changes-times">${was(c.was)} ${now(c.span)}</span>${es(c)}</span></li>`;
   };
   const n = changes.length;
-  return `<div class="su-changes ${rcOpen ? 'is-open' : ''}" role="note">
-    <button type="button" class="su-changes-head" data-rc-toggle="1" aria-expanded="${rcOpen}">
-      <span class="su-changes-title">Shift changes${esHtml('Shift changes')}</span>
-      ${n ? `<span class="su-changes-count" aria-label="${n} change${n === 1 ? '' : 's'}">${n}</span>` : ''}
-      ${stillPlaced ? `<span class="su-changes-flag">${RC_ICONS.warn}${stillPlaced} still placed${esHtml('N still placed', stillPlaced)}</span>` : ''}
-      <span class="su-changes-sub">${n ? `since the schedule was posted${esHtml('since the schedule was posted')}` : `none on ${side.toUpperCase()}${esHtml('none on SIDE', side.toUpperCase())}`}</span>
-      <span class="su-changes-chev" aria-hidden="true">▾</span>
-    </button>
-    ${rcOpen ? `<div class="su-changes-body">
-    ${n ? `<ul>${changes.map(line).join('')}</ul>` : ''}
+  return `<div class="su-changes is-open" role="note">
+    <div class="su-changes-body">
+    ${n ? `<div class="su-changes-sub">${n} since the schedule was posted${esHtml('since the schedule was posted')}</div><ul>${changes.map(line).join('')}</ul>` : ''}
     ${otherN ? `<div class="su-changes-other">${otherN} ${other.toUpperCase()} change${otherN === 1 ? '' : 's'} — switch to ${other.toUpperCase()} to see ${otherN === 1 ? 'it' : 'them'}${esLine('N SIDE changes', otherN, other.toUpperCase())}</div>` : ''}
     ${typeof launchManager !== 'undefined' && launchManager ? `<div class="su-changes-actions">
       <button type="button" data-rc-reset="day" data-rc-date="${escapeHtml(date)}">Reset day</button>
       <button type="button" data-rc-reset="week" data-rc-date="${escapeHtml(date)}">Reset week</button>
       <span>Managers: make the roster as it is now the posted schedule</span>
     </div>` : ''}
-    </div>` : ''}
+    </div>
   </div>`;
 }
 

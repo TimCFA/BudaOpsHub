@@ -36,6 +36,8 @@ let suSelectedDaypart = {foh: '', boh: ''};   // daypart name per section
 // number can be open at once so leaders can compare dayparts (Tim, Oct
 // 2026). suSelectedDaypart is the one being worked on: the card last tapped.
 let suOpenCards = {foh: new Set(), boh: new Set()};
+let suCardsTouched = {foh: false, boh: false};   // a card opened or closed by hand this visit (else today's "now" daypart opens itself)
+let suAutoOpened = '';                           // the card that opened itself, for renderAllDayparts to scroll to once
 let suSelectedDate = '';
 let suExpandedZones = new Set();              // zones showing their optional slots
 let suSheet = null;                           // {kind: 'develop'|'fill'|'evaluate'|'planb'|'person'|'lead', slot}
@@ -69,6 +71,7 @@ function suCurrentDaypart(section, date){
     suSelectedDate = date;
     suSelectedDaypart = {foh: '', boh: ''};
     suOpenCards = {foh: new Set(), boh: new Set()};
+    suCardsTouched = {foh: false, boh: false};
     suExpandedZones.clear();
     suSheet = null;
     suTrayPick = null;
@@ -259,20 +262,47 @@ function suEventsLineHtml(section, date, dp, i){
   return list.length ? `<div class="su-dp-events">${list.map(eventChipHtml).join('')}</div>` : '';
 }
 
-function suAllDayEventsHtml(date){
+// The chip row under the status line (Tim, Oct 18 2026): the day's shift
+// changes ("3 Shift changes ▾", opening the list under the row) and the
+// store's all-day events, one chip each, scrolling sideways. Tapping an
+// event chip shows it whole.
+function suDayEventChipsHtml(date){
   if(typeof eventsAllDay !== 'function' || !evCalendarShown()) return '';
-  const list = eventsAllDay(date);
-  return list.length ? `<div class="su-day-events" aria-label="Today's events"><span class="su-day-events-k">Events${esHtml('Events')}</span>${list.map(eventChipHtml).join('')}</div>` : '';
+  return eventsAllDay(date).map(eventChipHtml).join('');
 }
 
-function suNumbersLineHtml(date, dp, pill){
+function suChipsRowHtml(section, date){
+  const chips = (typeof rosterChangesChipHtml === 'function' ? rosterChangesChipHtml(section, date) : '') + suDayEventChipsHtml(date);
+  const body = typeof rosterChangesBodyHtml === 'function' ? rosterChangesBodyHtml(section, date) : '';
+  return (chips ? `<div class="su-chips-row" aria-label="Today">${chips}</div>` : '') + body;
+}
+
+// A daypart's numbers, as text: {sales, goal, actual, off, ev}.
+function suNumbersParts(date, dp){
   const n = getNumbersForDaypart(date, dp) || {};
   const money = v => { const x = parseMoney(v); return x == null ? '' : x >= 10000 ? `$${(x / 1000).toFixed(1)}k` : `$${Math.round(x).toLocaleString('en-US')}`; };
   const ev = typeof knSpecialEventsText === 'function' ? knSpecialEventsText(n.specialEvents, date, dp) : String(n.specialEvents || '').trim();
   const sales = money(n.projectedSales), goal = money(n.productivityGoal);
   const actual = money(n.actualSales), vs = knVersus(n.actualSales, n.projectedSales);
-  if(!sales && !goal && !ev && !actual) return '';
   const off = vs && vs.pct !== null ? ` <span class="su-dp-vs ${vs.diff >= 0 ? 'is-up' : 'is-down'}">${vs.pct < 0 ? '−' : '+'}${Math.abs(vs.pct).toFixed(1)}%</span>` : '';
+  return {sales, goal, actual, off, ev};
+}
+
+// A closed card's second line: the Lead (tap to pick), then the numbers.
+function suDaypartBriefHtml(section, date, dp){
+  const {sales, goal} = suNumbersParts(date, dp);
+  const lead = section === 'foh' ? posAssignments[suEvalKey(section, date, dp.name) + '||' + SU_LEAD_CAPTAIN] : '';
+  const leadHtml = section === 'foh'
+    ? `<button type="button" class="su-dp-brief-lead ${lead ? '' : 'is-none'}" data-su-lead-open="1" data-su-lead-dp="${escapeHtml(dp.name)}">${lead ? `Lead: ${escapeHtml(suDisplayName(lead))}` : 'Lead: choose'}</button>`
+    : '';
+  const nums = [sales ? `<span><b>${escapeHtml(sales)}</b> projected${esHtml('projected')}</span>` : '', goal ? `<span><b>${escapeHtml(goal)}</b>/labor hr${esHtml('per labor hour')}</span>` : ''].filter(Boolean);
+  if(!leadHtml && !nums.length) return '';
+  return `<div class="su-dp-brief" data-su-dp-toggle="${escapeHtml(dp.name)}">${[leadHtml, ...nums].filter(Boolean).join('<i class="su-dp-brief-dot" aria-hidden="true">·</i>')}</div>`;
+}
+
+function suNumbersLineHtml(date, dp, pill){
+  const {sales, goal, actual, off, ev} = suNumbersParts(date, dp);
+  if(!sales && !goal && !ev && !actual) return '';
   return `<div class="su-dp-nums"${pill ? '' : ` data-su-dp-toggle="${escapeHtml(dp.name)}"`}>${sales ? `<span class="su-dp-num"><b>${escapeHtml(sales)}</b> projected${esHtml('projected')}</span>` : ''}${actual ? `<span class="su-dp-num"><b>${escapeHtml(actual)}</b> actual${esHtml('actual')}${off}</span>` : ''}${goal ? `<span class="su-dp-num"><b>${escapeHtml(goal)}</b>/labor hr${esHtml('per labor hour')}</span>` : ''}${ev ? `<span class="su-dp-num is-event" title="${escapeHtml(ev)}">${escapeHtml(ev)}</span>` : ''}</div>`;
 }
 
@@ -285,14 +315,24 @@ function suNumbersLineHtml(date, dp, pill){
 // the two: both read and write the same posAssignments.
 const SU_LAYOUT = 'cards';
 
-// Every open card gets its own spots, worked out for its own daypart.
+// Every open card gets its own spots, worked out for its own daypart. On
+// today, until someone opens or closes a card, the daypart on the clock
+// opens by itself (Tim, Oct 18 2026). The tier key shows once, under the
+// cards, when any is open.
 function suDaypartCardsHtml(section, date){
   const open = suOpenCards[section];
-  return `<div class="su-dp-list">${suDaypartsFor(section).map((dp, i)=>{
+  if(date === today && !open.size && !suCardsTouched[section]){
+    const now = suDefaultDaypart(section, date);
+    open.add(now);
+    suSelectedDaypart[section] = now;
+    suAutoOpened = now;
+  }
+  const cards = suDaypartsFor(section).map((dp, i)=>{
     if(!open.has(dp.name)) return suDaypartCardHtml(section, date, dp, i, false, '', null, false);
     const m = suDaypartModel(section, date, dp, i);
     return suDaypartCardHtml(section, date, dp, i, true, suSheetViewHtml(section, date, dp, i, m), m, false);
-  }).join('')}</div>`;
+  }).join('');
+  return `<div class="su-dp-list">${cards}</div>${open.size && typeof suTierKeyHtml === 'function' ? suTierKeyHtml() : ''}`;
 }
 
 // The pills: each daypart with how full it is; the chosen one in navy.
@@ -343,18 +383,24 @@ function suDaypartCardHtml(section, date, dp, i, open, openHtml, m, pill){
     const needed = open && m ? m.tiles.filter(x => x.needed).length : 0;
     const fillBtn = needed && m.unplaced.length && suFillAvailable() ? `<button type="button" class="su-dp-fillbtn" data-su-tool="fill">Fill ${needed} open${esLine('Fill N open', needed)}</button>` : '';
     const sky = suDaypartSky(dp.name);
+    // Today's daypart on the clock wears a NOW tag (red, like Zone Reset's).
+    const isNow = date === today && suDefaultDaypart(section, date) === dp.name;
     const headInner = `
           <span class="su-dp-art">${suSkyArt(sky)}</span>
-          <span class="su-dp-name">${escapeHtml(suShortDaypart(dp.name))}${time ? ` <span class="su-dp-time">${escapeHtml(time)}</span>` : ''}${esSpan(esDaypart(dp.name), true)}</span>
+          <span class="su-dp-name">${escapeHtml(suShortDaypart(dp.name))}${time ? ` <span class="su-dp-time">${escapeHtml(time)}</span>` : ''}${isNow ? '<span class="su-dp-now">now</span>' : ''}${esSpan(esDaypart(dp.name), true)}</span>
           <span class="su-dp-fill">${suDaypartFillText(section, date, dp, i)}</span>`;
-    return `<section class="su-dp su-col-${suDaypartColor(dp.name)} ${open ? 'is-open' : ''} ${pill ? 'is-pill' : ''}" data-su-card="${escapeHtml(dp.name)}" aria-label="${escapeHtml(suShortDaypart(dp.name))}">
+    // A closed card is two lines: the head, then a brief (Lead, numbers).
+    // Open, the banner carries the numbers line, the events and the Lead
+    // and Fill buttons as before.
+    return `<section class="su-dp su-col-${suDaypartColor(dp.name)} ${open ? 'is-open' : ''} ${pill ? 'is-pill' : ''} ${isNow ? 'is-now' : ''}" data-su-card="${escapeHtml(dp.name)}" aria-label="${escapeHtml(suShortDaypart(dp.name))}">
       <div class="su-dp-banner">
         ${pill ? `<div class="su-dp-head">${headInner}</div>` : `<button type="button" class="su-dp-head"${toggle} aria-expanded="${open}">${headInner}
           <span class="su-dp-chev" aria-hidden="true">▾</span>
         </button>`}
-        ${suNumbersLineHtml(date, dp, pill)}
-        ${suEventsLineHtml(section, date, dp, i)}
-        ${leadBtn || fillBtn ? `<div class="su-dp-sub"${toggle}>${leadBtn}${fillBtn}</div>` : ''}
+        ${open || pill ? suNumbersLineHtml(date, dp, pill) : ''}
+        ${open || pill ? suEventsLineHtml(section, date, dp, i) : ''}
+        ${(open || pill) && (leadBtn || fillBtn) ? `<div class="su-dp-sub"${toggle}>${leadBtn}${fillBtn}</div>` : ''}
+        ${!open && !pill ? suDaypartBriefHtml(section, date, dp) : ''}
       </div>
       ${open ? `<div class="su-dp-body">${openHtml}</div>` : ''}
     </section>`;
@@ -593,19 +639,16 @@ function renderSetupsBoard(date){
   if(suMode !== 'coach'){
     return `
     <div class="su-board is-sheet">
-      ${suModeBarHtml()}
-      ${rosterChangesHtml(section, date)}
-      ${suAllDayEventsHtml(date)}
+      ${suChipsRowHtml(section, date)}
       ${SU_LAYOUT === 'pills'
-        ? suDaypartPillsHtml(section, date, dp.name) + suDaypartCardHtml(section, date, dp, dpIndex, true, suTrayHtml(section, date, dp, m) + suSheetViewHtml(section, date, dp, dpIndex, m), m, true)
+        ? suDaypartPillsHtml(section, date, dp.name) + suDaypartCardHtml(section, date, dp, dpIndex, true, suTrayHtml(section, date, dp, m) + suSheetViewHtml(section, date, dp, dpIndex, m), m, true) + (typeof suTierKeyHtml === 'function' ? suTierKeyHtml() : '')
         : suDaypartCardsHtml(section, date)}
       ${suSheetHtml(section, date, dp, dpIndex, m)}
     </div>`;
   }
   return `
     <div class="su-board">
-      ${suModeBarHtml()}
-      ${rosterChangesHtml(section, date)}
+      ${suChipsRowHtml(section, date)}
       ${suDaypartChipsHtml(section, date, dp.name)}
       ${suGamePlanHtml(section, date, dp, dpIndex, m)}
       ${suZonesHtml(m)}
@@ -672,12 +715,15 @@ document.getElementById('allDayparts').addEventListener('click', suTakeCard, tru
 
 document.getElementById('allDayparts').addEventListener('click', e=>{
   const t = e.target;
+  const evChip = t.closest('.su-chips-row .ev-chip');
+  if(evChip){ evChip.classList.toggle('is-full'); return; }
   const daypart = t.closest('[data-su-daypart]');
-  if(daypart){ suSelectedDaypart[currentPosSection] = daypart.dataset.suDaypart; suOpenCards[currentPosSection].add(daypart.dataset.suDaypart); suExpandedZones.clear(); suSheet = null; suTrayPick = null; renderAllDayparts(); return; }
+  if(daypart){ suSelectedDaypart[currentPosSection] = daypart.dataset.suDaypart; suOpenCards[currentPosSection].add(daypart.dataset.suDaypart); suCardsTouched[currentPosSection] = true; suExpandedZones.clear(); suSheet = null; suTrayPick = null; renderAllDayparts(); return; }
   const dpToggle = t.closest('[data-su-dp-toggle]');
   if(dpToggle && !t.closest('[data-su-lead-open],[data-su-tool]')){
     // Opens or closes just this card; the others stay as they are.
     const sec = currentPosSection, name = dpToggle.dataset.suDpToggle, open = suOpenCards[sec];
+    suCardsTouched[sec] = true;
     if(open.has(name)){ open.delete(name); suExpandedZones.delete('all|' + name); }
     else { open.add(name); suSelectedDaypart[sec] = name; }
     suSheet = null;

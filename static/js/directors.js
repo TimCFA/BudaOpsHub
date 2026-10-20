@@ -33,7 +33,30 @@ const DIR_GAP_MIN = 30;         // a leader-less stretch shorter than this isn't
 const DIR_CLOSE_MIN = 21 * 60 + 30;   // a leader on until here counts as closing
 
 let dirWeekOffset = 0;   // 0 = this week, 1 = next
-let dirView = 'brief';   // 'brief' | 'leaders' | 'team' (team-pea.js) | 'report' (leader-report.js) | 'points' (points.js)
+// Four destinations, one level (Tim, Oct 19 2026): Brief, People (the
+// leaders, the team and the raters, leaders.js + team-pea.js), Report
+// (leader-report.js) and Points (points.js). The old 'leaders' and 'team'
+// views map onto People so saved links and older code keep working.
+let dirView = 'brief';      // 'brief' | 'people' | 'report' | 'points'
+let dirPeople = 'leaders';  // 'leaders' | 'team' | 'raters'
+const DIR_VIEWS = ['brief', 'people', 'report', 'points'];
+function dirSetView(v){
+  if(v === 'leaders'){ dirView = 'people'; dirPeople = 'leaders'; return; }
+  if(v === 'team'){ dirView = 'people'; dirPeople = typeof tpTab !== 'undefined' && tpTab === 'team' ? 'team' : 'raters'; return; }
+  dirView = DIR_VIEWS.includes(v) ? v : 'brief';
+}
+function dirSetPeople(which){
+  dirView = 'people';
+  dirPeople = ['leaders', 'team', 'raters'].includes(which) ? which : 'leaders';
+  if(dirPeople !== 'leaders' && typeof tpTab !== 'undefined') tpTab = dirPeople;
+}
+function dirNormalizeView(){
+  if(dirView === 'leaders' || dirView === 'team') dirSetView(dirView);
+  if(!DIR_VIEWS.includes(dirView)) dirView = 'brief';
+  if(dirView === 'people' && dirPeople !== 'leaders' && typeof tpTab !== 'undefined') tpTab = dirPeople;
+}
+function dirShowsLeaders(){ dirNormalizeView(); return dirView === 'people' && dirPeople === 'leaders'; }
+function dirShowsTeam(){ dirNormalizeView(); return dirView === 'people' && dirPeople !== 'leaders'; }
 
 function dirList(){ return Array.isArray(directors) ? directors : DIRECTORS_SEED; }
 function dirEnsureOwn(){ if(!Array.isArray(directors)) directors = JSON.parse(JSON.stringify(DIRECTORS_SEED)); }
@@ -167,6 +190,50 @@ const dirSpanText = s => `${dirClock(s.start)}–${dirClock(s.end)}`;
 
 function dirShown(){ return typeof launchManager === 'undefined' || !!launchManager; }
 
+// ----- The page frame: one header pattern, one row of destinations -----
+const DIR_ICON_SHARE = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M8 8l4-4 4 4"/><path d="M5 13v6h14v-6"/></svg>';
+function dirNavHtml(){
+  dirNormalizeView();
+  const on = id => `class="uo-pane-btn ${dirView === id ? 'active' : ''}" role="tab" aria-selected="${dirView === id ? 'true' : 'false'}"`;
+  return `<div class="uo-panes dir-nav" role="tablist" aria-label="Directors"><button type="button" ${on('brief')} data-dir-view="brief">Brief</button>${typeof ldBodyHtml === 'function' ? `<button type="button" ${on('people')} data-dir-view="people">People</button>` : ''}${typeof lrBodyHtml === 'function' ? `<button type="button" ${on('report')} data-dir-view="report">Report</button>` : ''}${typeof ptBodyHtml === 'function' ? `<button type="button" ${on('points')} data-dir-view="points">Points</button>` : ''}</div>`;
+}
+// Copy, PDF and the like sit behind one share icon; the menu closes on a tap
+// outside (see the document click handler below).
+function dirShareHtml(items){
+  if(!items || !items.length) return '';
+  return `<div class="dir-share"><button type="button" class="dir-share-btn" data-dir-share aria-label="Share" aria-haspopup="menu" aria-expanded="false">${DIR_ICON_SHARE}</button><div class="dir-share-menu" role="menu" hidden>${items.map(i => `<button type="button" class="dir-share-item" role="menuitem" ${i.attr}>${i.label}</button>`).join('')}</div></div>`;
+}
+function dirHeadHtml(title, sub, picker, shareItems){
+  return `<div class="dir-head">
+    <div class="dir-head-main"><h2 class="dir-title">${title}</h2>${sub ? `<p class="dir-sub">${sub}</p>` : ''}</div>
+    <div class="dir-head-side">${picker || ''}${dirShareHtml(shareItems)}</div>
+  </div>`;
+}
+function dirPickHtml(id, label, options){
+  return `<label class="ld-q dir-pick"><span>${label}</span><select id="${id}" aria-label="${label}">${options.map(o => `<option value="${escapeHtml(String(o.value))}" ${o.attr || ''} ${o.on ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}</select></label>`;
+}
+function dirQuarterSelect(){
+  const on = ldQuarterOn();
+  return dirPickHtml('dirQuarter', 'Quarter', ldQuarters().map(q => ({value: q, on: q === on, label: ldQuarterBounds(q).label + (q === ldQuarterNow() ? ' (now)' : '')})));
+}
+function dirPeopleChipsHtml(){
+  const c = (id, label) => `<button type="button" class="ld-chip" data-dir-people="${id}" aria-pressed="${dirPeople === id ? 'true' : 'false'}">${label}</button>`;
+  return `<div class="ld-chips dir-people-chips" role="tablist" aria-label="People">${c('leaders', 'Leaders')}${typeof tpBodyHtml === 'function' ? c('team', 'Team') + c('raters', 'Raters') : ''}</div>`;
+}
+function dirShareToggle(btn){
+  const menu = btn.nextElementSibling;
+  if(!menu) return;
+  const open = !!menu.hidden;
+  menu.hidden = !open;
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function dirShareClose(menu){
+  if(!menu) return;
+  menu.hidden = true;
+  const btn = menu.previousElementSibling;
+  if(btn) btn.setAttribute('aria-expanded', 'false');
+}
+
 // A day as a timeline (Tim, Oct 18 2026): one row per leader and per
 // director shift, a bar across the open hours, and a coverage row on top
 // with the leader-less stretches in red. Reads in a glance where the chips
@@ -191,48 +258,34 @@ function renderDirectorsView(){
   const root = document.getElementById('directorsRoot');
   if(!root) return;
   if(!dirShown()){ root.innerHTML = ''; return; }
+  dirNormalizeView();
   const dates = dirWeek();
-  const leadersOn = dirView === 'leaders' && typeof ldBodyHtml === 'function';
+  const peopleOn = dirView === 'people' && typeof ldBodyHtml === 'function';
   const reportOn = dirView === 'report' && typeof lrBodyHtml === 'function';
   const pointsOn = dirView === 'points' && typeof ptBodyHtml === 'function';
-  const teamOn = dirView === 'team' && typeof tpBodyHtml === 'function';
-  const briefOn = !leadersOn && !reportOn && !pointsOn && !teamOn;
-  const panes = `<div class="uo-panes" role="tablist" aria-label="View"><button type="button" class="uo-pane-btn ${briefOn ? 'active' : ''}" data-dir-view="brief">Brief</button><button type="button" class="uo-pane-btn ${leadersOn ? 'active' : ''}" data-dir-view="leaders">Leaders</button>${typeof tpBodyHtml === 'function' ? `<button type="button" class="uo-pane-btn ${teamOn ? 'active' : ''}" data-dir-view="team">Team</button>` : ''}${typeof lrBodyHtml === 'function' ? `<button type="button" class="uo-pane-btn ${reportOn ? 'active' : ''}" data-dir-view="report">Weekly report</button>` : ''}${typeof ptBodyHtml === 'function' ? `<button type="button" class="uo-pane-btn ${pointsOn ? 'active' : ''}" data-dir-view="points">Points</button>` : ''}</div>`;
+  const nav = dirNavHtml();
   if(pointsOn){
-    root.innerHTML = `
-      <div class="dir-head">
-        <div><h2 class="dir-title">Accountability points</h2><p class="dir-sub">${ptHeadSub()}</p></div>
-        <div class="dir-actions">${panes}${ptActionsHtml()}</div>
-      </div>
-      ${ptBodyHtml()}`;
-    return;
-  }
-  if(teamOn){
-    root.innerHTML = `
-      <div class="dir-head">
-        <div><h2 class="dir-title">Team</h2><p class="dir-sub">${tpHeadSub()}</p></div>
-        <div class="dir-actions">${panes}${tpActionsHtml()}</div>
-      </div>
-      ${tpBodyHtml()}`;
+    root.innerHTML = `${dirHeadHtml('Points', ptHeadSub(), '', [])}${nav}${ptActionsHtml()}${ptBodyHtml()}`;
     return;
   }
   if(reportOn){
     const rep = {dates: getWeekDays(lrWeekOffset).map(d => d.date)};
-    root.innerHTML = `
-      <div class="dir-head">
-        <div><h2 class="dir-title">Weekly leader report</h2>${lrHeadHtml(rep)}</div>
-        <div class="dir-actions">${panes}${lrActionsHtml()}</div>
-      </div>
-      ${lrBodyHtml()}`;
+    const sub = lrHeadHtml(rep).replace(/^<p class="dir-sub">/, '').replace(/<\/p>$/, '');
+    const pick = dirPickHtml('lrWeekPick', 'Week', LR_WEEKS.map(w => ({value: w.offset, on: lrWeekOffset === w.offset, label: w.label, attr: `data-lr-week="${w.offset}"`})));
+    root.innerHTML = `${dirHeadHtml('Weekly report', sub, pick, [{attr: 'data-lr-copy', label: 'Copy report'}, {attr: 'data-lr-pdf', label: 'PDF'}])}${nav}${lrBodyHtml()}`;
     return;
   }
-  if(leadersOn){
-    root.innerHTML = `
-      <div class="dir-head">
-        <div><h2 class="dir-title">Directors</h2><p class="dir-sub">${ldOpen ? escapeHtml(ldQuarterBounds(ldQuarterOn()).label) + ' · ' + escapeHtml(ldQuarterBounds(ldQuarterOn()).span) : 'Each leader’s quarter: PEAs, focus, notes'}</p></div>
-        <div class="dir-actions">${panes}${ldActionsHtml()}</div>
-      </div>
-      ${ldBodyHtml()}`;
+  if(peopleOn){
+    const leaders = dirPeople === 'leaders';
+    const team = !leaders && typeof tpPeopleHtml === 'function';
+    const body = leaders ? ldBodyHtml() : team ? tpPeopleHtml() : ldBodyHtml();
+    const profile = leaders ? !!ldOpen : team ? !!tpOpen : false;
+    const b = ldQuarterBounds(leaders ? ldQuarterOn() : tpQuarterOn());
+    const sub = profile ? `${escapeHtml(b.label)} · ${escapeHtml(b.span)}` : `PEA development · ${escapeHtml(b.label)}`;
+    const share = leaders
+      ? (ldOpen ? [{attr: 'data-ld-copy', label: 'Copy profile'}] : (typeof ldiCardHtml === 'function' ? [{attr: 'data-ldi-open', label: ldiOpen ? 'Close import' : 'Bring notes in'}] : []))
+      : (tpOpen ? [{attr: 'data-tp-copy', label: 'Copy profile'}, {attr: 'data-tp-pdf', label: 'PDF'}] : [{attr: 'data-tp-copy', label: 'Copy board'}]);
+    root.innerHTML = `${dirHeadHtml('People', sub, dirQuarterSelect(), share)}${profile ? '' : nav + dirPeopleChipsHtml()}${body}`;
     return;
   }
   const hasRoster = dates.some(iso => fohRoster[iso] && fohRoster[iso].length);
@@ -273,16 +326,10 @@ function renderDirectorsView(){
   if(nums.waste) numParts.push(`<div class="dir-num"><span>Waste last week</span><b>${nums.waste.under} of ${nums.waste.days}</b><small>days under $${nums.waste.limit}</small></div>`);
   if(nums.orders != null) numParts.push(`<div class="dir-num"><span>Uniform orders open</span><b>${nums.orders}</b><small>Uniforms tab</small></div>`);
 
+  const weekPick = dirPickHtml('dirWeekPick', 'Week', [{value: 0, on: dirWeekOffset === 0, label: 'This week', attr: 'data-dir-week="0"'}, {value: 1, on: dirWeekOffset === 1, label: 'Next week', attr: 'data-dir-week="1"'}]);
   root.innerHTML = `
-    <div class="dir-head">
-      <div><h2 class="dir-title">Directors</h2><p class="dir-sub">${escapeHtml(dirDay(dates[0]))} – ${escapeHtml(dirDay(dates[dates.length - 1]))}</p></div>
-      <div class="dir-actions">
-        ${panes}
-        <div class="uo-panes" role="tablist" aria-label="Week"><button type="button" class="uo-pane-btn ${dirWeekOffset === 0 ? 'active' : ''}" data-dir-week="0">This week</button><button type="button" class="uo-pane-btn ${dirWeekOffset === 1 ? 'active' : ''}" data-dir-week="1">Next week</button></div>
-        <button type="button" class="btn btn-ghost dir-btn" data-dir-copy>Copy brief</button>
-        <button type="button" class="btn btn-ghost dir-btn" data-dir-pdf>PDF</button>
-      </div>
-    </div>
+    ${dirHeadHtml('Brief', `${escapeHtml(dirDay(dates[0]))} – ${escapeHtml(dirDay(dates[dates.length - 1]))}`, weekPick, [{attr: 'data-dir-copy', label: 'Copy brief'}, {attr: 'data-dir-pdf', label: 'PDF'}])}
+    ${nav}
     ${!hasRoster ? `<p class="dir-empty">No roster for this week yet. Import the week's HotSchedules CSV in Manage → Uploads and the days fill in.</p>` : ''}
     <section class="dir-card"><h3>The week at a glance</h3><p class="dir-note">Leaders are the leader list in Manage, Team Leader shifts and anyone set as Lead Captain. Directors’ time is their Administrative shifts. A gap is ${DIR_GAP_MIN} minutes or more with no leader on.</p><div class="dir-days">${dayRows}</div><p class="dir-note dir-tl-key"><span class="is-leader">■</span> leaders <span class="is-director">■</span> directors <span class="is-gap">■</span> no leader on</p></section>
     <section class="dir-card"><h3>Where directors overlap leaders</h3>
@@ -373,12 +420,40 @@ function dirPdf(text = dirBriefText(), fileName = `directors-brief-${dirWeek()[0
 document.addEventListener('click', e => {
   const t = e.target && e.target.closest ? e.target : null;
   if(!t || !t.closest('#directorsRoot')) return;
+  const share = t.closest('[data-dir-share]');
+  if(share){ dirShareToggle(share); return; }
+  const item = t.closest('.dir-share-item');
+  if(item){
+    // Copy items stay open long enough to read "Copied"; the rest close now.
+    const menu = item.closest('.dir-share-menu');
+    const copies = /^data-(dir|ld|tp|lr)-copy$/;
+    if([...item.attributes].some(a => copies.test(a.name))) setTimeout(() => dirShareClose(menu), 1700); else dirShareClose(menu);
+  }
   const vw = t.closest('[data-dir-view]');
-  if(vw){ dirView = vw.dataset.dirView; renderDirectorsView(); window.scrollTo(0, 0); return; }
-  const wk = t.closest('[data-dir-week]');
+  if(vw){ dirSetView(vw.dataset.dirView); if(vw.dataset.dirPeople) dirSetPeople(vw.dataset.dirPeople); renderDirectorsView(); window.scrollTo(0, 0); return; }
+  const who = t.closest('[data-dir-people]');
+  if(who){ dirSetPeople(who.dataset.dirPeople); renderDirectorsView(); return; }
+  const wk = t.closest('button[data-dir-week]');
   if(wk){ dirWeekOffset = +wk.dataset.dirWeek; renderDirectorsView(); return; }
   if(t.closest('[data-dir-copy]')){ dirCopy(t.closest('[data-dir-copy]')); return; }
   if(t.closest('[data-dir-pdf]')){ dirPdf(); return; }
+});
+// A tap anywhere outside the share control closes its menu.
+document.addEventListener('click', e => {
+  const t = e.target && e.target.closest ? e.target : null;
+  if(t && t.closest('.dir-share')) return;
+  if(!document.querySelectorAll) return;
+  document.querySelectorAll('#directorsRoot .dir-share-menu:not([hidden])').forEach(dirShareClose);
+});
+document.addEventListener('change', e => {
+  const el = e.target;
+  if(!el || !el.id) return;
+  if(el.id === 'dirWeekPick'){ dirWeekOffset = +el.value; renderDirectorsView(); return; }
+  if(el.id === 'dirQuarter'){
+    if(typeof ldQuarter !== 'undefined') ldQuarter = el.value;
+    if(typeof tpQuarter !== 'undefined') tpQuarter = el.value;
+    renderDirectorsView();
+  }
 });
 
 // ----- Manage → Settings: the director team -----

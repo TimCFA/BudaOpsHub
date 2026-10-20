@@ -346,7 +346,7 @@ function ldSummaryHtml(){
   return `<section class="dir-card"><h3>PEA scoreboard</h3>
     ${ldTeamBar(S)}
     ${top.length ? `<ul class="dir-list dir-list-sm ld-mini">${top.map(L => `<li class="${L.status === 'behind' ? 'is-flag' : ''}"><span>${escapeHtml(ldShort(L.name))}</span><span class="dir-muted"><b>${L.count}</b> of ${L.goal}${L.streak > 1 ? ` · ${L.streak}-week streak` : ''}</span></li>`).join('')}</ul>` : ''}
-    <button type="button" class="btn btn-ghost dir-btn" data-dir-view="leaders">Open Leaders</button>
+    <button type="button" class="btn btn-ghost dir-btn" data-dir-view="people" data-dir-people="leaders">Open People</button>
   </section>`;
 }
 function ldBriefLines(){
@@ -424,7 +424,7 @@ function ldProfileHtml(){
   if(curM) months += '</ul>';
 
   return `
-    <button type="button" class="ld-back" data-ld-back>← All leaders</button>
+    <button type="button" class="ld-back" data-ld-back>← People</button>
     <section class="dir-card ld-profile">
       <div class="ld-profile-head"><div><h3>${escapeHtml(name)}</h3><p class="dir-sub">${escapeHtml(L.roles.length ? L.roles.join(' · ') : 'Team Leader')} · ${escapeHtml(S.quarter.label)}</p></div>${ldStatusChip(L.status)}</div>
       <div class="ld-score">

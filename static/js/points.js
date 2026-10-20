@@ -52,7 +52,13 @@ const PT_REVIEW_CHOICES = {
   extended: [['extended', 'Covered the team (−10)'], ['dismiss', 'Didn’t cover the team (0)']]
 };
 
-let ptPane = 'board';     // 'upload' | 'review' | 'board'
+let ptPane = 'board';     // 'board' | 'review' | 'messages' | 'tasks' | 'memos' | 'upload' | 'add' | 'settings'
+// Three panes on screen (Tim, Oct 19 2026): Board, Inbox (review, messages
+// and tasks stacked, with counts) and More (memos, upload, add points,
+// settings). ptPane keeps the finer value so each section's code is as it was.
+const PT_GROUPS = {board: ['board'], inbox: ['review', 'messages', 'tasks'], more: ['memos', 'upload', 'add', 'settings']};
+function ptGroupOf(pane){ return Object.keys(PT_GROUPS).find(g => PT_GROUPS[g].includes(pane)) || 'board'; }
+let ptMoreLast = 'memos';  // the More section last opened
 let ptDetail = '';        // the team member open on the scoreboard ('' = the list)
 let ptPending = null;     // a read report waiting to be added
 let ptSearch = '';
@@ -229,8 +235,13 @@ function ptHeadSub(){
 
 function ptActionsHtml(){
   const sc = ptScored(), n = ptReviewItems().length, m = ptMessageCards(sc).length, t = ptTasks(sc).length;
-  const b = (id, label, k) => `<button type="button" class="uo-pane-btn ${ptPane === id ? 'active' : ''}" data-pt-pane="${id}">${label}${k ? ` · ${k}` : ''}</button>`;
-  return `<div class="uo-panes pt-panes" role="tablist" aria-label="Points">${b('board', 'Scoreboard')}${b('review', 'Review', n)}${b('messages', 'Messages', m)}${b('tasks', 'Tasks', t)}${b('memos', 'Memos')}${b('upload', 'Upload')}${b('add', 'Add points')}${b('settings', 'Settings')}</div>`;
+  const g = ptGroupOf(ptPane);
+  if(g === 'more') ptMoreLast = ptPane;
+  const b = (id, pane, label, k) => `<button type="button" class="uo-pane-btn ${g === id ? 'active' : ''}" data-pt-pane="${pane}">${label}${k ? ` · ${k}` : ''}</button>`;
+  const chip = (attr, id, label, k) => `<button type="button" class="ld-chip" ${attr}="${id}" aria-pressed="${ptPane === id ? 'true' : 'false'}">${label}${k ? ` · ${k}` : ''}</button>`;
+  const sub = g === 'inbox' ? `<div class="ld-chips pt-sub" aria-label="Inbox">${chip('data-pt-jump', 'review', 'Review', n)}${chip('data-pt-jump', 'messages', 'Messages', m)}${chip('data-pt-jump', 'tasks', 'Tasks', t)}</div>`
+    : g === 'more' ? `<div class="ld-chips pt-sub" role="tablist" aria-label="More">${chip('data-pt-pane', 'memos', 'Memos')}${chip('data-pt-pane', 'upload', 'Upload')}${chip('data-pt-pane', 'add', 'Add points')}${chip('data-pt-pane', 'settings', 'Settings')}</div>` : '';
+  return `<div class="uo-panes dir-sub pt-panes" role="tablist" aria-label="Points">${b('board', 'board', 'Board')}${b('inbox', 'review', 'Inbox', n + m + t)}${b('more', ptMoreLast, 'More')}</div>${sub}`;
 }
 
 function ptUploadHtml(){
@@ -340,8 +351,8 @@ function ptDetailHtml(tm, s){
 function ptBodyHtml(){
   if(typeof APS === 'undefined') return '<p class="dir-empty">The points engine didn’t load. Reload the page.</p>';
   const banner = ptSettings().testMode ? `<p class="pt-test-banner" role="status"><b>Test run.</b> Nothing here counts. End it in Settings to wipe it and go live.</p>` : '';
-  return banner + (ptPane === 'upload' ? ptUploadHtml() : ptPane === 'review' ? ptReviewHtml() : ptPane === 'messages' ? ptMessagesHtml()
-    : ptPane === 'tasks' ? ptTasksHtml() : ptPane === 'memos' ? (ptMemoDraft ? ptMemoFormHtml() : ptMemosHtml())
+  if(ptGroupOf(ptPane) === 'inbox') return banner + `<div id="ptSecReview">${ptReviewHtml()}</div><div id="ptSecMessages">${ptMessagesHtml()}</div><div id="ptSecTasks">${ptTasksHtml()}</div>`;
+  return banner + (ptPane === 'upload' ? ptUploadHtml() : ptPane === 'memos' ? (ptMemoDraft ? ptMemoFormHtml() : ptMemosHtml())
     : ptPane === 'add' ? ptAddHtml() : ptPane === 'settings' ? ptSettingsHtml() : ptBoardHtml());
 }
 
@@ -801,8 +812,15 @@ function ptStatus(text){ const el = document.querySelector('#directorsRoot [data
 document.addEventListener('click', e => {
   const t = e.target && e.target.closest ? e.target : null;
   if(!t || !t.closest('#directorsRoot')) return;
+  const jump = t.closest('[data-pt-jump]');
+  if(jump){
+    ptPane = jump.dataset.ptJump; renderDirectorsView();
+    const sec = document.getElementById && document.getElementById('ptSec' + ptPane.charAt(0).toUpperCase() + ptPane.slice(1));
+    if(sec && sec.scrollIntoView) sec.scrollIntoView({block: 'start', behavior: 'smooth'});
+    return;
+  }
   const pane = t.closest('[data-pt-pane]');
-  if(pane){ ptPane = pane.dataset.ptPane; ptDetail = ''; ptMemoDraft = null; ptConfirm = ''; ptAddForm.out = ''; renderDirectorsView(); return; }
+  if(pane){ ptPane = pane.dataset.ptPane; ptDetail = ''; ptMemoDraft = null; ptConfirm = ''; ptAddForm.out = ''; renderDirectorsView(); window.scrollTo(0, 0); return; }
   const open = t.closest('[data-pt-open]');
   if(open){ ptDetail = open.dataset.ptOpen; renderDirectorsView(); window.scrollTo(0, 0); return; }
   if(t.closest('[data-pt-back]')){ ptDetail = ''; renderDirectorsView(); return; }
