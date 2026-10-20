@@ -120,7 +120,7 @@ class TheOrder(unittest.TestCase):
         # $20s don't run down: 54 on hand, build to $600 = 30 → nothing.
         self.assertEqual(d['by']['20'][3:5], [0, 0])
         self.assertEqual(d['total'], 700)
-        # No delivery days set yet: two. Never below zero at delivery.
+        # The store's two days from ordering to delivery (Tim) until another is saved. Never below zero at delivery.
         d = model(WEEK, {'buildTo': {'1': 500}})
         self.assertEqual((d['lead'], d['by']['1'][6]), (2, 320))
         d = model(WEEK, {'buildTo': {'1': 500}, 'leadDays': 30})

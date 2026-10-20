@@ -29,7 +29,7 @@ const SO_ITEMS = [
   {key: 'Nickels', label: 'Nickels', unit: 'roll', value: 2}
 ];
 const SO_WINDOW_DAYS = 28;
-const SO_LEAD_DEFAULT = 2;      // days from ordering to delivery until it's set
+const SO_LEAD_DEFAULT = 2;      // days from ordering to delivery: the store's (Tim, Oct 20 2026) until a director saves another
 // The store's change fund build-tos, in dollars (Tim's sheet, Oct 20 2026;
 // pennies $0, and no $10s or $20s ordered). They stand until a director
 // saves others on the card.
