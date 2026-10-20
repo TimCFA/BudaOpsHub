@@ -254,11 +254,14 @@ function createWeeklyImportPreviewModal(){
   `;
   document.body.insertAdjacentHTML('beforeend', html);
 
+  // The next roster from the same upload, if one is waiting (upload-bundle.js).
+  const next = () => { if(typeof duRosterNext === 'function') duRosterNext(); };
   document.getElementById('btnCancelWeeklyImport').addEventListener('click', ()=>{
     document.getElementById('weeklyImportPreviewModal').classList.remove('active');
+    next();
   });
   document.getElementById('weeklyImportPreviewModal').addEventListener('click', (e)=>{
-    if(e.target === document.getElementById('weeklyImportPreviewModal')) document.getElementById('weeklyImportPreviewModal').classList.remove('active');
+    if(e.target === document.getElementById('weeklyImportPreviewModal')){ document.getElementById('weeklyImportPreviewModal').classList.remove('active'); next(); }
   });
   document.getElementById('btnConfirmWeeklyImport').addEventListener('click', confirmWeeklyImport);
 }
@@ -366,4 +369,5 @@ async function confirmWeeklyImport(){
   updateSelectedDayInfo('daySelect', 'daySelectedInfo');
   renderDataUploads();
   showToast(changesNow ? `✓ Roster saved · ${changesNow} shift change${changesNow === 1 ? '' : 's'}` : '✓ Weekly Roster Imported!');
+  if(typeof duRosterNext === 'function') duRosterNext();
 }

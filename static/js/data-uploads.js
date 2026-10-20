@@ -508,8 +508,25 @@ async function duImportProductivity(file, text, dayChoice){
 // `hint`: the report row the files were uploaded from. A file that's
 // clearly something else is still filed where it belongs.
 async function duHandleFiles(fileList, hint){
-  const files = Array.from(fileList || []);
+  let files = Array.from(fileList || []);
   if(!files.length) return;
+  // A bundle zip (the schedule build's reports, upload-bundle.js): its files,
+  // each filed as if it had been dropped on its own.
+  const fromBundle = new Set();
+  let bundleName = '';
+  if(typeof duOpenBundle === 'function' && files.some(f => /\.zip$/i.test(f.name))){
+    const out = [];
+    for(const f of files){
+      if(!/\.zip$/i.test(f.name)){ out.push(f); continue; }
+      let inner = null;
+      try{ inner = await duOpenBundle(f); }
+      catch(err){ duResults = [{file: f.name, state: 'error', text: err.message}]; renderDataUploads(); showToast(err.message); return; }
+      if(!inner){ out.push(f); continue; }
+      inner.forEach(x => { fromBundle.add(x); out.push(x); });
+      bundleName = f.name;
+    }
+    files = out;
+  }
   duResults = files.map(f => ({file: f.name, state: 'working', text: 'Reading…'}));
   renderDataUploads();
   // CEM files first so the scoreboard ends on the newest month; the roster
@@ -518,18 +535,25 @@ async function duHandleFiles(fileList, hint){
   const jobs = [];
   for(let i = 0; i < files.length; i++){
     const file = files[i];
+    if(fromBundle.has(file) && /\.(png|jpe?g|webp)$/i.test(file.name)){
+      duResults[i] = {file: file.name, state: 'waiting', kind: 'Picture', text: 'If it’s the month’s marketing calendar, read it into Events. The reader shows what it found before anything is added.', action: {key: duBundleImage(file), label: 'Read into Events'}};
+      continue;
+    }
     try{
       const isPdf = /\.(pdf|zip)$/i.test(file.name);
       const isExcel = /\.(xlsx|xls)$/i.test(file.name);
       const buffer = isPdf ? null : await duReadFile(file, true);
       const text = buffer && !isExcel ? pbDecodeText(buffer) : '';
       const workbook = isExcel ? XLSX.read(new Uint8Array(buffer), {type: 'array'}) : null;
+      const aside = fromBundle.has(file) ? duScheduleOnly(file, text) : null;
+      if(aside){ duResults[i] = {file: file.name, state: 'skip', kind: aside.skip, text: aside.why}; continue; }
       jobs.push({i, file, kind: hint === 'punch' ? 'punch' : (duDetect(file, text, workbook) || hint || null), text, buffer});
     }catch(err){
       duResults[i] = {file: file.name, state: 'error', text: err.message};
     }
   }
-  jobs.sort((a, b) => (order[a.kind] ?? 9) - (order[b.kind] ?? 9));
+  // Rosters in week order, so their reviews open earliest week first.
+  jobs.sort((a, b) => ((order[a.kind] ?? 9) - (order[b.kind] ?? 9)) || (a.kind === 'roster' && b.kind === 'roster' ? String(weeklyRosterStartFromFileName(a.file.name) || '').localeCompare(String(weeklyRosterStartFromFileName(b.file.name) || '')) : 0));
   for(const job of jobs){
     const src = DU_SOURCES.find(s => s.key === job.kind);
     try{
@@ -542,7 +566,15 @@ async function duHandleFiles(fileList, hint){
         try{ text = await duImportSalesMix(job.file, iso); }
         catch(err){ if(!err.twin) throw err; duWaitTwin(job.i, job.file, iso, err.twin); continue; }
       }
-      else if(job.kind === 'roster') text = duImportRoster(job.file, job.text);
+      else if(job.kind === 'roster'){
+        if(fromBundle.has(job.file) && duRosterWeekOver(job.file)){
+          duResults[job.i] = {file: job.file.name, state: 'skip', kind: 'HotSchedules weekly roster', text: 'That week is over; nothing to update.'};
+          continue;
+        }
+        // One review at a time: the next roster opens when this one is saved or cancelled.
+        if(duRosterReviewOpen()){ duRosterQueue.push({file: job.file, text: job.text, i: job.i}); text = 'Opens next, after the week before it is saved or cancelled.'; }
+        else text = duImportRoster(job.file, job.text);
+      }
       else if(job.kind === 'numbers') text = await knImportFile(job.file);
       else if(job.kind === 'sales') text = await rpImportSales(job.file, job.text);
       else if(job.kind === 'dayparts') text = await fcImportDaypartWeek(job.file, job.text);
@@ -584,6 +616,12 @@ async function duHandleFiles(fileList, hint){
   }
   renderDataUploads();
   const ok = duResults.filter(r => r.state === 'ok').length;
+  const aside = duResults.filter(r => r.state === 'skip').length;
+  if(bundleName){
+    const pics = duResults.filter(r => r.action).length;
+    showToast(`${duBundleBaseName(bundleName)}: ${ok} filed${aside ? ` · ${aside} set aside` : ''}${pics ? ` · ${pics} picture${pics === 1 ? '' : 's'} to check` : ''}`);
+    return;
+  }
   const twins = duResults.filter(r => r.state === 'waiting' && /^Not saved yet — identical/.test(r.text)).length;
   const waiting = duResults.filter(r => r.state === 'waiting').length - twins;
   if(twins) showToast(`⚠ ${twins} file${twins === 1 ? ' matches' : 's match'} another day’s counts — not saved. Check Data Uploads.`);
@@ -1066,6 +1104,13 @@ function duLevelsetHtml(){
 // their month grids ran four screens); "Show the N up to date" opens the rest.
 let duShowAll = false;
 
+// What needs a look first: problems, then what's waiting on a tap, then
+// what was filed; files set aside (a bundle's schedule-only reports) last.
+function duResultsShown(){
+  const rank = {error: 0, waiting: 1, working: 2, ok: 2, skip: 3};
+  return duResults.map((r, i) => ({r, i})).sort((a, b) => ((rank[a.r.state] ?? 2) - (rank[b.r.state] ?? 2)) || a.i - b.i).map(x => x.r);
+}
+
 function renderDataUploads(){
   const root = document.getElementById('dataUploadsRoot');
   if(!root) return;
@@ -1081,7 +1126,7 @@ function renderDataUploads(){
       <span class="du-drop-main">Drop files here or tap to choose</span>
       <span class="du-drop-sub">Any of the reports below, several at once — each is recognized and filed where it belongs.</span>
     </label>
-    ${duResults.length ? `<ul class="du-results">${duResults.map(r => `<li class="du-result is-${r.state}"><b>${escapeHtml(r.file)}</b>${r.kind ? ` <span>${escapeHtml(r.kind)}</span>` : ''}<div>${escapeHtml(r.text)}</div></li>`).join('')}</ul>` : ''}
+    ${duResults.length ? `<ul class="du-results">${duResultsShown().map(r => `<li class="du-result is-${r.state}"><b>${escapeHtml(String(r.file).replace(/^[0-9a-f]{8}-/i, ''))}</b>${r.kind ? ` <span>${escapeHtml(r.kind)}</span>` : ''}<div>${escapeHtml(r.text)}</div>${r.action ? `<button type="button" class="du-sync-btn du-result-act" data-du-evi="${escapeHtml(r.action.key)}">${escapeHtml(r.action.label)}</button>` : ''}</li>`).join('')}</ul>` : ''}
     <ul class="du-list">
       ${shown.map(({src, st}) => {
         const s = DU_STATUS[st.status];
@@ -1122,6 +1167,8 @@ document.getElementById('dataUploadsRoot').addEventListener('click', e=>{
   if(e.target.closest('[data-du-levelset]')) peaLevelsetSync(false);
   if(e.target.closest('[data-du-forecast]')){ fcTab = 'forecast'; fcNumbersOpen = true; launchShowTab('forecast'); const c = document.getElementById('fcNumbersCard'); if(c && c.scrollIntoView) c.scrollIntoView({block: 'start'}); }
   if(e.target.closest('[data-du-restore]')) duRestoreBackup();
+  const evi = e.target.closest('[data-du-evi]');
+  if(evi && typeof duReadBundleImage === 'function') duReadBundleImage(evi.dataset.duEvi);
 });
 
 document.getElementById('dataUploadsRoot').addEventListener('change', async e=>{

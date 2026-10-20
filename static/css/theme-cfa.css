@@ -1953,3 +1953,8 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
   .ld-q.dir-pick > span{display:none;}
   .dir-head .dir-title{font-size:22px;}
 }
+
+/* Manage → Uploads: a bundle's set-aside files and pictures to read (upload-bundle.js; Tim, Oct 19 2026). */
+.du-result.is-skip{border-left-color:var(--border);background:transparent;}
+.du-result.is-skip div{color:var(--text-secondary);}
+.du-result .du-result-act{margin-top:6px;}
