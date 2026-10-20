@@ -34,6 +34,12 @@ const SO_LEAD_DEFAULT = 2;      // days from ordering to delivery: the store's (
 // pennies $0, and no $10s or $20s ordered). They stand until a director
 // saves others on the card.
 const SO_BUILD_TO_STORE = {'5': 1000, '1': 520, Quarters: 300, Dimes: 200, Nickels: 80};
+// How the bank sells them (Tim, Oct 20 2026): $1s only in bundles of 100;
+// $5s come in bundles of $500 (100 bills) but any number can be ordered;
+// coin in any number of rolls. Ordering steps stand until a director saves
+// others; the bundles show on the order so it's easy to place.
+const SO_STEP_STORE = {'1': 100};
+const SO_BUNDLE = {'1': 100, '5': 100};
 const SO_DAY_MS = 86400000;
 let soEditing = false;
 
@@ -84,7 +90,8 @@ function soModel(list, settings, now){
     // The build-to in dollars, as bills or rolls (an older par was a count).
     const target = Number(buildTo[item.key]) > 0 ? Math.floor(Number(buildTo[item.key]) / item.value)
       : Number(par[item.key]) > 0 ? Math.floor(Number(par[item.key])) : 0;
-    const s = Number(step[item.key]) > 0 ? Math.floor(Number(step[item.key])) : 1;
+    const steps = S.step && Object.keys(S.step).length ? step : SO_STEP_STORE;
+    const s = Number(steps[item.key]) > 0 ? Math.floor(Number(steps[item.key])) : 1;
     const atDelivery = onHand === null ? null : Math.max(0, Math.floor(onHand - (perDay || 0) * lead));
     const need = atDelivery === null || !target ? 0 : Math.max(0, target - atDelivery);
     const order = need ? Math.ceil(need / s) * s : 0;
@@ -101,6 +108,13 @@ function soLeadDays(S){
 
 function soMoney(n){ return '$' + Math.round(n).toLocaleString('en-US'); }
 function soUnits(n, unit){ return `${n.toLocaleString('en-US')} ${unit}${n === 1 ? '' : 's'}`; }
+// "1 bundle + 56 bills" for a bill the bank bundles; '' when it's whole bundles or none.
+function soBundles(r){
+  const per = SO_BUNDLE[r.key];
+  if(!per || r.order < per) return '';
+  const b = Math.floor(r.order / per), rest = r.order % per;
+  return `${b} bundle${b === 1 ? '' : 's'}${rest ? ` + ${soUnits(rest, r.unit)}` : ''}`;
+}
 function soRunsOut(daysLeft, now){
   if(daysLeft === null) return '';
   if(daysLeft < 1) return 'out today';
@@ -110,7 +124,7 @@ function soRunsOut(daysLeft, now){
 
 // The order in words, for the bank.
 function soOrderText(m, dateLabel){
-  const lines = m.rows.filter(r => r.order).map(r => `${r.label}: ${soUnits(r.order, r.unit)} (${soMoney(r.dollars)})`);
+  const lines = m.rows.filter(r => r.order).map(r => `${r.label}: ${soUnits(r.order, r.unit)} (${soMoney(r.dollars)})${soBundles(r) ? ` = ${soBundles(r)}` : ''}`);
   return lines.length ? `Change order, Chick-fil-A Buda, ${dateLabel}\n${lines.join('\n')}\nTotal: ${soMoney(m.total)}` : '';
 }
 
@@ -146,7 +160,7 @@ function renderSafeOrder(){
           ${r.target && r.perDay && r.atDelivery !== null ? `<span class="so-have so-at">~${r.atDelivery.toLocaleString('en-US')} left when the order arrives</span>` : ''}
           <span class="so-lasts ${tone}">${escapeHtml(lasts)}</span>
         </div>
-        ${r.order ? `<span class="so-order"><b>${soUnits(r.order, r.unit)}</b><small>${soMoney(r.dollars)}</small></span>` : r.target ? '<span class="so-order is-none">Full</span>' : ''}
+        ${r.order ? `<span class="so-order"><b>${soUnits(r.order, r.unit)}</b><small>${soMoney(r.dollars)}${soBundles(r) ? ` · ${escapeHtml(soBundles(r))}` : ''}</small></span>` : r.target ? '<span class="so-order is-none">Full</span>' : ''}
       </div>`;
   };
   root.innerHTML = `

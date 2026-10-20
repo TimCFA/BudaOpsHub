@@ -101,7 +101,7 @@ class TheOrder(unittest.TestCase):
         self.assertEqual(d['by']['Quarters'][3:5], [20, 200])       # need 17 rolls → boxes of 10 → 20 rolls, $200
         self.assertEqual(d['by']['20'][3:5], [0, 0])                # 54 on hand, over par
         self.assertEqual(d['total'], 640)
-        self.assertEqual(d['text'], 'Change order, Chick-fil-A Buda, Tue, Oct 20\n$1: 200 bills ($200)\n$5: 48 bills ($240)\n'
+        self.assertEqual(d['text'], 'Change order, Chick-fil-A Buda, Tue, Oct 20\n$1: 200 bills ($200) = 2 bundles\n$5: 48 bills ($240)\n'
                                     'Quarters: 20 rolls ($200)\nTotal: $640')
 
     def test_build_to_in_dollars_counting_what_goes_out_before_delivery(self):
@@ -135,6 +135,12 @@ class TheOrder(unittest.TestCase):
         self.assertEqual(d['by']['1'][3:5], [200, 200])
         self.assertEqual(d['by']['5'][3:5], [156, 780])           # 52 on hand − 8 by delivery = 44; 200 − 44
         self.assertEqual(d['by']['10'][3:5], [0, 0])              # no $10s or $20s on the sheet
+        # How the bank sells them: $1s in bundles of 100, $5s any number (bundles of 100 shown), coin any rolls.
+        d = model([dict(WEEK[-1], bills={'1': 300, '5': 260})], {})
+        self.assertEqual(d['by']['1'][3], 300)                    # need 220 → 3 bundles
+        self.assertEqual(d['by']['5'][3], 148)                    # 200 − 52, not rounded
+        self.assertEqual(d['by']['Quarters'][3], 7)               # 30 − 23 rolls
+        self.assertIn('$1: 300 bills ($300) = 3 bundles\n$5: 148 bills ($740) = 1 bundle + 48 bills\n', d['text'])
         # Saved build-tos replace the sheet's.
         d = model(WEEK, {'buildTo': {'1': 400}})
         self.assertEqual({k: v[7] for k, v in d['by'].items() if v[7]}, {'1': 400})
