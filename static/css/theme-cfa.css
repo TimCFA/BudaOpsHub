@@ -1761,6 +1761,10 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .tp-timeline li.is-nogoal > span:first-child{color:var(--text-tertiary);}
 .tp-nogoal{font-style:normal;font-size:11px;font-weight:600;color:#8A5600;background:#FFF3DD;border-radius:999px;padding:1px 7px;margin-left:4px;}
 
+/* Waste: Top Items Today, each bar its share of the day's waste (waste-log.js; Tim, Oct 19 2026). */
+.bar-item .bi-top .bv-share{font-family:var(--font-ui);font-size:12px;font-weight:600;opacity:.7;}
+.bar-list-note{font-size:12px;opacity:.75;text-transform:none;letter-spacing:0;}
+
 /* ===== Set Ups frame (Tim, Oct 18 2026) =====
    One pinned strip (FOH/BOH, a week back, the days, a week forward), a
    status line, a chip row, two-line closed cards, the tier key once. */

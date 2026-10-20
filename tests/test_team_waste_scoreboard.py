@@ -112,5 +112,17 @@ class PageWiring(unittest.TestCase):
         self.assertIn("if(typeof launchManager === 'undefined' || !launchManager){ root.innerHTML = ''; return; }", read('static', 'js', 'waste-dash.js'))
 
 
+class TopItemsBars(unittest.TestCase):
+    """Tim, Oct 19 2026: a full bar read as an alarm. Each bar is now the
+    item's share of today's waste, with the percent beside the dollars."""
+    def test_bars_are_shares_of_the_day(self):
+        js = read('static', 'js', 'waste-log.js')
+        self.assertNotIn('maxVal', js)
+        self.assertIn('const dayTotal = Object.values(byProduct).reduce((a, b) => a + b, 0);', js)
+        self.assertIn('<div class="bar-fill" style="width:${share(cost).toFixed(1)}%"></div>', js)
+        self.assertIn('<span class="bv-share">· ${shareText(cost)}</span>', js)
+        self.assertIn('· share of today’s waste', read('cfa-buda-ops-hub-complete.html'))
+
+
 if __name__ == '__main__':
     unittest.main()
