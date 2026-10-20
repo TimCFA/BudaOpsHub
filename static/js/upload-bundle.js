@@ -29,6 +29,7 @@ const DU_BUNDLE_MAX_BYTES = 40 * 1024 * 1024;
 let duJsZip = null;
 let duBundleImages = {};      // key → the calendar picture waiting to be read
 let duRosterQueue = [];       // [{file, text, i}] rosters waiting their turn
+let duRosterOpen = null;      // {i, file}: the upload row whose roster review is open
 
 function duLoadJsZip(){
   if(window.JSZip) return Promise.resolve(window.JSZip);
@@ -105,11 +106,42 @@ function duRosterReviewOpen(){
 function duRosterNext(){
   const next = duRosterQueue.shift();
   if(!next) return;
-  setTimeout(() => {
-    const text = duImportRoster(next.file, next.text);
-    if(duResults[next.i] && duResults[next.i].file === next.file.name) duResults[next.i] = {...duResults[next.i], text};
-    renderDataUploads();
-  }, 250);
+  setTimeout(() => { duOpenRoster(next); renderDataUploads(); }, 250);
+}
+
+// Open a roster's review from an upload; its row waits until it's saved or
+// skipped (Tim, Oct 20 2026: a bundle can carry an outdated roster he doesn't
+// want applied, while everything else in it should be).
+function duOpenRoster(job){
+  duRosterOpen = {i: job.i, file: job.file.name};
+  duImportRoster(job.file, job.text);
+  const r = duResults[job.i];
+  if(r && r.file === job.file.name) duResults[job.i] = {...r, state: 'waiting', action: null, text: 'Open for review: Confirm & Save to apply this week, or Skip to leave it out.'};
+}
+function duRosterRow(i, file, state, text){
+  if(duResults[i] && duResults[i].file === file) duResults[i] = {...duResults[i], state, text, action: null};
+}
+// The open review was saved (true) or skipped (false).
+function duRosterDone(saved, label){
+  const open = duRosterOpen;
+  duRosterOpen = null;
+  if(!open) return;
+  duRosterRow(open.i, open.file, saved ? 'ok' : 'skip', saved ? `Saved${label ? ': ' + label : ''}.` : 'Skipped: not applied.');
+  renderDataUploads();
+}
+// A roster still waiting its turn, left out before it opens.
+function duRosterSkipQueued(i){
+  const at = duRosterQueue.findIndex(q => q.i === i);
+  if(at < 0) return;
+  const [q] = duRosterQueue.splice(at, 1);
+  duRosterRow(q.i, q.file.name, 'skip', 'Skipped: not applied.');
+  renderDataUploads();
+  if(typeof weeklyImportSyncQueue === 'function') weeklyImportSyncQueue();
+}
+// Skip the open one and every one still waiting.
+function duRosterSkipAll(){
+  duRosterQueue.splice(0).forEach(q => duRosterRow(q.i, q.file.name, 'skip', 'Skipped: not applied.'));
+  duRosterDone(false);
 }
 
 // The calendar picture: read into Events when a manager taps it.

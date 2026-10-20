@@ -2085,3 +2085,6 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .hc-imp-d{padding:2px 8px;border-radius:999px;background:var(--cfa-soft);font-size:12px;font-weight:600;color:var(--text-secondary);}
 .hc-imp-d.is-same{opacity:.55;}
 .hc-imp-d s{font-weight:400;color:var(--text-tertiary);}
+/* Roster review from an upload: how many wait after this one (weekly-roster-import.js) */
+.wi-queue{margin:-4px 0 12px;padding:8px 12px;border-radius:10px;background:var(--cfa-soft);font-family:var(--font-ui);font-size:13px;font-weight:600;color:var(--text-secondary);}
+#btnSkipAllWeeklyImport{margin-top:8px;}

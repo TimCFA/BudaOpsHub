@@ -77,18 +77,69 @@ class Wiring(unittest.TestCase):
         du = read('static', 'js', 'data-uploads.js')
         self.assertIn("if(typeof duOpenBundle === 'function' && files.some(f => /\\.zip$/i.test(f.name))){", du)
         self.assertIn("const aside = fromBundle.has(file) ? duScheduleOnly(file, text) : null;", du)
-        self.assertIn("if(duRosterReviewOpen()){ duRosterQueue.push({file: job.file, text: job.text, i: job.i});", du)
-        self.assertIn('data-du-evi="${escapeHtml(r.action.key)}"', du)
+        self.assertIn("duRosterQueue.push({file: job.file, text: job.text, i: job.i});", du)
+        self.assertIn("${r.action.skipRoster ? 'data-du-skip-roster' : 'data-du-evi'}=\"${escapeHtml(r.action.key)}\"", du)
+        self.assertIn("if(skip && typeof duRosterSkipQueued === 'function'){ duRosterSkipQueued(Number(skip.dataset.duSkipRoster)); return; }", du)
         ub = read('static', 'js', 'upload-bundle.js')
         # A zip of only PDFs (Smart Shop from Ops Hub) keeps its old reader.
         self.assertIn("if(!entries.length || entries.every(e => /\\.pdf$/i.test(e.name))) return null;", ub)
         self.assertIn("const DU_JSZIP = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';", ub)
         self.assertIn('<script src="/static/js/data-uploads.js"></script>\n<script src="/static/js/upload-bundle.js"></script>', read('cfa-buda-ops-hub-complete.html'))
 
-    def test_the_next_roster_opens_when_one_is_saved_or_cancelled(self):
+    def test_the_next_roster_opens_when_one_is_saved_or_skipped(self):
         wr = read('static', 'js', 'weekly-roster-import.js')
-        self.assertEqual(wr.count("duRosterNext()"), 2)              # the shared close helper and after Confirm & Save
-        self.assertIn("document.getElementById('weeklyImportPreviewModal').classList.remove('active');\n    next();", wr)
+        self.assertEqual(wr.count("duRosterNext()"), 2)              # the shared skip helper and after Confirm & Save
+        self.assertIn('>Skip this week (don’t apply)</button>', wr)
+        self.assertIn("if(typeof duRosterDone === 'function') duRosterDone(false);", wr)
+        self.assertIn("if(typeof duRosterDone === 'function') duRosterDone(true,", wr)
+        self.assertIn("if(typeof duRosterSkipAll === 'function') duRosterSkipAll();", wr)
+
+
+class SkipARoster(unittest.TestCase):
+    """Tim, Oct 20 2026: a bundle carried outdated HotSchedules rosters he
+    didn't want applied, while every other report in it should be. Each
+    roster review can be skipped, so can one waiting its turn, or all."""
+
+    RUN = r'''
+const fs = require('fs'), vm = require('vm');
+const ctx = {console, document: {getElementById: () => null}, setTimeout: f => f(), opened: [], renders: 0};
+vm.createContext(ctx);
+vm.runInContext(`function duImportRoster(file){ opened.push(file.name); return ''; }
+  function renderDataUploads(){ renders++; } let duResults = [];`, ctx);
+vm.runInContext(fs.readFileSync(process.argv[1], 'utf8'), ctx);
+process.stdout.write(JSON.stringify(vm.runInContext(`(() => {
+  const f = n => ({name: n});
+  duResults = ['a', 'b', 'c', 'd'].map(n => ({file: n + '.csv', state: 'waiting', text: ''}));
+  const out = [];
+  const snap = () => duResults.map(r => r.state + ':' + r.text.split(':')[0]);
+  // a opens; b, c and d wait their turn.
+  duOpenRoster({i: 0, file: f('a.csv'), text: ''});
+  [1, 2, 3].forEach(i => duRosterQueue.push({i, file: f(['a', 'b', 'c', 'd'][i] + '.csv'), text: ''}));
+  out.push(snap());
+  // c is skipped from the list before it opens; a is saved; b opens next.
+  duRosterSkipQueued(2);
+  duRosterDone(true, 'Oct 19 – Oct 25'); duRosterNext();
+  out.push(snap(), opened.slice());
+  // b is skipped in its review; d opens; then "skip all" leaves d out too.
+  duRosterDone(false); duRosterNext();
+  out.push(snap(), opened.slice());
+  duRosterSkipAll();
+  out.push(snap(), duRosterQueue.length, duRosterOpen);
+  return out;
+})()`, ctx)));
+'''
+
+    def test_skip_one_skip_a_waiting_one_skip_all(self):
+        import json
+        import subprocess
+        out = json.loads(subprocess.run(['node', '-e', self.RUN, os.path.join(ROOT, 'static', 'js', 'upload-bundle.js')],
+                                        capture_output=True, text=True, check=True).stdout)
+        self.assertEqual(out[0], ['waiting:Open for review', 'waiting:', 'waiting:', 'waiting:'])
+        self.assertEqual(out[1], ['ok:Saved', 'waiting:Open for review', 'skip:Skipped', 'waiting:'])
+        self.assertEqual(out[2], ['a.csv', 'b.csv'])
+        self.assertEqual(out[3], ['ok:Saved', 'skip:Skipped', 'skip:Skipped', 'waiting:Open for review'])
+        self.assertEqual(out[4], ['a.csv', 'b.csv', 'd.csv'])
+        self.assertEqual(out[5:], [['ok:Saved', 'skip:Skipped', 'skip:Skipped', 'skip:Skipped'], 0, None])
 
     def test_a_screenshot_calendar_gets_a_second_look(self):
         evi = read('static', 'js', 'events-import.js')
