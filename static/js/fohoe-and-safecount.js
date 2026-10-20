@@ -382,6 +382,7 @@ document.getElementById('safeCountForm').addEventListener('submit', async (e)=>{
 function renderSafeCountLog(){
   const container = document.getElementById('safeCountLogContainer');
   if(!container) return;
+  if(typeof renderSafeOrder === 'function') renderSafeOrder();
   // Safe counts reach manager sessions only (TIM-48). Other devices see
   // today's counts (fetched) plus any logged here.
   const manager = typeof launchManager !== 'undefined' && launchManager;
