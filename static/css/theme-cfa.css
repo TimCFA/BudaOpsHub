@@ -2088,3 +2088,7 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 /* Roster review from an upload: how many wait after this one (weekly-roster-import.js) */
 .wi-queue{margin:-4px 0 12px;padding:8px 12px;border-radius:10px;background:var(--cfa-soft);font-family:var(--font-ui);font-size:13px;font-weight:600;color:var(--text-secondary);}
 #btnSkipAllWeeklyImport{margin-top:8px;}
+/* Permit import: a workbook with a sheet per store (headcount.js) */
+.hc-imp-sheets{display:flex;flex-wrap:wrap;gap:8px;}
+.hc-imp-sheets .uo-choice{display:grid;justify-items:start;gap:1px;text-align:left;}
+.hc-imp-sheets small{font-size:11.5px;font-weight:600;opacity:.8;}
