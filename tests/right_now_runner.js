@@ -53,7 +53,7 @@ vm.runInContext(js('right-now.js'), ctx);
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 process.stdout.write(JSON.stringify(input.cases.map(c => {
   ctx.Date = fixedDate(c.at || '2026-10-19T17:10:00-05:00');
-  vm.runInContext(`today = toLocalISODate(new Date()); fohRoster = {}; bohRoster = {}; truckShifts = {}; adminShifts = {}; rnRosterOpen = false; posAssignments = {}; completedBreaks = {}; breakCountdowns = {};
+  vm.runInContext(`today = toLocalISODate(new Date()); fohRoster = {}; bohRoster = {}; truckShifts = {}; adminShifts = {}; rnRosterOpen = false; hcSummary = undefined; posAssignments = {}; completedBreaks = {}; breakCountdowns = {};
     acUser = null; launchManager = false; breaks = {foh: [], boh: []}; gaps = {}; handoff = null; wasteFoh = 0; wasteBoh = 0;`, ctx);
   return vm.runInContext(`(${c.op})`, ctx)(c);
 })));

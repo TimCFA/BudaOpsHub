@@ -9,7 +9,8 @@
 //  - Team Lead: their side's shift: open spots, people on the floor with no
 //    spot, the handoff's zones, breaks coming up, waste, Food Safety.
 //  - Admin Team (Ashley, Oct 20 2026): the day's roster at a glance, FOH,
-//    BOH, truck and admin, who's on now and who's in next.
+//    BOH, truck and admin, who's on now and who's in next; the headcount
+//    and the last to leave (headcount.js).
 //  - Director (or the manager PIN): the whole store now, the rest of the
 //    day, the leaders on, tomorrow's Set Ups, waste, Food Safety, and the
 //    day's roster a tap away.
@@ -350,6 +351,14 @@ function rnRosterHtml(groups){
     </section>`).join('')}</div>`;
 }
 
+// The headcount and departures (headcount.js): directors and the Admin Team.
+function rnHeadcountRows(rows, withLast){
+  const s = typeof hcSummary === 'function' ? hcSummary() : null;
+  if(!s) return;
+  rows.push(rnRow(String(s.now.total), `on the team${s.pending.length ? ` · ${s.pending.length} left to explain` : ''}`, '', 'headcount', s.pending.length ? 'warn' : ''));
+  if(withLast && s.last) rows.push(rnRow('', `last to leave: ${s.last.name}, ${hcTypeLabel(s.last.type).toLowerCase()} · ${hcDate(s.last.lastDay)}`, '', 'headcount', ''));
+}
+
 // Admin Team: the day's roster is the card.
 function rnAdminCard(v, day){
   const date = day.closed ? day.next : today;
@@ -370,6 +379,7 @@ function rnAdminCard(v, day){
       : `${onNow} on the clock now, ${total} on today.`};
     if(next) rows.push(rnRow(rnClock(next.start), `next in: ${next.name}, ${next.label}`, '', '', ''));
   }
+  rnHeadcountRows(rows, true);
   return {side: 'foh', first, rows, roster: groups, kicker: day.closed ? dayName : '', title: v.name ? `Hi, ${rnFirst(v.name)}` : 'Today’s roster'};
 }
 
@@ -378,6 +388,7 @@ function rnWithRoster(card, day){
   const date = day.closed ? day.next : today;
   const groups = rnDayRoster(date, day.closed ? null : day.now);
   const total = rnHeadcount(groups);
+  rnHeadcountRows(card.rows, false);
   if(!total) return card;
   const when = day.closed ? new Date(date + 'T12:00:00').toLocaleDateString('en-US', {weekday: 'long'}) : 'today';
   card.rows.push(rnRow(String(total), `on the schedule ${when} · ${rnRosterOpen ? 'hide' : 'see'} the roster`, '', 'roster', ''));
@@ -490,6 +501,7 @@ function rnGo(g){
     window.scrollTo({top: 0});
   }
   else if(what === 'waste'){ launchShowTab('wastelog'); window.scrollTo({top: 0}); }
+  else if(what === 'headcount'){ launchShowTab('headcount'); window.scrollTo({top: 0}); }
   else if(what === 'roster'){ rnRosterOpen = !rnRosterOpen; renderRightNow(); }
   else if(what === 'foodsafety'){ launchShowTab('foodsafety'); window.scrollTo({top: 0}); }
   else if(what === 'signin'){ launchShowTab('manage'); window.scrollTo({top: 0}); const pin = document.getElementById('pinInput'); if(pin) pin.focus(); }

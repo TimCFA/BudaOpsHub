@@ -214,6 +214,18 @@ class AdminTeam(unittest.TestCase):
         for rule in ('.rn-roster{', '.rn-rp.is-now .rn-rp-name::before{', '.rn-rp.is-done{'):
             self.assertIn(rule, css)
 
+    def test_headcount_and_the_last_to_leave(self):
+        # headcount.js's summary (directors and the Admin Team only; it says null otherwise).
+        hc = """hcSummary = () => ({now: {total: 52}, pending: [{name: 'Rae Quill'}], last: {name: 'Bo Stone', type: 'quit', lastDay: '2026-10-17'}});
+                 hcTypeLabel = () => 'Quit'; hcDate = () => 'Oct 17';"""
+        got = run({'op': card('admin', 'Avery Office', extra=DAY + hc)}, {'op': card('director', '', extra=DAY + hc)},
+                  {'op': card('admin', 'Avery Office', extra=DAY + 'hcSummary = () => null;')})
+        self.assertIn(['52', 'on the team · 1 left to explain', 'headcount', ''], got[0]['rows'])
+        self.assertIn(['', 'last to leave: Bo Stone, quit · Oct 17', 'headcount', ''], got[0]['rows'])
+        self.assertIn(['52', 'on the team · 1 left to explain', 'headcount', ''], got[1]['rows'])
+        self.assertFalse(any(r[1].startswith('last to leave') for r in got[1]['rows']))
+        self.assertFalse(any(r[2] == 'headcount' for r in got[2]['rows']))
+
     def test_directors_get_it_a_tap_away_and_the_team_does_not(self):
         got = run({'op': card('director', '', extra=DAY)},
                   {'op': card('director', '', extra=DAY + 'rnRosterOpen = true;')},

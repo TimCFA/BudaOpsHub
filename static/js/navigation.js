@@ -2,6 +2,8 @@ function activateView(view){
   // Uniforms and Directors are managers-only (Tim, Oct 2026); the Calendar
   // is for everyone (Oct 18).
   if((view === 'uniforms' || view === 'directors') && typeof launchManager !== 'undefined' && !launchManager) view = 'home';
+  // Our Team: directors and the Admin Team (headcount.js).
+  if(view === 'headcount' && !(typeof hcAllowed === 'function' && hcAllowed())) view = 'home';
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
   document.getElementById(view+'View').classList.add('active');
   if(view === 'positions') renderPositionsTab();
@@ -23,6 +25,7 @@ function activateView(view){
   if(view === 'calendar' && typeof renderCalendarView === 'function') renderCalendarView();
   if(view === 'uniforms' && typeof renderUniformsView === 'function') renderUniformsView();
   if(view === 'directors' && typeof renderDirectorsView === 'function') renderDirectorsView();
+  if(view === 'headcount'){ renderHeadcountView(); hcLoad(true); }
   if(view === 'manage' && typeof refreshManage === 'function') refreshManage();
   if(typeof launchSubnavRender === 'function') launchSubnavRender(view);
   if(typeof hhNoteView === 'function') hhNoteView(view);
