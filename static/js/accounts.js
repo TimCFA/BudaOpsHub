@@ -24,7 +24,7 @@ let acPinUnread = [];       // names in a PDF report whose PIN couldn't be told 
 let acPinFromPdf = false;   // the rows came from the PIN report PDF: show them to check
 let acPinBusy = false;
 
-const AC_ROLE_LABELS = {director: 'Director', manager: 'Manager PIN', lead: 'Team Lead', trainer: 'Trainer', member: 'Team Member'};
+const AC_ROLE_LABELS = {director: 'Director', manager: 'Manager PIN', lead: 'Team Lead', trainer: 'Trainer', member: 'Team Member', admin: 'Admin Team'};
 const acRoleLabel = r => AC_ROLE_LABELS[r] || r || '';
 
 // ----- Status from the server -----
@@ -81,7 +81,7 @@ function acRenderGate(){
     extra.className = 'ac-gate';
     gate.appendChild(extra);
   }
-  const teamUser = acUser && ['lead', 'trainer', 'member'].includes(acUser.role);
+  const teamUser = acUser && ['lead', 'trainer', 'member', 'admin'].includes(acUser.role);
   extra.innerHTML = `
     ${teamUser ? `<p class="ac-signed">Signed in as <b>${escapeHtml(acUser.name)}</b> · ${escapeHtml(acRoleLabel(acUser.role))}. Manage is for directors. <button type="button" class="ld-link" data-ac-signout>Sign out</button></p>` : ''}
     ${acGoogleClientId ? `<div class="ac-or"><span>or</span></div><div id="acGoogleBtn" class="ac-google"></div><p class="ac-hint">Directors sign in with their store Google account.</p>` : ''}`;
@@ -142,7 +142,7 @@ function acRenderSettings(){
       <button type="submit" class="btn btn-primary dir-btn">Add a director</button>
     </form>
     <h4>Team clock-in PINs</h4>
-    <p class="dir-note">A team member types their 6-digit clock-in PIN on the PIN screen and the hub knows who they are and their role. Pick the store’s PIN report (PDF), or paste the list or pick a CSV: one person a line, <b>Name, PIN, Role</b> (Team Member, Trainer or Team Lead). A clock-in PIN never opens Manage, whatever the role. Only names and roles are kept here; the PINs themselves are never stored or shown.</p>
+    <p class="dir-note">A team member types their 6-digit clock-in PIN on the PIN screen and the hub knows who they are and their role. Pick the store’s PIN report (PDF), or paste the list or pick a CSV: one person a line, <b>Name, PIN, Role</b> (Team Member, Trainer, Team Lead or Admin Team). A clock-in PIN never opens Manage, whatever the role. Only names and roles are kept here; the PINs themselves are never stored or shown.</p>
     ${A.pins.length ? `<details class="tp-log"><summary>${A.pins.length} on the list</summary><ul class="ev-m-list">${A.pins.map(p => `<li class="ev-m-row"><div class="ev-m-main"><b>${escapeHtml(p.name)}</b><small>${escapeHtml(acRoleLabel(p.role))}</small></div><button type="button" class="dir-x" data-ac-pin-del="${escapeHtml(p.name)}" aria-label="Remove ${escapeHtml(p.name)}">${UO_X_ICON}</button></li>`).join('')}</ul></details>` : '<p class="dir-empty">No team PINs yet.</p>'}
     <form class="ac-form ac-pins" id="acPinForm">
       <textarea id="acPinText" rows="4" placeholder="Jordan Testcase, 123456, Team Member&#10;Riley Sample, 234567, Trainer" spellcheck="false"></textarea>
@@ -172,7 +172,7 @@ async function acLoadAccounts(){
 // PIN's last two digits only, and the role, which can be changed here (the
 // report may not say; names on Manage → Settings → Leaders start as Team
 // Lead). A Director is skipped on save: directors sign in with Google.
-const AC_PIN_ROLES = ['Team Member', 'Trainer', 'Team Lead', 'Director'];
+const AC_PIN_ROLES = ['Team Member', 'Trainer', 'Team Lead', 'Admin Team', 'Director'];
 function acPinPreviewHtml(){
   const rows = acPinRows || [];
   if(!acPinFromPdf) return `<p class="dir-note">${rows.length} row${rows.length === 1 ? '' : 's'} read from the file.</p>`;

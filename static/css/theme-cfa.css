@@ -1829,6 +1829,20 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .rn-row.is-go:focus-visible,.rn-first.is-go:focus-visible{outline:2px solid var(--cfa-navy);outline-offset:2px;border-radius:10px;}
 .rn:not(.rn-boh) .es{display:none;}
 @media (max-width:600px){ .rn{padding:14px 16px 6px;} .rn-title{font-size:24px;} }
+/* The day's roster (Admin Team's card; a tap away on the director's): by
+   group in start order, a green dot for on now, done shifts faded. */
+.rn-roster{position:relative;display:grid;gap:14px;border-top:1px solid var(--border);margin-top:2px;padding:12px 0 8px;}
+.rn-rg-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:0 0 2px;font-family:var(--font-ui);font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--cfa-navy);}
+.rn-rg-h span{letter-spacing:0;text-transform:none;font-weight:600;color:var(--text-tertiary);}
+.rn-rg-list{list-style:none;margin:0;padding:0;}
+.rn-rp{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--border);font-family:var(--font-ui);font-size:14.5px;line-height:1.3;}
+.rn-rp:first-child{border-top:0;}
+.rn-rp-name{min-width:0;font-weight:600;color:var(--text-primary);}
+.rn-rp-name::before{content:"";display:inline-block;width:7px;height:7px;margin-right:8px;border-radius:50%;background:var(--border);vertical-align:1px;}
+.rn-rp.is-now .rn-rp-name::before{background:#2E7D45;}
+.rn-rp.is-done{opacity:.5;}
+.rn-rp-time{flex:none;font-size:13.5px;font-variant-numeric:tabular-nums;color:var(--text-secondary);}
+.rn-rp-tag{margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--cfa-soft);font-size:11px;font-weight:700;color:var(--text-secondary);vertical-align:1px;}
 
 /* Waste: Top Items Today, each bar its share of the day's waste (waste-log.js; Tim, Oct 19 2026). */
 .bar-item .bi-top .bv-share{font-family:var(--font-ui);font-size:12px;font-weight:600;opacity:.7;}

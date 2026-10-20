@@ -38,11 +38,13 @@ class PinReportError(ValueError):
 
 
 def role_of(text):
-    """Team Lead / Trainer / Director / Team Member from a role or job title.
+    """Team Lead / Trainer / Director / Admin Team / Team Member from a role or job title.
     Returns (role, said): said is False when the text named no role."""
     t = str(text or '').lower()
     if 'director' in t or 'operator' in t or 'manager' in t:
         return 'Director', True
+    if re.search(r'\badmin', t):
+        return 'Admin Team', True
     if 'lead' in t or re.search(r'\btl\b', t):
         return 'Team Lead', True
     if 'train' in t:

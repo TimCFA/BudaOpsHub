@@ -506,9 +506,9 @@ DIRECTOR_EMAIL_DOMAINS = {d.strip().lower().lstrip('@') for d in os.environ.get(
 ACCOUNTS_PATH = 'secure/accounts'        # {key: {email, name, role, addedAt}}
 TEAM_PINS_PATH = 'secure/teamPins'       # {hmac: {name, role, addedAt}}
 TEAM_PIN_SALT_PATH = 'secure/teamPinSalt'
-TEAM_ROLES = ('lead', 'trainer', 'member')            # what a team PIN can carry: never Manage
+TEAM_ROLES = ('lead', 'trainer', 'member', 'admin')   # what a team PIN can carry: never Manage
 ROLES = ('director',) + TEAM_ROLES
-ROLE_LABELS = {'director': 'Director', 'manager': 'Manager PIN', 'lead': 'Team Lead', 'trainer': 'Trainer', 'member': 'Team Member'}
+ROLE_LABELS = {'director': 'Director', 'manager': 'Manager PIN', 'lead': 'Team Lead', 'trainer': 'Trainer', 'member': 'Team Member', 'admin': 'Admin Team'}
 TEAM_PIN_RE = re.compile(r'^\d{6}$')
 TEAM_SESSION_ENDS_HOUR = 3               # a trainer's or team member's sign-in ends at 3 AM store time
 _EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
@@ -695,7 +695,7 @@ def accounts_pins():
         name = str(r.get('name') or '').strip()[:80]
         pin = str(r.get('pin') or '').strip()
         role = str(r.get('role') or 'member').strip().lower()
-        role = {'team member': 'member', 'tm': 'member', 'team lead': 'lead', 'team leader': 'lead', 'tl': 'lead'}.get(role, role)
+        role = {'team member': 'member', 'tm': 'member', 'team lead': 'lead', 'team leader': 'lead', 'tl': 'lead', 'admin team': 'admin'}.get(role, role)
         if not name:
             skipped.append(f'row {i + 1}: no name')
         elif not TEAM_PIN_RE.match(pin):
@@ -703,7 +703,7 @@ def accounts_pins():
         elif role == 'director':
             skipped.append(f'{name}: directors sign in with Google or the director PIN; a clock-in PIN never opens Manage')
         elif role not in TEAM_ROLES:
-            skipped.append(f'{name}: role “{r.get("role")}” isn’t one of Team Member, Trainer, Team Lead')
+            skipped.append(f'{name}: role “{r.get("role")}” isn’t one of Team Member, Trainer, Team Lead, Admin Team')
         elif _is_manage_pin(pin):
             skipped.append(f'{name}: that PIN is the manager or director PIN')
         elif pin in seen:
@@ -1588,7 +1588,7 @@ HEALTH_PATH = 'health'
 HEALTH_DAYS_KEPT = 35
 HEALTH_FLUSH_SECONDS = 30 * 60
 HEALTH_READY_SAMPLES = 300           # load times kept per day
-HEALTH_ROLES = ('none', 'member', 'trainer', 'lead', 'director', 'manager')
+HEALTH_ROLES = ('none', 'member', 'trainer', 'lead', 'admin', 'director', 'manager')
 HEALTH_VIEW_RE = re.compile(r'^[a-z]{2,20}$')
 STARTED_AT = int(time.time() * 1000)
 _health_lock = threading.Lock()

@@ -200,6 +200,18 @@ class TeamPinTest(unittest.TestCase):
         c, r = self.login('234567')
         self.assertEqual((r.get_json()['role'], r.get_json()['manager']), ('trainer', False))
 
+    def test_admin_team_pin(self):
+        """The admin team (Ashley, Oct 20 2026) signs in with a clock-in PIN
+        too: their Home card is the day's roster. It never opens Manage."""
+        d = self.upload([{'name': 'Avery Office', 'pin': '567890', 'role': 'Admin Team'}]).get_json()
+        self.assertEqual((d['added'], d['pins'][0]['role']), (1, 'admin'))
+        c, r = self.login('567890')
+        self.assertEqual((r.get_json()['role'], r.get_json()['manager'], r.get_json()['director']), ('admin', False, False))
+        with c.session_transaction() as sess:
+            self.assertNotIn('manager', sess)
+        self.assertEqual(c.get('/api/accounts').status_code, 403)
+        self.assertEqual(c.post('/api/pea/notes', json={'name': 'x'}).status_code, 403)
+
     def test_a_team_pin_never_opens_manage_or_private_data(self):
         """Whatever the role, a clock-in PIN gets no manager session: no
         private state sections, no manager routes, no accounts."""
@@ -268,7 +280,7 @@ class TeamPinTest(unittest.TestCase):
         # Whatever role is asked for, a listed Google account is a director.
         d = self.owner.post('/api/accounts/google', json={'email': 'Dir@Example.com', 'name': 'A Director', 'role': 'lead'}).get_json()
         self.assertEqual(d['google'], [{'email': 'dir@example.com', 'name': 'A Director', 'role': 'director', 'addedAt': d['google'][0]['addedAt']}])
-        self.assertEqual([r['id'] for r in d['roles']], ['lead', 'trainer', 'member'])
+        self.assertEqual([r['id'] for r in d['roles']], ['lead', 'trainer', 'member', 'admin'])
         self.assertEqual(d['owners'], ['owner@example.com'])
         self.assertEqual(d['directorDomains'], ['cfabuda.com'])
         d = self.owner.delete('/api/accounts/google', json={'email': 'dir@example.com'}).get_json()

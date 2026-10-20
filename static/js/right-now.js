@@ -8,8 +8,11 @@
 //  - Trainer: the same, plus the open spots on their side now.
 //  - Team Lead: their side's shift: open spots, people on the floor with no
 //    spot, the handoff's zones, breaks coming up, waste, Food Safety.
+//  - Admin Team (Ashley, Oct 20 2026): the day's roster at a glance, FOH,
+//    BOH, truck and admin, who's on now and who's in next.
 //  - Director (or the manager PIN): the whole store now, the rest of the
-//    day, the leaders on, tomorrow's Set Ups, waste, Food Safety.
+//    day, the leaders on, tomorrow's Set Ups, waste, Food Safety, and the
+//    day's roster a tap away.
 //  - A phone nobody signed in on: the shift as a whole, and a way to sign in.
 // It reads only what that phone already has (a team PIN never reads the
 // private sections), and every row opens the screen that fixes it. On the
@@ -45,7 +48,7 @@ function rnSame(a, b){
 function rnViewer(){
   const role = typeof acUser !== 'undefined' && acUser ? acUser.role : '';
   if(typeof launchManager !== 'undefined' && launchManager) return {role: role === 'manager' ? 'manager' : 'director', name: (acUser && acUser.name) || ''};
-  if(['lead', 'trainer', 'member'].includes(role)) return {role, name: acUser.name || ''};
+  if(['lead', 'trainer', 'member', 'admin'].includes(role)) return {role, name: acUser.name || ''};
   return {role: 'none', name: ''};
 }
 
@@ -301,6 +304,87 @@ function rnLeadCard(v, day, store){
   return {side: sides.length === 1 ? sides[0] : 'foh', first, rows, title: v.name ? `Hi, ${rnFirst(v.name)}` : ''};
 }
 
+// ----- The day's roster -----
+// Everyone on the schedule for a day, in start order, by group. On today's
+// open hours each person reads on now, later or done; a split shift between
+// its blocks reads later.
+const RN_ROSTER_GROUPS = [['foh', 'FOH'], ['boh', 'BOH'], ['truck', 'Truck'], ['admin', 'Admin']];
+let rnRosterOpen = false;   // the director's card: the roster opened with a tap
+
+function rnRosterList(key, date){
+  const src = key === 'foh' ? fohRoster : key === 'boh' ? bohRoster
+    : key === 'truck' ? (typeof truckShifts !== 'undefined' ? truckShifts : {}) : (typeof adminShifts !== 'undefined' ? adminShifts : {});
+  return Array.isArray(src[date]) ? src[date].filter(p => p && p.name) : [];
+}
+
+function rnDayRoster(date, now){
+  const live = now !== null && date === today;
+  return RN_ROSTER_GROUPS.map(([key, label]) => {
+    const people = rnRosterList(key, date).map(p => {
+      const blocks = p.blocks && p.blocks.length ? p.blocks : [p];
+      const start = parseShiftTimeToMinutes(blocks[0].start);
+      let end = parseShiftTimeToMinutes(blocks[blocks.length - 1].end);
+      if(start !== null && end !== null && end <= start) end += 1440;
+      const state = !live ? '' : rosterOverlaps(p, now, now + 1) ? 'now' : end !== null && end <= now ? 'done' : 'later';
+      const leader = !!p.leader || (key !== 'admin' && typeof leaderListed === 'function' && leaderListed(p.name));
+      return {name: p.name, time: rnShiftText(p), start, state, leader, training: !!p.training};
+    }).sort((a, b) => (a.start === null ? 9999 : a.start) - (b.start === null ? 9999 : b.start) || a.name.localeCompare(b.name));
+    return {key, label, live, people, onNow: people.filter(x => x.state === 'now').length};
+  }).filter(g => g.people.length);
+}
+
+// Heads, not shifts: someone on FOH and BOH the same day counts once.
+function rnHeadcount(groups, state){
+  return new Set(groups.flatMap(g => g.people.filter(p => !state || p.state === state).map(p => p.name.trim().toLowerCase()))).size;
+}
+
+function rnRosterHtml(groups){
+  if(!groups.length) return '';
+  const tag = t => `<span class="rn-rp-tag">${t}</span>`;
+  return `<div class="rn-roster">${groups.map(g => `
+    <section class="rn-rg">
+      <h3 class="rn-rg-h">${escapeHtml(g.label)}<span>${g.people.length} on the day${g.live ? ` · ${g.onNow} now` : ''}</span></h3>
+      <ul class="rn-rg-list">${g.people.map(p => `
+        <li class="rn-rp${p.state ? ' is-' + p.state : ''}"><span class="rn-rp-name">${escapeHtml(p.name)}${p.leader ? tag('Leader') : ''}${p.training ? tag('Training') : ''}</span><span class="rn-rp-time">${escapeHtml(p.time)}</span></li>`).join('')}
+      </ul>
+    </section>`).join('')}</div>`;
+}
+
+// Admin Team: the day's roster is the card.
+function rnAdminCard(v, day){
+  const date = day.closed ? day.next : today;
+  const dayName = new Date(date + 'T12:00:00').toLocaleDateString('en-US', {weekday: 'long'});
+  const groups = rnDayRoster(date, day.closed ? null : day.now);
+  const total = rnHeadcount(groups);
+  const rows = [];
+  let first;
+  if(!total){
+    first = {text: `No schedule for ${day.closed ? dayName : 'today'} yet. It comes in with the HotSchedules roster.`};
+  } else if(day.closed){
+    first = {text: `${total} on the schedule ${dayName}.`};
+  } else {
+    const onNow = rnHeadcount(groups, 'now');
+    const next = groups.flatMap(g => g.people.filter(p => p.state === 'later' && p.start !== null && p.start > day.now).map(p => ({...p, label: g.label})))
+      .sort((a, b) => a.start - b.start)[0];
+    first = {text: day.now < day.opensAt && !onNow ? `${total} on today, first in at ${rnClock(groups.flatMap(g => g.people).reduce((m, p) => p.start !== null && p.start < m ? p.start : m, 1440))}.`
+      : `${onNow} on the clock now, ${total} on today.`};
+    if(next) rows.push(rnRow(rnClock(next.start), `next in: ${next.name}, ${next.label}`, '', '', ''));
+  }
+  return {side: 'foh', first, rows, roster: groups, kicker: day.closed ? dayName : '', title: v.name ? `Hi, ${rnFirst(v.name)}` : 'Today’s roster'};
+}
+
+// The director's card: the roster a tap away.
+function rnWithRoster(card, day){
+  const date = day.closed ? day.next : today;
+  const groups = rnDayRoster(date, day.closed ? null : day.now);
+  const total = rnHeadcount(groups);
+  if(!total) return card;
+  const when = day.closed ? new Date(date + 'T12:00:00').toLocaleDateString('en-US', {weekday: 'long'}) : 'today';
+  card.rows.push(rnRow(String(total), `on the schedule ${when} · ${rnRosterOpen ? 'hide' : 'see'} the roster`, '', 'roster', ''));
+  if(rnRosterOpen) card.roster = groups;
+  return card;
+}
+
 // Nobody signed in: the shift as a whole.
 function rnTeamCard(day){
   const rows = [];
@@ -325,11 +409,12 @@ function rnCardFor(v, day){
   if(v.role === 'member') return rnPersonCard(v, day, false);
   if(v.role === 'trainer') return rnPersonCard(v, day, true);
   if(v.role === 'lead') return rnLeadCard(v, day, false);
-  if(v.role === 'director' || v.role === 'manager') return rnLeadCard(v, day, true);
+  if(v.role === 'admin') return rnAdminCard(v, day);
+  if(v.role === 'director' || v.role === 'manager') return rnWithRoster(rnLeadCard(v, day, true), day);
   return rnTeamCard(day);
 }
 
-const RN_ROLE_LABELS = {member: 'Team Member', trainer: 'Trainer', lead: 'Team Lead', director: 'Director', manager: 'Manager', none: ''};
+const RN_ROLE_LABELS = {member: 'Team Member', trainer: 'Trainer', lead: 'Team Lead', admin: 'Admin Team', director: 'Director', manager: 'Manager', none: ''};
 
 function renderRightNow(){
   const root = document.getElementById('rightNow');
@@ -366,7 +451,7 @@ function renderRightNow(){
           <span class="rn-t">${escapeHtml(r.text)}${es(r.es)}</span>
           ${r.go ? `<span class="rn-go">${RN_ICON_GO}</span>` : ''}
         </div>`).join('')}
-    </div>`;
+    </div>${card.roster ? rnRosterHtml(card.roster) : ''}`;
 }
 
 // Taps: open the screen that fixes it.
@@ -405,6 +490,7 @@ function rnGo(g){
     window.scrollTo({top: 0});
   }
   else if(what === 'waste'){ launchShowTab('wastelog'); window.scrollTo({top: 0}); }
+  else if(what === 'roster'){ rnRosterOpen = !rnRosterOpen; renderRightNow(); }
   else if(what === 'foodsafety'){ launchShowTab('foodsafety'); window.scrollTo({top: 0}); }
   else if(what === 'signin'){ launchShowTab('manage'); window.scrollTo({top: 0}); const pin = document.getElementById('pinInput'); if(pin) pin.focus(); }
 }
