@@ -214,8 +214,15 @@ async function hcReadSheet(file){
     const res = await fetch(`${API_BASE}/api/team/profiles/read`, {method: 'POST', body: fd});
     const data = await res.json().catch(() => ({}));
     if(!res.ok){ showToast(data.error || 'Couldn’t read that spreadsheet.'); hcImport = null; renderHeadcountView(); return; }
-    const rows = (data.rows || []).map(r => { const match = hcMatch(r.name); return {...r, match, include: !!match}; });
-    hcImport = {file: file.name, busy: false, rows, columns: data.columns || {}, notes: data.notes || [], skipped: data.skipped || [], sheet: data.sheet || ''};
+    // A workbook can hold a sheet per store (the store's has West Buda and
+    // Buda): each is matched to the PIN list and the best match opens first.
+    const sheets = (data.sheets && data.sheets.length ? data.sheets : [data]).map(s => {
+      const rows = (s.rows || []).map(r => { const match = hcMatch(r.name); return {...r, match, include: !!match || !!r.director}; });
+      const cols = Array.isArray(s.columns) ? s.columns : [s.columns || {}];
+      return {sheet: s.sheet || '', rows, columns: cols, notes: s.notes || [], skipped: s.skipped || [], matched: rows.filter(r => r.match && !r.director).length};
+    });
+    const best = sheets.reduce((b, s, i) => s.matched > sheets[b].matched ? i : b, 0);
+    hcImport = {file: file.name, busy: false, sheets, at: best, ...sheets[best]};
   }catch(err){
     showToast('Couldn’t reach the server. Try again.');
     hcImport = null;
@@ -231,19 +238,21 @@ function hcImportHtml(){
   const change = (r, k, label) => {
     if(!r[k]) return '';
     const cur = r.match ? (hcProfileFor(r.match) || {})[k] : '';
+    if(hcImpKeeps(r, k)) return `<span class="hc-imp-d is-same">${label}: keeps ${escapeHtml(hcDate(cur))} ${escapeHtml(cur.slice(0, 4))}, newer than the sheet’s ${escapeHtml(hcDate(r[k]))} ${escapeHtml(r[k].slice(0, 4))}</span>`;
     return `<span class="hc-imp-d${cur === r[k] ? ' is-same' : ''}">${label} ${escapeHtml(hcDate(r[k]))} ${escapeHtml(r[k].slice(0, 4))}${cur && cur !== r[k] ? ` <s>${escapeHtml(hcDate(cur))} ${escapeHtml(cur.slice(0, 4))}</s>` : ''}</span>`;
   };
   const on = I.rows.filter(r => r.include).length;
-  const unmatched = I.rows.filter(r => !r.match).length;
+  const unmatched = I.rows.filter(r => !r.match && !r.director).length;
   return `
     <section class="hc-form hc-import">
       <h3 class="hc-h">Check before saving <span>${escapeHtml(I.file)}</span></h3>
-      <p class="hc-note">${I.rows.length} ${I.rows.length === 1 ? 'person' : 'people'} with dates, from ${Object.keys(labels).filter(k => I.columns[k]).map(k => `${labels[k]}: “${escapeHtml(I.columns[k])}”`).join(' · ')}.${unmatched ? ` ${unmatched} didn’t match anyone on the PIN list and start unticked.` : ''}</p>
+      ${I.sheets.length > 1 ? `<div class="hc-imp-sheets" role="group" aria-label="Sheet">${I.sheets.map((s, n) => `<button type="button" class="uo-choice ${n === I.at ? 'is-on' : ''}" aria-pressed="${n === I.at}" data-hc-imp-sheet="${n}">${escapeHtml(s.sheet)} <small>${s.matched} of ${s.rows.length} on our PIN list</small></button>`).join('')}</div>` : ''}
+      <p class="hc-note">${I.rows.length} ${I.rows.length === 1 ? 'person' : 'people'} with dates${I.sheets.length > 1 ? ` on “${escapeHtml(I.sheet)}”` : ''}, from ${I.columns.map(c => Object.keys(labels).filter(k => c[k]).map(k => `${labels[k]}: “${escapeHtml(c[k])}”`).join(' · ')).join('; and ')}.${unmatched ? ` ${unmatched} didn’t match anyone on the PIN list and ${unmatched === 1 ? 'starts' : 'start'} unticked.` : ''}</p>
       ${I.notes.map(n => `<p class="hc-note hc-imp-note">${escapeHtml(n)}</p>`).join('')}
       <div class="hc-imp-list">${I.rows.map((r, i) => `
-        <label class="hc-imp-row${r.match ? '' : ' is-unmatched'}">
+        <label class="hc-imp-row${r.match || r.director ? '' : ' is-unmatched'}">
           <input type="checkbox" data-hc-imp="${i}" ${r.include ? 'checked' : ''}>
-          <span class="hc-imp-who"><b>${escapeHtml(r.match || r.name)}</b>${r.match && hcKey(r.match) !== hcKey(r.name) ? `<small>“${escapeHtml(r.name)}” in the sheet</small>` : r.match ? '' : '<small>not on the PIN list</small>'}</span>
+          <span class="hc-imp-who"><b>${escapeHtml(r.match || r.name)}</b>${r.match && hcKey(r.match) !== hcKey(r.name) ? `<small>“${escapeHtml(r.name)}” in the sheet</small>` : r.match ? '' : r.director ? '<small class="is-dir">director</small>' : '<small>not on the PIN list</small>'}</span>
           <span class="hc-imp-dates">${change(r, 'permitExpires', 'Permit')}${change(r, 'hireDate', 'Hired')}${change(r, 'birthday', 'Born')}</span>
         </label>`).join('')}
       </div>
@@ -255,13 +264,21 @@ function hcImportHtml(){
     </section>`;
 }
 
+// A permit already saved with a later expiry than the sheet's is newer
+// (renewed since the sheet was made): the sheet's older date is left out.
+function hcImpKeeps(r, k){
+  if(k !== 'permitExpires' || !r.match) return false;
+  const cur = (hcProfileFor(r.match) || {}).permitExpires;
+  return !!cur && cur > r[k];
+}
+
 async function hcSaveImport(){
   const rows = hcImport.rows.filter(r => r.include).map(r => {
     const out = {name: r.match || r.name};
-    ['permitExpires', 'hireDate', 'birthday'].forEach(k => { if(r[k]) out[k] = r[k]; });
+    ['permitExpires', 'hireDate', 'birthday'].forEach(k => { if(r[k] && !hcImpKeeps(r, k)) out[k] = r[k]; });
     return out;
-  });
-  if(!rows.length) return;
+  }).filter(o => Object.keys(o).length > 1);     // nothing newer to save for someone: left out
+  if(!rows.length){ showToast('Nothing newer to save: every date there is already up to date'); hcImport = null; renderHeadcountView(); return; }
   hcBusy = true;
   renderHeadcountView();
   try{
@@ -478,6 +495,13 @@ document.getElementById('headcountRoot').addEventListener('click', async e => {
   if(t.hasAttribute('data-hc-profile-close')){ hcProfile = null; renderHeadcountView(); return; }
   if(t.hasAttribute('data-hc-import')){ const f = document.getElementById('hcImportFile'); if(f){ f.value = ''; f.click(); } return; }
   if(t.hasAttribute('data-hc-imp-cancel')){ hcImport = null; renderHeadcountView(); return; }
+  if(t.dataset.hcImpSheet !== undefined && hcImport){
+    const n = Number(t.dataset.hcImpSheet);
+    hcImport.sheets[hcImport.at] = {...hcImport.sheets[hcImport.at], rows: hcImport.rows};   // keep the ticks
+    hcImport = {...hcImport, at: n, ...hcImport.sheets[n]};
+    renderHeadcountView();
+    return;
+  }
   if(t.hasAttribute('data-hc-imp-save')){ if(!hcBusy) hcSaveImport(); return; }
   if(t.hasAttribute('data-hc-new')){ hcForm = {type: '', rehire: 'unsure'}; hcProfile = null; renderHeadcountView(); return; }
   if(t.hasAttribute('data-hc-cancel')){ hcForm = null; renderHeadcountView(); return; }

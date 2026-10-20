@@ -156,7 +156,7 @@ function developShift(section, date, dp, dpIndex){
   const dayparts = section === 'foh' ? fohDayparts : bohDayparts;
   const posMap = section === 'foh' ? fohPositions : bohPositions;
   const dayType = suDayType(section, date, dp);
-  const onShift = availableForDaypart(date, dpIndex, dayparts);
+  const onShift = availableForDaypart(date, dpIndex, dayparts, section);
   const strength = peaStrengthByPerson();
   const peaNames = Object.keys(strength);
   const slotPositions = new Set((posMap[dp.name] || []).flatMap(s => peaPositionsForSlot(section, s)));
@@ -255,7 +255,7 @@ function developShift(section, date, dp, dpIndex){
 
 function suDevelopSignature(section, date, dp, dpIndex){
   const dayparts = section === 'foh' ? fohDayparts : bohDayparts;
-  return JSON.stringify([availableForDaypart(date, dpIndex, dayparts).map(p => p.name).sort(), suDayType(section, date, dp).type, suSetupSignature(section, date, dp.name)]);
+  return JSON.stringify([availableForDaypart(date, dpIndex, dayparts, section).map(p => p.name).sort(), suDayType(section, date, dp).type, suSetupSignature(section, date, dp.name)]);
 }
 
 function suPickHtml(pick, i){

@@ -19,12 +19,16 @@ from permit_sheet import read_permit_sheet, to_iso, PermitSheetError  # noqa: E4
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def xlsx(*rows, title='Team'):
+def xlsx(*rows, title='Team', more=()):
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = title
     for r in rows:
         ws.append(list(r))
+    for t, rs in more:                       # more sheets: (title, rows)
+        w = wb.create_sheet(t)
+        for r in rs:
+            w.append(list(r))
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
@@ -39,11 +43,36 @@ class ReadsTheSheet(unittest.TestCase):
                     ['Total: 2', None, None, None, None, None])
         d = read_permit_sheet(data, 'team.xlsx')
         self.assertEqual(d['sheet'], 'Team')
-        self.assertEqual(d['columns'], {'name': 'Employee', 'issued': 'Food Handler Issued', 'expiry': 'Food Handler Expires',
-                                        'hireDate': 'Hire Date', 'birthday': 'DOB'})
+        self.assertEqual(d['columns'], [{'name': 'Employee', 'issued': 'Food Handler Issued', 'expiry': 'Food Handler Expires',
+                                         'hireDate': 'Hire Date', 'birthday': 'DOB'}])
         self.assertEqual([(r['name'], r.get('permitExpires'), r.get('hireDate'), r.get('birthday')) for r in d['rows']],
                          [('Ana Ruiz Lopez', '2027-03-01', '2025-02-20', '2009-06-05'), ('Leo Park', '2026-11-30', '2024-08-01', None)])
         self.assertEqual(d['notes'], [])
+
+    def test_the_stores_workbook_two_sheets_two_tables_side_by_side(self):
+        """The shape of the store's Food Handler Cards workbook (Oct 20 2026):
+        a sheet per store; on each, Team Member / Expiration Date, a blank
+        column, then Director / Date. Some cells say "awaiting feedback";
+        one date doesn't exist (Feb 29 in a common year)."""
+        west = [['xx', None], ['Team Member', 'Expiration Date', None, 'Director', 'Date'],
+                ['Kai West', datetime(2027, 1, 5), None, 'Dee West', datetime(2028, 4, 25)],
+                ['Lu West', 'awaiting feedback', None, None, None],
+                ['Mo West', '02/29/2029', None, None, None]] + [[None] * 5] * 50
+        buda = [['Team Member', 'Expiration Date', None, 'Director', 'Date'],
+                ['Ana Ruiz', datetime(2026, 3, 24), None, 'Tim Owner', datetime(2025, 8, 23)],
+                ['Bo Stone', None, None, 'Ray Dee', datetime(2028, 7, 10)],
+                ['Cy Ford', datetime(2030, 3, 31), None, None, None],
+                ['Ray Dee', datetime(2028, 7, 10), None, None, None]]   # on both tables: once
+        d = read_permit_sheet(xlsx(*west, title='West Buda', more=[('Buda', buda)]), 'Food_Handler_Cards_2026.xlsx')
+        self.assertEqual([s['sheet'] for s in d['sheets']], ['West Buda', 'Buda'])
+        w, b = d['sheets']
+        self.assertEqual(w['columns'], [{'name': 'Team Member', 'expiry': 'Expiration Date'}, {'name': 'Director', 'expiry': 'Date'}])
+        self.assertEqual([(r['name'], r['permitExpires'], r.get('director', False)) for r in w['rows']],
+                         [('Kai West', '2027-01-05', False), ('Dee West', '2028-04-25', True)])   # directors aren't on the PIN list: flagged
+        self.assertEqual(w['skipped'], ['Lu West: couldn’t read “awaiting feedback” as a date', 'Mo West: couldn’t read “02/29/2029” as a date'])
+        self.assertEqual([(r['name'], r['permitExpires']) for r in b['rows']],
+                         [('Ana Ruiz', '2026-03-24'), ('Cy Ford', '2030-03-31'), ('Ray Dee', '2028-07-10'), ('Tim Owner', '2025-08-23')])
+        self.assertEqual(d['sheet'], 'West Buda')                 # the first sheet's at the top too
 
     def test_first_and_last_and_only_an_issue_date(self):
         # No expiry column: a Texas food handler certificate is good for two years.
