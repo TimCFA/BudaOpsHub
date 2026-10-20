@@ -148,7 +148,11 @@ function hcTeamHtml(){
       <input type="search" class="hc-find" id="hcFind" placeholder="Find someone" aria-label="Find someone" autocomplete="off">
       <div class="hc-plist">${team.map(t => row(t.name, t.role, hcProfileFor(t.name))).join('')}</div>
       ${others.length ? `<details class="hc-others"><summary>Not on the PIN list (${others.length})</summary><div class="hc-plist">${others.map(p => row(p.name, '', p)).join('')}</div></details>` : ''}
-      <button type="button" class="ld-link hc-more" data-hc-profile-new>Add a profile for someone not on the list</button>
+      <div class="hc-team-go">
+        <button type="button" class="btn btn-ghost" data-hc-import>Import permit dates from a spreadsheet</button>
+        <button type="button" class="ld-link" data-hc-profile-new>Add a profile for someone not on the list</button>
+      </div>
+      <input type="file" id="hcImportFile" accept=".xlsx,.csv" hidden>
     </section>`;
 }
 
@@ -177,6 +181,103 @@ function hcProfileHtml(){
         <button type="button" class="btn btn-ghost" data-hc-profile-close>Close</button>
       </div>
     </form>`;
+}
+
+// ----- Permit dates from a spreadsheet (Tim, Oct 20 2026) -----
+// The server reads the sheet (permit_sheet.py) and hands back rows; each is
+// matched to someone on the PIN list, shown with what it would change, and
+// saved only when checked. Rows that match nobody start unticked.
+let hcImport = null;      // {file, rows: [{...row, match, include}], columns, notes, skipped, busy}
+
+// The sheet and the PIN list can spell a name differently ("Ana Ruiz" /
+// "Ana Ruiz Lopez"): same first name, and the shorter last name in the longer.
+function hcSame(a, b){
+  const x = hcKey(a).split(' ').filter(Boolean), y = hcKey(b).split(' ').filter(Boolean);
+  if(!x.length || !y.length) return false;
+  if(x.join(' ') === y.join(' ')) return true;
+  if(x[0] !== y[0] || x.length < 2 || y.length < 2) return false;
+  const [short, long] = x.length <= y.length ? [x, y] : [y, x];
+  return long.slice(1).includes(short[short.length - 1]);
+}
+function hcMatch(name){
+  const people = [...(hcData.team || []).map(t => t.name), ...(hcData.profiles || []).map(p => p.name)];
+  return people.find(n => hcKey(n) === hcKey(name)) || people.find(n => hcSame(n, name)) || '';
+}
+
+async function hcReadSheet(file){
+  hcImport = {file: file.name, busy: true, rows: []};
+  hcProfile = null; hcForm = null;
+  renderHeadcountView();
+  try{
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch(`${API_BASE}/api/team/profiles/read`, {method: 'POST', body: fd});
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok){ showToast(data.error || 'Couldn’t read that spreadsheet.'); hcImport = null; renderHeadcountView(); return; }
+    const rows = (data.rows || []).map(r => { const match = hcMatch(r.name); return {...r, match, include: !!match}; });
+    hcImport = {file: file.name, busy: false, rows, columns: data.columns || {}, notes: data.notes || [], skipped: data.skipped || [], sheet: data.sheet || ''};
+  }catch(err){
+    showToast('Couldn’t reach the server. Try again.');
+    hcImport = null;
+  }
+  renderHeadcountView();
+  document.getElementById('headcountRoot').scrollIntoView({block: 'start'});
+}
+
+function hcImportHtml(){
+  const I = hcImport;
+  if(I.busy) return `<section class="hc-form"><h3 class="hc-h">Reading ${escapeHtml(I.file)}…</h3></section>`;
+  const labels = {name: 'Name', first: 'First name', last: 'Last name', expiry: 'Permit expires', issued: 'Permit issued', permit: 'Permit', hireDate: 'Hire date', birthday: 'Birthday'};
+  const change = (r, k, label) => {
+    if(!r[k]) return '';
+    const cur = r.match ? (hcProfileFor(r.match) || {})[k] : '';
+    return `<span class="hc-imp-d${cur === r[k] ? ' is-same' : ''}">${label} ${escapeHtml(hcDate(r[k]))} ${escapeHtml(r[k].slice(0, 4))}${cur && cur !== r[k] ? ` <s>${escapeHtml(hcDate(cur))} ${escapeHtml(cur.slice(0, 4))}</s>` : ''}</span>`;
+  };
+  const on = I.rows.filter(r => r.include).length;
+  const unmatched = I.rows.filter(r => !r.match).length;
+  return `
+    <section class="hc-form hc-import">
+      <h3 class="hc-h">Check before saving <span>${escapeHtml(I.file)}</span></h3>
+      <p class="hc-note">${I.rows.length} ${I.rows.length === 1 ? 'person' : 'people'} with dates, from ${Object.keys(labels).filter(k => I.columns[k]).map(k => `${labels[k]}: “${escapeHtml(I.columns[k])}”`).join(' · ')}.${unmatched ? ` ${unmatched} didn’t match anyone on the PIN list and start unticked.` : ''}</p>
+      ${I.notes.map(n => `<p class="hc-note hc-imp-note">${escapeHtml(n)}</p>`).join('')}
+      <div class="hc-imp-list">${I.rows.map((r, i) => `
+        <label class="hc-imp-row${r.match ? '' : ' is-unmatched'}">
+          <input type="checkbox" data-hc-imp="${i}" ${r.include ? 'checked' : ''}>
+          <span class="hc-imp-who"><b>${escapeHtml(r.match || r.name)}</b>${r.match && hcKey(r.match) !== hcKey(r.name) ? `<small>“${escapeHtml(r.name)}” in the sheet</small>` : r.match ? '' : '<small>not on the PIN list</small>'}</span>
+          <span class="hc-imp-dates">${change(r, 'permitExpires', 'Permit')}${change(r, 'hireDate', 'Hired')}${change(r, 'birthday', 'Born')}</span>
+        </label>`).join('')}
+      </div>
+      ${I.skipped.length ? `<details class="hc-others"><summary>${I.skipped.length} cell${I.skipped.length === 1 ? '' : 's'} couldn’t be read</summary>${I.skipped.map(s => `<p class="hc-note">${escapeHtml(s)}</p>`).join('')}</details>` : ''}
+      <div class="hc-form-go">
+        <button type="button" class="btn btn-primary" data-hc-imp-save ${on && !hcBusy ? '' : 'disabled'}>Save ${on} ${on === 1 ? 'profile' : 'profiles'}</button>
+        <button type="button" class="btn btn-ghost" data-hc-imp-cancel>Cancel</button>
+      </div>
+    </section>`;
+}
+
+async function hcSaveImport(){
+  const rows = hcImport.rows.filter(r => r.include).map(r => {
+    const out = {name: r.match || r.name};
+    ['permitExpires', 'hireDate', 'birthday'].forEach(k => { if(r[k]) out[k] = r[k]; });
+    return out;
+  });
+  if(!rows.length) return;
+  hcBusy = true;
+  renderHeadcountView();
+  try{
+    const res = await fetch(`${API_BASE}/api/team/profiles/bulk`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({rows})});
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok){ showToast(data.error || 'Couldn’t save. Try again.'); return; }
+    hcData = data;
+    hcImport = null;
+    showToast(`Saved ${data.saved} profile${data.saved === 1 ? '' : 's'}`);
+    if(typeof renderRightNow === 'function') renderRightNow();
+  }catch(err){
+    showToast('Couldn’t reach the server. Try again.');
+  }finally{
+    hcBusy = false;
+    renderHeadcountView();
+  }
 }
 
 async function hcSaveProfile(){
@@ -333,6 +434,7 @@ function renderHeadcountView(){
     </div>
     ${empty ? '<p class="hc-note hc-start">The count starts with the store’s PIN report: upload it in Manage → Accounts (Tim). Everyone with a clock-in PIN counts, and each new report shows who left.</p>' : hcSummaryHtml(s)}
     ${hcForm ? hcFormHtml() : ''}
+    ${hcImport ? hcImportHtml() : ''}
     ${hcProfile ? hcProfileHtml() : ''}
     ${hcPendingHtml(s)}
     ${hcPermitsHtml(s)}
@@ -374,6 +476,9 @@ document.getElementById('headcountRoot').addEventListener('click', async e => {
   }
   if(t.hasAttribute('data-hc-profile-new')){ hcProfile = {isNew: true}; hcForm = null; renderHeadcountView(); document.getElementById('headcountRoot').scrollIntoView({block: 'start'}); return; }
   if(t.hasAttribute('data-hc-profile-close')){ hcProfile = null; renderHeadcountView(); return; }
+  if(t.hasAttribute('data-hc-import')){ const f = document.getElementById('hcImportFile'); if(f){ f.value = ''; f.click(); } return; }
+  if(t.hasAttribute('data-hc-imp-cancel')){ hcImport = null; renderHeadcountView(); return; }
+  if(t.hasAttribute('data-hc-imp-save')){ if(!hcBusy) hcSaveImport(); return; }
   if(t.hasAttribute('data-hc-new')){ hcForm = {type: '', rehire: 'unsure'}; hcProfile = null; renderHeadcountView(); return; }
   if(t.hasAttribute('data-hc-cancel')){ hcForm = null; renderHeadcountView(); return; }
   if(t.hasAttribute('data-hc-all')){ hcShowAll = true; renderHeadcountView(); return; }
@@ -407,6 +512,17 @@ function hcFormRead(){
     if(val !== undefined) hcForm[k] = val;
   });
 }
+
+// The spreadsheet picked; a row ticked or unticked.
+document.getElementById('headcountRoot').addEventListener('change', e => {
+  if(e.target.id === 'hcImportFile' && e.target.files && e.target.files[0]){ hcReadSheet(e.target.files[0]); return; }
+  if(e.target.dataset && e.target.dataset.hcImp !== undefined && hcImport){
+    hcImport.rows[+e.target.dataset.hcImp].include = e.target.checked;
+    const on = hcImport.rows.filter(r => r.include).length;
+    const b = document.querySelector('#headcountRoot [data-hc-imp-save]');
+    if(b){ b.textContent = `Save ${on} ${on === 1 ? 'profile' : 'profiles'}`; b.disabled = !on; }
+  }
+});
 
 // Find someone: hide the other rows (no re-render, so typing keeps going).
 document.getElementById('headcountRoot').addEventListener('input', e => {

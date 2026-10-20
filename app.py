@@ -21,6 +21,7 @@ from google.oauth2 import id_token
 
 from pea_parser import parse_pea_pdf, PeaParseError
 from pin_report import read_pin_report, PinReportError
+from permit_sheet import read_permit_sheet, PermitSheetError
 from reports_parser import parse_report_file, ReportParseError
 import levelset_sync
 from state_patch import PatchError, apply_ops, canon, check_ops, union_merge
@@ -835,6 +836,66 @@ def _turnover_out():
 
 def _profile_key(name):
     return hashlib.sha256(_turnover_key(name).encode()).hexdigest()[:20]
+
+
+@app.route('/api/team/profiles/read', methods=['POST'])
+def team_profiles_read():
+    """A spreadsheet of permit dates (Tim, Oct 20 2026): read into rows of name
+    and dates for the page to check before saving (/api/team/profiles/bulk).
+    Nothing from the file is kept or logged."""
+    if not _turnover_access():
+        return jsonify({'error': 'Directors and the admin team only.'}), 403
+    f = request.files.get('file')
+    if not f:
+        return jsonify({'error': 'Pick the spreadsheet first.'}), 400
+    data = f.read(PIN_REPORT_MAX_BYTES + 1)
+    if len(data) > PIN_REPORT_MAX_BYTES:
+        return jsonify({'error': 'That file is over 5 MB.'}), 413
+    try:
+        out = read_permit_sheet(data, f.filename or '')
+    except PermitSheetError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        print(f"[PERMIT SHEET] couldn’t read: {type(e).__name__}")
+        return jsonify({'error': 'Couldn’t read that spreadsheet.'}), 400
+    resp = jsonify(out)
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
+
+
+@app.route('/api/team/profiles/bulk', methods=['POST'])
+def team_profiles_bulk():
+    """Save the checked rows of a permit spreadsheet ({rows: [{name,
+    permitExpires?, hireDate?, birthday?}]}): each date given is set on the
+    person's profile; nothing else on it changes."""
+    if not _turnover_access():
+        return jsonify({'error': 'Directors and the admin team only.'}), 403
+    rows = (request.get_json(silent=True) or {}).get('rows')
+    if not isinstance(rows, list) or not rows or len(rows) > 1000:
+        return jsonify({'error': 'Nothing to save.'}), 400
+    by = str((session.get('user') or {}).get('name') or ('Director' if session.get('manager') else '')).strip()[:80]
+    ref = db.reference(PROFILES_PATH)
+    profiles = dict(ref.get() or {})
+    changes = {}
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        name = re.sub(r'\s+', ' ', str(r.get('name') or '')).strip()[:80]
+        dates = {k: str(r.get(k) or '').strip() for k in PROFILE_DATES}
+        dates = {k: v for k, v in dates.items() if re.fullmatch(r'\d{4}-\d{2}-\d{2}', v)}
+        if not name or not dates:
+            continue
+        key = _profile_key(name)
+        old = profiles.get(key) if isinstance(profiles.get(key), dict) else {}
+        changes[key] = dict(old, name=old.get('name') or name, **dates, by=by, at=int(time.time()))
+    # Only these people's profiles are written, so a profile saved meanwhile stays.
+    if changes:
+        ref.update(changes)
+    saved = len(changes)
+    print(f"[TEAM] permit sheet: {saved} profiles updated")
+    resp = jsonify(dict(_turnover_out(), success=True, saved=saved))
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 
 @app.route('/api/team/profiles', methods=['POST'])
