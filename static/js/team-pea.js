@@ -54,6 +54,13 @@ const tpStrength = upTo => typeof peaStrengthByPerson === 'function' ? peaStreng
 const tpGroupOf = pos => { const g = PEA_POSITION_GROUPS.find(x => x.positions.includes(pos)); return g ? g.key : ''; };
 const tpSides = positions => { const s = new Set(Object.keys(positions).map(tpGroupOf).filter(Boolean)); return ['foh', 'boh', 'lead', 'new'].filter(k => s.has(k)); };
 const tpSideLabel = {foh: 'FOH', boh: 'BOH', lead: 'Leadership', new: 'New hire'};
+// What a person is, for the Team page (Tim, Oct 18 2026): their role, then
+// the sides they're rated on. "Leadership" and "New hire" are kinds of PEA
+// (Team Lead, Trainer, 3H Week ratings), not who someone is: a trainer
+// rated on a Trainer PEA isn't a leader, a veteran given a 3H Week isn't a
+// new hire. The Leaders filter is the hub's leader list (ldLeaderNames).
+const tpWorkSides = sides => sides.filter(s => s === 'foh' || s === 'boh').map(s => tpSideLabel[s]);
+function tpWhoText(p){ return [p.leader ? 'Team Lead' : (p.role || ''), ...tpWorkSides(p.sides)].filter(Boolean).join(' · '); }
 const tpLeaderListed = n => typeof leaderListed === 'function' && leaderListed(n);
 const tpDayBefore = iso => fcAddDaysSafe(iso, -1);
 function tpAvgOf(person){ const cells = Object.values(person.positions); return cells.length ? cells.reduce((s, c) => s + c.avg, 0) / cells.length : null; }
@@ -153,6 +160,7 @@ function tpTeam(q){
   const C = tpClock(q), b = C.quarter;
   const now = tpStrength(b.to), start = tpStrength(tpDayBefore(b.from));
   const rows = ldRatings().filter(r => r.date >= b.from && r.date <= b.to);
+  const leaderKeys = new Set(typeof ldLeaderNames === 'function' ? ldLeaderNames(q).map(dirKey) : []);
   const people = Object.keys(now).map(name => {
     const p = now[name], s = start[name];
     const k = dirKey(name);
@@ -169,7 +177,7 @@ function tpTeam(q){
     const last = mine.reduce((m, r) => r.date > m ? r.date : m, '') || p.lastAt.slice(0, 10);
     const lastAny = p.lastAt.slice(0, 10);
     const stale = C.current && ldDaysBetween(lastAny, today) >= TP_STALE_DAYS;
-    return {name, role: p.role || '', sides, positions: positions.length, green: greenNow.length, gained, lost, change, avg: tpAvgOf(p), avgStart: s ? tpAvgOf(s) : null,
+    return {name, role: p.role || '', sides, leader: leaderKeys.has(k), positions: positions.length, green: greenNow.length, gained, lost, change, avg: tpAvgOf(p), avgStart: s ? tpAvgOf(s) : null,
       peas: mine.length, raters: new Set(mine.map(r => r.leader).filter(Boolean)).size, last, stale, isNew: !s, cert,
       allGreen: Object.values(cert).some(c => c.allGreen), notyet: positions.filter(pos => p.positions[pos].tier.key === 'notyet').length, notes: tpNotesFor(name).length};
   });
@@ -183,7 +191,7 @@ function tpTeam(q){
 }
 function tpTeamShown(T){
   const q = dirKey(tpSearch);
-  return T.people.filter(p => (!tpSide || p.sides.includes(tpSide)) && (!q || dirKey(p.name).includes(q)));
+  return T.people.filter(p => (!tpSide || (tpSide === 'lead' ? p.leader : p.sides.includes(tpSide))) && (!q || dirKey(p.name).includes(q)));
 }
 
 // ----- A team member's profile -----
@@ -278,7 +286,7 @@ function tpTeamRow(p){
   const cert = Object.keys(p.cert).map(side => `${tpSideLabel[side]} ${p.cert[side].allGreen ? 'all green' : `${p.cert[side].green}/${p.cert[side].rated} green`}`).join(' · ');
   return `<button type="button" class="tp-row is-team ${p.allGreen ? 'is-green' : ''} ${p.stale ? 'is-stale' : ''}" data-tp-open="${escapeHtml(p.name)}">
     ${tpRankBadge(p.rank)}
-    <span class="tp-row-name"><b>${escapeHtml(ldShort(p.name))}</b><span>${escapeHtml(p.sides.map(s => tpSideLabel[s]).join(' · ') || p.role)}${cert ? ` · ${escapeHtml(cert)}` : ''}${p.stale ? ` · <em class="tp-stale">${TP_ICON_CLOCK}due a PEA</em>` : ''}</span></span>
+    <span class="tp-row-name"><b>${escapeHtml(ldShort(p.name))}</b><span>${escapeHtml(tpWhoText(p) || 'Team member')}${cert ? ` · ${escapeHtml(cert)}` : ''}${p.stale ? ` · <em class="tp-stale">${TP_ICON_CLOCK}due a PEA</em>` : ''}</span></span>
     <span class="tp-row-growth ${p.gained.length ? 'is-up' : p.lost.length ? 'is-down' : ''}"><b>${p.gained.length ? `+${p.gained.length}` : p.lost.length ? `−${p.lost.length}` : '0'}</b><span>green</span></span>
     <span class="tp-row-growth ${p.change > 0.05 ? 'is-up' : p.change < -0.05 ? 'is-down' : ''}"><b>${p.change == null ? (p.isNew ? 'new' : '—') : tpSigned(p.change)}</b><span>avg</span></span>
     <span class="tp-row-mix"><span>${p.avg == null ? '—' : p.avg.toFixed(2)} <small>avg</small></span><span>${p.green}/${p.positions} <small>green</small></span><span>${p.peas} <small>PEA${p.peas === 1 ? '' : 's'}</small></span></span>
@@ -293,7 +301,7 @@ function tpTeamHtml(){
     <section class="dir-card"><h3>Team scoreboard</h3>
       <p class="dir-note">Everyone with a Levelset rating, ranked on growth this quarter: positions gone green since ${escapeHtml(ldDate(T.quarter.from))} first, then the change in average score. A position’s score is its latest ${PEA_RECENT_RATINGS} ratings; green is Crushing It (2.75+).</p>
       <div class="ld-stats tp-stats">${stat(T.peas, `PEAs in ${T.quarter.label}`)}${stat(`${T.rated} of ${T.people.length}`, 'people rated')}${stat(`+${T.gained}${T.lost ? ` / −${T.lost}` : ''}`, 'positions green')}${stat(`${T.green} of ${T.positions}`, 'positions green now')}${stat(T.allGreen, 'all green')}${T.current ? stat(T.stale, 'due a PEA') : ''}</div>
-      <div class="tp-filters"><div class="ld-chips">${[['', 'All'], ['foh', 'FOH'], ['boh', 'BOH'], ['lead', 'Leadership']].map(([k, l]) => `<button type="button" class="ld-chip" data-tp-side="${k}" aria-pressed="${tpSide === k ? 'true' : 'false'}">${l}</button>`).join('')}</div>
+      <div class="tp-filters"><div class="ld-chips">${[['', 'All'], ['foh', 'FOH'], ['boh', 'BOH'], ['lead', 'Leaders']].map(([k, l]) => `<button type="button" class="ld-chip" data-tp-side="${k}" aria-pressed="${tpSide === k ? 'true' : 'false'}">${l}</button>`).join('')}</div>
         <input type="search" id="tpSearch" class="tp-search" placeholder="Find a name" value="${escapeHtml(tpSearch)}" aria-label="Find a name" autocomplete="off"></div>
       ${shown.length ? `<div class="tp-board">${shown.map(tpTeamRow).join('')}</div>` : `<p class="dir-empty">${T.people.length ? 'Nobody matches.' : 'No ratings yet. Sync Levelset in Manage → PEA.'}</p>`}
     </section>`;
@@ -326,9 +334,9 @@ function tpProfileHtml(){
   const tagOptions = P.positions.map(x => `<optgroup label="${escapeHtml(x.pos)}">${x.criteria.map(c => `<option value="${escapeHtml(`${x.pos}:${c.i}`)}">${escapeHtml(c.label)}</option>`).join('')}</optgroup>`).join('');
   const R = P.rater;
   return `
-    <button type="button" class="ld-back" data-tp-back>← ${tpTab === 'team' ? 'Team scoreboard' : 'Rater leaderboard'}</button>
+    <button type="button" class="ld-back" data-tp-back>← People</button>
     <section class="dir-card ld-profile">
-      <div class="ld-profile-head"><div><h3>${escapeHtml(name)}</h3><p class="dir-sub">${escapeHtml([P.role, P.sides.map(s => tpSideLabel[s]).join(' · ')].filter(Boolean).join(' · ') || 'Team member')} · ${escapeHtml(b.label)}${cert ? ` · ${escapeHtml(cert)}` : ''}</p></div>${row && row.allGreen ? '<span class="ld-status is-done">All green</span>' : row && row.stale ? `<span class="ld-status is-behind">Due a PEA</span>` : ''}</div>
+      <div class="ld-profile-head"><div><h3>${escapeHtml(name)}</h3><p class="dir-sub">${escapeHtml(tpWhoText({role: P.role, leader: P.leaderProfile, sides: P.sides}) || 'Team member')} · ${escapeHtml(b.label)}${cert ? ` · ${escapeHtml(cert)}` : ''}</p></div>${row && row.allGreen ? '<span class="ld-status is-done">All green</span>' : row && row.stale ? `<span class="ld-status is-behind">Due a PEA</span>` : ''}</div>
       ${stats.length ? `<div class="ld-stats">${stats.map(([v, l]) => `<div><b>${escapeHtml(String(v))}</b><span>${escapeHtml(l)}</span></div>`).join('')}</div>` : '<p class="dir-empty">No Levelset rating on this name yet.</p>'}
       ${row && (row.gained.length || row.lost.length) ? `<p class="dir-note">${row.gained.length ? `Gone green this quarter: <b>${escapeHtml(row.gained.join(', '))}</b>. ` : ''}${row.lost.length ? `Slipped from green: <b>${escapeHtml(row.lost.join(', '))}</b>.` : ''}</p>` : ''}
     </section>
@@ -430,7 +438,7 @@ function tpLsPaint(peaName){
   const k = dirKey(peaName);
   // On the Leaders profile the pillar counts read these notes too, so the
   // whole profile redraws; elsewhere just the card.
-  if(typeof dirView !== 'undefined' && dirView === 'leaders' && typeof ldOpen !== 'undefined' && ldOpen && typeof ldRender === 'function'){ ldRender(); return; }
+  if(typeof dirShowsLeaders === 'function' && dirShowsLeaders() && typeof ldOpen !== 'undefined' && ldOpen && typeof ldRender === 'function'){ ldRender(); return; }
   document.querySelectorAll('.tp-ls-card').forEach(el => { if(el.dataset.lsName === k) el.innerHTML = tpLsCardInner(peaName, (el.dataset.lsCards || '').split(',').filter(Boolean)); });
 }
 // Tagging: the picker's taps, save and remove.
@@ -509,7 +517,7 @@ function tpSetDirector(isDirector, pinSet){
   tpDirectorPinSet = !!pinSet || tpDirector;
   tpLs = {};
   tpRenderDirectorPin();
-  if(typeof dirView !== 'undefined' && dirView === 'team' && tpOpen && !document.getElementById('tpNoteForm')) tpRender();
+  if(typeof dirShowsTeam === 'function' && dirShowsTeam() && tpOpen && !document.getElementById('tpNoteForm')) tpRender();
 }
 async function tpRefreshDirector(){
   try{
@@ -551,6 +559,13 @@ function tpBodyHtml(){
   if(tpOpen){ const P = tpPerson(tpOpen); if(!P.positions.length && !P.notes.length && !P.rater) tpOpen = ''; }
   return tpOpen ? tpProfileHtml() : tpBoardsHtml();
 }
+// Inside Directors → People the Team / Raters chips in the page frame pick
+// the board, so the body is the board alone (or the open profile).
+function tpPeopleHtml(){
+  if(tpOpen){ const P = tpPerson(tpOpen); if(!P.positions.length && !P.notes.length && !P.rater) tpOpen = ''; }
+  if(tpOpen) return tpProfileHtml();
+  return tpTab === 'team' ? tpTeamHtml() : tpRatersHtml();
+}
 
 // ----- As text (copy / PDF) -----
 function tpBoardText(){
@@ -567,7 +582,7 @@ function tpBoardText(){
 }
 function tpProfileText(name){
   const P = tpPerson(name), b = P.quarter, row = P.row;
-  const out = [`${P.name}${P.role ? ' — ' + P.role : ''}${P.sides.length ? ' (' + P.sides.map(s => tpSideLabel[s]).join(', ') + ')' : ''}`, `${b.label} (${b.span})`, ''];
+  const out = [`${P.name}${P.leaderProfile ? ' — Team Lead' : P.role ? ' — ' + P.role : ''}${tpWorkSides(P.sides).length ? ' (' + tpWorkSides(P.sides).join(', ') + ')' : ''}`, `${b.label} (${b.span})`, ''];
   if(row){
     out.push(`PEAs this quarter: ${row.peas}${row.last ? ` · last ${ldDate(row.last)}` : ''}${row.raters ? ` · ${ldPlural(row.raters, 'rater')}` : ''}`);
     out.push(`Average: ${row.avg == null ? '—' : row.avg.toFixed(2)}${row.change != null ? ` (${tpSigned(row.change)} since the quarter began)` : row.isNew ? ' (first rated this quarter)' : ''} · green: ${row.green} of ${row.positions} positions${row.allGreen ? ' · ALL GREEN' : ''}`);
@@ -596,7 +611,7 @@ function tpOpenProfile(name){
 
 document.addEventListener('click', e => {
   const t = e.target && e.target.closest ? e.target : null;
-  if(!t || !t.closest('#directorsRoot') || typeof dirView === 'undefined' || dirView !== 'team') return;
+  if(!t || !t.closest('#directorsRoot') || !(typeof dirShowsTeam === 'function' && dirShowsTeam())) return;
   const open = t.closest('[data-tp-open]');
   if(open){ tpOpenProfile(open.dataset.tpOpen); return; }
   if(t.closest('[data-tp-back]')){ tpOpen = ''; tpRender(); return; }

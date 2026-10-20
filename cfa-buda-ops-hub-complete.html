@@ -82,21 +82,22 @@
 
   <!-- Positions & Breaks View -->
   <div class="view" id="positionsView">
-    <div class="foh-boh-toggle" id="posToggle">
-      <button type="button" class="toggle-btn active" aria-pressed="true" data-section="foh">FOH <span class="sub"><i>Frente</i></span></button>
-      <button type="button" class="toggle-btn" aria-pressed="false" data-section="boh">BOH <span class="sub"><i>Atrás</i></span></button>
-    </div>
-
-    <div class="setups-week-nav">
-      <button type="button" class="rolling-arrow" id="setupsPrevWeekBtn" title="Previous week">‹</button>
-      <div class="week-toggle" id="setupsWeekToggle">
-        <button type="button" class="su-week-toggle-btn active" aria-pressed="true" data-offset="0" data-es="This Week">This Week</button>
-        <button type="button" class="su-week-toggle-btn" aria-pressed="false" data-offset="1" data-es="Next Week">Next Week</button>
+    <!-- The day strip (Tim, Oct 18 2026): FOH/BOH, a week back, the week's
+         days, a week forward; it stays pinned as the dayparts scroll
+         (daypicker-and-positions.js renderSetupsDayPicker). Under it, one
+         status line: the day, when it was last updated, Refresh, and the
+         Set up / Coach switch on the full site (setups-sheet.js suStatusHtml). -->
+    <div class="su-strip" id="suStrip">
+      <div class="foh-boh-toggle" id="posToggle">
+        <button type="button" class="toggle-btn active" aria-pressed="true" data-section="foh">FOH <span class="sub"><i>Frente</i></span></button>
+        <button type="button" class="toggle-btn" aria-pressed="false" data-section="boh">BOH <span class="sub"><i>Atrás</i></span></button>
       </div>
+      <button type="button" class="su-strip-arrow" id="setupsPrevWeekBtn" title="Previous week" aria-label="Previous week">‹</button>
+      <div class="day-picker" id="dayPicker"></div>
+      <button type="button" class="su-strip-arrow" id="setupsNextWeekBtn" title="Next week" aria-label="Next week">›</button>
     </div>
-    <div class="day-picker" id="dayPicker"></div>
     <select id="daySelect" style="display:none;"></select>
-    <div id="daySelectedInfo" class="day-info-bar"></div>
+    <div id="daySelectedInfo" class="su-status"></div>
 
     <div class="setups-layout">
       <div id="daypartContainer" style="display:none;">
@@ -654,7 +655,7 @@
       </div>
 
       <div style="margin-top:16px;">
-        <div class="sub" style="margin-bottom:8px;">Top Items Today</div>
+        <div class="sub" style="margin-bottom:8px;">Top Items Today <span class="bar-list-note">· share of today’s waste</span></div>
         <div class="bar-list" id="barList"></div>
       </div>
 

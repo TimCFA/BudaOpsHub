@@ -359,16 +359,20 @@ function renderScoreboardView(){
     byProduct[e.name] = (byProduct[e.name]||0) + (Number(e.cost) || 0);
   });
   const sorted = Object.entries(byProduct).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  const maxVal = sorted[0]?sorted[0][1]:1;
+  // Each bar is the item's share of today's waste (Tim, Oct 19 2026): a full
+  // bar used to mean only "the biggest item", which read as an alarm.
+  const dayTotal = Object.values(byProduct).reduce((a, b) => a + b, 0);
+  const share = cost => dayTotal > 0 ? cost / dayTotal * 100 : 0;
+  const shareText = cost => { const p = share(cost); return p > 0 && p < 1 ? '<1%' : Math.round(p) + '%'; };
 
   document.getElementById('barList').innerHTML = sorted.length ? sorted.map(([name,cost])=>`
     <div class="bar-item">
       <div class="bi-top">
         <span class="bn">${escapeHtml(name)}</span>
-        <span class="bv">$${cost.toFixed(2)}</span>
+        <span class="bv">$${cost.toFixed(2)} <span class="bv-share">· ${shareText(cost)}</span></span>
       </div>
-      <div class="bar-track">
-        <div class="bar-fill" style="width:${(cost/maxVal)*100}%"></div>
+      <div class="bar-track" title="${shareText(cost)} of today's waste">
+        <div class="bar-fill" style="width:${share(cost).toFixed(1)}%"></div>
       </div>
     </div>
   `).join('') : '<div style="text-align:center;color:var(--text-secondary);font-size:12px;padding:12px 0;">No waste logged yet today' + esLine('No waste logged yet today') + '</div>';
