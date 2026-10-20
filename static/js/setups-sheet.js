@@ -21,17 +21,30 @@ function suSetMode(mode){
 let suRefresh = {busy: false, at: 0, text: ''};
 const SU_ICON_REFRESH = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 21v-5h-5"/></svg>';
 
-function suModeBarHtml(){
+// The status line under the day strip (daypicker-and-positions.js
+// renderSetupsStatus): "Mon, Oct 19", when the day's set up last changed
+// (or what the last Refresh found and when), Refresh as a round icon
+// button, and the Set up / Coach switch (the full site only; launch mode
+// hides .su-mode).
+// "10:16 PM" when it changed today, else "Oct 18": short enough for a 360px
+// phone with Refresh and Set up / Coach on the same line (the full stamp is
+// the title).
+function suUpdatedStamp(ts){
+  if(!ts) return '';
+  const d = new Date(ts);
+  return toLocalISODate(d) === today ? d.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'}) : d.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+}
+
+function suStatusHtml(dateISO){
   const btn = (mode, label) => `<button type="button" class="su-mode-btn ${suMode === mode ? 'active' : ''}" aria-pressed="${suMode === mode}" data-su-mode="${mode}">${label}${esLine(label)}</button>`;
-  const checked = suRefresh.at ? `<span class="su-refresh-note" role="status">${escapeHtml(suRefresh.text)} · ${escapeHtml(formatShortTime(suRefresh.at))}${esSpan(suRefresh.es)}</span>` : '<span class="su-refresh-note" role="status"></span>';
-  return `
-    <div class="su-modebar">
-      <div class="su-mode" role="group" aria-label="View">${btn('sheet', 'Set up')}${btn('coach', 'Coach')}</div>
-      <div class="su-modebar-actions">
-        ${checked}
-        <button type="button" class="su-print-btn su-refresh-btn ${suRefresh.busy ? 'is-busy' : ''}" data-su-refresh="1" aria-label="Refresh the set up" ${suRefresh.busy ? 'disabled' : ''}>${SU_ICON_REFRESH}<span>${suRefresh.busy ? 'Checking' : 'Refresh'}${esLine(suRefresh.busy ? 'Checking' : 'Refresh')}</span></button>
-      </div>
-    </div>`;
+  const stamp = suUpdatedStamp(lastUpdated[dateISO]);
+  const note = suRefresh.busy ? `Checking${esHtml('Checking')}`
+    : suRefresh.at ? `${escapeHtml(suRefresh.text)} · ${escapeHtml(formatShortTime(suRefresh.at))}${esSpan(suRefresh.es)}`
+    : stamp ? `<span class="su-status-upd-k">Updated </span>${escapeHtml(stamp)}` : '';
+  return `<span class="su-status-date">${escapeHtml(suShortDate(dateISO))}</span>
+    <span class="su-status-upd" role="status"${stamp ? ` title="Updated ${escapeHtml(formatLastUpdated(lastUpdated[dateISO]))}"` : ''}>${note}</span>
+    <button type="button" class="su-status-refresh su-refresh-btn ${suRefresh.busy ? 'is-busy' : ''}" data-su-refresh="1" aria-label="Refresh the set up" title="Refresh" ${suRefresh.busy ? 'disabled' : ''}>${SU_ICON_REFRESH}</button>
+    <div class="su-mode" role="group" aria-label="View">${btn('sheet', 'Set up')}${btn('coach', 'Coach')}</div>`;
 }
 
 // The set up's spots for one day, to count what a refresh changed.
@@ -66,8 +79,8 @@ async function suRunRefresh(){
 
 // "Josh → Lauren @ 7:30", "Avah (arrives 11:30)", "Dan (leaves 6:00)".
 function suSheetNameHtml(t, brk){
-  // A needed spot is shown by its light red row alone (no wording).
-  if(!t.names.length) return t.needed ? '' : '<span class="su-row-open">—</span>';
+  // A needed spot: its light red row and "+ Choose" (Tim, Oct 19 2026).
+  if(!t.names.length) return t.needed ? `<span class="su-row-choose">+ Choose${esHtml('Choose')}</span>` : '<span class="su-row-open">—</span>';
   const who = t.names.length > 1 && t.timeNote ? suDisplayName(t.names[0]) : t.names.map(suDisplayName).join(' → ');
   const lead = t.leaderRole ? `<span class="su-row-role" title="${escapeHtml(t.leaderRole)}">${t.leaderRole === 'Team Lead' ? 'TL' : 'T'}</span>` : '';
   const note = t.timeNote ? `<span class="su-row-note ${t.timeNote.warn ? 'is-warn' : ''} ${t.timeNote.out ? 'is-out' : ''}">${t.timeNote.out ? SU_ICON_OUT : ''}${escapeHtml(t.timeNote.text)}${t.timeNote.es ? esSpan(t.timeNote.es, true) : ''}</span>` : '';
@@ -142,7 +155,7 @@ function suSheetViewHtml(section, date, dp, dpIndex, m){
         ${suResetsStripHtml(section, date, dp)}
       </section>`;
 
-  return `<div class="su-sheet-table">${zones}</div>${suTierKeyHtml()}`;
+  return `<div class="su-sheet-table">${zones}</div>`;
 }
 
 const SU_ICON_PENCIL = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
@@ -244,6 +257,13 @@ function suRowSheetHtml(section, date, dp, m, slot){
     <p class="su-drag-tip">${SU_ICON_GRIP}<span>Hold a name and drag it to another spot to move, or onto someone to trade.${esLine('Drag tip')}</span></p>`;
   return suSheetFrame(`${slot} · #${t.rank}`, body);
 }
+
+// The status line's Set up / Coach switch and Refresh (outside the board).
+document.getElementById('daySelectedInfo').addEventListener('click', e=>{
+  const mode = e.target.closest('[data-su-mode]');
+  if(mode){ suSetMode(mode.dataset.suMode); renderAllDayparts(); return; }
+  if(e.target.closest('[data-su-refresh]')) suRunRefresh();
+});
 
 document.getElementById('allDayparts').addEventListener('click', e=>{
   const mode = e.target.closest('[data-su-mode]');
