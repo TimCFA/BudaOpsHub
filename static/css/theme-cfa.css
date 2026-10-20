@@ -2067,3 +2067,24 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .so-edit input{width:120px;min-height:40px;padding:6px 10px;border:1px solid var(--border);border-radius:10px;font-family:var(--font-ui);font-size:15px;}
 .so-go{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:10px;}
 .so-go .btn{width:auto;}
+/* Change order: build-to and delivery days (safe-order.js) */
+.so-at{font-size:13px;color:var(--text-secondary);}
+.so-lead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:8px 0 2px;font-size:13px;font-weight:600;color:var(--text-secondary);}
+.so-lead input{width:90px;min-height:40px;padding:6px 10px;border:1px solid var(--border);border-radius:10px;font-family:var(--font-ui);font-size:15px;}
+/* Our Team: permit dates from a spreadsheet (headcount.js) */
+.hc-team-go{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-top:10px;}
+.hc-team-go .btn{width:auto;}
+.hc-imp-note{padding:8px 10px;border-radius:10px;background:#FFF1DA;color:#8A5300;}
+.hc-imp-list{display:grid;max-height:60vh;overflow-y:auto;border-top:1px solid var(--border);}
+.hc-imp-row{display:grid;grid-template-columns:24px 1fr;gap:4px 10px;align-items:start;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer;}
+.hc-imp-row input{width:20px;height:20px;margin-top:2px;}
+.hc-imp-who{display:grid;gap:1px;min-width:0;}
+.hc-imp-who small{font-size:12px;color:var(--text-tertiary);}
+.hc-imp-row.is-unmatched .hc-imp-who small{color:var(--cfa-dark-red);}
+.hc-imp-dates{grid-column:2;display:flex;flex-wrap:wrap;gap:6px;}
+.hc-imp-d{padding:2px 8px;border-radius:999px;background:var(--cfa-soft);font-size:12px;font-weight:600;color:var(--text-secondary);}
+.hc-imp-d.is-same{opacity:.55;}
+.hc-imp-d s{font-weight:400;color:var(--text-tertiary);}
+/* Roster review from an upload: how many wait after this one (weekly-roster-import.js) */
+.wi-queue{margin:-4px 0 12px;padding:8px 12px;border-radius:10px;background:var(--cfa-soft);font-family:var(--font-ui);font-size:13px;font-weight:600;color:var(--text-secondary);}
+#btnSkipAllWeeklyImport{margin-top:8px;}

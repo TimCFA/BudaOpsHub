@@ -244,30 +244,54 @@ function createWeeklyImportPreviewModal(){
       <div class="sheet" style="max-width:560px;">
         <h2>Review Weekly Roster</h2>
         <div class="sub" id="weeklyImportWeekLabel"></div>
+        <div class="wi-queue" id="weeklyImportQueueNote" hidden></div>
         <div class="day-picker" id="weeklyImportDayTabs" style="margin-bottom:14px;"></div>
         <div id="weeklyImportUnrecognizedWarning" style="display:none;background:#FFF3CD;border:1px solid #FFE69C;border-radius:var(--radius);padding:10px 12px;margin-bottom:14px;font-size:11px;color:#856404;"></div>
         <div id="weeklyImportDayContent" style="max-height:400px;overflow-y:auto;margin-bottom:20px;"></div>
         <button id="btnConfirmWeeklyImport" class="btn btn-primary">Confirm & Save Whole Week</button>
-        <button id="btnCancelWeeklyImport" class="btn btn-ghost">Cancel</button>
+        <button id="btnCancelWeeklyImport" class="btn btn-ghost">Skip this week (don’t apply)</button>
+        <button id="btnSkipAllWeeklyImport" class="btn btn-ghost" hidden></button>
       </div>
     </div>
   `;
   document.body.insertAdjacentHTML('beforeend', html);
 
-  // The next roster from the same upload, if one is waiting (upload-bundle.js).
-  const next = () => { if(typeof duRosterNext === 'function') duRosterNext(); };
-  document.getElementById('btnCancelWeeklyImport').addEventListener('click', ()=>{
+  // Skipped: nothing applied; the next roster from the same upload, if one
+  // is waiting, opens (upload-bundle.js).
+  const skip = () => {
     document.getElementById('weeklyImportPreviewModal').classList.remove('active');
-    next();
-  });
+    weeklyImportFileStart = null;
+    if(typeof duRosterDone === 'function') duRosterDone(false);
+    if(typeof duRosterNext === 'function') duRosterNext();
+  };
+  document.getElementById('btnCancelWeeklyImport').addEventListener('click', skip);
   document.getElementById('weeklyImportPreviewModal').addEventListener('click', (e)=>{
-    if(e.target === document.getElementById('weeklyImportPreviewModal')){ document.getElementById('weeklyImportPreviewModal').classList.remove('active'); next(); }
+    if(e.target === document.getElementById('weeklyImportPreviewModal')) skip();
+  });
+  document.getElementById('btnSkipAllWeeklyImport').addEventListener('click', ()=>{
+    document.getElementById('weeklyImportPreviewModal').classList.remove('active');
+    weeklyImportFileStart = null;
+    if(typeof duRosterSkipAll === 'function') duRosterSkipAll();
+    showToast('Rosters skipped: nothing applied');
   });
   document.getElementById('btnConfirmWeeklyImport').addEventListener('click', confirmWeeklyImport);
 }
 
+// How many rosters from the same upload wait after this one, and the button
+// that skips them all.
+function weeklyImportSyncQueue(){
+  const n = typeof duRosterQueue !== 'undefined' ? duRosterQueue.length : 0;
+  const note = document.getElementById('weeklyImportQueueNote'), all = document.getElementById('btnSkipAllWeeklyImport');
+  if(!note || !all) return;
+  note.hidden = !n;
+  note.textContent = n ? `From your upload: ${n} more roster${n === 1 ? '' : 's'} after this one.` : '';
+  all.hidden = !n;
+  all.textContent = `Skip this and the ${n} other roster${n === 1 ? '' : 's'}`;
+}
+
 function showWeeklyImportPreview(){
   if(!document.getElementById('weeklyImportPreviewModal')) createWeeklyImportPreviewModal();
+  weeklyImportSyncQueue();
 
   const weekDays = weeklyImportDays();
   const rangeLabel = weekDays.length ? `${weekDays[0].label} – ${weekDays[weekDays.length-1].label}` : '';
@@ -361,6 +385,7 @@ async function confirmWeeklyImport(){
   rosterPrunePosted();
   const changesNow = changeCount();
   duRecord('roster', {file: weeklyImportPendingFile, summary: `${weekDays[0].label} – ${weekDays[weekDays.length - 1].label}`});
+  if(typeof duRosterDone === 'function') duRosterDone(true, `${weekDays[0].label} – ${weekDays[weekDays.length - 1].label}`);
   await saveState();
   document.getElementById('weeklyImportPreviewModal').classList.remove('active');
   weeklyImportFileStart = null;

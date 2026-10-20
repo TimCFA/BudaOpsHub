@@ -31,7 +31,8 @@ vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(process.argv[1], 'utf8'), ctx);
 const c = JSON.parse(fs.readFileSync(0, 'utf8'));
 const m = ctx.soModel(c.counts, c.settings, c.now);
-process.stdout.write(JSON.stringify({rows: m.rows.map(r => [r.key, r.onHand, r.perDay === null ? null : Math.round(r.perDay * 10) / 10, r.most, r.order, r.dollars, r.daysLeft === null ? null : Math.round(r.daysLeft * 10) / 10]),
+process.stdout.write(JSON.stringify({rows: m.rows.map(r => [r.key, r.onHand, r.perDay === null ? null : Math.round(r.perDay * 10) / 10, r.most, r.order, r.dollars, r.daysLeft === null ? null : Math.round(r.daysLeft * 10) / 10, r.atDelivery, r.buildTo]),
+  lead: m.lead,
   total: m.total, latest: m.latest && m.latest.shift, text: ctx.soOrderText(m, 'Tue, Oct 20')}));
 """
 
@@ -93,17 +94,59 @@ class OnHandAndPace(unittest.TestCase):
 
 class TheOrder(unittest.TestCase):
     def test_par_minus_on_hand_rounded_to_how_the_bank_sells_it(self):
-        d = model(WEEK, {'par': {'1': 500, '5': 100, 'Quarters': 40, '20': 30}, 'step': {'1': 100, 'Quarters': 10}})
+        # An older par (a count, not dollars), ordered the day it arrives.
+        d = model(WEEK, {'par': {'1': 500, '5': 100, 'Quarters': 40, '20': 30}, 'step': {'1': 100, 'Quarters': 10}, 'leadDays': 0})
         self.assertEqual(d['by']['1'][3:5], [200, 200])             # need 140 → straps of 100 → 200 bills, $200
         self.assertEqual(d['by']['5'][3:5], [48, 240])              # need 48 fives, $240
         self.assertEqual(d['by']['Quarters'][3:5], [20, 200])       # need 17 rolls → boxes of 10 → 20 rolls, $200
         self.assertEqual(d['by']['20'][3:5], [0, 0])                # 54 on hand, over par
         self.assertEqual(d['total'], 640)
-        self.assertEqual(d['text'], 'Change order, Chick-fil-A Buda, Tue, Oct 20\n$1: 200 bills ($200)\n$5: 48 bills ($240)\n'
+        self.assertEqual(d['text'], 'Change order, Chick-fil-A Buda, Tue, Oct 20\n$1: 200 bills ($200) = 2 bundles\n$5: 48 bills ($240)\n'
                                     'Quarters: 20 rolls ($200)\nTotal: $640')
 
-    def test_no_pars_no_order(self):
+    def test_build_to_in_dollars_counting_what_goes_out_before_delivery(self):
+        """Tim, Oct 20 2026: order back up to the build-to, taking into account
+        how fast the bills go out between ordering and delivery."""
+        d = model(WEEK, {'buildTo': {'1': 500, '5': 500, 'Quarters': 400, '20': 600}, 'step': {'1': 100, 'Quarters': 10}, 'leadDays': 3})
+        self.assertEqual(d['lead'], 3)
+        # $1s: 360 on hand, 20 a day for 3 days → 300 left at delivery; build to 500 → 200, in straps of 100.
+        self.assertEqual(d['by']['1'][6:8], [300, 500])
+        self.assertEqual(d['by']['1'][3:5], [200, 200])
+        # $5s: 52 on hand, 4 a day → 40 at delivery; $500 = 100 bills → 60 bills, $300.
+        self.assertEqual(d['by']['5'][6:8], [40, 500])
+        self.assertEqual(d['by']['5'][3:5], [60, 300])
+        # Quarters: 23 rolls, 1 a day → 20; $400 = 40 rolls → 20 rolls in boxes of 10.
+        self.assertEqual(d['by']['Quarters'][3:5], [20, 200])
+        # $20s don't run down: 54 on hand, build to $600 = 30 → nothing.
+        self.assertEqual(d['by']['20'][3:5], [0, 0])
+        self.assertEqual(d['total'], 700)
+        # The store's two days from ordering to delivery (Tim) until another is saved. Never below zero at delivery.
+        d = model(WEEK, {'buildTo': {'1': 500}})
+        self.assertEqual((d['lead'], d['by']['1'][6]), (2, 320))
+        d = model(WEEK, {'buildTo': {'1': 500}, 'leadDays': 30})
+        self.assertEqual((d['by']['1'][6], d['by']['1'][3]), (0, 500))
+
+    def test_the_stores_build_tos_until_others_are_saved(self):
+        """Tim's sheet (Oct 20 2026): $5 $1,000 · $1 $520 · quarters $300 ·
+        dimes $200 · nickels $80 · pennies $0."""
         d = model(WEEK)
+        self.assertEqual({k: v[7] for k, v in d['by'].items() if v[7]}, {'5': 1000, '1': 520, 'Quarters': 300, 'Dimes': 200, 'Nickels': 80})
+        # $1s: 360 on hand, 20 a day for the 2 days to delivery → 320; 520 − 320 = 200 bills.
+        self.assertEqual(d['by']['1'][3:5], [200, 200])
+        self.assertEqual(d['by']['5'][3:5], [156, 780])           # 52 on hand − 8 by delivery = 44; 200 − 44
+        self.assertEqual(d['by']['10'][3:5], [0, 0])              # no $10s or $20s on the sheet
+        # How the bank sells them: $1s in bundles of 100, $5s any number (bundles of 100 shown), coin any rolls.
+        d = model([dict(WEEK[-1], bills={'1': 300, '5': 260})], {})
+        self.assertEqual(d['by']['1'][3], 300)                    # need 220 → 3 bundles
+        self.assertEqual(d['by']['5'][3], 148)                    # 200 − 52, not rounded
+        self.assertEqual(d['by']['Quarters'][3], 7)               # 30 − 23 rolls
+        self.assertIn('$1: 300 bills ($300) = 3 bundles\n$5: 148 bills ($740) = 1 bundle + 48 bills\n', d['text'])
+        # Saved build-tos replace the sheet's.
+        d = model(WEEK, {'buildTo': {'1': 400}})
+        self.assertEqual({k: v[7] for k, v in d['by'].items() if v[7]}, {'1': 400})
+
+    def test_no_counts_no_order(self):
+        d = model([])
         self.assertEqual(d['total'], 0)
         self.assertEqual(d['text'], '')
 

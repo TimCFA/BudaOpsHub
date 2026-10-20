@@ -217,6 +217,40 @@ class HeadcountTest(unittest.TestCase):
         self.assertEqual(self.get(admin).get_json()['profiles'], [])
         self.assertEqual(self.get(appmod.app.test_client()).status_code, 403)
 
+    def test_permit_spreadsheet(self):
+        """Tim, Oct 20 2026: permit dates from an Excel sheet, read on the
+        server, checked on the page, then saved without clearing anything."""
+        import io
+        import openpyxl
+        self.upload(TEAM)
+        wb = openpyxl.Workbook()
+        for r in (['Name', 'Food Handler Expires', 'Hire Date'], ['TESTCASE, JORDAN', '3/1/2027', '5/12/2026'], ['Riley Sample', '11/2/2026', None]):
+            wb.active.append(r)
+        buf = io.BytesIO()
+        wb.save(buf)
+        sheet = lambda: {'file': (io.BytesIO(buf.getvalue()), 'permits.xlsx')}
+        admin = self.login('567890')
+        lead = self.login('345678')
+        self.assertEqual(lead.post('/api/team/profiles/read', data=sheet(), content_type='multipart/form-data').status_code, 403)
+        self.assertEqual(admin.post('/api/team/profiles/read', data={}, content_type='multipart/form-data').status_code, 400)
+        r = admin.post('/api/team/profiles/read', data=sheet(), content_type='multipart/form-data')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.headers['Cache-Control'], 'no-store')
+        rows = r.get_json()['rows']
+        self.assertEqual([(x['name'], x.get('permitExpires'), x.get('hireDate')) for x in rows],
+                         [('Jordan Testcase', '2027-03-01', '2026-05-12'), ('Riley Sample', '2026-11-02', None)])
+        self.assertEqual(store['secure/teamProfiles'], {})                          # reading saves nothing
+        # A note already on Riley's profile stays when the sheet is saved.
+        admin.post('/api/team/profiles', json={'name': 'Riley Sample', 'notes': 'Prefers closes.', 'birthday': '2007-04-04'})
+        self.assertEqual(lead.post('/api/team/profiles/bulk', json={'rows': rows}).status_code, 403)
+        self.assertEqual(admin.post('/api/team/profiles/bulk', json={'rows': []}).status_code, 400)
+        r = admin.post('/api/team/profiles/bulk', json={'rows': rows + [{'name': 'No Dates'}, {'name': 'Bad', 'permitExpires': '3/1/27'}]})
+        self.assertEqual((r.status_code, r.get_json()['saved']), (200, 2))
+        p = {x['name']: x for x in r.get_json()['profiles']}
+        self.assertEqual(sorted(p), ['Jordan Testcase', 'Riley Sample'])
+        self.assertEqual((p['Riley Sample']['permitExpires'], p['Riley Sample']['notes'], p['Riley Sample']['birthday']), ('2026-11-02', 'Prefers closes.', '2007-04-04'))
+        self.assertEqual((p['Jordan Testcase']['hireDate'], p['Jordan Testcase']['by']), ('2026-05-12', 'Avery Office'))
+
     def test_page_wiring(self):
         page = read('cfa-buda-ops-hub-complete.html')
         self.assertIn('<div class="view" id="headcountView">', page)

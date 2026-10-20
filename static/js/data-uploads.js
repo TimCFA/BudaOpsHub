@@ -571,9 +571,18 @@ async function duHandleFiles(fileList, hint){
           duResults[job.i] = {file: job.file.name, state: 'skip', kind: 'HotSchedules weekly roster', text: 'That week is over; nothing to update.'};
           continue;
         }
-        // One review at a time: the next roster opens when this one is saved or cancelled.
-        if(duRosterReviewOpen()){ duRosterQueue.push({file: job.file, text: job.text, i: job.i}); text = 'Opens next, after the week before it is saved or cancelled.'; }
-        else text = duImportRoster(job.file, job.text);
+        // One review at a time: the next roster opens when this one is saved or
+        // skipped; one waiting its turn can be skipped from here.
+        const kind = src ? src.name : 'HotSchedules weekly roster';
+        if(duRosterReviewOpen()){
+          duRosterQueue.push({file: job.file, text: job.text, i: job.i});
+          if(typeof weeklyImportSyncQueue === 'function') weeklyImportSyncQueue();   // the open review counts it
+          duResults[job.i] = {file: job.file.name, state: 'waiting', kind, text: 'Waiting its turn: opens after the week before it is saved or skipped.', action: {skipRoster: true, key: String(job.i), label: 'Skip this roster'}};
+        } else {
+          duResults[job.i] = {file: job.file.name, state: 'waiting', kind, text: ''};
+          duOpenRoster(job);
+        }
+        continue;
       }
       else if(job.kind === 'numbers') text = await knImportFile(job.file);
       else if(job.kind === 'sales') text = await rpImportSales(job.file, job.text);
@@ -1126,7 +1135,7 @@ function renderDataUploads(){
       <span class="du-drop-main">Drop files here or tap to choose</span>
       <span class="du-drop-sub">Any of the reports below, several at once — each is recognized and filed where it belongs.</span>
     </label>
-    ${duResults.length ? `<ul class="du-results">${duResultsShown().map(r => `<li class="du-result is-${r.state}"><b>${escapeHtml(String(r.file).replace(/^[0-9a-f]{8}-/i, ''))}</b>${r.kind ? ` <span>${escapeHtml(r.kind)}</span>` : ''}<div>${escapeHtml(r.text)}</div>${r.action ? `<button type="button" class="du-sync-btn du-result-act" data-du-evi="${escapeHtml(r.action.key)}">${escapeHtml(r.action.label)}</button>` : ''}</li>`).join('')}</ul>` : ''}
+    ${duResults.length ? `<ul class="du-results">${duResultsShown().map(r => `<li class="du-result is-${r.state}"><b>${escapeHtml(String(r.file).replace(/^[0-9a-f]{8}-/i, ''))}</b>${r.kind ? ` <span>${escapeHtml(r.kind)}</span>` : ''}<div>${escapeHtml(r.text)}</div>${r.action ? `<button type="button" class="du-sync-btn du-result-act" ${r.action.skipRoster ? 'data-du-skip-roster' : 'data-du-evi'}="${escapeHtml(r.action.key)}">${escapeHtml(r.action.label)}</button>` : ''}</li>`).join('')}</ul>` : ''}
     <ul class="du-list">
       ${shown.map(({src, st}) => {
         const s = DU_STATUS[st.status];
@@ -1167,6 +1176,8 @@ document.getElementById('dataUploadsRoot').addEventListener('click', e=>{
   if(e.target.closest('[data-du-levelset]')) peaLevelsetSync(false);
   if(e.target.closest('[data-du-forecast]')){ fcTab = 'forecast'; fcNumbersOpen = true; launchShowTab('forecast'); const c = document.getElementById('fcNumbersCard'); if(c && c.scrollIntoView) c.scrollIntoView({block: 'start'}); }
   if(e.target.closest('[data-du-restore]')) duRestoreBackup();
+  const skip = e.target.closest('[data-du-skip-roster]');
+  if(skip && typeof duRosterSkipQueued === 'function'){ duRosterSkipQueued(Number(skip.dataset.duSkipRoster)); return; }
   const evi = e.target.closest('[data-du-evi]');
   if(evi && typeof duReadBundleImage === 'function') duReadBundleImage(evi.dataset.duEvi);
 });
