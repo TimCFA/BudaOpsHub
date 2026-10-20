@@ -20,6 +20,9 @@ let acGoogleClientId = '';
 let acGoogleReady = false;
 let acAccounts = null;      // the owner's lists, once loaded
 let acPinRows = null;       // rows read from the pasted or dropped list, before upload
+let acPinUnread = [];       // names in a PDF report whose PIN couldn't be told apart
+let acPinFromPdf = false;   // the rows came from the PIN report PDF: show them to check
+let acPinBusy = false;
 
 const AC_ROLE_LABELS = {director: 'Director', manager: 'Manager PIN', lead: 'Team Lead', trainer: 'Trainer', member: 'Team Member'};
 const acRoleLabel = r => AC_ROLE_LABELS[r] || r || '';
@@ -139,13 +142,13 @@ function acRenderSettings(){
       <button type="submit" class="btn btn-primary dir-btn">Add a director</button>
     </form>
     <h4>Team clock-in PINs</h4>
-    <p class="dir-note">A team member types their 6-digit clock-in PIN on the PIN screen and the hub knows who they are and their role. Paste the list below or drop a CSV: one person a line, <b>Name, PIN, Role</b> (Team Member, Trainer or Team Lead). A clock-in PIN never opens Manage, whatever the role. Only names and roles are kept here; the PINs themselves are never stored or shown.</p>
+    <p class="dir-note">A team member types their 6-digit clock-in PIN on the PIN screen and the hub knows who they are and their role. Pick the store’s PIN report (PDF), or paste the list or pick a CSV: one person a line, <b>Name, PIN, Role</b> (Team Member, Trainer or Team Lead). A clock-in PIN never opens Manage, whatever the role. Only names and roles are kept here; the PINs themselves are never stored or shown.</p>
     ${A.pins.length ? `<details class="tp-log"><summary>${A.pins.length} on the list</summary><ul class="ev-m-list">${A.pins.map(p => `<li class="ev-m-row"><div class="ev-m-main"><b>${escapeHtml(p.name)}</b><small>${escapeHtml(acRoleLabel(p.role))}</small></div><button type="button" class="dir-x" data-ac-pin-del="${escapeHtml(p.name)}" aria-label="Remove ${escapeHtml(p.name)}">${UO_X_ICON}</button></li>`).join('')}</ul></details>` : '<p class="dir-empty">No team PINs yet.</p>'}
     <form class="ac-form ac-pins" id="acPinForm">
       <textarea id="acPinText" rows="4" placeholder="Jordan Testcase, 123456, Team Member&#10;Riley Sample, 234567, Trainer" spellcheck="false"></textarea>
-      <div class="ac-pin-row"><label class="ac-file"><input type="file" id="acPinFile" accept=".csv,.txt,text/csv,text/plain"> Pick a CSV</label>
+      <div class="ac-pin-row"><label class="ac-file"><input type="file" id="acPinFile" accept=".pdf,application/pdf,.csv,.txt,text/csv,text/plain"> ${acPinBusy ? 'Reading…' : 'Pick the PIN report or a CSV'}</label>
         <label class="ac-replace"><input type="checkbox" id="acPinReplace"> Replace the whole list</label></div>
-      ${acPinRows ? `<p class="dir-note">${acPinRows.length} row${acPinRows.length === 1 ? '' : 's'} read from the file.</p>` : ''}
+      ${acPinRows ? acPinPreviewHtml() : ''}
       <button type="submit" class="btn btn-primary dir-btn">Save PINs</button>
     </form>
     <p class="dir-note" id="acPinMsg" role="status"></p>`;
@@ -165,6 +168,55 @@ async function acLoadAccounts(){
   }
   acRenderSettings();
 }
+// The rows read from the PIN report, to check before saving: each name, the
+// PIN's last two digits only, and the role, which can be changed here (the
+// report may not say; names on Manage → Settings → Leaders start as Team
+// Lead). A Director is skipped on save: directors sign in with Google.
+const AC_PIN_ROLES = ['Team Member', 'Trainer', 'Team Lead', 'Director'];
+function acPinPreviewHtml(){
+  const rows = acPinRows || [];
+  if(!acPinFromPdf) return `<p class="dir-note">${rows.length} row${rows.length === 1 ? '' : 's'} read from the file.</p>`;
+  const count = r => rows.filter(x => x.role === r).length;
+  return `
+    <div class="ac-pin-check">
+      <p class="dir-note"><b>${rows.length} people read from the report.</b> Check the names and roles, then Save PINs. ${AC_PIN_ROLES.filter(count).map(r => `${count(r)} ${r}${count(r) === 1 ? '' : 's'}`).join(' · ')}</p>
+      ${acPinUnread.length ? `<p class="dir-note ac-pin-warn">No clear PIN for: ${acPinUnread.map(escapeHtml).join(', ')}. Add them in the box below as Name, PIN, Role.</p>` : ''}
+      <ul class="ac-pin-list">${rows.map((r, i) => `
+        <li class="ac-pin-item${r.role === 'Director' ? ' is-skip' : ''}">
+          <span class="ac-pin-name"><b>${escapeHtml(r.name)}</b><small>PIN ••••${escapeHtml(String(r.pin).slice(-2))}${r.why ? ` · ${escapeHtml(r.why)}` : ''}</small></span>
+          <select data-ac-pin-role="${i}" aria-label="Role for ${escapeHtml(r.name)}">${AC_PIN_ROLES.map(x => `<option${x === r.role ? ' selected' : ''}>${x}</option>`).join('')}</select>
+          <button type="button" class="dir-x" data-ac-pin-drop="${i}" aria-label="Leave ${escapeHtml(r.name)} out">${UO_X_ICON}</button>
+        </li>`).join('')}</ul>
+    </div>`;
+}
+
+// Names on the Leaders list start as Team Lead when the report gave no role.
+function acPinLeaderRoles(rows){
+  const listed = typeof ldListDecides === 'function' && ldListDecides() && typeof ldRoster === 'function'
+    ? new Set(ldRoster().filter(r => r && r.name).map(r => dirKey(r.name))) : new Set();
+  return rows.map(r => !r.roleFromReport && listed.has(dirKey(r.name)) ? {...r, role: 'Team Lead', why: 'on the Leaders list'} : {...r, why: r.roleFromReport ? '' : 'no role in the report'});
+}
+
+async function acReadPinReport(file){
+  acPinBusy = true; acRenderSettings();
+  try{
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch(`${API_BASE}/api/accounts/pins/read`, {method: 'POST', body: fd});
+    const d = await res.json().catch(() => ({}));
+    if(!res.ok) throw new Error(d.error || 'The report couldn’t be read.');
+    if(!d.rows.length) throw new Error('No names with a 6-digit PIN were found in that report.');
+    acPinRows = acPinLeaderRoles(d.rows);
+    acPinUnread = d.unread || [];
+    acPinFromPdf = true;
+  }catch(err){
+    showToast(err.message);
+  }finally{
+    acPinBusy = false;
+    acRenderSettings();
+  }
+}
+
 // "Name, PIN, Role" lines (a header line is skipped) → rows.
 function acParsePinList(text){
   const rows = [];
@@ -194,6 +246,13 @@ document.addEventListener('click', async e => {
     try{ acAccounts = await acPost('/api/accounts/google', 'DELETE', {email: g.dataset.acGoogleDel}); acRenderSettings(); }catch(err){ showToast(err.message); }
     return;
   }
+  const drop = t.closest('[data-ac-pin-drop]');
+  if(drop && acPinRows){
+    acPinRows.splice(+drop.dataset.acPinDrop, 1);
+    if(!acPinRows.length){ acPinRows = null; acPinFromPdf = false; }
+    acRenderSettings();
+    return;
+  }
   const p = t.closest('[data-ac-pin-del]');
   if(p){
     if(!confirm(`Remove ${p.dataset.acPinDel}'s PIN from the list?`)) return;
@@ -204,8 +263,17 @@ document.addEventListener('change', async e => {
   if(!e.target || e.target.id !== 'acPinFile') return;
   const f = e.target.files && e.target.files[0];
   if(!f) return;
+  if(f.type === 'application/pdf' || /\.pdf$/i.test(f.name)){ acReadPinReport(f); return; }
   acPinRows = acParsePinList(await f.text());
+  acPinFromPdf = false; acPinUnread = [];
   acRenderSettings();
+});
+document.addEventListener('change', e => {
+  const sel = e.target && e.target.closest ? e.target.closest('[data-ac-pin-role]') : null;
+  if(!sel || !acPinRows) return;
+  const r = acPinRows[+sel.dataset.acPinRole];
+  // No redraw: it would clear anything typed in the box below.
+  if(r){ r.role = sel.value; r.why = ''; sel.closest('.ac-pin-item').classList.toggle('is-skip', r.role === 'Director'); }
 });
 document.addEventListener('submit', async e => {
   if(e.target.id === 'acGoogleForm'){
@@ -217,14 +285,14 @@ document.addEventListener('submit', async e => {
   if(e.target.id !== 'acPinForm') return;
   e.preventDefault();
   const typed = acParsePinList(document.getElementById('acPinText').value);
-  const rows = [...(acPinRows || []), ...typed];
+  const rows = [...(acPinRows || []).map(r => ({name: r.name, pin: r.pin, role: r.role})), ...typed];
   const msg = document.getElementById('acPinMsg');
   if(!rows.length){ if(msg) msg.textContent = 'Paste the list or pick a file first.'; return; }
   const replace = document.getElementById('acPinReplace').checked;
   if(replace && !confirm(`Replace the whole team PIN list with these ${rows.length}?`)) return;
   try{
     const d = await acPost('/api/accounts/pins', 'POST', {rows, replace});
-    acAccounts = d; acPinRows = null;
+    acAccounts = d; acPinRows = null; acPinFromPdf = false; acPinUnread = [];
     acRenderSettings();
     const m = document.getElementById('acPinMsg');
     if(m) m.textContent = `${d.added} saved${d.skipped.length ? ` · ${d.skipped.length} skipped: ${d.skipped.slice(0, 5).join('; ')}${d.skipped.length > 5 ? '…' : ''}` : ''}`;

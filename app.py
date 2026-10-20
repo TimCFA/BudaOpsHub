@@ -20,6 +20,7 @@ from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 
 from pea_parser import parse_pea_pdf, PeaParseError
+from pin_report import read_pin_report, PinReportError
 from reports_parser import parse_report_file, ReportParseError
 import levelset_sync
 from state_patch import PatchError, apply_ops, canon, check_ops, union_merge
@@ -715,6 +716,30 @@ def accounts_pins():
     elif clean:
         ref.update(clean)
     return jsonify(dict(_accounts_out(), success=True, added=len(clean), skipped=skipped))
+
+PIN_REPORT_MAX_BYTES = 5 * 1024 * 1024
+
+@app.route('/api/accounts/pins/read', methods=['POST'])
+def accounts_pins_read():
+    """The store's PIN report as a PDF (Tim, Oct 19 2026): read it into rows
+    of name, PIN and role and hand them back to the owner's page to check
+    and save (/api/accounts/pins). Nothing from the file is kept or logged."""
+    gate = _owner_only()
+    if gate:
+        return gate
+    f = request.files.get('file')
+    if not f:
+        return jsonify({'error': 'Pick the PIN report first.'}), 400
+    data = f.read(PIN_REPORT_MAX_BYTES + 1)
+    if len(data) > PIN_REPORT_MAX_BYTES:
+        return jsonify({'error': 'That file is over 5 MB.'}), 413
+    try:
+        out = read_pin_report(data)
+    except PinReportError as e:
+        return jsonify({'error': str(e)}), 400
+    resp = jsonify(out)
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 @app.route('/api/manager/set-pin', methods=['POST'])
 def manager_set_pin():
