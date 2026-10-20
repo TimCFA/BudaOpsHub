@@ -98,11 +98,16 @@ const wdMoney = n => '$' + (Number(n) || 0).toFixed(2);
 const wdMoney0 = n => '$' + Math.round(Number(n) || 0);
 function wdShortDay(iso){ const d = new Date(iso + 'T00:00:00'); return d.toLocaleDateString('en-US', {weekday: 'short'}) + ' ' + (d.getMonth() + 1) + '/' + d.getDate(); }
 
+// Each bar is its share of the total (Tim, Oct 20 2026: scaled to the
+// biggest, the top day or daypart always read as a full bar), with the share.
 function wdBars(rows, wide){
-  const max = Math.max(0, ...rows.map(r => r.value));
-  return rows.map(r => `<div class="wd-bar-row ${wide ? 'is-wide' : ''}"><div class="wd-bar-label">${escapeHtml(r.label)}</div>
-    <div class="wd-bar-track"><div class="wd-bar-fill" style="width:${max ? (r.value > 0 ? Math.max(2, r.value / max * 100) : 0) : 0}%"></div></div>
-    <div class="wd-bar-val">${wdMoney0(r.value)}</div></div>`).join('');
+  const total = rows.reduce((s, r) => s + Math.max(0, r.value), 0);
+  return rows.map(r => {
+    const share = total > 0 && r.value > 0 ? r.value / total * 100 : 0;
+    return `<div class="wd-bar-row ${wide ? 'is-wide' : ''}"><div class="wd-bar-label">${escapeHtml(r.label)}</div>
+    <div class="wd-bar-track"><div class="wd-bar-fill" style="width:${share ? Math.max(1, share).toFixed(1) : 0}%"></div></div>
+    <div class="wd-bar-val">${wdMoney0(r.value)}${share ? ` <small>${Math.round(share)}%</small>` : ''}</div></div>`;
+  }).join('');
 }
 
 function wdDonut(parts, total){
@@ -175,8 +180,8 @@ function renderWasteDashboard(){
             <div class="wd-legend">${cats.map(c => `<div class="wd-row"><span class="wd-dot" style="--c:${c.color}"></span><span class="wd-nm">${escapeHtml(c.label)}</span><span class="wd-m">${wdMoney(c.value)}</span><span class="wd-q wd-pct">${A.total ? Math.round(c.value / A.total * 100) : 0}%</span></div>`).join('')}</div>
           </div>
         </div>
-        <div class="wd-box"><h4>Waste by day</h4>${wdBars(dayRows, true)}</div>
-        <div class="wd-box"><h4>Waste by daypart</h4>${wdBars(partRows)}<div class="wd-note">Ops Hub dayparts (FOH windows; Transition counts in Lunch).</div></div>
+        <div class="wd-box"><h4>Waste by day <small>share of the total</small></h4>${wdBars(dayRows, true)}</div>
+        <div class="wd-box"><h4>Waste by daypart <small>share of the total</small></h4>${wdBars(partRows)}<div class="wd-note">Ops Hub dayparts (FOH windows; Transition counts in Lunch).</div></div>
       </div>
     </div>
     <div class="standup-card wd-card">

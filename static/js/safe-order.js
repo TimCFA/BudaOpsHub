@@ -35,11 +35,10 @@ const SO_LEAD_DEFAULT = 2;      // days from ordering to delivery: the store's (
 // saves others on the card.
 const SO_BUILD_TO_STORE = {'5': 1000, '1': 520, Quarters: 300, Dimes: 200, Nickels: 80};
 // How the bank sells them (Tim, Oct 20 2026): $1s only in bundles of 100;
-// $5s come in bundles of $500 (100 bills) but any number can be ordered;
-// coin in any number of rolls. Ordering steps stand until a director saves
-// others; the bundles show on the order so it's easy to place.
+// $5s and coin in any amount. Ordering steps stand until a director saves
+// others. The order reads in dollars only (Tim: no bundles).
 const SO_STEP_STORE = {'1': 100};
-const SO_BUNDLE = {'1': 100, '5': 100};
+let soDetailsOpen = false;    // "How it's worked out" opened
 const SO_DAY_MS = 86400000;
 let soEditing = false;
 
@@ -108,13 +107,6 @@ function soLeadDays(S){
 
 function soMoney(n){ return '$' + Math.round(n).toLocaleString('en-US'); }
 function soUnits(n, unit){ return `${n.toLocaleString('en-US')} ${unit}${n === 1 ? '' : 's'}`; }
-// "1 bundle + 56 bills" for a bill the bank bundles; '' when it's whole bundles or none.
-function soBundles(r){
-  const per = SO_BUNDLE[r.key];
-  if(!per || r.order < per) return '';
-  const b = Math.floor(r.order / per), rest = r.order % per;
-  return `${b} bundle${b === 1 ? '' : 's'}${rest ? ` + ${soUnits(rest, r.unit)}` : ''}`;
-}
 function soRunsOut(daysLeft, now){
   if(daysLeft === null) return '';
   if(daysLeft < 1) return 'out today';
@@ -124,7 +116,7 @@ function soRunsOut(daysLeft, now){
 
 // The order in words, for the bank.
 function soOrderText(m, dateLabel){
-  const lines = m.rows.filter(r => r.order).map(r => `${r.label}: ${soUnits(r.order, r.unit)} (${soMoney(r.dollars)})${soBundles(r) ? ` = ${soBundles(r)}` : ''}`);
+  const lines = m.rows.filter(r => r.order).map(r => `${r.label}: ${soMoney(r.dollars)}`);
   return lines.length ? `Change order, Chick-fil-A Buda, ${dateLabel}\n${lines.join('\n')}\nTotal: ${soMoney(m.total)}` : '';
 }
 
@@ -160,14 +152,35 @@ function renderSafeOrder(){
           ${r.target && r.perDay && r.atDelivery !== null ? `<span class="so-have so-at">~${r.atDelivery.toLocaleString('en-US')} left when the order arrives</span>` : ''}
           <span class="so-lasts ${tone}">${escapeHtml(lasts)}</span>
         </div>
-        ${r.order ? `<span class="so-order"><b>${soUnits(r.order, r.unit)}</b><small>${soMoney(r.dollars)}${soBundles(r) ? ` · ${escapeHtml(soBundles(r))}` : ''}</small></span>` : r.target ? '<span class="so-order is-none">Full</span>' : ''}
+        ${r.order ? `<span class="so-order"><b>${soMoney(r.dollars)}</b><small>${soUnits(r.order, r.unit)}</small></span>` : r.target ? '<span class="so-order is-none">Full</span>' : ''}
       </div>`;
   };
+  if(!soEditing){
+    // Tim (Oct 20 2026): the page was too much; what Aaliyah needs is the cash
+    // to order, each bill and coin in dollars. The working sits folded below.
+    const orderRows = m.rows.filter(r => r.order);
+    root.innerHTML = `
+    <section class="so-card so-simple">
+      <div class="so-kicker">Change order</div>
+      ${noPars ? '<p class="so-note so-hint">Set the build-to for each bill and coin and the order works itself out. <button type="button" class="ld-link" data-so-edit>Set build-tos</button></p>'
+        : m.total ? `<div class="so-big">${soMoney(m.total)}</div><p class="so-note">to order now. It arrives in ${leadText} and brings the change fund back up to its build-to.</p>
+          <ul class="so-lines">${orderRows.map(r => `<li><span>${escapeHtml(r.label)}</span><b>${soMoney(r.dollars)}</b></li>`).join('')}</ul>
+          <div class="so-go"><button type="button" class="btn btn-primary" data-so-copy>Copy order</button></div>`
+        : `<div class="so-big is-none">Nothing to order</div><p class="so-note">The change fund will still be at its build-to when an order would arrive.</p>`}
+      <p class="so-note so-asof">From the ${escapeHtml(asOf)} count${m.latest.countedBy ? ` by ${escapeHtml(m.latest.countedBy)}` : ''}.</p>
+      <details class="so-more" data-so-more${soDetailsOpen ? ' open' : ''}>
+        <summary>How it’s worked out</summary>
+        <p class="so-note">Each bill and coin is ordered back up to its build-to, less what goes out over the ${leadText} until delivery (at the pace the last ${SO_WINDOW_DAYS} days of counts show). $1s come in bundles of 100.</p>
+        <div class="so-list">${shown.map(row).join('')}</div>
+        <div class="so-go"><button type="button" class="btn btn-ghost" data-so-edit>Edit build-tos</button></div>
+      </details>
+    </section>`;
+    return;
+  }
   root.innerHTML = `
     <section class="so-card">
       <div class="so-head">
         <div><h3 class="so-title">Change order</h3><p class="so-note">On hand as of the ${escapeHtml(asOf)}${m.latest.countedBy ? `, counted by ${escapeHtml(m.latest.countedBy)}` : ''}.</p></div>
-        ${soEditing ? '' : `<div class="so-total"><span>To order</span><b>${soMoney(m.total)}</b></div>`}
       </div>
       ${noPars && !soEditing ? '<p class="so-note so-hint">Set the build-to for each bill and roll (the dollars the change fund should hold) and the order works itself out. <button type="button" class="ld-link" data-so-edit>Set build-tos</button></p>' : ''}
       ${soEditing
@@ -182,6 +195,10 @@ function renderSafeOrder(){
       <p class="so-note so-foot">Pace and run-out days come from the last ${SO_WINDOW_DAYS} days of counts (${m.counts}). Bills coming in from an order or a swap don't count as use.</p>
     </section>`;
 }
+
+document.getElementById('safeOrderRoot').addEventListener('toggle', e => {
+  if(e.target.matches && e.target.matches('[data-so-more]')) soDetailsOpen = e.target.open;
+}, true);
 
 document.getElementById('safeOrderRoot').addEventListener('click', async e => {
   const t = e.target.closest('button');
