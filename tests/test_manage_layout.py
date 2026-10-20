@@ -15,7 +15,7 @@ class Chips(unittest.TestCase):
     def test_every_chip_has_a_section_and_every_section_a_chip(self):
         chips = re.findall(r'data-manage-go="([a-z]+)"', MANAGE)
         groups = re.findall(r'data-manage-tab="([a-z]+)"', MANAGE)
-        self.assertEqual(chips, ['uploads', 'numbers', 'events', 'scoreboards', 'talent', 'waste', 'uniforms', 'pea', 'settings'])
+        self.assertEqual(chips, ['uploads', 'numbers', 'events', 'scoreboards', 'talent', 'waste', 'uniforms', 'pea', 'settings', 'health'])
         self.assertEqual(groups, chips)
 
     def test_no_accordion_left(self):

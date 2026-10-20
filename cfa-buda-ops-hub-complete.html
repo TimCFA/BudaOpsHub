@@ -409,6 +409,9 @@
       </button>
     </div>
 
+    <!-- Right Now: under the welcome, never above it (Tim: culture first). right-now.js -->
+    <section class="rn" id="rightNow" aria-label="Right now" aria-live="polite"></section>
+
     <div style="margin-bottom:32px;">
       <h2 class="home-section-header">Vision, Mission & Values</h2>
       <div class="home-vmv-grid" id="homeVMVContainer"></div>
@@ -880,6 +883,7 @@
         <button type="button" class="manage-tab" role="tab" id="manageTab-uniforms" data-manage-go="uniforms" aria-selected="false">Uniforms</button>
         <button type="button" class="manage-tab" role="tab" id="manageTab-pea" data-manage-go="pea" aria-selected="false">PEA</button>
         <button type="button" class="manage-tab" role="tab" id="manageTab-settings" data-manage-go="settings" aria-selected="false">Settings</button>
+        <button type="button" class="manage-tab" role="tab" id="manageTab-health" data-manage-go="health" aria-selected="false">Health</button>
       </nav>
 
       <!-- GROUP: Data Uploads -->
@@ -1083,6 +1087,17 @@
         </div>
       </section>
 
+      <!-- GROUP: Hub Health (hub-health.js; Tim, Oct 19 2026) -->
+      <section class="manage-group" data-manage-tab="health" aria-labelledby="manageTab-health">
+        <div class="manage-group-body">
+          <div class="standup-card hh-card">
+            <h3>Hub Health</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Is the hub doing its job? Saves that landed or were refused, how fast it opens on the team’s phones, and which tabs get opened. Counted with no names, from the day this went live.</p>
+            <div id="hubHealthRoot"><p class="dir-empty">Loading…</p></div>
+          </div>
+        </div>
+      </section>
+
     </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1147,5 +1162,7 @@
 <script src="/static/js/leaders-import.js"></script>
 <script src="/static/js/points-import.js"></script>
 <script src="/static/js/launch-mode.js"></script>
+<script src="/static/js/right-now.js"></script>
+<script src="/static/js/hub-health.js"></script>
 </body>
 </html>

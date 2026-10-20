@@ -35,6 +35,7 @@ function acApplyStatus(d){
   acRenderGate();
   acRenderSettings();
   if(acUser && acUser.name && typeof setInitials === 'function' && !getInitials()) setInitials(acInitials(acUser.name));
+  if(typeof renderRightNow === 'function') renderRightNow();   // the card is the signed-in person's
 }
 function acInitials(name){
   const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
