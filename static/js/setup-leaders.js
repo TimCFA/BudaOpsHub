@@ -90,7 +90,7 @@ function leadCaptainOptions(date, dp, dpIndex){
   const strength = peaStrengthByPerson();
   const names = Object.keys(strength);
   const dayType = suDayType('foh', date, dp);
-  const onShift = availableForDaypart(date, dpIndex, fohDayparts);
+  const onShift = availableForDaypart(date, dpIndex, fohDayparts, 'foh');
   const records = getSetupRecords(null, date).filter(r => r.section === 'foh' && r.position === SU_LEAD_CAPTAIN);
   const historyStart = getSetupRecords(null, null).filter(r => r.section === 'foh')[0];
   const historyDays = historyStart ? suDaysBetween(historyStart.date, date) : 0;
@@ -150,7 +150,7 @@ function suLeadCaptainSheetHtml(date, dp, dpIndex){
   // Anyone else on the FOH roster for this daypart, for when the leader
   // running the shift isn't on the leader list yet: never blocked.
   const optionNames = new Set(options.map(o => o.name.toLowerCase()));
-  const others = availableForDaypart(date, dpIndex, fohDayparts).filter(p => !optionNames.has(p.name.toLowerCase()))
+  const others = availableForDaypart(date, dpIndex, fohDayparts, 'foh').filter(p => !optionNames.has(p.name.toLowerCase()))
     .sort((a, b) => a.name.localeCompare(b.name));
   const othersHtml = others.length ? `
     <details class="su-lead-others" ${options.length ? '' : 'open'}>
@@ -184,7 +184,7 @@ function leaderReview(section, date, dpName, entries){
     const dayparts = fohDayparts;
     const dpIndex = dayparts.findIndex(d => d.name === dpName);
     const lead = posAssignments[key + '||' + SU_LEAD_CAPTAIN];
-    const teamLeadsOnShift = dpIndex >= 0 ? availableForDaypart(date, dpIndex, dayparts).filter(p => roleOf(p.name) === 'Team Lead') : [];
+    const teamLeadsOnShift = dpIndex >= 0 ? availableForDaypart(date, dpIndex, dayparts, section).filter(p => roleOf(p.name) === 'Team Lead') : [];
     if(lead && roleOf(lead) !== 'Team Lead') risks.push({name: lead, text: 'is Lead Captain but isn’t a Team Lead — only Team Leads can be Lead Captain'});
     if(lead){
       const hat = entries.find(e => e.captain && e.name.toLowerCase() === lead.toLowerCase());

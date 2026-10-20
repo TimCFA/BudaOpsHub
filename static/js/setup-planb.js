@@ -37,7 +37,7 @@ function planBForDaypart(section, date, dp, dpIndex){
     const person = peaName ? strength[peaName] : null;
     byName[k] = {name, person, role: person ? person.role : '', slot: slotOf[k] || null};
   };
-  availableForDaypart(date, dpIndex, dayparts).forEach(p => addPerson(p.name));
+  availableForDaypart(date, dpIndex, dayparts, section).forEach(p => addPerson(p.name));
   Object.keys(slotOf).forEach(k => addPerson(suSplitNames(posAssignments[key + '||' + slotOf[k]]).find(n => n.toLowerCase() === k)));
   const crew = Object.values(byName);
 
