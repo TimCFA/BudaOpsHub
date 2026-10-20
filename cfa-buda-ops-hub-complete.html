@@ -217,17 +217,32 @@
     <div class="sheet">
       <h2>New Trainer Trial</h2>
       <div class="field">
-        <label>Trainee Name</label>
-        <input type="text" id="ttAddName" placeholder="e.g. Jordan Ramirez" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+        <label for="ttAddName">Candidate (as Levelset spells it)</label>
+        <input type="text" id="ttAddName" list="ttAddLsNames" autocomplete="off" placeholder="e.g. Jordan Ramirez" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
       </div>
       <div class="field">
-        <label>Coaching Leader</label>
-        <input type="text" id="ttAddCoach" placeholder="e.g. Casey" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+        <label for="ttAddCoach">Team Lead training them</label>
+        <input type="text" id="ttAddCoach" list="ttAddLsNames" autocomplete="off" placeholder="e.g. Casey" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
       </div>
       <div class="field">
-        <label>Trial Start Date</label>
+        <label for="ttAddDirector">Recommended by (Director)</label>
+        <input type="text" id="ttAddDirector" autocomplete="off" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+      </div>
+      <div class="field">
+        <label for="ttAddMentee">3H’er mentee (can be added in week 1)</label>
+        <input type="text" id="ttAddMentee" list="ttAddLsNames" autocomplete="off" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+      </div>
+      <div class="field">
+        <label for="ttAddStart">Trial Start Date</label>
         <input type="date" id="ttAddStart" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
       </div>
+      <div class="field ttv-eligible">
+        <label>Eligibility</label>
+        <label><input type="checkbox" id="ttAddElig1"> Certified Team Member in good standing</label>
+        <label><input type="checkbox" id="ttAddElig2"> Recommended by a Director</label>
+        <label><input type="checkbox" id="ttAddElig3"> Consistent commitment to excellence and people development</label>
+      </div>
+      <datalist id="ttAddLsNames"></datalist>
       <button id="btnTTConfirmAdd" class="btn btn-primary">Start Trial</button>
       <button id="btnTTCancelAdd" class="btn btn-ghost">Cancel</button>
     </div>

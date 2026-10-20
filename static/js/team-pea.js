@@ -367,6 +367,11 @@ function tpProfileHtml(){
 // the note on the server (app.py, /api/pea/notes/tag) and count as evidence
 // in Calibrate to the PEC (leaders.js) for directors.
 let tpLsTag = null;   // the picker that's open: {key, picked: Set(sentence index)}
+// A card for 'rater:<name>' holds the notes that person WROTE on the PEAs
+// they gave (the Trainer Trial, trainer-trial.js); a plain name, the notes
+// written about them.
+const TP_LS_RATER = 'rater:';
+function tpLsWho(name){ const s = String(name || ''); return s.startsWith(TP_LS_RATER) ? {who: s.slice(TP_LS_RATER.length), rater: true} : {who: s, rater: false}; }
 // Sentences, with a semicolon or a new line counting as a break too: raters write run-ons.
 const tpLsSentences = text => (String(text || '').match(/[^.!?;\n]+(?:[.!?;]+|$)/g) || []).map(x => x.trim()).filter(Boolean);
 function tpLsTagsHtml(n, canEdit){
@@ -389,7 +394,7 @@ function tpLsNoteHtml(n, cards){
   const day = String(n.at || '').slice(0, 10);
   const canEdit = Array.isArray(cards) && cards.length > 0;
   const open = canEdit && tpLsTag && tpLsTag.key === n.key;
-  return `<li class="ld-note"><div class="dir-note-meta"><span>${day ? escapeHtml(ldDateY(day)) : ''}${n.position ? ` · <b>${escapeHtml(n.position)}</b>` : ''}${n.leader ? ` · ${escapeHtml(ldShort(n.leader))}` : ''}</span><span class="ld-note-acts">${canEdit && !open ? `<button type="button" class="ld-link" data-ls-tag-open="${escapeHtml(n.key)}">Tag to a pillar</button>` : ''}${n.overall != null ? `<span class="tp-tier is-${peaTierFor(+n.overall || 0).key}">${escapeHtml(String(n.overall))}</span>` : ''}</span></div><p>${escapeHtml(n.text)}</p>${tpLsTagsHtml(n, canEdit)}${open ? tpLsPickerHtml(n, cards) : ''}</li>`;
+  return `<li class="ld-note"><div class="dir-note-meta"><span>${day ? escapeHtml(ldDateY(day)) : ''}${n.position ? ` · <b>${escapeHtml(n.position)}</b>` : ''}${n.employee ? ` · on ${escapeHtml(ldShort(n.employee))}` : n.leader ? ` · ${escapeHtml(ldShort(n.leader))}` : ''}</span><span class="ld-note-acts">${canEdit && !open ? `<button type="button" class="ld-link" data-ls-tag-open="${escapeHtml(n.key)}">Tag to a pillar</button>` : ''}${n.overall != null ? `<span class="tp-tier is-${peaTierFor(+n.overall || 0).key}">${escapeHtml(String(n.overall))}</span>` : ''}</span></div><p>${escapeHtml(n.text)}</p>${tpLsTagsHtml(n, canEdit)}${open ? tpLsPickerHtml(n, cards) : ''}</li>`;
 }
 // Every tagged excerpt of a person's Levelset notes (directors only):
 // [{text, pillars, date, leader, position}] for Calibrate to the PEC.
@@ -401,7 +406,8 @@ function tpLsTagged(peaName){
   return out;
 }
 function tpLsCardInner(peaName, cards){
-  const head = '<div class="ld-row"><h3>Raters’ notes from Levelset</h3><em class="ld-pill">Directors only</em></div>';
+  const W = tpLsWho(peaName);
+  const head = `<div class="ld-row"><h3>${W.rater ? `Notes ${escapeHtml(ldShort(W.who))} wrote on PEAs` : 'Raters’ notes from Levelset'}</h3><em class="ld-pill">Directors only</em></div>`;
   if(!tpDirector){
     return head + `<p class="dir-empty">${tpDirectorPinSet
       ? 'The notes leaders write on a PEA in Levelset show here for directors. Sign in with the director PIN to see them.'
@@ -412,8 +418,10 @@ function tpLsCardInner(peaName, cards){
   if(!got || got.state === 'loading') return head + '<p class="dir-empty">Loading…</p>';
   if(got.state === 'err') return head + `<p class="dir-empty">${escapeHtml(got.error)}</p>`;
   const list = got.notes;
-  const note = '<p class="dir-note">Written by the rater in Levelset, newest first. They come in with each Levelset sync (the PDF upload doesn’t carry them) and aren’t in the copy or the PDF.</p>';
-  if(!list.length) return head + note + '<p class="dir-empty">No notes on this person’s PEAs yet.</p>';
+  const note = W.rater
+    ? '<p class="dir-note">What they wrote on the PEAs they gave in Levelset, newest first. They come in with each Levelset sync.</p>'
+    : '<p class="dir-note">Written by the rater in Levelset, newest first. They come in with each Levelset sync (the PDF upload doesn’t carry them) and aren’t in the copy or the PDF.</p>';
+  if(!list.length) return head + note + `<p class="dir-empty">${W.rater ? 'No notes on the PEAs they gave yet.' : 'No notes on this person’s PEAs yet.'}</p>`;
   const more = list.slice(TP_LS_SHOWN);
   const row = n => tpLsNoteHtml(n, cards);
   const tagNote = cards && cards.length ? ' Tag the sentences that evidence a pillar and they count in Calibrate to the PEC below.' : '';
@@ -428,6 +436,9 @@ function tpLsCardHtml(peaName, cards){
 }
 function tpLsPaint(peaName){
   const k = dirKey(peaName);
+  // The Trainer Trial counts tagged notes as evidence, so it redraws whole
+  // (true when it did, card included).
+  if(typeof ttLsPainted === 'function' && ttLsPainted(k)) return;
   // On the Leaders profile the pillar counts read these notes too, so the
   // whole profile redraws; elsewhere just the card.
   if(typeof dirView !== 'undefined' && dirView === 'leaders' && typeof ldOpen !== 'undefined' && ldOpen && typeof ldRender === 'function'){ ldRender(); return; }
@@ -492,8 +503,9 @@ async function tpLoadLevelsetNotes(peaName){
   const k = dirKey(peaName);
   if(!tpDirector || !k || tpLs[k]) return;
   tpLs[k] = {state: 'loading', notes: []};
+  const W = tpLsWho(peaName);
   try{
-    const res = await fetch(`${API_BASE}/api/pea/notes`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name: peaName})});
+    const res = await fetch(`${API_BASE}/api/pea/notes`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(W.rater ? {name: W.who, by: 'rater'} : {name: peaName})});
     const d = await res.json().catch(() => ({}));
     if(res.status === 403) tpDirector = false;
     tpLs[k] = res.ok && Array.isArray(d.notes) ? {state: 'ok', notes: d.notes} : {state: 'err', error: d.error || 'Couldn’t load the notes.'};
@@ -510,6 +522,7 @@ function tpSetDirector(isDirector, pinSet){
   tpLs = {};
   tpRenderDirectorPin();
   if(typeof dirView !== 'undefined' && dirView === 'team' && tpOpen && !document.getElementById('tpNoteForm')) tpRender();
+  if(typeof renderTrainerTrial === 'function') renderTrainerTrial();
 }
 async function tpRefreshDirector(){
   try{

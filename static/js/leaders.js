@@ -128,6 +128,32 @@ const LD_CARDS = {
       ['results', 'Own Food Cost Results', 'PFCG of 0.30% or better through consistent systems; bring the team along']],
     win: ['PFCG 0.4% or better', '100% of waste logged daily'],
     actions: ['Ensure 100% of waste is tracked', 'Coach TMs to cook less, more often', 'Audit & report weekly on waste trends & gap progress']},
+  // The Certified Trainer Evaluation (Trainer Trial, trainer-trial.js), Parts 1–3.
+  // No PEC role adds these; they're here so a director can tag a Levelset note
+  // as evidence for an evaluation line with the same picker (tt1:hustle, ...).
+  tt1: {name: 'Trainer Eval · Team Culture', short: 'Team Culture',
+    desc: 'How the trainer embodies and strengthens Hospitality, Hustle, and Humility.',
+    pillars: [['hospitality', 'Hospitality', 'Serving with warmth, care, and an others-first mindset; making everyone feel seen, valued, and welcomed'],
+      ['hustle', 'Hustle', 'Working with urgency, energy, and focus; moving fast without rushing, striving for excellence'],
+      ['humility', 'Humility', 'Receptive to and implements feedback, team-first, eager to grow; chooses integrity and is ready to serve']],
+    win: [], actions: []},
+  tt2: {name: 'Trainer Eval · Trainer Execution', short: 'Trainer Execution',
+    desc: 'The five trainer behaviors from the Trainer Training Guide.',
+    pillars: [['engage', 'Engage with Energy', 'A welcoming, intentional experience from day one; engages trainees with excitement and positivity that makes training fun'],
+      ['model', 'Model Excellence', 'Protects the culture by role-modeling Hospitality, Hustle, and Humility; shows the standard every time (WHED)'],
+      ['clarity', 'Train with Clarity', 'Uses the DIR Method (Demonstrate, Imitate, Repeat) to break steps down so team members learn, practice, and master'],
+      ['celebrate', 'Celebrate & Challenge', 'Gives Oreo feedback; stretches learners with constructive coaching while celebrating wins'],
+      ['grow', 'Grow the Future', 'Mentors team members to carry the culture forward and one day train, coach, and lead']],
+    win: [], actions: []},
+  tt3: {name: 'Trainer Eval · What’s Important Now', short: 'Leadership Capacity',
+    desc: 'Leadership capacity traits.',
+    pillars: [['selfaware', 'Self-aware & seeks feedback', 'The capacity to which the leader is self-aware and seeks out feedback'],
+      ['teamfirst', 'Team vs. “I” mindset', 'Maintains a professional, cohesive environment among team members and leaders (we vs. me)'],
+      ['conflict', 'Conflict capacity', 'Handles conflict in a healthy and non-distracting manner'],
+      ['selfdev', 'Committed to self-development', 'Seeks out professional improvement and development'],
+      ['comm', 'Clarity with communication', 'Clear, professional, open communication with team members and leaders'],
+      ['systems', 'Executes training systems', 'Understands our training systems and how they support scalability, consistency, and good use of time']],
+    win: [], actions: []},
 };
 // PEC roles a leader can hold, and the card(s) each one adds to the Team Leader card.
 const LD_ROLE_CARDS = {

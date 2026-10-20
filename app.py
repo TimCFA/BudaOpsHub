@@ -979,15 +979,23 @@ def _note_out(key, v):
 
 @app.route('/api/pea/notes', methods=['POST'])
 def pea_notes():
-    """One person's Levelset notes, newest first. Director sessions only."""
+    """One person's Levelset notes, newest first. Director sessions only.
+    With {"by": "rater"}, the notes that person WROTE on the PEAs they gave
+    (the Trainer Trial reads a candidate's coaching this way); otherwise the
+    notes written about them."""
     if not session.get('manager') or not session.get('director'):
         return jsonify({'error': 'Director sign-in required'}), 403
-    name = _person_key((request.get_json(silent=True) or {}).get('name'))
+    body = request.get_json(silent=True) or {}
+    name = _person_key(body.get('name'))
     if not name:
         return jsonify({'error': 'Who?'}), 400
+    field = 'leader' if body.get('by') == 'rater' else 'employee'
     stored = db.reference(LEVELSET_NOTES_PATH).get() or {}
-    notes = sorted(((k, v) for k, v in stored.items() if isinstance(v, dict) and _person_key(v.get('employee')) == name),
+    notes = sorted(((k, v) for k, v in stored.items() if isinstance(v, dict) and _person_key(v.get(field)) == name),
                    key=lambda kv: str(kv[1].get('at') or ''), reverse=True)
+    if field == 'leader':
+        # Who each note is about, since the rater is the same on every one.
+        return jsonify({'notes': [dict(_note_out(k, v), employee=v.get('employee')) for k, v in notes]})
     return jsonify({'notes': [_note_out(k, v) for k, v in notes]})
 
 @app.route('/api/pea/notes/tag', methods=['POST', 'DELETE'])

@@ -251,6 +251,17 @@ class NotesRouteTest(unittest.TestCase):
         self.assertEqual(notes[0]['tags'], [])
         self.assertNotIn('employee', notes[0])
 
+    def test_notes_a_rater_wrote(self):
+        # The Trainer Trial reads the notes a candidate wrote on the PEAs they gave.
+        self.client('1111').post('/api/pea/levelset-sync')
+        self.assertEqual(self.client('1111').post('/api/pea/notes', json={'name': 'Test Leader', 'by': 'rater'}).status_code, 403)
+        d = self.client('2222')
+        notes = d.post('/api/pea/notes', json={'name': 'test leader', 'by': 'rater'}).get_json()['notes']
+        self.assertEqual([n['text'] for n in notes], ['Not this person.', 'Greets every guest; rushes the close.'])
+        self.assertEqual([n['employee'] for n in notes], ['Someone Else', 'Test Person'])
+        # Without "by", the same name finds the notes written about them (none here).
+        self.assertEqual(d.post('/api/pea/notes', json={'name': 'Test Leader'}).get_json()['notes'], [])
+
     def test_old_notes_pruned(self):
         store[appmod.LEVELSET_NOTES_PATH] = {'old': {'at': '2024-01-01T08:00', 'employee': 'Test Person', 'text': 'x'}, 'bad': 'nope'}
         self.client('1111').post('/api/pea/levelset-sync')
