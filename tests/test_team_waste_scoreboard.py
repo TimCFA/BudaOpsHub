@@ -93,7 +93,7 @@ class PageWiring(unittest.TestCase):
         page = read('cfa-buda-ops-hub-complete.html')
         panel = page.split('id="sbPanelWaste"')[1].split('id="sbPanelGx"')[0]
         hidden = re.findall(r'class="standup-card sb-not-waste">\s*<h3>([^<]+)</h3>', panel)
-        self.assertEqual(hidden, ['Safe Count Variance', 'Zone Reset Completion', 'Food Safety Compliance'])
+        self.assertEqual(hidden, ['Safe Count Variance', 'Zone Reset Completion', 'Food Safety Compliance', 'Food Safety: Coached &amp; Corrected'])
         kept = re.findall(r'class="standup-card">\s*<h3>([^<]+)</h3>', panel)
         self.assertEqual(kept, ['Active Streaks', 'Waste Trend', 'Day-of-Week Patterns'])
         self.assertIn('<nav class="sb-subtabs sb-not-waste">', page)

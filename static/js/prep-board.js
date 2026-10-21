@@ -64,6 +64,7 @@ let prepSoldEntries = [];
 let prepWasteEntries = [];
 let prepStockoutEvents = [];
 let prepHistorySeeded = false;
+let prepMade = {};            // made so far, a key per date, item and device (below)
 
 // session-only
 let pbCurrentDay = 'Monday';
@@ -729,6 +730,67 @@ function pbSuggestBannerHtml(){
   `;
 }
 
+// ----- Made so far (Tim, Oct 20 2026) -----
+// Whoever preps ticks items off as they're made, and whoever takes the
+// position later sees how many are left. Each device keeps its own count,
+// prepMade["<date>|<item>|<device>"] = {n, i, t}, one flat key per device:
+// two people tapping at once (even the day's very first taps) save
+// different keys and never overwrite each other; an item's made count is
+// the sum. Kept two weeks.
+const PB_MADE_KEEP_DAYS = 14;
+const pbSessionDevice = 'd' + Math.random().toString(36).slice(2, 10);
+function pbDeviceId(){
+  try{
+    let id = localStorage.getItem('cfaBudaDevice');
+    if(!id){ id = pbSessionDevice; localStorage.setItem('cfaBudaDevice', id); }
+    return id;
+  }catch(e){ return pbSessionDevice; }
+}
+function pbMadeSlots(iso, item){
+  const prefix = `${iso}|${item}|`;
+  return Object.keys(prepMade).filter(k => k.startsWith(prefix) && prepMade[k]).map(k => prepMade[k]);
+}
+function pbMade(iso, item){
+  return Math.max(0, pbMadeSlots(iso, item).reduce((t, x) => t + (Number(x.n) || 0), 0));
+}
+function pbMadeLast(iso, item){
+  return pbMadeSlots(iso, item).reduce((last, x) => x.t && (!last || x.t > last.t) ? x : last, null);
+}
+// Change this device's count so the item reads `total` made (never below 0).
+async function pbSetMade(item, total){
+  const iso = pbCurrentDate;
+  total = Math.max(0, Math.round(Number(total) || 0));
+  const key = `${iso}|${item}|${pbDeviceId()}`;
+  const others = pbMade(iso, item) - (prepMade[key] ? Number(prepMade[key].n) || 0 : 0);
+  prepMade[key] = {n: total - others, i: (typeof getInitials === 'function' && getInitials()) || '', t: Date.now()};
+  const cutoff = pbAddDays(today, -PB_MADE_KEEP_DAYS);
+  Object.keys(prepMade).forEach(k => { if(k.slice(0, 10) < cutoff) delete prepMade[k]; });
+  renderPrepBoard();
+  await saveState();
+}
+
+function pbMadeHtml(it){
+  const iso = pbCurrentDate;
+  const made = pbMade(iso, it.name), need = it.buildTo;
+  const left = Math.max(0, need - made), done = need > 0 && made >= need;
+  const pct = need > 0 ? Math.min(100, Math.round(made / need * 100)) : 0;
+  const last = pbMadeLast(iso, it.name);
+  const item = escapeHtml(it.name);
+  const text = done ? `✓ Done · ${made} made${made > need ? ` · ${made - need} over` : ''}` : `${made} made · <b>${left}</b> to go`;
+  const textEs = done ? esText('Done · N made', made) + (made > need ? ' · ' + esText('N over', made - need) : '') : esText('N made · M to go', made, left);
+  return `
+    <div class="pb-made${done ? ' is-done' : ''}">
+      <div class="pb-made-bar" aria-hidden="true"><i style="width:${pct}%"></i></div>
+      <div class="pb-made-txt">${text}${last && last.i ? `<span class="pb-made-who"> · ${escapeHtml(last.i)} ${formatShortTime(last.t)}</span>` : ''}${esSpan(textEs, true)}</div>
+      <div class="pb-made-ctl">
+        <button type="button" class="pb-made-btn" data-pb-made="${item}" data-delta="-1" aria-label="One less made">−1</button>
+        <label class="pb-made-num"><span class="sr-only">Made so far</span><input type="number" inputmode="numeric" min="0" value="${made}" data-pb-made-set="${item}"></label>
+        <button type="button" class="pb-made-btn is-add" data-pb-made="${item}" data-delta="1" aria-label="One more made">+1</button>
+        <button type="button" class="pb-made-btn is-add" data-pb-made="${item}" data-delta="5" aria-label="Five more made">+5</button>
+      </div>
+    </div>`;
+}
+
 function pbRenderBuildTo(){
   const f = pbForecast(pbCurrentDate);
   const plural = f.weekday + 's';
@@ -750,12 +812,21 @@ function pbRenderBuildTo(){
     : f.usingDated ? esText('Dated note', f.n, esWeekday(f.weekday, f.n !== 1), esDate(f.lyTarget))
     : esText('Plain note', esWeekday(f.weekday, true));
   html += `<div class="pb-forecast-note">${note}${esSpan(noteEs, true)}</div>`;
+  // Today's sheet: what's made so far, live across devices and shifts.
+  const live = pbCurrentDate === today;
+  if(live){
+    const need = f.stats.reduce((t, it) => t + it.buildTo, 0);
+    const made = f.stats.reduce((t, it) => t + Math.min(pbMade(today, it.name), it.buildTo), 0);
+    const open = f.stats.filter(it => it.buildTo > 0 && pbMade(today, it.name) < it.buildTo).length;
+    html += `<div class="pb-made-sum${open ? '' : ' is-done'}"><b>${made}</b> of ${need} made today · ${open ? `${open} item${open === 1 ? '' : 's'} to go` : 'everything is made'}${esLine('Made today summary', made, need, open)}</div>`;
+  }
   ['Salads','Wraps','Sides','Other'].forEach(cat => {
     const items = f.stats.filter(it => it.category === cat);
     if(items.length === 0) return;
+    const doneN = live ? items.filter(it => it.buildTo > 0 && pbMade(today, it.name) >= it.buildTo).length : 0;
     html += `
       <section class="pb-category">
-        <div class="pb-category-head"><h3>${cat}${esHtml(cat)}</h3><span class="pb-count">${items.length} items${esHtml('items')}</span></div>
+        <div class="pb-category-head"><h3>${cat}${esHtml(cat)}</h3><span class="pb-count">${live ? `${doneN} of ${items.length} done${esHtml('N of M done', doneN, items.length)}` : `${items.length} items${esHtml('items')}`}</span></div>
         ${items.map(it => {
           const seasonPct = Math.round((it.factor - 1) * 100);
           const how = f.seasonal && seasonPct !== 0
@@ -767,11 +838,14 @@ function pbRenderBuildTo(){
             ? esText('forecast seasonal', it.forecast.toFixed(1), it.level.toFixed(1), `${seasonPct > 0 ? '+' : ''}${seasonPct}`)
             : esText('forecast plain', it.forecast.toFixed(1), f.usingDated, it.n, esWeekday(f.weekday, it.n !== 1));
           const metaEs = [howEs, it.lastYear !== null ? esText('last year N', it.lastYear) : '', it.wasteAvg !== null ? esText('avg N wasted', it.wasteAvg.toFixed(1)) : ''].filter(Boolean).join(' · ');
+          const madeHtml = live && it.buildTo > 0 ? pbMadeHtml(it) : '';
+          const isDone = live && it.buildTo > 0 && pbMade(today, it.name) >= it.buildTo;
           return `
-            <div class="pb-item-row">
+            <div class="pb-item-row${madeHtml ? ' has-made' : ''}${isDone ? ' is-done' : ''}">
               <div class="pb-item-left">
                 <div class="pb-item-name">${escapeHtml(it.name)}</div>
                 <div class="pb-item-meta"><span class="pb-confidence ${pbConfidenceClass(it.n)}"></span>${how}${lastYear}${waste}${esSpan(metaEs, true)}</div>
+                ${madeHtml}
               </div>
               <div class="pb-item-buildto">${it.buildTo}</div>
             </div>
@@ -1192,6 +1266,13 @@ document.getElementById('prepBoardRoot').addEventListener('click', function(e){
     return;
   }
 
+  const madeBtn = e.target.closest('[data-pb-made]');
+  if(madeBtn){
+    const item = madeBtn.dataset.pbMade;
+    pbSetMade(item, pbMade(pbCurrentDate, item) + parseInt(madeBtn.dataset.delta, 10));
+    return;
+  }
+
   const dateBtn = e.target.closest('[data-pb-select-date]');
   if(dateBtn){ pbCurrentDate = dateBtn.dataset.pbSelectDate; renderPrepBoard(); return; }
 
@@ -1246,6 +1327,10 @@ document.getElementById('prepBoardRoot').addEventListener('click', function(e){
 });
 
 document.getElementById('prepBoardRoot').addEventListener('change', function(e){
+  if(e.target.matches('[data-pb-made-set]')){
+    pbSetMade(e.target.dataset.pbMadeSet, e.target.value);
+    return;
+  }
   if(e.target.matches('[data-pb-insight-item]')){
     pbInsightItem = e.target.value;
     renderPrepBoard();

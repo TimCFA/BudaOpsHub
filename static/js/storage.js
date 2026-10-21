@@ -27,6 +27,7 @@ const STATE_SECTIONS = {
            'teamLeadProgress', 'scoreboardItems', 'leaderNotes', 'leaderFocus', 'teamNotes'],
   prep: ['prepBuffers', 'prepSoldEntries', 'prepWasteEntries', 'prepStockoutEvents', 'prepHistorySeeded'],
   prepTimes: ['prepTimes', 'prepTimers'],
+  prepLive: ['prepMade'],
   cem: ['cemEntries'],
   forecast: ['salesHistory', 'forecastSettings', 'forecastLog', 'daypartWeeks', 'laborByDaypart'],
   orders: ['uniformOrders', 'uniformCatalog'],
@@ -82,7 +83,7 @@ function stateSnapshot(){
     fohLeaderTransitionChecked, fohLeaderTransitionDate, leaderTransitionHistory,
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
-    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, launchMode, prepTimes, prepTimers,
+    prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, prepMade, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, launchMode, prepTimes, prepTimers,
     salesHistory, forecastSettings, forecastLog, daypartWeeks, zoneOwners, posNotes, storeEvents, truckShifts,
     uniformOrders, uniformCatalog, directors, adminShifts, leaderNotes, leaderRoster, peaGoals, leaderFocus, teamNotes, safeOrderSettings,
     pointsRecords, pointsUploads, pointsSettings, pointsTeam, pointsMemos
@@ -483,6 +484,7 @@ function applyStateData(data){
   prepWasteEntries = data.prepWasteEntries || [];
   prepStockoutEvents = data.prepStockoutEvents || [];
   prepHistorySeeded = data.prepHistorySeeded || false;
+  prepMade = (data.prepMade && typeof data.prepMade === 'object' && !Array.isArray(data.prepMade)) ? data.prepMade : {};
   prepTimes = Array.isArray(data.prepTimes) ? data.prepTimes : [];
   prepTimers = Array.isArray(data.prepTimers) ? data.prepTimers : [];
   cemEntries = data.cemEntries || [];

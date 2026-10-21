@@ -124,7 +124,7 @@ function lrFacts(dates, ratings){
       const attendance = lrAttCount((att[iso] || []).filter(a => a.at !== null && a.at >= w.start && a.at < w.end));
       dayparts.push({date: iso, daypart: dp.name, leads, zone, lt, peasOn, prod, attendance});
     });
-    const fs = typeof fsTotals === 'function' ? fsTotals(foodSafetyWalkthroughs[iso]) : null;
+    const fs = typeof fsTotals === 'function' ? fsTotals(typeof fsBest === 'function' ? fsBest(iso) : foodSafetyWalkthroughs[iso]) : null;
     days.push({date: iso, leads: [...dayLeads], wasteUnder: wasteDays.includes(iso), fsDone: !!(fs && fs.complete)});
   });
   const hasPoints = typeof pointsRecords === 'object' && !!pointsRecords && Object.keys(pointsRecords).some(q => q !== 'TEST');

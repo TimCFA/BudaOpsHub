@@ -155,7 +155,8 @@ function rnWaste(){
 function rnMoney(n){ return n >= 100 ? '$' + Math.round(n) : '$' + n.toFixed(2).replace(/\.00$/, ''); }
 
 function rnFoodSafety(){
-  const rec = typeof fsRecord === 'function' ? fsRecord(today) : null;
+  // A complete walkthrough today counts; otherwise the latest one under way.
+  const rec = typeof fsRounds === 'function' ? ((fsRounds(today).find(r => r.rec.completedAt) || {}).rec || fsLatest(today)) : null;
   const t = typeof fsTotals === 'function' ? fsTotals(rec) : null;
   return t && t.total ? t : null;
 }
