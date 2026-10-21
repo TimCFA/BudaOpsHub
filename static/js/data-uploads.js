@@ -332,6 +332,8 @@ function duDetect(file, text, workbook){
     if(/\.pdf$/i.test(file.name) && /actual|schedul|punch|timecard/i.test(file.name)) return 'punch';
     return 'opsPdf';
   }
+  // Analytics Hub's 15-minute sales (rows "1130 | 11:30 AM"), analytics-reports.js.
+  if(typeof anIsQuarterCsv === 'function' && anIsQuarterCsv(text)) return 'salesQuarter';
   // The weekly daypart file shares the sales export's header; its rows tell them apart.
   if(typeof fcLooksLikeDaypartWeek === 'function' && fcLooksLikeDaypartWeek(text)) return 'dayparts';
   const report = rpDetect(text);
@@ -529,9 +531,10 @@ async function duHandleFiles(fileList, hint){
   }
   duResults = files.map(f => ({file: f.name, state: 'working', text: 'Reading…'}));
   renderDataUploads();
-  // CEM files first so the scoreboard ends on the newest month; the roster
-  // last because it opens a review window.
-  const order = {cem: 0, pea: 1, salesMix: 2, numbers: 2, sales: 2, labor: 2, dtRank: 2, sos: 2, dayparts: 2, punch: 2, opsPdf: 2, productivity: 3, roster: 4};
+  // CEM files first so the scoreboard ends on the newest month; 15-minute
+  // sales after the PDFs whose daily sales date them; the roster last
+  // because it opens a review window.
+  const order = {cem: 0, pea: 1, salesMix: 2, numbers: 2, sales: 2, labor: 2, dtRank: 2, sos: 2, dayparts: 2, punch: 2, opsPdf: 2, productivity: 3, salesQuarter: 3, roster: 4};
   const jobs = [];
   for(let i = 0; i < files.length; i++){
     const file = files[i];
@@ -595,10 +598,23 @@ async function duHandleFiles(fileList, hint){
         else { duWait(job, 'dtGroup'); continue; }
       }
       else if(job.kind === 'punch') text = await kaImportPunchReport(job.file);
+      else if(job.kind === 'salesQuarter'){
+        try{ text = await anFileQuarter(job.file, job.text); }
+        catch(err){
+          if(!err.waiting) throw err;
+          duResults[job.i] = {file: job.file.name, state: 'waiting', kind: '15-minute sales (Analytics Hub)', text: err.message};
+          renderDataUploads();
+          continue;
+        }
+      }
       else if(job.kind === 'opsPdf'){
+        // The Analytics Hub dashboard PDFs in the schedule bundle (analytics-reports.js).
+        const dash = typeof anIsDashboardPdf === 'function' && anIsDashboardPdf(job.file.name) ? await anReadPdf(job.file) : null;
         // A punch report under another name: read it first (kn-actuals.js).
-        const punch = /\.pdf$/i.test(job.file.name) ? await duTryPunch(job.file) : null;
-        if(punch){ job.kind = 'punch'; text = await kaImportPunchReport(job.file, punch); }
+        const punch = !dash && /\.pdf$/i.test(job.file.name) ? await duTryPunch(job.file) : null;
+        if(dash && dash.kind === 'dailyDetail'){ job.kind = 'labor'; text = await anFileDailyDetail(job.file, dash.rows); }
+        else if(dash && dash.kind === 'salesData'){ job.kind = 'sales'; text = await rpFileSales(job.file, dash.sales); }
+        else if(punch){ job.kind = 'punch'; text = await kaImportPunchReport(job.file, punch); }
         else {
         const report = await rpImportOpsPdf(job.file);
         if(report === null){
@@ -616,7 +632,7 @@ async function duHandleFiles(fileList, hint){
         text = await duImportProductivity(job.file, job.text);
       }
       else throw new Error('Didn’t recognize this file. Expected a CEM Comparison Report, HotSchedules roster CSV, Levelset PEA PDF, Sales Mix report, productivity report, projected sales & productivity goals, an Analytics Hub sales, labor, rankings or speed of service export, or an Ops Hub Smart Shop / food safety report.');
-      const filed = DU_SOURCES.find(s => s.key === job.kind) || (job.kind === 'opsPdf' ? {name: 'Ops Hub report'} : null);
+      const filed = DU_SOURCES.find(s => s.key === job.kind) || (job.kind === 'opsPdf' ? {name: 'Ops Hub report'} : job.kind === 'salesQuarter' ? {name: '15-minute sales (Analytics Hub)'} : null);
       duResults[job.i] = {file: job.file.name, state: 'ok', kind: filed ? filed.name : job.kind, text};
     }catch(err){
       duResults[job.i] = {file: job.file.name, state: 'error', kind: src ? src.name : '', text: err.message};

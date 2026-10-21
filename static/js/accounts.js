@@ -21,6 +21,7 @@ let acGoogleReady = false;
 let acAccounts = null;      // the owner's lists, once loaded
 let acPinRows = null;       // rows read from the pasted or dropped list, before upload
 let acPinUnread = [];       // names in a PDF report whose PIN couldn't be told apart
+let acPinSaving = false;    // a PIN list save waiting on the server
 let acPinFromPdf = false;   // the rows came from the PIN report PDF: show them to check
 let acPinBusy = false;
 
@@ -286,12 +287,19 @@ document.addEventListener('submit', async e => {
   }
   if(e.target.id !== 'acPinForm') return;
   e.preventDefault();
+  if(acPinSaving) return;                       // one save at a time
   const typed = acParsePinList(document.getElementById('acPinText').value);
   const rows = [...(acPinRows || []).map(r => ({name: r.name, pin: r.pin, role: r.role})), ...typed];
   const msg = document.getElementById('acPinMsg');
   if(!rows.length){ if(msg) msg.textContent = 'Paste the list or pick a file first.'; return; }
   const replace = document.getElementById('acPinReplace').checked;
   if(replace && !confirm(`Replace the whole team PIN list with these ${rows.length}?`)) return;
+  // Shows it's working until the server answers (Tim, Oct 20 2026: a save
+  // looked like it did nothing).
+  const btn = e.target.querySelector('button[type="submit"]');
+  acPinSaving = true;
+  if(btn){ btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = 'Saving…'; }
+  if(msg) msg.textContent = `Saving ${rows.length} PIN${rows.length === 1 ? '' : 's'}…`;
   try{
     const d = await acPost('/api/accounts/pins', 'POST', {rows, replace});
     acAccounts = d; acPinRows = null; acPinFromPdf = false; acPinUnread = [];
@@ -299,5 +307,12 @@ document.addEventListener('submit', async e => {
     const m = document.getElementById('acPinMsg');
     if(m) m.textContent = `${d.added} saved${d.skipped.length ? ` · ${d.skipped.length} skipped: ${d.skipped.slice(0, 5).join('; ')}${d.skipped.length > 5 ? '…' : ''}` : ''}`;
     showToast(`${d.added} team PIN${d.added === 1 ? '' : 's'} saved`);
-  }catch(err){ showToast(err.message); }
+  }catch(err){
+    const m = document.getElementById('acPinMsg');
+    if(m) m.textContent = `Not saved: ${err.message}`;
+    showToast(err.message);
+  }finally{
+    acPinSaving = false;
+    if(btn && btn.isConnected){ btn.disabled = false; btn.textContent = btn.dataset.label || 'Save PINs'; }
+  }
 });

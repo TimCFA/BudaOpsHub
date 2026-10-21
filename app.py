@@ -22,6 +22,7 @@ from google.oauth2 import id_token
 from pea_parser import parse_pea_pdf, PeaParseError
 from pin_report import read_pin_report, PinReportError
 from permit_sheet import read_permit_sheet, PermitSheetError
+from analytics_pdf import read_analytics_pdf, AnalyticsPdfError
 from reports_parser import parse_report_file, ReportParseError
 import levelset_sync
 from state_patch import PatchError, apply_ops, canon, check_ops, union_merge
@@ -454,9 +455,11 @@ def manager_login():
     # (ACCOUNTS) signs them in by name with their role and NEVER opens
     # Manage, whatever the role.
     if check_password_hash(stored_hash, pin):
+        _remember_manage_pin('manager', stored_hash, pin)
         return jsonify(_sign_in({'role': 'manager', 'manager': True, 'via': 'pin'}))
     director_hash = db.reference(DIRECTOR_PIN_PATH).get()
     if director_hash and check_password_hash(director_hash, pin):
+        _remember_manage_pin('director', director_hash, pin)
         return jsonify(_sign_in({'role': 'director', 'manager': True, 'via': 'pin'}))
     who = _team_pin_lookup(pin)
     if who:
@@ -552,14 +555,44 @@ def _end_team_sessions():
     if isinstance(ends, int) and time.time() > ends and not session.get('manager'):
         _sign_out()
 
-def _is_manage_pin(pin):
-    """True when `pin` is the manager or director PIN, which would otherwise
-    shadow (or be mistaken for) a team member's."""
-    for path in ('secure/managerPinHash', DIRECTOR_PIN_PATH):
+# The PIN list is checked against the manager and director PINs, which
+# would otherwise shadow (or be mistaken for) a team member's (Tim, Oct 20
+# 2026: saving the team's PINs did nothing). Two slow password checks a row
+# made a full report take minutes, so each manage PIN's team-PIN key is kept
+# when it's typed (a login or set-pin) and checked in an instant; a hash
+# without a key yet still gets the slow check.
+MANAGE_PIN_KEYS_PATH = 'secure/managePinKeys'   # {manager|director: {hash, key}}
+MANAGE_PIN_NAMES = (('manager', 'secure/managerPinHash'), ('director', 'secure/directorPinHash'))
+
+def _remember_manage_pin(name, stored_hash, pin):
+    try:
+        _keep_manage_pin_key(name, stored_hash, pin)
+    except Exception as e:                 # never in the way of a sign-in
+        print(f'[PIN] Could not keep the {name} PIN key: {e}')
+
+def _keep_manage_pin_key(name, stored_hash, pin):
+    salt = _team_pin_salt(create=True)
+    keys = db.reference(MANAGE_PIN_KEYS_PATH).get() or {}
+    have = keys.get(name) if isinstance(keys, dict) else None
+    key = _team_pin_key(pin, salt)
+    if not (isinstance(have, dict) and have.get('hash') == stored_hash and have.get('key') == key):
+        db.reference(f'{MANAGE_PIN_KEYS_PATH}/{name}').set({'hash': stored_hash, 'key': key})
+
+def _manage_pin_checker():
+    salt = _team_pin_salt()
+    keys = db.reference(MANAGE_PIN_KEYS_PATH).get() or {}
+    keys = keys if isinstance(keys, dict) else {}
+    fast, slow = set(), []
+    for name, path in MANAGE_PIN_NAMES:
         h = db.reference(path).get()
-        if h and check_password_hash(h, pin):
-            return True
-    return False
+        if not h:
+            continue
+        k = keys.get(name)
+        if salt and isinstance(k, dict) and k.get('hash') == h and k.get('key'):
+            fast.add(k['key'])
+        else:
+            slow.append(h)
+    return lambda pin: (bool(salt) and _team_pin_key(pin, salt) in fast) or any(check_password_hash(h, pin) for h in slow)
 
 def _team_pin_salt(create=False):
     salt = db.reference(TEAM_PIN_SALT_PATH).get()
@@ -690,6 +723,8 @@ def accounts_pins():
     if not isinstance(rows, list) or not rows or len(rows) > 500:
         return jsonify({'error': 'Send the list as rows of name, PIN and role.'}), 400
     salt = _team_pin_salt(create=True)
+    before = dict(ref.get() or {})
+    is_manage_pin = _manage_pin_checker()
     clean, skipped, seen = {}, [], set()
     directors = 0
     for i, r in enumerate(rows):
@@ -709,14 +744,13 @@ def accounts_pins():
             skipped.append(f'{name}: directors sign in with Google or the director PIN; a clock-in PIN never opens Manage')
         elif role not in TEAM_ROLES:
             skipped.append(f'{name}: role “{r.get("role")}” isn’t one of Team Member, Trainer, Team Lead, Admin Team')
-        elif _is_manage_pin(pin):
-            skipped.append(f'{name}: that PIN is the manager or director PIN')
         elif pin in seen:
             skipped.append(f'{name}: the same PIN as someone else in the list')
+        elif _team_pin_key(pin, salt) not in before and is_manage_pin(pin):   # one already on the list was checked when added
+            skipped.append(f'{name}: that PIN is the manager or director PIN')
         else:
             seen.add(pin)
             clean[_team_pin_key(pin, salt)] = {'name': name, 'role': role, 'addedAt': int(time.time())}
-    before = dict(ref.get() or {})
     if body.get('replace'):
         ref.set(clean)
         after = clean
@@ -1012,6 +1046,27 @@ def accounts_pins_read():
     resp.headers['Cache-Control'] = 'no-store'
     return resp
 
+@app.route('/api/reports/analytics-pdf', methods=['POST'])
+def reports_analytics_pdf():
+    """An Analytics Hub Daily Detail or Sales Data PDF (the Schedule Builder's
+    bundle carries these, Tim, Oct 20 2026): read into rows for the page to
+    file (analytics_pdf.py). Managers only; nothing from the file is kept."""
+    if not session.get('manager'):
+        return jsonify({'error': 'Manager sign-in required'}), 403
+    f = request.files.get('file')
+    if not f:
+        return jsonify({'error': 'Pick the PDF first.'}), 400
+    data = f.read(PIN_REPORT_MAX_BYTES + 1)
+    if len(data) > PIN_REPORT_MAX_BYTES:
+        return jsonify({'error': 'That file is over 5 MB.'}), 413
+    try:
+        out = read_analytics_pdf(data)
+    except AnalyticsPdfError as e:
+        return jsonify({'error': str(e), 'notAnalytics': True}), 400
+    resp = jsonify(out)
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
+
 @app.route('/api/manager/set-pin', methods=['POST'])
 def manager_set_pin():
     if not session.get('manager'):
@@ -1025,7 +1080,9 @@ def manager_set_pin():
     if _pin_taken(DIRECTOR_PIN_PATH, new_pin):
         return jsonify({'error': 'That PIN can’t be used. Pick another.'}), 400
 
-    db.reference('secure/managerPinHash').set(generate_password_hash(new_pin))
+    new_hash = generate_password_hash(new_pin)
+    db.reference('secure/managerPinHash').set(new_hash)
+    _remember_manage_pin('manager', new_hash, new_pin)
     return jsonify({'success': True})
 
 # ===== UNIFORM PICTURES =====
@@ -1138,7 +1195,9 @@ def director_set_pin():
     if _pin_taken('secure/managerPinHash', new_pin):
         return jsonify({'error': 'The director PIN has to be different from the manager PIN.'}), 400
 
-    db.reference(DIRECTOR_PIN_PATH).set(generate_password_hash(new_pin))
+    new_hash = generate_password_hash(new_pin)
+    db.reference(DIRECTOR_PIN_PATH).set(new_hash)
+    _remember_manage_pin('director', new_hash, new_pin)
     session['director'] = True
     return jsonify({'success': True})
 

@@ -82,11 +82,11 @@ function duScheduleOnly(file, text){
   if(/^(README|SHA256|MANIFEST|CHECKSUM)/i.test(n) || /\.(md|sha256)$/i.test(n)) return {skip: 'Bundle notes', why: 'Not a report.'};
   if(/availability/i.test(n)) return {skip: 'HotSchedules availability', why: 'Used to build the schedule; the hub gets the finished schedule from the roster.'};
   if(/time.?off|HotSchedules_-_Online/i.test(n)) return {skip: 'HotSchedules time off & requests', why: 'Used to build the schedule; the hub gets the finished schedule from the roster.'};
-  const dash = n.match(/^(Sales_Curve|Sales_Data|Labor_Cost|Productivity|Daily_Detail)(_\d+)?\.pdf$/i);
-  if(dash) return {skip: `Analytics Hub ${dash[1].replace(/_/g, ' ')} (PDF)`, why: 'A picture of the dashboard, used to build the schedule. The hub reads these numbers from the CSV exports (DayTrack, sales, productivity).'};
+  // Daily Detail and Sales Data PDFs and the 15-minute sales CSVs are read
+  // (analytics-reports.js); the other dashboard pictures are set aside.
+  const dash = n.match(/^(Sales_Curve|Labor_Cost|Productivity)(_\d+)?\.pdf$/i);
+  if(dash) return {skip: `Analytics Hub ${dash[1].replace(/_/g, ' ')} (PDF)`, why: 'A picture of the dashboard, used to build the schedule. The hub reads these numbers from the Daily Detail and Sales Data PDFs and the 15-minute sales.'};
   if(/positional-ratings.*\.pdf$/i.test(n)) return {skip: 'Levelset PEA ratings (PDF)', why: 'The Levelset sync brings PEAs in on its own.'};
-  // Analytics Hub's 15-minute sales by channel (rows "1130 | 11:30 AM").
-  if(/Sales Metric/.test(text) && /^\s*\d{3,4}\t\s*\d{1,2}:\d{2} [AP]M/m.test(text)) return {skip: '15-minute sales by channel (Analytics Hub)', why: 'Used to build the schedule; it doesn’t say which day it covers, so the hub can’t file it yet.'};
   return null;
 }
 

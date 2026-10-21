@@ -99,7 +99,12 @@ function rpMonthToDate(s){
 }
 
 async function rpImportSales(file, text){
-  const parsed = rpParseSales(text);
+  return rpFileSales(file, rpParseSales(text));
+}
+
+// Files a sales-by-day export once read (the CSV above, or the Sales Data
+// dashboard PDF from the Schedule Builder's bundle, analytics-reports.js).
+async function rpFileSales(file, parsed){
   // Starts in the first week of January → year to date; otherwise month to date.
   const ytd = /-01-0[1-7]$/.test(parsed.from) && parsed.from.slice(0, 4) === parsed.to.slice(0, 4);
   const which = ytd ? 'ytd' : 'mtd';
