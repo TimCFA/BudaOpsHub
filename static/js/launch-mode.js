@@ -46,7 +46,8 @@ function launchSubnavRender(view){
   if(page) root.dataset.launchPage = page; else delete root.dataset.launchPage;
   const nav = root.querySelector('[data-launch-subnav]');
   if(!nav) return;
-  nav.innerHTML = group.map(l => {
+  const shown = group.filter(l => !(l.view === 'safecount' && typeof scHidden === 'function' && scHidden()));
+  nav.innerHTML = shown.map(l => {
     const on = l.view === view && (l.page || '') === page;
     return `<button type="button" class="launch-pill ${on ? 'active' : ''}" aria-current="${on ? 'page' : 'false'}" data-launch-go="${l.view}" data-launch-pick="${l.page || ''}">${l.label}<span>${l.sub}</span></button>`;
   }).join('');
@@ -101,6 +102,7 @@ async function launchSetManager(isManager){
   if(typeof renderAllDayparts === 'function' && document.getElementById('positionsView').classList.contains('active')) renderAllDayparts();
   // Pick up the private sections this page wasn't sent without a session,
   // and the waste log whole (a team device is sent two days of it).
+  if(typeof scSyncVisibility === 'function') scSyncVisibility();
   if(isManager && typeof stateForget === 'function') stateForget(['waste']);
   if(isManager && typeof syncState === 'function') await syncState();
   // Meetings on the Calendar come and go with the session (events.js).

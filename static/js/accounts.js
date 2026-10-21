@@ -36,6 +36,7 @@ function acApplyStatus(d){
   acRenderSettings();
   if(acUser && acUser.name && typeof setInitials === 'function' && !getInitials()) setInitials(acInitials(acUser.name));
   if(typeof renderRightNow === 'function') renderRightNow();   // the card is the signed-in person's
+  if(typeof scSyncVisibility === 'function') scSyncVisibility();   // Safe Count: not for Team Members or Trainers
 }
 function acInitials(name){
   const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
@@ -62,6 +63,7 @@ async function acSignedIn(result){
   }
   acRenderGate();
   acRenderSettings();
+  if(typeof scSyncVisibility === 'function') scSyncVisibility();   // Safe Count: not for Team Members or Trainers
 }
 
 async function acSignOut(){

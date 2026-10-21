@@ -2109,3 +2109,5 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .wd-bar-val small{font-weight:600;font-size:11.5px;color:var(--text-tertiary);margin-left:3px;}
 .wd-bar-row{grid-template-columns:78px 1fr 92px;}
 .wd-bar-row.is-wide{grid-template-columns:96px 1fr 92px;}
+/* Safe Count: hidden from Team Members and Trainers (fohoe-and-safecount.js scSyncVisibility) */
+body.sc-hidden [data-view="safecount"]{display:none !important;}

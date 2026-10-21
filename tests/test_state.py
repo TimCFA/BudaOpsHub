@@ -523,6 +523,11 @@ class SafeCountTest(unittest.TestCase):
         self.assertEqual([c['id'] for c in self.mgr.get('/api/safe-counts/recent').get_json()['counts']], ['today', 'six'])
         self.assertEqual(member.get('/api/safe-counts/recent').status_code, 403)
         self.assertEqual(self.team.get('/api/safe-counts/recent').status_code, 403)
+        # Team Members and Trainers don't see the Safe Count at all, not even today's;
+        # a device nobody signed in on (a shared store device) still does.
+        self.assertEqual(member.get(f'/api/safe-counts/today?date={day(0)}').status_code, 403)
+        self.assertEqual(lead.get(f'/api/safe-counts/today?date={day(0)}').status_code, 200)
+        self.assertEqual(self.team.get(f'/api/safe-counts/today?date={day(0)}').status_code, 200)
         # Still never the whole private section for a lead.
         body = lead.post('/api/state/load', json={}).get_json()
         self.assertNotIn('safe', body.get('sections', {}))

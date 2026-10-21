@@ -280,6 +280,19 @@ let safeCountsDays = 1;      // how many days safeCountsToday covers
 
 function scIsLead(){ return typeof acUser !== 'undefined' && !!acUser && acUser.role === 'lead'; }
 
+// Team Members and Trainers don't see the Safe Count at all (Tim, Oct 20
+// 2026); a device nobody signed in on still does, since a leader may count
+// on a shared store device.
+function scHidden(){
+  if(typeof launchManager !== 'undefined' && launchManager) return false;
+  return typeof acUser !== 'undefined' && !!acUser && ['member', 'trainer'].includes(acUser.role);
+}
+function scSyncVisibility(){
+  const hide = scHidden();
+  document.body.classList.toggle('sc-hidden', hide);
+  if(hide && document.getElementById('safecountView').classList.contains('active') && typeof launchShowTab === 'function') launchShowTab('home');
+}
+
 async function scLoadToday(){
   if(typeof launchManager !== 'undefined' && launchManager) return;
   try{
