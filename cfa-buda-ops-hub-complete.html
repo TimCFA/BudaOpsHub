@@ -553,11 +553,11 @@
 
         <div class="gx-section-subtitle" style="margin:4px 0 10px;">Coin Rolls</div>
         <div class="denom-grid" id="coinGrid">
-          <div class="denom-row"><label>Quarters</label><input type="number" min="0" class="coin-input" data-value="10"><span class="denom-sub"></span></div>
-          <div class="denom-row"><label>Dimes</label><input type="number" min="0" class="coin-input" data-value="5"><span class="denom-sub"></span></div>
           <div class="denom-row"><label>Nickels</label><input type="number" min="0" class="coin-input" data-value="2"><span class="denom-sub"></span></div>
+          <div class="denom-row"><label>Dimes</label><input type="number" min="0" class="coin-input" data-value="5"><span class="denom-sub"></span></div>
+          <div class="denom-row"><label>Quarters</label><input type="number" min="0" class="coin-input" data-value="10"><span class="denom-sub"></span></div>
         </div>
-        <p style="font-size:10px;color:var(--text-secondary);margin:-8px 0 12px;">Enter number of rolls — Quarters = $10/roll, Dimes = $5/roll, Nickels = $2/roll</p>
+        <p style="font-size:10px;color:var(--text-secondary);margin:-8px 0 12px;">Enter number of rolls — Nickels = $2/roll, Dimes = $5/roll, Quarters = $10/roll</p>
 
         <div class="eoi-field">
           <label>Other Loose Coin Total ($)</label>
@@ -565,13 +565,14 @@
         </div>
 
         <div class="gx-section-subtitle" style="margin:16px 0 10px;">Bills</div>
+        <!-- Smallest bill first (Tim, Oct 21 2026). -->
         <div class="denom-grid" id="denomGrid">
-          <div class="denom-row"><label>$100</label><input type="number" min="0" step="100" inputmode="numeric" placeholder="$ total" class="denom-input" data-value="100" aria-label="Dollar total in $100 bills"><span class="denom-sub"></span></div>
-          <div class="denom-row"><label>$50</label><input type="number" min="0" step="50" inputmode="numeric" placeholder="$ total" class="denom-input" data-value="50" aria-label="Dollar total in $50 bills"><span class="denom-sub"></span></div>
-          <div class="denom-row"><label>$20</label><input type="number" min="0" step="20" inputmode="numeric" placeholder="$ total" class="denom-input" data-value="20" aria-label="Dollar total in $20 bills"><span class="denom-sub"></span></div>
-          <div class="denom-row"><label>$10</label><input type="number" min="0" step="10" inputmode="numeric" placeholder="$ total" class="denom-input" data-value="10" aria-label="Dollar total in $10 bills"><span class="denom-sub"></span></div>
-          <div class="denom-row"><label>$5</label><input type="number" min="0" step="5" inputmode="numeric" placeholder="$ total" class="denom-input" data-value="5" aria-label="Dollar total in $5 bills"><span class="denom-sub"></span></div>
           <div class="denom-row"><label>$1</label><input type="number" min="0" step="1" inputmode="numeric" placeholder="$ total" class="denom-input" data-value="1" aria-label="Dollar total in $1 bills"><span class="denom-sub"></span></div>
+          <div class="denom-row"><label>$5</label><input type="number" min="0" step="5" inputmode="numeric" placeholder="$ total" class="denom-input" data-value="5" aria-label="Dollar total in $5 bills"><span class="denom-sub"></span></div>
+          <div class="denom-row"><label>$10</label><input type="number" min="0" step="10" inputmode="numeric" placeholder="$ total" class="denom-input" data-value="10" aria-label="Dollar total in $10 bills"><span class="denom-sub"></span></div>
+          <div class="denom-row"><label>$20</label><input type="number" min="0" step="20" inputmode="numeric" placeholder="$ total" class="denom-input" data-value="20" aria-label="Dollar total in $20 bills"><span class="denom-sub"></span></div>
+          <div class="denom-row"><label>$50</label><input type="number" min="0" step="50" inputmode="numeric" placeholder="$ total" class="denom-input" data-value="50" aria-label="Dollar total in $50 bills"><span class="denom-sub"></span></div>
+          <div class="denom-row"><label>$100</label><input type="number" min="0" step="100" inputmode="numeric" placeholder="$ total" class="denom-input" data-value="100" aria-label="Dollar total in $100 bills"><span class="denom-sub"></span></div>
         </div>
         <p style="font-size:10px;color:var(--text-secondary);margin:-8px 0 12px;">Enter the dollar amount in each bill, not the number of bills — seventeen $20s is 340.</p>
 

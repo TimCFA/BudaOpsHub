@@ -24,9 +24,9 @@ const SO_ITEMS = [
   {key: '20', label: '$20', unit: 'bill', value: 20},
   {key: '50', label: '$50', unit: 'bill', value: 50},
   {key: '100', label: '$100', unit: 'bill', value: 100},
-  {key: 'Quarters', label: 'Quarters', unit: 'roll', value: 10},
+  {key: 'Nickels', label: 'Nickels', unit: 'roll', value: 2},
   {key: 'Dimes', label: 'Dimes', unit: 'roll', value: 5},
-  {key: 'Nickels', label: 'Nickels', unit: 'roll', value: 2}
+  {key: 'Quarters', label: 'Quarters', unit: 'roll', value: 10}
 ];
 const SO_WINDOW_DAYS = 28;
 const SO_LEAD_DEFAULT = 2;      // days from ordering to delivery: the store's (Tim, Oct 20 2026) until a director saves another
