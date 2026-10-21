@@ -34,8 +34,19 @@ def with_(d, **changes):
     return out
 
 
+# A waste entry logged as the wrong item and its correction (Tim, Oct 20
+# 2026: 167 logged as 5 Count Nugget boxes were 167 single nuggets).
+WRONG = {'id': 'w5ct', 'ts': 7, 'name': '5 Count Nugget', 'prodId': '5-count-nugget', 'qty': 167, 'unit': 'box', 'cost': 163.66, 'section': 'boh'}
+FIXED = dict(WRONG, name='Nugget', prodId='nugget', unit='pc', cost=26.72,
+             fixed={'from': {'name': '5 Count Nugget', 'prodId': '5-count-nugget', 'qty': 167, 'cost': 163.66}, 'by': 'Director', 'at': 9})
+
 # (name, base, mine, theirs, what mine's changes make of theirs)
 CASES = [
+    ('correct an old entry while a team phone logs new waste',
+     with_(BASE, entries=BASE['entries'] + [WRONG]), with_(BASE, entries=BASE['entries'] + [FIXED]),
+     with_(BASE, entries=BASE['entries'] + [WRONG, {'ts': 8, 'name': 'Fries', 'qty': 2, 'cost': 2.4}]),
+     # Corrected once, in place of the wrong one (it lands at the end; entries are read by time), and theirs kept.
+     with_(BASE, entries=BASE['entries'] + [{'ts': 8, 'name': 'Fries', 'qty': 2, 'cost': 2.4}, FIXED])),
     ('log waste while someone else logs waste',
      BASE, with_(BASE, entries=BASE['entries'] + [{'ts': 3, 'name': 'Strips', 'qty': 1, 'cost': 2}]),
      with_(BASE, entries=BASE['entries'] + [{'ts': 4, 'name': 'Cookie', 'qty': 1, 'cost': 1}]),

@@ -4,6 +4,8 @@ function activateView(view){
   if((view === 'uniforms' || view === 'directors') && typeof launchManager !== 'undefined' && !launchManager) view = 'home';
   // Our Team: directors and the Admin Team (headcount.js).
   if(view === 'headcount' && !(typeof hcAllowed === 'function' && hcAllowed())) view = 'home';
+  // Safe Count: not for Team Members or Trainers (fohoe-and-safecount.js).
+  if(view === 'safecount' && typeof scHidden === 'function' && scHidden()) view = 'home';
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
   document.getElementById(view+'View').classList.add('active');
   if(view === 'positions') renderPositionsTab();
