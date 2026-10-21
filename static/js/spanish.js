@@ -181,8 +181,17 @@ const ES = {
   'Next:': 'Siguiente:',
   'Recent walkthroughs': 'Recorridos recientes',
   'coached': 'entrenados',
+  'Walkthrough N': n => `Recorrido ${n}`,
+  'Walkthrough N not started': n => `Recorrido ${n} · todavía no se empieza`,
+  'Start another walkthrough': 'Empezar otro recorrido',
+  'Nothing coached': 'Nada entrenado',
 
   // ----- Prep Board -----
+  'N made · M to go': (n, m) => `${n} hechos · faltan ${m}`,
+  'Done · N made': n => `Listo · ${n} hechos`,
+  'N over': n => `${n} de más`,
+  'Made today summary': (n, m, k) => `${n} de ${m} hechos hoy · ${k ? `faltan ${k} ${k === 1 ? 'artículo' : 'artículos'}` : 'todo está hecho'}`,
+  'N of M done': (n, m) => `${n} de ${m} listos`,
   'Prep Board': 'Tablero de preparación',
   'Prep subtitle': 'Cantidades a preparar del lado frío: ensaladas, wraps, vasos de fruta y parfaits',
   'Build-To Sheet': 'Hoja de preparación',

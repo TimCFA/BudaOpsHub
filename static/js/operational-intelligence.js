@@ -293,6 +293,42 @@ function renderComplianceTrendCard(){
   el.innerHTML = html;
 }
 
+// What the Food Safety walkthroughs coached and corrected (Tim, Oct 20 2026):
+// the last 30 days against the 30 before, the checks that keep coming back,
+// which zones, and how long each zone takes (food-safety.js fsFindings).
+function renderFsFindingsCard(){
+  const el = document.getElementById('oiFsFindings');
+  if(!el || typeof fsFindings !== 'function') return;
+  const f = fsFindings(30);
+  const before = fsFindings(30, (() => { const d = new Date(f.since + 'T12:00:00'); d.setDate(d.getDate() - 1); return toLocalISODate(d); })());
+  if(!f.walkthroughs){ el.innerHTML = '<div class="oi-stat-sub">No walkthroughs in the last 30 days yet.</div>'; return; }
+  const short = iso => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+  const zoneName = id => (FS_SECTIONS.find(s => s.id === id) || {}).name || id;
+  let compare = '';
+  if(before.walkthroughs){
+    const delta = f.coached - before.coached;
+    compare = ` · <span class="${delta <= 0 ? 'oi-good' : 'oi-bad'}" style="font-weight:700;">${delta <= 0 ? '▼' : '▲'} ${Math.abs(delta)}</span> vs the 30 days before (${before.coached})`;
+  }
+  const maxZone = Math.max(1, ...f.byZone.map(z => z.count));
+  const timed = f.zoneTimes.filter(z => z.minutes !== null);
+  const repeats = f.repeats.filter(r => r.count > 1);   // the same check coached again
+  el.innerHTML = `
+    <div class="oi-stat-row">
+      <div class="oi-stat-label">Coached &amp; corrected · last 30 days</div>
+      <div class="oi-stat-value">${f.coached}</div>
+    </div>
+    <div class="oi-stat-sub">${f.walkthroughs} walkthrough${f.walkthroughs === 1 ? '' : 's'}, ${f.complete} complete on ${f.days} day${f.days === 1 ? '' : 's'}${f.minutes ? ` · about ${fsMinutesText(f.minutes)} each` : ''}${compare}</div>
+    ${repeats.length ? `<div class="fsf-h">What keeps coming up</div>
+    <ol class="fsf-list">${repeats.slice(0, 6).map(r => `<li><span class="fsf-n">${r.count}×</span><span class="fsf-t">${escapeHtml(r.en)}<small>${escapeHtml(zoneName(r.zone))} · last ${short(r.last)}</small></span></li>`).join('')}</ol>`
+      : `<div class="oi-stat-sub" style="margin-top:8px;">${f.coached ? 'No check coached more than once in the last 30 days.' : 'Nothing coached in the last 30 days.'}</div>`}
+    ${f.coached ? `<div class="fsf-h">By zone</div>
+    <div class="fsf-zones">${f.byZone.filter(z => z.count).map(z => `<div class="fsf-zone"><span>${escapeHtml(z.name)}</span><span class="fsf-bar"><i style="width:${Math.round(z.count / maxZone * 100)}%"></i></span><b>${z.count}</b></div>`).join('')}</div>` : ''}
+    ${timed.length ? `<div class="fsf-h">Time per zone <small>typical, first check to last</small></div>
+    <div class="fsf-times">${timed.map(z => `<span>${escapeHtml(z.name)} <b>${fsMinutesText(z.minutes)}</b></span>`).join('')}</div>` : ''}
+    ${f.recent.length ? `<div class="fsf-h">Latest</div>
+    <ul class="fsf-recent">${f.recent.slice(0, 5).map(c => `<li>${escapeHtml(c.en)}<small>${escapeHtml(zoneName(c.zone))} · ${short(c.date)} ${formatShortTime(c.t)}${c.i ? ` · ${escapeHtml(c.i)}` : ''}</small></li>`).join('')}</ul>` : ''}`;
+}
+
 function renderOperationalIntelligence(){
   if(typeof wasteFetchDayTotals === 'function') wasteFetchDayTotals();
   renderWasteTrendCard();
@@ -300,4 +336,5 @@ function renderOperationalIntelligence(){
   renderSafeCountVarianceCard();
   renderZoneResetTrendCard();
   renderComplianceTrendCard();
+  renderFsFindingsCard();
 }

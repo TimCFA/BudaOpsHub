@@ -158,6 +158,9 @@ STATE_SECTIONS = {
                'teamLeadProgress', 'scoreboardItems', 'leaderNotes', 'leaderFocus', 'teamNotes'],
     'prep': ['prepBuffers', 'prepSoldEntries', 'prepWasteEntries', 'prepStockoutEvents', 'prepHistorySeeded'],
     'prepTimes': ['prepTimes', 'prepTimers'],
+    # Counts made today on the Prep Board (Tim, Oct 20 2026): a section of its
+    # own, so a page on older code never drops it when it saves the prep data.
+    'prepLive': ['prepMade'],
     'cem': ['cemEntries'],
     'forecast': ['salesHistory', 'forecastSettings', 'forecastLog', 'daypartWeeks', 'laborByDaypart'],
     'orders': ['uniformOrders', 'uniformCatalog'],

@@ -17,6 +17,13 @@
 // A day counts toward foodSafetyDays (streak + Food Safety Compliance card) once every
 // check is answered and every temperature is filled in. Temperatures sit in the
 // zone where they're taken (FS_TEMPS below).
+//
+// More than one walkthrough a day (Tim, Oct 20 2026): the day's record is the
+// first; each one after it is in its .more = { r2: {answers, temps, startedAt,
+// by, completedAt}, r3: … }, so pages on older code keep the first as it was.
+// A day counts once any of its walkthroughs is complete. Each zone's time is
+// read from its answers' stamps (first to last), and the coached & corrected
+// checks of the last 90 days feed the Scoreboard (fsFindings).
 
 const FS_HANDWASH = { en: 'Are handwashing stations stocked, accessible, properly used, clean, and in good repair?', es: '¿Las estaciones de lavado de manos están abastecidas, son accesibles, se usan correctamente, están limpias y en buen estado?' };
 const FS_CONTACT_SURFACES = { en: 'Check ALL food contact surfaces for cleanliness.', es: 'Verifique que todas las superficies en contacto con los alimentos estén limpias.' };
@@ -144,10 +151,85 @@ const FS_HISTORY_DAYS = 90;
 
 let foodSafetyWalkthroughs = {};
 let fsCurrentSection = FS_SECTIONS[0].id;
+let fsRoundPicked = null;        // the walkthrough open on this page (1, 2 …); null = the latest
+let fsOpenHistory = new Set();   // past days opened to show their walkthroughs
 
 // ---------- progress ----------
 
 function fsRecord(dateISO){ return foodSafetyWalkthroughs[dateISO] || null; }
+
+// The day's walkthroughs, in order: [{n, rec}].
+function fsRounds(dateISO){
+  const day = fsRecord(dateISO);
+  if(!day) return [];
+  const out = [{n: 1, rec: day}];
+  Object.keys(day.more || {}).map(k => parseInt(k.slice(1), 10)).filter(n => n > 1).sort((a, b) => a - b)
+    .forEach(n => { if(day.more['r' + n]) out.push({n, rec: day.more['r' + n]}); });
+  return out;
+}
+function fsLatest(dateISO){ const r = fsRounds(dateISO); return r.length ? r[r.length - 1].rec : null; }
+// The walkthrough that got furthest (for reports that count one a day).
+function fsBest(dateISO){
+  return fsRounds(dateISO).reduce((best, r) => { const t = fsTotals(r.rec); return !best || t.done > best.t.done ? {rec: r.rec, t} : best; }, null)?.rec || null;
+}
+function fsRoundNow(){
+  const rounds = fsRounds(today);
+  const n = fsRoundPicked && rounds.some(r => r.n === fsRoundPicked) ? fsRoundPicked : (rounds.length ? rounds[rounds.length - 1].n : 1);
+  return {n, rec: (rounds.find(r => r.n === n) || {}).rec || null, rounds};
+}
+
+// A zone's time: from its first answer to its last, in minutes (null until two).
+function fsZoneMinutes(rec, section){
+  const ts = [];
+  section.items.forEach(item => { const a = rec && rec.answers && rec.answers[item.id]; if(a && a.t) ts.push(a.t); });
+  section.temps.forEach(item => { const a = rec && rec.temps && rec.temps[item.id]; if(a && a.t) ts.push(a.t); });
+  if(ts.length < 2) return null;
+  return Math.max(1, Math.round((Math.max(...ts) - Math.min(...ts)) / 60000));
+}
+function fsMinutesText(m){ return m === null ? '' : m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; }
+// The whole walkthrough: first answer to done.
+function fsRoundMinutes(rec){
+  const first = fsStartInfo(rec);
+  return first && rec.completedAt ? Math.max(1, Math.round((rec.completedAt - first.t) / 60000)) : null;
+}
+
+const FS_ITEM_OF = {};
+FS_SECTIONS.forEach(s => s.items.forEach(item => { FS_ITEM_OF[item.id] = {item, section: s}; }));
+
+// The coached & corrected checks since `sinceISO`: [{date, n, id, en, zone, i, t}].
+function fsCoachedSince(sinceISO){
+  const out = [];
+  Object.keys(foodSafetyWalkthroughs).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d) && d >= sinceISO).forEach(date => {
+    fsRounds(date).forEach(({n, rec}) => Object.entries(rec.answers || {}).forEach(([id, a]) => {
+      if(!a || a.v !== 'coached' || !FS_ITEM_OF[id]) return;
+      out.push({date, n, id, en: FS_ITEM_OF[id].item.en, zone: FS_ITEM_OF[id].section.id, i: a.i || '', t: a.t || 0});
+    }));
+  });
+  return out.sort((a, b) => b.t - a.t);
+}
+
+// For the Scoreboard: the last `days` days of walkthroughs.
+function fsFindings(days, now){
+  const end = now || today;
+  const since = (() => { const d = new Date(end + 'T12:00:00'); d.setDate(d.getDate() - days + 1); return toLocalISODate(d); })();
+  const dates = Object.keys(foodSafetyWalkthroughs).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d) && d >= since && d <= end);
+  const rounds = dates.flatMap(d => fsRounds(d).map(r => ({date: d, ...r})));
+  const coached = fsCoachedSince(since).filter(c => c.date <= end);
+  const repeats = {};
+  coached.forEach(c => {
+    const r = repeats[c.id] = repeats[c.id] || {id: c.id, en: c.en, zone: c.zone, count: 0, last: c.date};
+    r.count++;
+    if(c.date > r.last) r.last = c.date;
+  });
+  const byZone = FS_SECTIONS.map(s => ({id: s.id, name: s.name, count: coached.filter(c => c.zone === s.id).length}));
+  const median = list => { if(!list.length) return null; const a = list.slice().sort((x, y) => x - y); const m = Math.floor(a.length / 2); return a.length % 2 ? a[m] : Math.round((a[m - 1] + a[m]) / 2); };
+  const zoneTimes = FS_SECTIONS.map(s => ({id: s.id, name: s.name,
+    minutes: median(rounds.filter(r => { const p = fsSectionProgress(r.rec, s); return p.done === p.total; }).map(r => fsZoneMinutes(r.rec, s)).filter(m => m !== null))}));
+  const complete = rounds.filter(r => fsTotals(r.rec).complete);
+  return {since, end, walkthroughs: rounds.length, complete: complete.length, days: new Set(complete.map(r => r.date)).size,
+    coached: coached.length, repeats: Object.values(repeats).sort((a, b) => b.count - a.count || b.last.localeCompare(a.last)),
+    byZone, zoneTimes, minutes: median(complete.map(r => fsRoundMinutes(r.rec)).filter(m => m !== null)), recent: coached.slice(0, 8)};
+}
 
 function fsSectionProgress(rec, section){
   const answers = (rec && rec.answers) || {}, temps = (rec && rec.temps) || {};
@@ -176,24 +258,28 @@ function fsStartInfo(rec){
 
 // Keeps foodSafetyDays / formDone (streak, compliance card) in step with today's record.
 function fsSyncCompletion(){
-  const rec = fsRecord(today);
-  const { complete } = fsTotals(rec);
+  // Each walkthrough keeps its own finish time; the day counts once any is complete.
+  let finished = false;
+  fsRounds(today).forEach(({rec}) => {
+    const done = fsTotals(rec).complete;
+    if(done && !rec.completedAt){ rec.completedAt = Date.now(); finished = true; }
+    if(!done && rec.completedAt) delete rec.completedAt;
+  });
+  const complete = fsRounds(today).some(r => r.rec.completedAt);
   const listed = foodSafetyDays.includes(today);
   if(complete && !listed){
-    rec.completedAt = Date.now();
     foodSafetyDays.push(today);
     formDone = true;
     calcStreak();
     return 'completed';
   }
-  if(!complete && listed && rec && rec.completedAt){
-    delete rec.completedAt;
+  if(!complete && listed && fsRecord(today)){
     foodSafetyDays = foodSafetyDays.filter(d => d !== today);
     formDone = false;
     calcStreak();
     return 'reopened';
   }
-  return null;
+  return finished ? 'completed' : null;
 }
 
 function fsPruneOldWalkthroughs(){
@@ -251,10 +337,51 @@ function fsSummaryText(rec){
   return { badge: `${t.done}/${t.total}`, line: `In progress · ${t.done} of ${t.total} answered · ${t.coached} coached`, t };
 }
 
+// Today's walkthroughs, and a way to start another once one is under way.
+function fsRoundsHtml(round){
+  const rounds = round.rounds;
+  const last = rounds[rounds.length - 1];
+  const canStart = last && fsTotals(last.rec).done > 0;
+  if(rounds.length < 2 && !canStart) return '';
+  return `<div class="fs-rounds">${rounds.map(({n, rec}) => {
+    const t = fsTotals(rec);
+    const label = rec.completedAt ? `✓ ${formatShortTime(rec.completedAt)}` : `${t.done}/${t.total}`;
+    return `<button type="button" class="fs-round${n === round.n ? ' is-on' : ''}${rec.completedAt ? ' is-done' : ''}" data-fs-round="${n}" aria-pressed="${n === round.n}">Walkthrough ${n} <span>${label}</span>${esSpan(esText('Walkthrough N', n), true)}</button>`;
+  }).join('')}${canStart ? `<button type="button" class="fs-round-new" data-fs-new-round>+ Start another walkthrough${esSpan(esText('Start another walkthrough'), true)}</button>` : ''}</div>`;
+}
+
+// A past day: its walkthroughs, and, opened, each one's time, zone times and
+// what was coached & corrected.
+function fsHistoryDayHtml(d){
+  const rounds = fsRounds(d);
+  const best = fsTotals(fsBest(d));
+  const coached = rounds.reduce((n, r) => n + fsTotals(r.rec).coached, 0);
+  const open = fsOpenHistory.has(d);
+  const head = `<button type="button" class="fs-history-row" data-fs-history="${d}" aria-expanded="${open}">
+      <span>${escapeHtml(formatVerboseDate(d))}${rounds.length > 1 ? ` · ${rounds.length} walkthroughs` : ''}</span>
+      <span class="${best.complete ? 'fs-ok' : 'fs-partial'}">${best.complete ? `✓ Complete${esHtml('Complete')}` : `${best.done}/${best.total}`}</span>
+      <span class="fs-history-coached">${coached} coached${esHtml('coached')}</span>
+    </button>`;
+  if(!open) return head;
+  return head + `<div class="fs-history-detail">${rounds.map(({n, rec}) => {
+    const t = fsTotals(rec);
+    const mins = fsRoundMinutes(rec);
+    const zones = FS_SECTIONS.map(s => ({s, m: fsZoneMinutes(rec, s)})).filter(z => z.m !== null);
+    const items = Object.entries(rec.answers || {}).filter(([id, a]) => a && a.v === 'coached' && FS_ITEM_OF[id]);
+    return `<div class="fs-hd-round">
+      <div class="fs-hd-head"><b>Walkthrough ${n}</b><span>${rec.completedAt ? `✓ ${formatShortTime(rec.completedAt)}${mins ? ` · ${fsMinutesText(mins)}` : ''}` : `${t.done}/${t.total}`}</span></div>
+      ${zones.length ? `<div class="fs-hd-zones">${zones.map(z => `<span>${escapeHtml(z.s.name)} <b>${fsMinutesText(z.m)}</b></span>`).join('')}</div>` : ''}
+      ${items.length ? `<ul class="fs-hd-coached">${items.map(([id, a]) => `<li><span class="fs-hd-zone">${escapeHtml(FS_ITEM_OF[id].section.name)}</span>${escapeHtml(FS_ITEM_OF[id].item.en)}<span class="fs-hd-who">${escapeHtml(a.i || '')} · ${formatShortTime(a.t)}</span></li>`).join('')}</ul>`
+        : `<div class="fs-hd-none">Nothing coached${esHtml('Nothing coached')}</div>`}
+    </div>`;
+  }).join('')}</div>`;
+}
+
 function renderFoodSafety(){
   const root = document.getElementById('foodSafetyRoot');
   if(!root) return;
-  const rec = fsRecord(today);
+  const round = fsRoundNow();
+  const rec = round.rec;
   const t = fsTotals(rec);
   const start = fsStartInfo(rec);
   const section = FS_SECTIONS.find(s => s.id === fsCurrentSection) || FS_SECTIONS[0];
@@ -264,6 +391,7 @@ function renderFoodSafety(){
   let status;
   if(t.complete) status = `<span class="fs-status done">✓ Complete · ${formatShortTime(rec.completedAt)}${esHtml('Complete')}</span>`;
   else if(start) status = `<span class="fs-status">In progress · started ${formatShortTime(start.t)} by ${escapeHtml(start.i || '—')}${esHtml('In progress')}</span>`;
+  else if(round.n > 1) status = `<span class="fs-status">Walkthrough ${round.n} · not started yet${esHtml('Walkthrough N not started', round.n)}</span>`;
   else status = `<span class="fs-status">Not started yet today${esHtml('Not started yet today')}</span>`;
 
   const sp = fsSectionProgress(rec, section);
@@ -277,6 +405,7 @@ function renderFoodSafety(){
       </div>
       <div class="fs-count"><b>${t.done}</b><span>/ ${t.total}</span></div>
     </div>
+    ${fsRoundsHtml(round)}
     <div class="fs-progress"><div class="fs-progress-fill ${t.complete ? 'done' : ''}" style="width:${pct}%"></div></div>
     <div class="fs-meta">${status}${t.coached ? `<span class="fs-coached-total">↺ ${t.coached} coached &amp; corrected${esHtml('N coached & corrected', t.coached)}</span>` : ''}</div>
 
@@ -285,7 +414,7 @@ function renderFoodSafety(){
       const done = p.done === p.total;
       return `<button type="button" class="fs-chip ${s.id === section.id ? 'active' : ''} ${done ? 'done' : ''}" data-fs-section="${s.id}">
         <span class="fs-chip-name">${done ? '✓ ' : ''}${escapeHtml(s.name)}${esSpan(s.es, true)}</span>
-        <span class="fs-chip-count">${p.done}/${p.total}${p.coached ? ` · <i>↺${p.coached}</i>` : ''}</span>
+        <span class="fs-chip-count">${p.done}/${p.total}${p.coached ? ` · <i>↺${p.coached}</i>` : ''}${done && fsZoneMinutes(rec, s) !== null ? ` · ${fsMinutesText(fsZoneMinutes(rec, s))}` : ''}</span>
       </button>`;
     }).join('')}</nav>
 
@@ -313,14 +442,8 @@ function renderFoodSafety(){
     </section>
   `;
 
-  const history = Object.keys(foodSafetyWalkthroughs).filter(d => d !== today).sort().reverse().slice(0, 7);
-  if(history.length){
-    html += `<div class="fs-history"><div class="fs-history-title">Recent walkthroughs${esHtml('Recent walkthroughs')}</div>${history.map(d => {
-      const ht = fsTotals(foodSafetyWalkthroughs[d]);
-      return `<div class="fs-history-row"><span>${escapeHtml(formatVerboseDate(d))}</span><span class="${ht.complete ? 'fs-ok' : 'fs-partial'}">${ht.complete ? `✓ Complete${esHtml('Complete')}` : `${ht.done}/${ht.total}`}</span><span class="fs-history-coached">${ht.coached} coached${esHtml('coached')}</span></div>`;
-    }).join('')}</div>`;
-  }
-
+  const history = Object.keys(foodSafetyWalkthroughs).filter(d => d !== today && /^\d{4}-\d{2}-\d{2}$/.test(d)).sort().reverse().slice(0, 14);
+  if(history.length) html += `<div class="fs-history"><div class="fs-history-title">Recent walkthroughs${esHtml('Recent walkthroughs')}</div>${history.map(fsHistoryDayHtml).join('')}</div>`;
   root.innerHTML = html;
 }
 
@@ -328,10 +451,26 @@ function renderFoodSafety(){
 
 function fsEnsureRecord(){
   if(!foodSafetyWalkthroughs[today]) foodSafetyWalkthroughs[today] = { answers: {}, temps: {} };
-  const rec = foodSafetyWalkthroughs[today];
+  const round = fsRoundNow();
+  const rec = round.n > 1 ? round.rec : foodSafetyWalkthroughs[today];
   rec.answers = rec.answers || {};
   rec.temps = rec.temps || {};
   return rec;
+}
+async function fsStartRound(){
+  const initials = fsRequireInitials();
+  if(!initials) return;
+  const rounds = fsRounds(today);
+  const last = rounds[rounds.length - 1];
+  if(!last || !fsTotals(last.rec).done) return;
+  const day = foodSafetyWalkthroughs[today];
+  const n = last.n + 1;
+  day.more = day.more || {};
+  day.more['r' + n] = { answers: {}, temps: {}, startedAt: Date.now(), by: initials };
+  fsRoundPicked = n;
+  fsCurrentSection = FS_SECTIONS[0].id;
+  renderFoodSafety();
+  await saveState();
 }
 
 function fsRequireInitials(){
@@ -344,7 +483,11 @@ async function fsAfterChange(){
   const change = fsSyncCompletion();
   renderFoodSafety();
   await saveState();
-  if(change === 'completed') showToast('✓ Food Safety Walkthrough complete!');
+  if(change === 'completed'){
+    const rec = fsRoundNow().rec;
+    const mins = rec && fsRoundMinutes(rec);
+    showToast(`✓ Food Safety Walkthrough complete!${mins ? ` · ${fsMinutesText(mins)}` : ''}`);
+  }
 }
 
 document.getElementById('foodSafetyRoot').addEventListener('click', (e) => {
@@ -353,6 +496,16 @@ document.getElementById('foodSafetyRoot').addEventListener('click', (e) => {
     fsCurrentSection = sectionBtn.dataset.fsSection;
     renderFoodSafety();
     if(sectionBtn.hasAttribute('data-fs-scroll')) document.getElementById('foodSafetyRoot').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+  const roundBtn = e.target.closest('[data-fs-round]');
+  if(roundBtn){ fsRoundPicked = parseInt(roundBtn.dataset.fsRound, 10); renderFoodSafety(); return; }
+  if(e.target.closest('[data-fs-new-round]')){ fsStartRound(); return; }
+  const histBtn = e.target.closest('[data-fs-history]');
+  if(histBtn){
+    const d = histBtn.dataset.fsHistory;
+    if(fsOpenHistory.has(d)) fsOpenHistory.delete(d); else fsOpenHistory.add(d);
+    renderFoodSafety();
     return;
   }
   const answerBtn = e.target.closest('[data-fs-answer]');

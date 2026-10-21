@@ -24,6 +24,8 @@
   --border:#E4DCCF;
   --radius:14px;
   --success:#2E7D45;
+  --ok:#2E7D45;               /* on now, on track */
+  --ok-soft:#E5F1E8;
   --font-display:'Zilla Slab', Georgia, serif;
   --font-ui:'Figtree', 'DM Sans', system-ui, sans-serif;
 }
@@ -1829,20 +1831,32 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .rn-row.is-go:focus-visible,.rn-first.is-go:focus-visible{outline:2px solid var(--cfa-navy);outline-offset:2px;border-radius:10px;}
 .rn:not(.rn-boh) .es{display:none;}
 @media (max-width:600px){ .rn{padding:14px 16px 6px;} .rn-title{font-size:24px;} }
-/* The day's roster (Admin Team's card; a tap away on the director's): by
-   group in start order, a green dot for on now, done shifts faded. */
-.rn-roster{position:relative;display:grid;gap:14px;border-top:1px solid var(--border);margin-top:2px;padding:12px 0 8px;}
-.rn-rg-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:0 0 2px;font-family:var(--font-ui);font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--cfa-navy);}
+/* The day's roster (Admin Team's card; a tap away on the director's), in a
+   panel of its own so it reads apart from the rows (Tim, Oct 20 2026): a
+   navy band "Who's on today", then each group as its own card, time first,
+   the people on now on green with "On now", done shifts faded. */
+.rn-roster{position:relative;margin:4px 0 12px;border:1px solid var(--cfa-navy);border-radius:16px;overflow:hidden;background:var(--cfa-light);}
+.rn-list + .rn-roster{margin-top:8px;}
+.rn-roster-h{display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--cfa-navy);color:#fff;}
+.rn-roster-ic{flex:none;display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border-radius:50%;background:rgba(255,255,255,.14);}
+.rn-roster-h b{flex:1;min-width:0;font-family:var(--font-display);font-size:19px;font-weight:700;line-height:1.15;}
+.rn-roster-h > span:last-child{flex:none;font-family:var(--font-ui);font-size:12.5px;font-weight:600;opacity:.85;}
+.rn-roster-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;padding:10px;}
+.rn-rg{background:var(--cfa-white);border:1px solid var(--border);border-radius:12px;padding:10px 12px 4px;}
+.rn-rg-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:0 0 4px;font-family:var(--font-ui);font-size:12.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--cfa-navy);}
 .rn-rg-h span{letter-spacing:0;text-transform:none;font-weight:600;color:var(--text-tertiary);}
 .rn-rg-list{list-style:none;margin:0;padding:0;}
-.rn-rp{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--border);font-family:var(--font-ui);font-size:14.5px;line-height:1.3;}
+.rn-rp{display:flex;align-items:center;gap:10px;margin:0 -6px;padding:7px 6px;border-top:1px solid var(--border);border-radius:8px;font-family:var(--font-ui);font-size:15px;line-height:1.3;}
 .rn-rp:first-child{border-top:0;}
-.rn-rp-name{min-width:0;font-weight:600;color:var(--text-primary);}
-.rn-rp-name::before{content:"";display:inline-block;width:7px;height:7px;margin-right:8px;border-radius:50%;background:var(--border);vertical-align:1px;}
-.rn-rp.is-now .rn-rp-name::before{background:#2E7D45;}
+.rn-rp-time{flex:0 0 108px;font-size:13.5px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text-primary);}   /* a split shift wraps */
+.rn-rp-name{flex:1;min-width:0;font-weight:600;color:var(--text-primary);}
+.rn-rp.is-now{background:var(--ok-soft);border-top-color:transparent;}
+.rn-rp.is-now + .rn-rp{border-top-color:transparent;}
+.rn-rp.is-now .rn-rp-time{color:var(--ok);}
+.rn-rp-now{flex:none;padding:2px 8px;border-radius:999px;background:var(--ok);color:#fff;font-size:11px;font-weight:700;letter-spacing:.02em;}
 .rn-rp.is-done{opacity:.5;}
-.rn-rp-time{flex:none;font-size:13.5px;font-variant-numeric:tabular-nums;color:var(--text-secondary);}
 .rn-rp-tag{margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--cfa-soft);font-size:11px;font-weight:700;color:var(--text-secondary);vertical-align:1px;}
+@media (max-width:600px){ .rn-roster-grid{grid-template-columns:1fr;padding:8px;} .rn-rp-time{flex-basis:100px;font-size:13px;} .rn-roster-h b{font-size:18px;} }
 
 /* Waste: Top Items Today, each bar its share of the day's waste (waste-log.js; Tim, Oct 19 2026). */
 .bar-item .bi-top .bv-share{font-family:var(--font-ui);font-size:12px;font-weight:600;opacity:.7;}
@@ -2122,3 +2136,67 @@ body.lt-hidden #leaderTransitionCard{display:none !important;}
 .wd-fix select,.wd-fix input{min-height:42px;padding:6px 10px;border:1px solid var(--border);border-radius:10px;font-family:var(--font-ui);font-size:15px;background:var(--cfa-white);}
 .wd-fix-go{display:flex;flex-wrap:wrap;gap:8px;}
 .wd-fix-go .btn{width:auto;}
+
+/* Prep Board: made so far (prep-board.js; Tim, Oct 20 2026). Today's sheet
+   counts each item up as it's made, live across devices and shifts: a bar to
+   the build-to, "52 made · 32 to go", big taps for a gloved hand. */
+.pb-item-row.has-made{align-items:flex-start;}
+.pb-made{margin-top:8px;}
+.pb-made-bar{height:8px;border-radius:999px;background:var(--cfa-soft);overflow:hidden;}
+.pb-made-bar i{display:block;height:100%;border-radius:999px;background:var(--cfa-red);transition:width .25s ease;}
+.pb-made.is-done .pb-made-bar i{background:var(--ok);}
+.pb-made-txt{margin:6px 0 8px;font-family:var(--font-ui);font-size:14px;color:var(--text-primary);}
+.pb-made-txt b{font-weight:800;color:var(--cfa-red);}
+.pb-made.is-done .pb-made-txt{color:var(--ok);font-weight:700;}
+.pb-made-who{color:var(--text-tertiary);font-size:12.5px;font-weight:500;}
+.pb-made-txt .es-line{display:block;}
+.pb-made-ctl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.pb-made-btn{min-width:46px;height:44px;padding:0 8px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-white);color:var(--text-primary);font-family:var(--font-ui);font-size:16px;font-weight:700;cursor:pointer;}
+.pb-made-btn.is-add{background:var(--cfa-red);border-color:var(--cfa-red);color:#fff;}
+.pb-made-btn:active{transform:scale(.97);}
+.pb-made-num input{width:64px;height:44px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-light);color:var(--text-primary);text-align:center;font-family:var(--font-display);font-size:20px;font-weight:700;}
+.pb-item-row.is-done .pb-item-name{color:var(--text-secondary);}
+.pb-item-row.is-done .pb-item-buildto{background:var(--ok-soft);color:var(--ok);}
+.pb-made-sum{margin:0 0 14px;padding:12px 14px;border:1px solid var(--border);border-left:4px solid var(--cfa-red);border-radius:12px;background:var(--cfa-white);font-family:var(--font-ui);font-size:15px;color:var(--text-primary);}
+.pb-made-sum b{font-family:var(--font-display);font-size:22px;}
+.pb-made-sum.is-done{border-left-color:var(--ok);color:var(--ok);}
+.pb-made-sum .es-line{display:block;}
+
+/* Food Safety: more than one walkthrough a day, and each day's history opened
+   to its zone times and what was coached (food-safety.js; Tim, Oct 20 2026). */
+.fs-rounds{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px;}
+.fs-round,.fs-round-new{display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px;min-height:44px;padding:7px 14px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-white);color:var(--text-primary);font-family:var(--font-ui);font-size:13.5px;font-weight:700;text-align:left;cursor:pointer;}
+.fs-round > span:not(.es){font-size:12px;font-weight:600;color:var(--text-secondary);}
+.fs-round.is-done > span:not(.es){color:var(--ok);}
+.fs-round.is-on{border-color:var(--text-primary);box-shadow:inset 0 0 0 1px var(--text-primary);}
+.fs-round-new{justify-content:center;border-style:dashed;color:var(--cfa-red);}
+.fs-round .es-line,.fs-round-new .es-line{font-weight:400;}
+button.fs-history-row{width:100%;margin:0;border:0;border-bottom:1px solid var(--border);background:none;color:inherit;font:inherit;font-size:12.5px;text-align:left;cursor:pointer;align-items:baseline;}
+button.fs-history-row:hover > span:first-child{color:var(--cfa-red);}
+.fs-history-detail{margin:2px 0 10px;padding:4px 0 4px 12px;border-left:2px solid var(--border);display:grid;gap:10px;}
+.fs-hd-head{display:flex;justify-content:space-between;gap:10px;font-family:var(--font-ui);font-size:13px;}
+.fs-hd-head span{color:var(--text-secondary);}
+.fs-hd-zones{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:4px;font-size:12px;color:var(--text-secondary);}
+.fs-hd-zones b{color:var(--text-primary);}
+.fs-hd-coached{margin:6px 0 0;padding:0;list-style:none;display:grid;gap:6px;}
+.fs-hd-coached li{font-size:13px;line-height:1.35;color:var(--text-primary);}
+.fs-hd-zone{display:inline-block;margin-right:6px;padding:1px 7px;border-radius:999px;background:var(--cfa-soft);font-size:11px;font-weight:700;color:var(--text-secondary);}
+.fs-hd-who{display:block;font-size:11.5px;color:var(--text-tertiary);}
+.fs-hd-none{margin-top:4px;font-size:12.5px;color:var(--ok);}
+
+/* Scoreboard: Food Safety coached & corrected (operational-intelligence.js). */
+.fsf-h{margin:14px 0 6px;font-family:var(--font-ui);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);}
+.fsf-h small{margin-left:6px;letter-spacing:0;text-transform:none;font-weight:500;color:var(--text-tertiary);}
+.fsf-list{margin:0;padding:0;list-style:none;display:grid;gap:8px;}
+.fsf-list li{display:flex;gap:10px;align-items:baseline;}
+.fsf-n{flex:none;min-width:30px;font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--cfa-red);}
+.fsf-t{font-size:13.5px;line-height:1.35;color:var(--text-primary);}
+.fsf-t small,.fsf-recent small{display:block;font-size:11.5px;color:var(--text-tertiary);}
+.fsf-zones{display:grid;gap:6px;}
+.fsf-zone{display:grid;grid-template-columns:120px 1fr 28px;align-items:center;gap:10px;font-size:13px;}
+.fsf-zone b{text-align:right;}
+.fsf-bar{height:8px;border-radius:999px;background:var(--cfa-soft);overflow:hidden;}
+.fsf-bar i{display:block;height:100%;border-radius:999px;background:var(--cfa-red);}
+.fsf-times{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--text-secondary);}
+.fsf-times b{color:var(--text-primary);}
+.fsf-recent{margin:0;padding:0;list-style:none;display:grid;gap:8px;font-size:13px;line-height:1.35;}
