@@ -13,6 +13,26 @@ const WD_PIE = ['#c9541a', '#1b9a82', '#5b4bd6', '#d97a1d', '#c026d3', '#2f5bd8'
 const WD_PRESETS = [['today', 'Today'], ['yesterday', 'Yesterday'], ['7', 'Last 7 days'], ['14', 'Last 14 days'], ['30', 'Last 30 days'], ['month', 'This month'], ['lastmonth', 'Last month'], ['custom', 'Custom range…']];
 let wdPreset = '7', wdFrom = '', wdTo = '', wdLoc = 'all';
 let wdQuery = '', wdCat = 'All', wdSort = 'cost', wdOpen = null;
+let wdFix = null;          // the entry being corrected: its key (id or ts)
+
+// Correct an entry logged as the wrong item (Tim, Oct 20 2026: 167 logged as
+// 5 Count Nugget boxes were 167 single nuggets). Its day, time, quantity and
+// who logged it stay; the item and the cost change, and the entry keeps what
+// it was before and who corrected it.
+function wdFixOptions(en){
+  const words = String(en.name || '').toLowerCase().replace(/\b\d+\b|\bcount\b|\bct\b/g, ' ').split(/\s+/).filter(w => w.length > 2);
+  const all = (Array.isArray(products) ? products : []).filter(p => p && p.id && p.name).sort((a, b) => a.name.localeCompare(b.name));
+  const near = all.filter(p => p.id !== en.prodId && words.some(w => p.name.toLowerCase().includes(w)));
+  const opt = p => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)} · $${Number(p.cost || 0).toFixed(2)}/${escapeHtml(p.unit || 'ea')}</option>`;
+  return `<option value="">Pick the right item…</option>${near.length ? `<optgroup label="Similar">${near.map(opt).join('')}</optgroup>` : ''}<optgroup label="All items">${all.filter(p => p.id !== en.prodId).map(opt).join('')}</optgroup>`;
+}
+function wdFixHtml(en){
+  return `<div class="wd-fix" data-wd-fix-row="${escapeHtml(String(en.id || en.ts))}">
+    <label>Should have been <select data-wd-fix-prod>${wdFixOptions(en)}</select></label>
+    <label>Quantity <input type="number" min="1" step="1" inputmode="numeric" data-wd-fix-qty value="${escapeHtml(en.qty)}"></label>
+    <div class="wd-fix-go"><button type="button" class="btn btn-primary" data-wd-fix-save>Save the correction</button><button type="button" class="btn btn-ghost" data-wd-fix-cancel>Cancel</button></div>
+  </div>`;
+}
 
 // ---------- pure helpers (tests/test_waste_dash.py runs these) ----------
 
@@ -195,8 +215,10 @@ function renderWasteDashboard(){
         const open = wdOpen === b.id;
         const ent = !open ? '' : `<div class="wd-entries">${b.entries.slice().sort((x, y) => y.ts - x.ts).map(e => {
           const when = new Date(e.ts).toLocaleString('en-US', {weekday: 'short', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit'});
-          return `<div class="wd-entry"><span>${escapeHtml(when)} · ${escapeHtml(String(e.section || '').toUpperCase())}${e.who ? ' · ' + escapeHtml(e.who) : ''} · ${escapeHtml(e.qty)} ${escapeHtml(e.unit || b.it.unit)} · ${wdMoney(e.cost)}</span>
-            <button type="button" data-wd-del="${escapeHtml(e.id || e.ts)}" aria-label="Delete entry">×</button></div>`;
+          const key = String(e.id || e.ts);
+          const fixed = e.fixed && e.fixed.from ? ` · corrected from ${escapeHtml(e.fixed.from.name)}${e.fixed.by ? ' by ' + escapeHtml(e.fixed.by) : ''}` : '';
+          return `<div class="wd-entry"><span>${escapeHtml(when)} · ${escapeHtml(String(e.section || '').toUpperCase())}${e.who ? ' · ' + escapeHtml(e.who) : ''} · ${escapeHtml(e.qty)} ${escapeHtml(e.unit || b.it.unit)} · ${wdMoney(e.cost)}${fixed}</span>
+            <span class="wd-entry-go"><button type="button" class="wd-entry-fix" data-wd-fix="${escapeHtml(key)}">Change item</button><button type="button" data-wd-del="${escapeHtml(key)}" aria-label="Delete entry">×</button></span></div>${wdFix === key ? wdFixHtml(e) : ''}`;
         }).join('')}</div>`;
         return `<div class="wd-srow"><button type="button" class="wd-srow-btn" data-wd-open="${escapeHtml(b.id)}" aria-expanded="${open}">
           <span class="wd-dot" style="--c:${wasteItemColor(b.it)}"></span>
@@ -240,7 +262,31 @@ function wdExport(){
   root.addEventListener('click', async e => {
     if(e.target.closest('[data-wd-export]')){ wdExport(); return; }
     const open = e.target.closest('[data-wd-open]');
-    if(open){ wdOpen = wdOpen === open.dataset.wdOpen ? null : open.dataset.wdOpen; renderWasteDashboard(); return; }
+    if(open){ wdOpen = wdOpen === open.dataset.wdOpen ? null : open.dataset.wdOpen; wdFix = null; renderWasteDashboard(); return; }
+    const fix = e.target.closest('[data-wd-fix]');
+    if(fix){ wdFix = wdFix === fix.dataset.wdFix ? null : fix.dataset.wdFix; renderWasteDashboard(); return; }
+    if(e.target.closest('[data-wd-fix-cancel]')){ wdFix = null; renderWasteDashboard(); return; }
+    if(e.target.closest('[data-wd-fix-save]')){
+      const row = e.target.closest('[data-wd-fix-row]');
+      const en = entries.find(x => String(x.id || x.ts) === row.dataset.wdFixRow);
+      const p = (products || []).find(x => x.id === row.querySelector('[data-wd-fix-prod]').value);
+      const qty = Math.floor(Number(row.querySelector('[data-wd-fix-qty]').value));
+      if(!en) return;
+      if(!p){ showToast('Pick the item it should have been'); return; }
+      if(!(qty > 0)){ showToast('Enter the quantity'); return; }
+      const cost = Math.round(qty * (Number(p.cost) || 0) * 100) / 100;
+      if(!confirm(`Change ${en.qty} ${en.unit || ''} ${en.name} (${wdMoney(en.cost)}) to ${qty} ${p.unit || ''} ${p.name} (${wdMoney(cost)})? It stays on ${new Date(en.ts).toLocaleDateString('en-US', {weekday: 'short', month: 'numeric', day: 'numeric'})}.`)) return;
+      const by = (typeof acUser !== 'undefined' && acUser && acUser.name) || (typeof getInitials === 'function' ? getInitials() : '') || 'Director';
+      en.fixed = {from: {name: en.name, prodId: en.prodId, qty: en.qty, cost: en.cost}, by, at: Date.now()};
+      Object.assign(en, {name: p.name, prodId: p.id, unit: p.unit, unitCost: Number(p.cost) || 0, qty, cost});
+      wdFix = null;
+      wdOpen = p.id;
+      syncTodayWasteDay();
+      renderGrid(); renderTape(); renderScoreboardView(); renderWasteDashboard();
+      await saveState();
+      showToast(`Corrected: now ${qty} ${p.name}`);
+      return;
+    }
     const del = e.target.closest('[data-wd-del]');
     if(del){
       const key = del.dataset.wdDel;

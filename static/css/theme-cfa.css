@@ -2109,3 +2109,11 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .wd-bar-val small{font-weight:600;font-size:11.5px;color:var(--text-tertiary);margin-left:3px;}
 .wd-bar-row{grid-template-columns:78px 1fr 92px;}
 .wd-bar-row.is-wide{grid-template-columns:96px 1fr 92px;}
+/* Waste Summary: correct an entry logged as the wrong item (waste-dash.js) */
+.wd-entry-go{display:inline-flex;align-items:center;gap:6px;flex:none;}
+.wd-entry-fix{border:1px solid var(--border);border-radius:999px;background:var(--cfa-white);padding:4px 10px;font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--cfa-navy);cursor:pointer;}
+.wd-fix{display:grid;gap:10px;margin:4px 0 10px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-light);}
+.wd-fix label{display:grid;gap:4px;font-size:12px;font-weight:600;color:var(--text-secondary);}
+.wd-fix select,.wd-fix input{min-height:42px;padding:6px 10px;border:1px solid var(--border);border-radius:10px;font-family:var(--font-ui);font-size:15px;background:var(--cfa-white);}
+.wd-fix-go{display:flex;flex-wrap:wrap;gap:8px;}
+.wd-fix-go .btn{width:auto;}
