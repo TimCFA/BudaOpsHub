@@ -92,6 +92,7 @@ function manageShowTab(key){
     b.setAttribute('aria-selected', on);
   });
   try{ localStorage.setItem(MANAGE_TAB_KEY, key); }catch(err){ /* private mode */ }
+  if(key === 'forms' && typeof renderFormsManage === 'function') renderFormsManage();
 }
 function manageCurrentTab(){
   try{ return localStorage.getItem(MANAGE_TAB_KEY) || 'uploads'; }catch(err){ return 'uploads'; }

@@ -1,0 +1,179 @@
+{
+ "repair_request": {
+  "audience": "all",
+  "sensitive": false,
+  "files": {
+   "": [
+    [
+     "photos",
+     "photo",
+     4
+    ],
+    [
+     "supply_photo",
+     "photo",
+     2
+    ]
+   ]
+  }
+ },
+ "vendor_log": {
+  "audience": "all",
+  "sensitive": false,
+  "stages": [
+   "checkin",
+   "checkout"
+  ],
+  "open_summary": [
+   "vendor",
+   "service",
+   "area"
+  ],
+  "files": {
+   "checkout": [
+    [
+     "invoice_photo",
+     "photo",
+     3
+    ]
+   ]
+  }
+ },
+ "transfer_log": {
+  "audience": "all",
+  "sensitive": false,
+  "files": {}
+ },
+ "mileage_log": {
+  "audience": "all",
+  "sensitive": false,
+  "files": {}
+ },
+ "expense": {
+  "audience": "all",
+  "sensitive": false,
+  "files": {
+   "": [
+    [
+     "receipt",
+     "photo",
+     3
+    ]
+   ]
+  }
+ },
+ "ezcater_recon": {
+  "audience": "leaders",
+  "sensitive": false,
+  "files": {}
+ },
+ "ask_hr": {
+  "audience": "all",
+  "sensitive": false,
+  "files": {
+   "": [
+    [
+     "attachment",
+     "file",
+     3
+    ]
+   ]
+  }
+ },
+ "referral": {
+  "audience": "all",
+  "sensitive": false,
+  "files": {}
+ },
+ "payroll_notes": {
+  "audience": "all",
+  "sensitive": false,
+  "files": {},
+  "leader_options": {
+   "type": [
+    "bonus",
+    "pay_rate",
+    "cert",
+    "cash"
+   ]
+  }
+ },
+ "leave_request": {
+  "audience": "all",
+  "sensitive": false,
+  "files": {
+   "": [
+    [
+     "signature",
+     "signature",
+     1
+    ]
+   ]
+  }
+ },
+ "resignation": {
+  "audience": "all",
+  "sensitive": false,
+  "files": {
+   "": [
+    [
+     "doc",
+     "file",
+     2
+    ],
+    [
+     "signature",
+     "signature",
+     1
+    ]
+   ]
+  }
+ },
+ "termination": {
+  "audience": "leaders",
+  "sensitive": true,
+  "files": {
+   "": [
+    [
+     "doc",
+     "file",
+     3
+    ],
+    [
+     "emp_signature",
+     "signature",
+     1
+    ],
+    [
+     "mgr_signature",
+     "signature",
+     1
+    ]
+   ]
+  }
+ },
+ "injury_report": {
+  "audience": "all",
+  "sensitive": true,
+  "files": {
+   "": [
+    [
+     "photos",
+     "photo",
+     4
+    ],
+    [
+     "signature",
+     "signature",
+     1
+    ]
+   ]
+  }
+ },
+ "harassment_report": {
+  "audience": "all",
+  "sensitive": true,
+  "files": {},
+  "anonymous": "anonymous"
+ }
+}

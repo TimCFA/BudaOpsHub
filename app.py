@@ -23,6 +23,7 @@ from pea_parser import parse_pea_pdf, PeaParseError
 from pin_report import read_pin_report, PinReportError
 from permit_sheet import read_permit_sheet, PermitSheetError
 from analytics_pdf import read_analytics_pdf, AnalyticsPdfError
+import forms_api
 from reports_parser import parse_report_file, ReportParseError
 import levelset_sync
 from state_patch import PatchError, apply_ops, canon, check_ops, union_merge
@@ -2110,6 +2111,9 @@ def not_found(e):
 @app.errorhandler(500)
 def server_error(e):
     return jsonify({'error': 'Internal server error'}), 500
+
+# ===== FORMS (forms_api.py; Tim, Oct 21 2026) =====
+forms_api.register(app, _client_ip)
 
 # ===== START SERVER =====
 

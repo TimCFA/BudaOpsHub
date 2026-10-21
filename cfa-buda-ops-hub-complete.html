@@ -80,6 +80,8 @@
       <button type="button" class="tab full-only" role="tab" aria-selected="false" aria-controls="scoreboardView" data-view="scoreboard">Scoreboard <span class="sub"><i>Tableros</i></span></button>
       <button type="button" class="tab full-only" role="tab" aria-selected="false" aria-controls="forecastView" data-view="forecast">Forecast <span class="sub"><i>Pronóstico</i></span></button>
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="calendarView" data-view="calendar">Calendar <span class="sub"><i>Calendario</i></span></button>
+      <!-- Forms (forms.js; Tim, Oct 21 2026): everyone fills them out; Submissions for directors, managers and the Admin Team. -->
+      <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="formsView" data-view="forms">Forms <span class="sub"><i>Formularios</i></span></button>
       <button type="button" class="tab manager-only" role="tab" aria-selected="false" aria-controls="uniformsView" data-view="uniforms">Uniforms <span class="sub"><i>Uniformes</i></span></button>
       <button type="button" class="tab manager-only" role="tab" aria-selected="false" aria-controls="directorsView" data-view="directors">Directors <span class="sub"><i>Directores</i></span></button>
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="manageView" data-view="manage">Manage <span class="sub"><i>Gestionar</i></span></button>
@@ -875,6 +877,14 @@
     <div class="dir-page" id="directorsRoot"></div>
   </div>
 
+  <div class="view" id="formsView">
+    <div class="fm-page" id="formsRoot">
+      <div id="formsSwitch"></div>
+      <div id="formsFill"></div>
+      <div id="formsInbox" hidden></div>
+    </div>
+  </div>
+
   <!-- Our Team: headcount and departures (headcount.js, TIM-81). Directors
        and the Admin Team only; opened from the Right Now card. -->
   <div class="view" id="headcountView">
@@ -904,6 +914,7 @@
         <button type="button" class="manage-tab" role="tab" id="manageTab-scoreboard" data-manage-go="scoreboard" aria-selected="false">Scoreboard</button>
         <button type="button" class="manage-tab" role="tab" id="manageTab-forecast" data-manage-go="forecast" aria-selected="false">Forecast</button>
         <button type="button" class="manage-tab" role="tab" id="manageTab-calendar" data-manage-go="calendar" aria-selected="false">Calendar</button>
+        <button type="button" class="manage-tab" role="tab" id="manageTab-forms" data-manage-go="forms" aria-selected="false">Forms</button>
         <button type="button" class="manage-tab" role="tab" id="manageTab-uniforms" data-manage-go="uniforms" aria-selected="false">Uniforms</button>
         <button type="button" class="manage-tab" role="tab" id="manageTab-directors" data-manage-go="directors" aria-selected="false">Directors</button>
         <button type="button" class="manage-tab" role="tab" id="manageTab-uploads" data-manage-go="uploads" aria-selected="false">Uploads</button>
@@ -1017,6 +1028,16 @@
             <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Promos, samples, outreach, family nights, heads-ups, the month's goals and Pre-Checklist. They show on the Calendar tab and on the Set Ups daypart they fall in.</p>
             <div id="eventsImportRoot"></div>
             <div id="eventsManageRoot"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- GROUP: Forms: the forms directors and managers add (forms.js) -->
+      <section class="manage-group" data-manage-tab="forms" aria-labelledby="manageTab-forms">
+        <div class="manage-group-body">
+          <div class="standup-card">
+            <h3>Forms</h3>
+            <div id="formsManageRoot"></div>
           </div>
         </div>
       </section>
@@ -1189,6 +1210,9 @@
 <script src="/static/js/kn-actuals.js"></script>
 <script src="/static/js/analytics-reports.js"></script>
 <script src="/static/js/directors.js"></script>
+<script src="/static/forms/form-definitions.js"></script>
+<script src="/static/forms/forms-engine.js"></script>
+<script src="/static/js/forms.js"></script>
 <script src="/static/js/headcount.js"></script>
 <script src="/static/js/leaders.js"></script>
 <script src="/static/js/team-pea.js"></script>

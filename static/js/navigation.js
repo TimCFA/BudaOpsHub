@@ -28,6 +28,7 @@ function activateView(view){
   if(view === 'uniforms' && typeof renderUniformsView === 'function') renderUniformsView();
   if(view === 'directors' && typeof renderDirectorsView === 'function') renderDirectorsView();
   if(view === 'headcount'){ renderHeadcountView(); hcLoad(true); }
+  if(view === 'forms' && typeof renderForms === 'function') renderForms();
   if(view === 'manage' && typeof refreshManage === 'function') refreshManage();
   if(typeof launchSubnavRender === 'function') launchSubnavRender(view);
   if(typeof hhNoteView === 'function') hhNoteView(view);

@@ -2200,3 +2200,48 @@ button.fs-history-row:hover > span:first-child{color:var(--cfa-red);}
 .fsf-times{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--text-secondary);}
 .fsf-times b{color:var(--text-primary);}
 .fsf-recent{margin:0;padding:0;list-style:none;display:grid;gap:8px;font-size:13px;line-height:1.35;}
+
+/* ===== Forms (forms.js, static/forms/forms-engine.js; Tim, Oct 21 2026) =====
+   The engine's own look is a dark card set; here it takes the hub's tokens,
+   so it follows the theme, light or dark. */
+.fm-page .of-root,.of-toast{--of-bg:var(--cfa-bg);--of-card:var(--cfa-white);--of-card2:var(--cfa-light);--of-line:var(--border);--of-text:var(--text-primary);--of-muted:var(--text-secondary);--of-accent:var(--cfa-red);--of-accent-ink:#fff;--of-ok:var(--ok);--of-warn:#B26B00;--of-danger:var(--cfa-red);--of-scheme:light;}
+.fm-page .of-root{font-family:var(--font-ui);}
+.fm-page .of-h1{font-family:var(--font-display);font-size:1.6rem;}
+.fm-page{max-width:680px;margin:0 auto;}
+.fm-switch{display:flex;gap:4px;padding:3px;margin:0 0 14px;border-radius:999px;background:var(--cfa-soft);}
+.fm-switch button{flex:1;min-height:42px;border:0;border-radius:999px;background:none;color:var(--text-secondary);font-family:var(--font-ui);font-size:14px;font-weight:700;cursor:pointer;}
+.fm-switch button.is-on{background:var(--cfa-white);color:var(--text-primary);box-shadow:0 1px 3px rgba(0,0,0,.08);}
+/* Manage → Forms: the forms you add */
+.fm-note{margin:0 0 12px;font-size:13.5px;color:var(--text-secondary);}
+.fm-list{list-style:none;margin:0 0 14px;padding:0;display:grid;gap:8px;}
+.fm-list li{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-light);}
+.fm-list li.is-hidden{opacity:.6;}
+.fm-list-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;font-size:14px;}
+.fm-list-t small{font-size:12px;color:var(--text-tertiary);}
+.fm-sm{width:auto !important;margin:0 !important;padding:6px 12px !important;font-size:12.5px !important;}
+.fm-add{width:auto !important;}
+.fm-b{display:grid;gap:12px;}
+.fm-b label{display:grid;gap:4px;font-size:12.5px;font-weight:700;color:var(--text-secondary);}
+.fm-b label small{font-weight:500;color:var(--text-tertiary);}
+.fm-b input:not([type=checkbox]),.fm-b select,.fm-b textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--cfa-light);color:var(--text-primary);font-family:var(--font-ui);font-size:15px;}
+.fm-b-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.fm-b .fm-check{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:var(--text-primary);}
+.fm-b-qs{display:grid;gap:10px;}
+.fm-q{display:grid;gap:8px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-white);}
+.fm-q-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.fm-q-head > b{font-family:var(--font-display);font-size:18px;color:var(--cfa-red);}
+.fm-q-head select{width:auto !important;flex:1;min-width:140px;}
+.fm-q-move{display:flex;gap:4px;margin-left:auto;}
+.fm-icon{width:34px;height:34px;border:1px solid var(--border);border-radius:8px;background:var(--cfa-light);color:var(--text-primary);font-size:16px;cursor:pointer;}
+.fm-icon:disabled{opacity:.35;cursor:default;}
+.fm-err{margin:0;font-size:13.5px;font-weight:600;color:var(--cfa-red);}
+.fm-b-bar{display:flex;justify-content:flex-end;gap:8px;}
+.fm-b-bar .btn{width:auto;margin:0;}
+@media (max-width:600px){ .fm-b-row{grid-template-columns:1fr;} }
+/* Seven tabs on the simplified site now (Forms joined): on a phone the row
+   scrolls sideways rather than squeezing the labels into each other. */
+@media (max-width:600px){
+  body.launch-mode .tabs{overflow-x:auto;scrollbar-width:none;}
+  body.launch-mode .tabs::-webkit-scrollbar{display:none;}
+  body.launch-mode .tab{flex:0 0 auto;padding:12px 10px;}
+}

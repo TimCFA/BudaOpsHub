@@ -16,11 +16,11 @@ class Chips(unittest.TestCase):
         chips = re.findall(r'data-manage-go="([a-z]+)"', MANAGE)
         groups = re.findall(r'data-manage-tab="([a-z]+)"', MANAGE)
         # The main tabs' names, in their order (Tim, Oct 21 2026), then Manage's own.
-        self.assertEqual(chips, ['home', 'waste', 'experience', 'scoreboard', 'forecast', 'calendar', 'uniforms', 'directors', 'uploads', 'settings', 'health'])
+        self.assertEqual(chips, ['home', 'waste', 'experience', 'scoreboard', 'forecast', 'calendar', 'forms', 'uniforms', 'directors', 'uploads', 'settings', 'health'])
         self.assertEqual(groups, chips)
         labels = re.findall(r'data-manage-go="[a-z]+" aria-selected="false">([^<]+)<', MANAGE)
         tabs = re.findall(r'class="tab[^"]*"[^>]*data-view="[a-z]+"[^>]*>([A-Z][A-Za-z ]+?) <span', PAGE) + re.findall(r'class="tab-group-label"[^>]*>([A-Za-z]+) ', PAGE)
-        self.assertEqual([l for l in labels if l not in ('Uploads', 'Settings', 'Health')], [l for l in ['Home', 'Waste', 'Experience', 'Scoreboard', 'Forecast', 'Calendar', 'Uniforms', 'Directors']])
+        self.assertEqual([l for l in labels if l not in ('Uploads', 'Settings', 'Health')], ['Home', 'Waste', 'Experience', 'Scoreboard', 'Forecast', 'Calendar', 'Forms', 'Uniforms', 'Directors'])
         self.assertTrue(set(labels) - {'Uploads', 'Settings', 'Health'} <= set(tabs), (labels, tabs))
 
     def test_older_saved_chips_land_where_their_cards_went(self):

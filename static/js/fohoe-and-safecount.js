@@ -291,6 +291,7 @@ function scHidden(){
 // 2026): hidden from the same people as the Safe Count.
 function ltHidden(){ return scHidden(); }
 function scSyncVisibility(){
+  if(typeof fmSync === 'function') fmSync();   // Forms: leader forms, Submissions
   const hide = scHidden();
   document.body.classList.toggle('sc-hidden', hide);
   document.body.classList.toggle('lt-hidden', ltHidden());

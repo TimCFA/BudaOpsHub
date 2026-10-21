@@ -62,3 +62,5 @@ html[data-theme="dark"] .toggle-btn.active .sub{color:rgba(18,20,24,.65);}
 html[data-theme="dark"] .wt-chip.is-on{color:var(--cfa-bg);}
 html[data-theme="dark"] .fs-chip.done .fs-chip-name,html[data-theme="dark"] .fs-status.done,html[data-theme="dark"] .fs-btn.yes:hover{color:#6FCB75;}
 html[data-theme="dark"] .tguide-toggle{filter:brightness(1.7);}
+/* Forms: the engine's date pickers and selects follow the dark page. */
+html[data-theme="dark"] .fm-page .of-root,html[data-theme="dark"] .of-toast{--of-scheme:dark;--of-warn:#E6A23C;--of-accent:#E8213F;}
