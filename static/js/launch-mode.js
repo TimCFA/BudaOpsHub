@@ -39,14 +39,18 @@ let launchListPage = null;   // the page a pill asked for; the tab itself opens 
 function launchSubnavRender(view){
   const group = LAUNCH_SUBNAVS.find(g => g.some(l => l.view === view));
   if(!group) return;
-  const here = group.filter(l => l.view === view);
+  // Safe Count and the Leader Transition List aren't for Team Members or Trainers.
+  const hidden = l => (l.view === 'safecount' && typeof scHidden === 'function' && scHidden())
+    || (l.page === 'leaders' && typeof ltHidden === 'function' && ltHidden());
+  const here = group.filter(l => l.view === view && !hidden(l));
+  if(!here.length) return;
   const page = here.some(l => l.page === launchListPage) ? launchListPage : (here[0].page || '');
   launchListPage = null;
   const root = document.getElementById(view + 'View');
   if(page) root.dataset.launchPage = page; else delete root.dataset.launchPage;
   const nav = root.querySelector('[data-launch-subnav]');
   if(!nav) return;
-  const shown = group.filter(l => !(l.view === 'safecount' && typeof scHidden === 'function' && scHidden()));
+  const shown = group.filter(l => !hidden(l));
   nav.innerHTML = shown.map(l => {
     const on = l.view === view && (l.page || '') === page;
     return `<button type="button" class="launch-pill ${on ? 'active' : ''}" aria-current="${on ? 'page' : 'false'}" data-launch-go="${l.view}" data-launch-pick="${l.page || ''}">${l.label}<span>${l.sub}</span></button>`;

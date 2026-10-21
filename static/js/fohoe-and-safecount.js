@@ -287,9 +287,14 @@ function scHidden(){
   if(typeof launchManager !== 'undefined' && launchManager) return false;
   return typeof acUser !== 'undefined' && !!acUser && ['member', 'trainer'].includes(acUser.role);
 }
+// The Leader Transition List is a Team Lead and above item (Tim, Oct 20
+// 2026): hidden from the same people as the Safe Count.
+function ltHidden(){ return scHidden(); }
 function scSyncVisibility(){
   const hide = scHidden();
   document.body.classList.toggle('sc-hidden', hide);
+  document.body.classList.toggle('lt-hidden', ltHidden());
+  if(typeof launchSubnavRender === 'function' && document.getElementById('zoneresetView').classList.contains('active')) launchSubnavRender('zonereset');
   if(hide && document.getElementById('safecountView').classList.contains('active') && typeof launchShowTab === 'function') launchShowTab('home');
 }
 
