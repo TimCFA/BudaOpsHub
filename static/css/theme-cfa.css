@@ -2111,6 +2111,8 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .wd-bar-row.is-wide{grid-template-columns:96px 1fr 92px;}
 /* Safe Count: hidden from Team Members and Trainers (fohoe-and-safecount.js scSyncVisibility) */
 body.sc-hidden [data-view="safecount"]{display:none !important;}
+/* Leader Transition List: Team Lead and above (fohoe-and-safecount.js ltHidden) */
+body.lt-hidden #leaderTransitionCard{display:none !important;}
 
 /* Waste Summary: correct an entry logged as the wrong item (waste-dash.js) */
 .wd-entry-go{display:inline-flex;align-items:center;gap:6px;flex:none;}
