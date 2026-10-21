@@ -2200,3 +2200,13 @@ button.fs-history-row:hover > span:first-child{color:var(--cfa-red);}
 .fsf-times{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--text-secondary);}
 .fsf-times b{color:var(--text-primary);}
 .fsf-recent{margin:0;padding:0;list-style:none;display:grid;gap:8px;font-size:13px;line-height:1.35;}
+
+/* Our Team tab: directors, the manager PIN and the Admin Team (headcount.js hcSyncTab). */
+body:not(.hc-allowed) .hc-only{display:none !important;}
+/* With it, the Admin Team's simplified site has seven tabs: on a phone the
+   row scrolls sideways rather than squeezing the labels into each other. */
+@media (max-width:600px){
+  body.launch-mode.hc-allowed .tabs{overflow-x:auto;scrollbar-width:none;}
+  body.launch-mode.hc-allowed .tabs::-webkit-scrollbar{display:none;}
+  body.launch-mode.hc-allowed .tab{flex:0 0 auto;padding:12px 10px;}
+}

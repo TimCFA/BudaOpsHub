@@ -28,6 +28,12 @@ function hcAllowed(){
   return typeof acUser !== 'undefined' && !!acUser && acUser.role === 'admin';
 }
 
+// The Our Team tab shows to those who can open it (Tim, Oct 21 2026: there
+// was no clean way to the permit dates).
+function hcSyncTab(){
+  document.body.classList.toggle('hc-allowed', hcAllowed());
+}
+
 async function hcLoad(force){
   if(!hcAllowed() || hcLoading) return;
   if(!force && hcFailedAt && Date.now() - hcFailedAt < 60000) return;
