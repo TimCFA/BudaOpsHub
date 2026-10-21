@@ -172,6 +172,10 @@ class Wiring(unittest.TestCase):
         self.assertIn("if(typeof renderSafeOrder === 'function') renderSafeOrder();", read('static', 'js', 'fohoe-and-safecount.js'))
         css = read('static', 'css', 'theme-cfa.css')
         self.assertIn('#safeOrderRoot:empty{display:none;}', css)
+        # The count form and its log list bills smallest first (Tim, Oct 21 2026).
+        grid = page.split('id="denomGrid"')[1].split('</div>\n        <p')[0]
+        self.assertEqual(re.findall(r'class="denom-input" data-value="(\d+)"', grid), ['1', '5', '10', '20', '50', '100'])
+        self.assertIn("Object.entries(entry.bills).sort((a, b) => a[0] - b[0])", read('static', 'js', 'fohoe-and-safecount.js'))
         self.assertFalse(re.search(r'[\U0001F300-\U0001FAFF]', js))          # line icons, never emoji
 
 
