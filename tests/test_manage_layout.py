@@ -15,8 +15,17 @@ class Chips(unittest.TestCase):
     def test_every_chip_has_a_section_and_every_section_a_chip(self):
         chips = re.findall(r'data-manage-go="([a-z]+)"', MANAGE)
         groups = re.findall(r'data-manage-tab="([a-z]+)"', MANAGE)
-        self.assertEqual(chips, ['uploads', 'numbers', 'events', 'scoreboards', 'talent', 'waste', 'uniforms', 'pea', 'settings', 'health'])
+        # The main tabs' names, in their order (Tim, Oct 21 2026), then Manage's own.
+        self.assertEqual(chips, ['home', 'waste', 'experience', 'scoreboard', 'forecast', 'calendar', 'uniforms', 'directors', 'uploads', 'settings', 'health'])
         self.assertEqual(groups, chips)
+        labels = re.findall(r'data-manage-go="[a-z]+" aria-selected="false">([^<]+)<', MANAGE)
+        tabs = re.findall(r'class="tab[^"]*"[^>]*data-view="[a-z]+"[^>]*>([A-Z][A-Za-z ]+?) <span', PAGE) + re.findall(r'class="tab-group-label"[^>]*>([A-Za-z]+) ', PAGE)
+        self.assertEqual([l for l in labels if l not in ('Uploads', 'Settings', 'Health')], [l for l in ['Home', 'Waste', 'Experience', 'Scoreboard', 'Forecast', 'Calendar', 'Uniforms', 'Directors']])
+        self.assertTrue(set(labels) - {'Uploads', 'Settings', 'Health'} <= set(tabs), (labels, tabs))
+
+    def test_older_saved_chips_land_where_their_cards_went(self):
+        with open(os.path.join(ROOT, 'static', 'js', 'manage-and-import.js'), encoding='utf-8') as f:
+            self.assertIn("const MANAGE_TAB_RENAMED = {numbers: 'forecast', events: 'calendar', scoreboards: 'experience', talent: 'experience', pea: 'directors'};", f.read())
 
     def test_no_accordion_left(self):
         self.assertNotIn('manage-group-header', MANAGE)
@@ -47,14 +56,13 @@ class OneHomePerKindOfData(unittest.TestCase):
         with open(os.path.join(ROOT, 'static', 'js', 'data-uploads.js'), encoding='utf-8') as f:
             self.assertIn('data-du-template', f.read())
 
-    def test_settings_holds_the_set_once_things(self):
-        settings = MANAGE[MANAGE.index('data-manage-tab="settings"'):]
-        for inside in ('launchModeToggle', 'targetInput', 'homeManageList', 'btnExportBackup'):
-            self.assertIn(f'id="{inside}"', settings, inside)
-        waste = MANAGE[MANAGE.index('data-manage-tab="waste"'):MANAGE.index('data-manage-tab="uniforms"')]
-        for inside in ('wasteExportManageRoot', 'prodList'):
-            self.assertIn(f'id="{inside}"', waste, inside)
-        self.assertNotIn('targetInput', waste)
+    def test_each_setting_under_the_tab_it_changes(self):
+        section = lambda key: MANAGE[MANAGE.index(f'data-manage-tab="{key}"'):].split('</section>')[0]
+        for key, inside in (('home', ['homeManageList']), ('waste', ['targetInput', 'wasteExportManageRoot', 'prodList']),
+                            ('settings', ['launchModeToggle', 'btnExportBackup']), ('forecast', ['knFromForecast'])):
+            for i in inside:
+                self.assertIn(f'id="{i}"', section(key), (key, i))
+        self.assertNotIn('targetInput', section('settings'))
 
 
 if __name__ == '__main__':
