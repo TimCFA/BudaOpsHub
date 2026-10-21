@@ -248,6 +248,63 @@ class TeamPinTest(unittest.TestCase):
         self.assertEqual(r.status_code, 401)
         self.assertEqual(len(appmod._all_login_failures), 1)
 
+    def test_a_full_list_saves_fast_and_still_refuses_the_manage_pins(self):
+        """Tim, Oct 20 2026: saving the PINs did nothing. Two slow password
+        checks a row made a full report take minutes; once the manager and
+        director PINs have been typed, the list is checked against their keys."""
+        store['secure/managerPinHash'] = generate_password_hash('654321')
+        store['secure/directorPinHash'] = generate_password_hash('765432')
+        store['secure/managePinKeys'] = {}
+        real, calls = appmod.check_password_hash, []
+
+        def counting(h, pin):
+            calls.append(pin)
+            return real(h, pin)
+        appmod.check_password_hash = counting
+        self.addCleanup(setattr, appmod, 'check_password_hash', real)
+        rows = [{'name': f'Person {i}', 'pin': str(100000 + i), 'role': 'Team Member'} for i in range(40)]
+        manage = [{'name': 'Same As Manager', 'pin': '654321', 'role': 'Team Member'},
+                  {'name': 'Same As Director', 'pin': '765432', 'role': 'Team Member'}]
+        # Before either has been typed: the slow check, still refused.
+        d = self.upload(rows[:2] + manage).get_json()
+        self.assertEqual((d['added'], len(d['skipped'])), (2, 2))
+        self.assertTrue(all('manager or director PIN' in x for x in d['skipped']))
+        # Signing in keeps each one's key (never the PIN itself).
+        self.assertEqual(self.login('654321')[1].get_json()['role'], 'manager')
+        self.assertEqual(self.login('765432')[1].get_json()['role'], 'director')
+        kept = store['secure/managePinKeys']
+        self.assertEqual(sorted(kept), ['director', 'manager'])
+        self.assertNotIn('654321', repr(kept))
+        calls.clear()
+        d = self.upload(rows + manage).get_json()
+        self.assertEqual((d['added'], len(d['skipped'])), (40, 2))
+        self.assertEqual(calls, [])                                    # no slow checks at all
+        self.assertEqual(self.login('100007')[1].get_json()['name'], 'Person 7')
+        # A new manager PIN replaces its key: the new one is refused, the old one is free.
+        mgr = appmod.app.test_client()
+        with mgr.session_transaction() as sess:
+            sess['manager'] = True
+        self.assertEqual(mgr.post('/api/manager/set-pin', json={'pin': '864200'}).status_code, 200)
+        calls.clear()
+        d = self.upload([{'name': 'New Clash', 'pin': '864200', 'role': 'Team Member'}, {'name': 'Old Free', 'pin': '654321', 'role': 'Team Member'}]).get_json()
+        self.assertEqual(d['added'], 1)
+        self.assertIn('New Clash: that PIN is the manager or director PIN', d['skipped'])
+        self.assertEqual(calls, [])
+        # A key kept for an older hash isn't trusted: the slow check again.
+        store['secure/managerPinHash'] = generate_password_hash('975310')
+        d = self.upload([{'name': 'Stale', 'pin': '975310', 'role': 'Team Member'}]).get_json()
+        self.assertEqual(d['added'], 0)
+        self.assertTrue(calls)
+
+    def test_a_failed_key_save_never_stops_a_sign_in(self):
+        real = appmod._keep_manage_pin_key
+
+        def broken(*a):
+            raise RuntimeError('firebase down')
+        appmod._keep_manage_pin_key = broken
+        self.addCleanup(setattr, appmod, '_keep_manage_pin_key', real)
+        self.assertEqual(self.login('1111')[1].get_json()['role'], 'manager')
+
     def test_team_session_ends_at_close(self):
         self.upload([{'name': 'Jordan Testcase', 'pin': '123456', 'role': 'member'}])
         c, r = self.login('123456')

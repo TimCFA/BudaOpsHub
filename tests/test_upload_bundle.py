@@ -59,8 +59,8 @@ class WhatGoesWhere(unittest.TestCase):
     def test_schedule_build_reports_are_set_aside_by_name(self):
         self.assertEqual(run()['aside'], ['HotSchedules availability', 'HotSchedules time off & requests',
                                           'Analytics Hub Sales Curve (PDF)', 'Analytics Hub Labor Cost (PDF)', 'Analytics Hub Productivity (PDF)',
-                                          'Analytics Hub Daily Detail (PDF)', 'Levelset PEA ratings (PDF)', 'Bundle notes', 'Bundle notes',
-                                          '15-minute sales by channel (Analytics Hub)'])
+                                          None, 'Levelset PEA ratings (PDF)', 'Bundle notes', 'Bundle notes', None])
+        # Daily Detail and the 15-minute sales are read now (test_analytics_reports.py).
 
     def test_reports_the_hub_reads_go_to_their_readers(self):
         # Rosters, the punch report, a by-day sales export, a productivity
