@@ -140,7 +140,7 @@ class TheOrder(unittest.TestCase):
         self.assertEqual(d['by']['1'][3], 300)                    # need 220 → 3 bundles
         self.assertEqual(d['by']['5'][3], 148)                    # 200 − 52, not rounded
         self.assertEqual(d['by']['Quarters'][3], 7)               # 30 − 23 rolls
-        self.assertIn('$1: $300\n$5: $740\nQuarters: $70\n', d['text'])
+        self.assertIn('$1: $300\n$5: $740\nNickels: $80\nDimes: $200\nQuarters: $70\n', d['text'])   # smallest first
         # Saved build-tos replace the sheet's.
         d = model(WEEK, {'buildTo': {'1': 400}})
         self.assertEqual({k: v[7] for k, v in d['by'].items() if v[7]}, {'1': 400})
@@ -176,6 +176,9 @@ class Wiring(unittest.TestCase):
         grid = page.split('id="denomGrid"')[1].split('</div>\n        <p')[0]
         self.assertEqual(re.findall(r'class="denom-input" data-value="(\d+)"', grid), ['1', '5', '10', '20', '50', '100'])
         self.assertIn("Object.entries(entry.bills).sort((a, b) => a[0] - b[0])", read('static', 'js', 'fohoe-and-safecount.js'))
+        coins = page.split('id="coinGrid"')[1].split('</div>\n        <p')[0]
+        self.assertEqual(re.findall(r'<label>(\w+)</label>', coins), ['Nickels', 'Dimes', 'Quarters'])
+        self.assertIn("const SC_ROLL_ORDER = ['Nickels', 'Dimes', 'Quarters'];", read('static', 'js', 'fohoe-and-safecount.js'))
         self.assertFalse(re.search(r'[\U0001F300-\U0001FAFF]', js))          # line icons, never emoji
 
 

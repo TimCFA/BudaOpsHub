@@ -314,6 +314,9 @@ async function scLoadToday(){
 // Bills are entered as the dollar amount in each denomination (seventeen
 // $20s → 340); the row shows the bill count that makes, or a flag when the
 // amount isn't a multiple of the bill. Coin rolls are still counted in rolls.
+// Smallest first on the form and in the log (Tim, Oct 21 2026).
+const SC_ROLL_ORDER = ['Nickels', 'Dimes', 'Quarters'];
+
 function scBillRow(inp){
   const amount = parseFloat(inp.value) || 0;
   const val = parseFloat(inp.dataset.value);
@@ -447,7 +450,7 @@ function renderSafeCountLog(){
         <div class="safe-log-meta">Counted by ${escapeHtml(entry.countedBy)}${entry.witness ? ' · Witnessed by ' + escapeHtml(entry.witness) : ''}</div>
         ${entry.tills ? `<div class="safe-log-meta"><b>Cashier tills:</b> $${(Number(entry.tills) || 0).toFixed(2)}</div>` : ''}
         ${entry.bills && Object.keys(entry.bills).length ? `<div class="safe-log-meta"><b>Bills:</b> ${Object.entries(entry.bills).sort((a, b) => a[0] - b[0]).map(([k,v])=>`$${escapeHtml(String(v))} in $${escapeHtml(k)}s`).join(', ')}</div>` : ''}
-        ${entry.coinRolls && Object.keys(entry.coinRolls).length ? `<div class="safe-log-meta"><b>Coin rolls:</b> ${Object.entries(entry.coinRolls).map(([k,v])=>`${escapeHtml(v)} ${escapeHtml(k)}`).join(', ')}</div>` : ''}
+        ${entry.coinRolls && Object.keys(entry.coinRolls).length ? `<div class="safe-log-meta"><b>Coin rolls:</b> ${Object.entries(entry.coinRolls).sort((a, b) => SC_ROLL_ORDER.indexOf(a[0]) - SC_ROLL_ORDER.indexOf(b[0])).map(([k,v])=>`${escapeHtml(v)} ${escapeHtml(k)}`).join(', ')}</div>` : ''}
         ${entry.notes ? `<div class="safe-log-meta"><b>Notes:</b> ${escapeHtml(entry.notes)}</div>` : ''}
       </div>
     `;
