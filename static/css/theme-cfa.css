@@ -2200,3 +2200,9 @@ button.fs-history-row:hover > span:first-child{color:var(--cfa-red);}
 .fsf-times{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--text-secondary);}
 .fsf-times b{color:var(--text-primary);}
 .fsf-recent{margin:0;padding:0;list-style:none;display:grid;gap:8px;font-size:13px;line-height:1.35;}
+
+/* Lists on a device nobody signed in on: where Leader Transition and Safe
+   Count went (launch-mode.js; Tim, Oct 21 2026). */
+.launch-signin-hint{margin:-4px 0 14px;font-family:var(--font-ui);font-size:13px;color:var(--text-secondary);}
+.launch-signin-hint button{padding:0;border:0;background:none;color:var(--cfa-red);font:inherit;font-weight:700;text-decoration:underline;text-underline-offset:2px;cursor:pointer;}
+.launch-signin-hint .es-line{display:block;margin-top:2px;}
