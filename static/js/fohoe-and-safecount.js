@@ -272,15 +272,23 @@ function renderSafeCount(){
 }
 
 // Team devices aren't sent the safe count log (TIM-48), only today's counts
-// on request, so a leader can check the opening count. null = not asked yet.
+// on request, so a leader can check the opening count. A Team Lead gets the
+// last week (Tim, Oct 20 2026: recent submissions, not the ordering).
+// null = not asked yet.
 let safeCountsToday = null;
+let safeCountsDays = 1;      // how many days safeCountsToday covers
+
+function scIsLead(){ return typeof acUser !== 'undefined' && !!acUser && acUser.role === 'lead'; }
 
 async function scLoadToday(){
   if(typeof launchManager !== 'undefined' && launchManager) return;
   try{
-    const res = await fetch(`${API_BASE}/api/safe-counts/today?date=${encodeURIComponent(today)}`);
+    const lead = scIsLead();
+    const res = await fetch(lead ? `${API_BASE}/api/safe-counts/recent` : `${API_BASE}/api/safe-counts/today?date=${encodeURIComponent(today)}`);
     if(!res.ok) return;
-    safeCountsToday = (await res.json()).counts || [];
+    const data = await res.json();
+    safeCountsToday = data.counts || [];
+    safeCountsDays = lead ? (data.days || 7) : 1;
     renderSafeCountLog();
   }catch(err){ /* offline: show what this device logged */ }
 }
@@ -386,11 +394,15 @@ function renderSafeCountLog(){
   // Safe counts reach manager sessions only (TIM-48). Other devices see
   // today's counts (fetched) plus any logged here.
   const manager = typeof launchManager !== 'undefined' && launchManager;
-  const note = manager ? '' : '<div class="safe-log-private">🔒 Today\'s counts. The full history is for managers (sign in on Manage).</div>';
+  const week = !manager && safeCountsDays > 1;
+  const note = manager ? '' : week
+    ? `<div class="safe-log-private">The last ${safeCountsDays} days of counts. The full history and the change order are for directors.</div>`
+    : '<div class="safe-log-private">🔒 Today\'s counts. The full history is for managers (sign in on Manage).</div>';
   let list = safeCounts;
   if(!manager){
     const seen = new Set();
-    list = [...(safeCountsToday || []), ...safeCounts.filter(e => e.date === today)].filter(e=>{
+    const since = week ? (() => { const d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() - (safeCountsDays - 1)); return toLocalISODate(d); })() : today;
+    list = [...(safeCountsToday || []), ...safeCounts.filter(e => e.date >= since && e.date <= today)].filter(e=>{
       const k = `${e.timestamp}|${e.countedBy}|${e.total}`;
       if(seen.has(k)) return false;
       seen.add(k);
@@ -398,7 +410,7 @@ function renderSafeCountLog(){
     });
   }
   if(list.length === 0){
-    container.innerHTML = note + `<div style="text-align:center;color:var(--text-secondary);padding:20px;font-size:12px;">${manager ? 'No safe counts logged yet' : 'No counts logged yet today'}</div>`;
+    container.innerHTML = note + `<div style="text-align:center;color:var(--text-secondary);padding:20px;font-size:12px;">${manager ? 'No safe counts logged yet' : week ? 'No counts logged this week' : 'No counts logged yet today'}</div>`;
     return;
   }
   const sorted = [...list].sort((a,b)=> b.timestamp - a.timestamp);

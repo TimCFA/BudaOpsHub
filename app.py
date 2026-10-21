@@ -1490,6 +1490,27 @@ def safe_counts_today():
     counts = (sections.get('safe') or {}).get('safeCounts') or []
     return jsonify({'counts': [c for c in counts if isinstance(c, dict) and c.get('date') == day.isoformat()]})
 
+# The last week of safe counts for a Team Lead (Tim, Oct 20 2026: leaders
+# should see recent submissions, not the ordering). A director's page has
+# the whole log already; everyone else still sees today's only.
+SAFE_LEAD_DAYS = 7
+
+@app.route('/api/safe-counts/recent', methods=['GET'])
+def safe_counts_recent():
+    user = session.get('user') or {}
+    if not session.get('manager') and user.get('role') != 'lead':
+        return jsonify({'error': 'Team Leads and directors only.'}), 403
+    try:
+        sections = _read_sections() or {}
+    except Exception as e:
+        print(f"[SAFE RECENT ERROR] {e}")
+        return jsonify({'error': 'Could not read safe counts'}), 500
+    since = (datetime.now(levelset_sync.STORE_TZ).date() - timedelta(days=SAFE_LEAD_DAYS - 1)).isoformat()
+    counts = (sections.get('safe') or {}).get('safeCounts') or []
+    resp = jsonify({'days': SAFE_LEAD_DAYS, 'counts': [c for c in counts if isinstance(c, dict) and str(c.get('date') or '') >= since]})
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
+
 # Waste by day, for the team's waste scoreboard (Tim, Oct 18 2026). A team
 # device is sent two days of waste entries (WASTE_TEAM_WINDOW_MS), so its
 # trend cards read these totals instead: each day's cost, FOH and BOH, over

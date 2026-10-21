@@ -497,6 +497,36 @@ class SafeCountTest(unittest.TestCase):
         self.assertEqual(self.team.get(f'/api/safe-counts/today?date={old_day}').status_code, 403)
         self.assertEqual(self.team.get('/api/safe-counts/today?date=nope').status_code, 400)
 
+    def test_a_team_lead_sees_the_last_week(self):
+        """Tim, Oct 20 2026: leaders see recent submissions (a week), not the
+        ordering; team members and trainers still see today's only."""
+        import datetime
+        day = lambda n: (datetime.date.today() - datetime.timedelta(days=n)).isoformat()
+        store['state/ops'] = json.dumps({'safeCounts': [
+            {'id': 'today', 'date': day(0), 'timestamp': 9, 'total': 4500},
+            {'id': 'six', 'date': day(6), 'timestamp': 5, 'total': 4480},
+            {'id': 'eight', 'date': day(8), 'timestamp': 1, 'total': 4400}]})
+        appmod._cache.clear()
+        appmod._cache_ready = False
+        lead = appmod.app.test_client()
+        with lead.session_transaction() as sess:
+            sess['user'] = {'name': 'Casey Example', 'role': 'lead'}
+            sess['teamEnds'] = int(time.time()) + 3600
+        member = appmod.app.test_client()
+        with member.session_transaction() as sess:
+            sess['user'] = {'name': 'Jordan Testcase', 'role': 'member'}
+            sess['teamEnds'] = int(time.time()) + 3600
+        r = lead.get('/api/safe-counts/recent')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.headers['Cache-Control'], 'no-store')
+        self.assertEqual(([c['id'] for c in r.get_json()['counts']], r.get_json()['days']), (['today', 'six'], 7))
+        self.assertEqual([c['id'] for c in self.mgr.get('/api/safe-counts/recent').get_json()['counts']], ['today', 'six'])
+        self.assertEqual(member.get('/api/safe-counts/recent').status_code, 403)
+        self.assertEqual(self.team.get('/api/safe-counts/recent').status_code, 403)
+        # Still never the whole private section for a lead.
+        body = lead.post('/api/state/load', json={}).get_json()
+        self.assertNotIn('safe', body.get('sections', {}))
+
     def test_no_cross_site_access_by_default(self):
         r = self.team.post('/api/state/load', json={}, headers={'Origin': 'https://example.com'})
         self.assertNotIn('Access-Control-Allow-Origin', r.headers)
