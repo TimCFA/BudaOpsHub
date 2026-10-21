@@ -24,6 +24,8 @@
   --border:#E4DCCF;
   --radius:14px;
   --success:#2E7D45;
+  --ok:#2E7D45;               /* on now, on track */
+  --ok-soft:#E5F1E8;
   --font-display:'Zilla Slab', Georgia, serif;
   --font-ui:'Figtree', 'DM Sans', system-ui, sans-serif;
 }
@@ -1829,20 +1831,32 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .rn-row.is-go:focus-visible,.rn-first.is-go:focus-visible{outline:2px solid var(--cfa-navy);outline-offset:2px;border-radius:10px;}
 .rn:not(.rn-boh) .es{display:none;}
 @media (max-width:600px){ .rn{padding:14px 16px 6px;} .rn-title{font-size:24px;} }
-/* The day's roster (Admin Team's card; a tap away on the director's): by
-   group in start order, a green dot for on now, done shifts faded. */
-.rn-roster{position:relative;display:grid;gap:14px;border-top:1px solid var(--border);margin-top:2px;padding:12px 0 8px;}
-.rn-rg-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:0 0 2px;font-family:var(--font-ui);font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--cfa-navy);}
+/* The day's roster (Admin Team's card; a tap away on the director's), in a
+   panel of its own so it reads apart from the rows (Tim, Oct 20 2026): a
+   navy band "Who's on today", then each group as its own card, time first,
+   the people on now on green with "On now", done shifts faded. */
+.rn-roster{position:relative;margin:4px 0 12px;border:1px solid var(--cfa-navy);border-radius:16px;overflow:hidden;background:var(--cfa-light);}
+.rn-list + .rn-roster{margin-top:8px;}
+.rn-roster-h{display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--cfa-navy);color:#fff;}
+.rn-roster-ic{flex:none;display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border-radius:50%;background:rgba(255,255,255,.14);}
+.rn-roster-h b{flex:1;min-width:0;font-family:var(--font-display);font-size:19px;font-weight:700;line-height:1.15;}
+.rn-roster-h > span:last-child{flex:none;font-family:var(--font-ui);font-size:12.5px;font-weight:600;opacity:.85;}
+.rn-roster-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;padding:10px;}
+.rn-rg{background:var(--cfa-white);border:1px solid var(--border);border-radius:12px;padding:10px 12px 4px;}
+.rn-rg-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:0 0 4px;font-family:var(--font-ui);font-size:12.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--cfa-navy);}
 .rn-rg-h span{letter-spacing:0;text-transform:none;font-weight:600;color:var(--text-tertiary);}
 .rn-rg-list{list-style:none;margin:0;padding:0;}
-.rn-rp{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--border);font-family:var(--font-ui);font-size:14.5px;line-height:1.3;}
+.rn-rp{display:flex;align-items:center;gap:10px;margin:0 -6px;padding:7px 6px;border-top:1px solid var(--border);border-radius:8px;font-family:var(--font-ui);font-size:15px;line-height:1.3;}
 .rn-rp:first-child{border-top:0;}
-.rn-rp-name{min-width:0;font-weight:600;color:var(--text-primary);}
-.rn-rp-name::before{content:"";display:inline-block;width:7px;height:7px;margin-right:8px;border-radius:50%;background:var(--border);vertical-align:1px;}
-.rn-rp.is-now .rn-rp-name::before{background:#2E7D45;}
+.rn-rp-time{flex:0 0 108px;font-size:13.5px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text-primary);}   /* a split shift wraps */
+.rn-rp-name{flex:1;min-width:0;font-weight:600;color:var(--text-primary);}
+.rn-rp.is-now{background:var(--ok-soft);border-top-color:transparent;}
+.rn-rp.is-now + .rn-rp{border-top-color:transparent;}
+.rn-rp.is-now .rn-rp-time{color:var(--ok);}
+.rn-rp-now{flex:none;padding:2px 8px;border-radius:999px;background:var(--ok);color:#fff;font-size:11px;font-weight:700;letter-spacing:.02em;}
 .rn-rp.is-done{opacity:.5;}
-.rn-rp-time{flex:none;font-size:13.5px;font-variant-numeric:tabular-nums;color:var(--text-secondary);}
 .rn-rp-tag{margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--cfa-soft);font-size:11px;font-weight:700;color:var(--text-secondary);vertical-align:1px;}
+@media (max-width:600px){ .rn-roster-grid{grid-template-columns:1fr;padding:8px;} .rn-rp-time{flex-basis:100px;font-size:13px;} .rn-roster-h b{font-size:18px;} }
 
 /* Waste: Top Items Today, each bar its share of the day's waste (waste-log.js; Tim, Oct 19 2026). */
 .bar-item .bi-top .bv-share{font-family:var(--font-ui);font-size:12px;font-weight:600;opacity:.7;}

@@ -9,8 +9,10 @@
 //  - Team Lead: their side's shift: open spots, people on the floor with no
 //    spot, the handoff's zones, breaks coming up, waste, Food Safety.
 //  - Admin Team (Ashley, Oct 20 2026): the day's roster at a glance, FOH,
-//    BOH, truck and admin, who's on now and who's in next; the headcount
-//    and the last to leave (headcount.js).
+//    BOH, truck and admin, who's on now and who's in next, in a panel of
+//    its own above the rest (Tim, Oct 20 2026: easier to notice). The
+//    headcount, permits and last to leave are Our Team's, not right-now
+//    items, so they stay on that page.
 //  - Director (or the manager PIN): the whole store now, the rest of the
 //    day, the leaders on, tomorrow's Set Ups, waste, Food Safety, and the
 //    day's roster a tap away.
@@ -19,6 +21,7 @@
 // private sections), and every row opens the screen that fixes it. On the
 // kitchen's side the lines carry Spanish; FOH stays English.
 
+const RN_ICON_TEAM = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c.8-3.2 3.2-5 6-5s5.2 1.8 6 5"/><path d="M16 5.2a3 3 0 0 1 0 5.6"/><path d="M17.5 14.2c1.8.6 3 2.2 3.5 4.8"/></svg>';
 const RN_ICON_GO = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
 
 function rnNowMins(){ const d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
@@ -339,28 +342,26 @@ function rnHeadcount(groups, state){
   return new Set(groups.flatMap(g => g.people.filter(p => !state || p.state === state).map(p => p.name.trim().toLowerCase()))).size;
 }
 
-function rnRosterHtml(groups){
+// The roster in a panel of its own: who's on and when, time first, the
+// people on now marked.
+function rnRosterHtml(groups, head){
   if(!groups.length) return '';
   const tag = t => `<span class="rn-rp-tag">${t}</span>`;
-  return `<div class="rn-roster">${groups.map(g => `
+  return `<div class="rn-roster">
+    ${head ? `<div class="rn-roster-h"><span class="rn-roster-ic">${RN_ICON_TEAM}</span><b>${escapeHtml(head.title)}</b><span>${escapeHtml(head.sub || '')}</span></div>` : ''}
+    <div class="rn-roster-grid">${groups.map(g => `
     <section class="rn-rg">
       <h3 class="rn-rg-h">${escapeHtml(g.label)}<span>${g.people.length} on the day${g.live ? ` · ${g.onNow} now` : ''}</span></h3>
       <ul class="rn-rg-list">${g.people.map(p => `
-        <li class="rn-rp${p.state ? ' is-' + p.state : ''}"><span class="rn-rp-name">${escapeHtml(p.name)}${p.leader ? tag('Leader') : ''}${p.training ? tag('Training') : ''}</span><span class="rn-rp-time">${escapeHtml(p.time)}</span></li>`).join('')}
+        <li class="rn-rp${p.state ? ' is-' + p.state : ''}"><span class="rn-rp-time">${escapeHtml(p.time)}</span><span class="rn-rp-name">${escapeHtml(p.name)}${p.leader ? tag('Leader') : ''}${p.training ? tag('Training') : ''}</span>${p.state === 'now' ? '<span class="rn-rp-now">On now</span>' : ''}</li>`).join('')}
       </ul>
-    </section>`).join('')}</div>`;
+    </section>`).join('')}</div></div>`;
 }
-
-// The headcount and departures (headcount.js): directors and the Admin Team.
-function rnHeadcountRows(rows, withLast){
-  const s = typeof hcSummary === 'function' ? hcSummary() : null;
-  if(!s) return;
-  // No PIN report yet: say how the count starts rather than show a 0.
-  if(!s.now.total && !s.pending.length){ rows.push(rnRow('', 'team count: starts with the PIN report upload (Manage → Accounts)', '', 'headcount', '')); return; }
-  rows.push(rnRow(String(s.now.total), `on the team${s.pending.length ? ` · ${s.pending.length} left to explain` : ''}`, '', 'headcount', s.pending.length ? 'warn' : ''));
-  const P = s.permits;
-  if(P && (P.expired || P.soon)) rows.push(rnRow(String(P.expired + P.soon), `food handler permit${P.expired + P.soon === 1 ? '' : 's'} ${P.expired ? `expired${P.soon ? ' or due' : ''}` : 'due in 30 days'}`, '', 'headcount', P.expired ? 'bad' : 'warn'));
-  if(withLast && s.last) rows.push(rnRow('', `last to leave: ${s.last.name}, ${hcTypeLabel(s.last.type).toLowerCase()} · ${hcDate(s.last.lastDay)}`, '', 'headcount', ''));
+// "Who's on today" / "Who's on Tuesday", and the date.
+function rnRosterHead(date, day){
+  const d = new Date(date + 'T12:00:00');
+  return {title: `Who’s on ${date === today && !day.closed ? 'today' : d.toLocaleDateString('en-US', {weekday: 'long'})}`,
+          sub: d.toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric'})};
 }
 
 // Admin Team: the day's roster is the card.
@@ -383,8 +384,7 @@ function rnAdminCard(v, day){
       : `${onNow} on the clock now, ${total} on today.`};
     if(next) rows.push(rnRow(rnClock(next.start), `next in: ${next.name}, ${next.label}`, '', '', ''));
   }
-  rnHeadcountRows(rows, true);
-  return {side: 'foh', first, rows, roster: groups, kicker: day.closed ? dayName : '', title: v.name ? `Hi, ${rnFirst(v.name)}` : 'Today’s roster'};
+  return {side: 'foh', first, rows, roster: groups, rosterHead: rnRosterHead(date, day), rosterFirst: true, kicker: day.closed ? dayName : '', title: v.name ? `Hi, ${rnFirst(v.name)}` : 'Today’s roster'};
 }
 
 // The director's card: the roster a tap away.
@@ -392,11 +392,10 @@ function rnWithRoster(card, day){
   const date = day.closed ? day.next : today;
   const groups = rnDayRoster(date, day.closed ? null : day.now);
   const total = rnHeadcount(groups);
-  rnHeadcountRows(card.rows, false);
   if(!total) return card;
   const when = day.closed ? new Date(date + 'T12:00:00').toLocaleDateString('en-US', {weekday: 'long'}) : 'today';
   card.rows.push(rnRow(String(total), `on the schedule ${when} · ${rnRosterOpen ? 'hide' : 'see'} the roster`, '', 'roster', ''));
-  if(rnRosterOpen) card.roster = groups;
+  if(rnRosterOpen){ card.roster = groups; card.rosterHead = rnRosterHead(date, day); }
   return card;
 }
 
@@ -460,13 +459,14 @@ function renderRightNow(){
     </div>
     <h2 class="rn-title">${escapeHtml(title)}${day.closed ? '' : ` <span class="rn-time">${escapeHtml(rnClock(day.now))}</span>`}</h2>
     ${card.first ? `<div class="rn-first${card.first.go ? ' is-go' : ''}"${go(card.first.go)}><b>First thing${boh ? `<span class="es" lang="es"> · ${escapeHtml(esText('First thing'))}</span>` : ''}</b><span>${escapeHtml(card.first.text)}</span>${es(card.first.es)}</div>` : ''}
+    ${card.roster && card.rosterFirst ? rnRosterHtml(card.roster, card.rosterHead) : ''}
     <div class="rn-list">
       ${card.rows.map(r => `<div class="rn-row${r.go ? ' is-go' : ''}"${go(r.go)}>
           ${r.n !== '' ? `<span class="rn-n${r.tone ? ' is-' + r.tone : ''}">${escapeHtml(r.n)}</span>` : '<span class="rn-n rn-n-dot" aria-hidden="true"></span>'}
           <span class="rn-t">${escapeHtml(r.text)}${es(r.es)}</span>
           ${r.go ? `<span class="rn-go">${RN_ICON_GO}</span>` : ''}
         </div>`).join('')}
-    </div>${card.roster ? rnRosterHtml(card.roster) : ''}`;
+    </div>${card.roster && !card.rosterFirst ? rnRosterHtml(card.roster, card.rosterHead) : ''}`;
 }
 
 // Taps: open the screen that fixes it.

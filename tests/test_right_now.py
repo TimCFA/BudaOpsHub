@@ -208,28 +208,27 @@ class AdminTeam(unittest.TestCase):
         html = run({'op': f"""c => {{ {SETUP} {DAY} acUser = {{role: 'admin', name: 'Avery Office'}}; renderRightNow(); return document.getElementById('rightNow').innerHTML; }}"""})[0]
         self.assertIn('<span class="rn-role">Admin Team</span>', html)
         self.assertIn('<h3 class="rn-rg-h">FOH<span>4 on the day · 2 now</span></h3>', html)
-        self.assertIn('<li class="rn-rp is-now"><span class="rn-rp-name">Leo Park<span class="rn-rp-tag">Leader</span></span><span class="rn-rp-time">2:00p–10:30p</span></li>', html)
+        # Its own panel, time first, the people on now marked (Tim, Oct 20 2026: easier to notice).
+        self.assertIn('<div class="rn-roster-h"><span class="rn-roster-ic">', html)
+        self.assertIn('<b>Who’s on today</b><span>Mon, Oct 19</span></div>', html)
+        self.assertIn('<li class="rn-rp is-now"><span class="rn-rp-time">2:00p–10:30p</span><span class="rn-rp-name">Leo Park<span class="rn-rp-tag">Leader</span></span><span class="rn-rp-now">On now</span></li>', html)
+        self.assertIn('<li class="rn-rp is-done"><span class="rn-rp-time">6:00a–2:00p</span><span class="rn-rp-name">Kim Lee</span></li>', html)
         self.assertIn('<span class="rn-rp-tag">Training</span>', html)
+        # Above the rows on the Admin Team's card.
+        self.assertLess(html.index('class="rn-roster"'), html.index('class="rn-list"'))
         css = read('static', 'css', 'theme-cfa.css')
-        for rule in ('.rn-roster{', '.rn-rp.is-now .rn-rp-name::before{', '.rn-rp.is-done{'):
+        for rule in ('.rn-roster{', '.rn-roster-h{', '.rn-rp.is-now{', '.rn-rp-now{', '.rn-rp.is-done{'):
             self.assertIn(rule, css)
 
-    def test_headcount_and_the_last_to_leave(self):
-        # headcount.js's summary (directors and the Admin Team only; it says null otherwise).
-        hc = """hcSummary = () => ({now: {total: 52}, pending: [{name: 'Rae Quill'}], last: {name: 'Bo Stone', type: 'quit', lastDay: '2026-10-17'}});
+    def test_team_count_and_permits_stay_on_our_team(self):
+        """Tim, Oct 20 2026: the headcount, permits and last to leave are
+        Our Team's (state of the union), not right-now items."""
+        hc = """hcSummary = () => ({now: {total: 73}, pending: [{name: 'Rae Quill'}], permits: {expired: 1, soon: 2}, last: {name: 'Bo Stone', type: 'quit', lastDay: '2026-10-17'}});
                  hcTypeLabel = () => 'Quit'; hcDate = () => 'Oct 17';"""
-        got = run({'op': card('admin', 'Avery Office', extra=DAY + hc)}, {'op': card('director', '', extra=DAY + hc)},
-                  {'op': card('admin', 'Avery Office', extra=DAY + 'hcSummary = () => null;')})
-        self.assertIn(['52', 'on the team · 1 left to explain', 'headcount', ''], got[0]['rows'])
-        self.assertIn(['', 'last to leave: Bo Stone, quit · Oct 17', 'headcount', ''], got[0]['rows'])
-        self.assertIn(['52', 'on the team · 1 left to explain', 'headcount', ''], got[1]['rows'])
-        self.assertFalse(any(r[1].startswith('last to leave') for r in got[1]['rows']))
-        self.assertFalse(any(r[2] == 'headcount' for r in got[2]['rows']))
-        # Food handler permits expired or due (TIM-82).
-        got = run({'op': card('admin', 'Avery Office', extra=DAY + hc.replace("last:", "permits: {expired: 1, soon: 2}, last:"))},
-                  {'op': card('admin', 'Avery Office', extra=DAY + hc.replace("last:", "permits: {expired: 0, soon: 1}, last:"))})
-        self.assertIn(['3', 'food handler permits expired or due', 'headcount', ''], got[0]['rows'])
-        self.assertIn(['1', 'food handler permit due in 30 days', 'headcount', ''], got[1]['rows'])
+        got = run({'op': card('admin', 'Avery Office', extra=DAY + hc)}, {'op': card('director', '', extra=DAY + hc)})
+        for g in got:
+            self.assertFalse(any(r[2] == 'headcount' for r in g['rows']), g['rows'])
+            self.assertFalse(any('on the team' in r[1] or 'permit' in r[1] or 'last to leave' in r[1] for r in g['rows']))
 
     def test_directors_get_it_a_tap_away_and_the_team_does_not(self):
         got = run({'op': card('director', '', extra=DAY)},

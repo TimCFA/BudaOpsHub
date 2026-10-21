@@ -1,0 +1,64 @@
+/* ===== Dark mode (Tim, Oct 20 2026: the light pages strain his eyes on the
+   computer) =====
+   Per device: the moon in the header (theme.js) sets html[data-theme="dark"]
+   and remembers it. The two dark-*.gen.css files (tools/dark_css.py) turn
+   every hard-coded colour dark in place; this file, loaded last, sets the
+   tokens and tunes what a formula can't. Same brand: Chick-fil-A red for
+   actions and limits, navy for the stats cards, on a deep charcoal ground. */
+
+html[data-theme="dark"]{
+  color-scheme:dark;
+  --cfa-bg:#121418;           /* ground */
+  --cfa-white:#1B1E23;        /* cards */
+  --cfa-light:#171A1E;
+  --cfa-soft:#272B32;         /* segmented controls, quiet fills */
+  --text-primary:#ECE7DF;
+  --text-secondary:#B8B1A6;
+  --text-tertiary:#928B80;
+  --border:#30343B;
+  --success:#3C9A57;
+  --ok:#3C9A57;
+  --ok-soft:#1C3324;
+  /* Brand colours as text on the dark ground (tools/dark_css.py swaps them in). */
+  --ink-navy:#7FC1E1;
+  --ink-red:#FF5A74;
+  --ink-dark-red:#F27C84;
+  /* Set Ups */
+  --su-bg:var(--cfa-bg); --su-card:var(--cfa-white); --su-ink:#ECE7DF; --su-muted:#B8B1A6; --su-line:#30343B; --su-soft:var(--cfa-soft); --su-unrated:#3A3E46;
+}
+html[data-theme="dark"] body{background:var(--cfa-bg);color:var(--text-primary);}
+html[data-theme="dark"] img{opacity:.92;}
+
+/* Inline colours in the page and its scripts (a style attribute beats a stylesheet). */
+html[data-theme="dark"] [style*="background:white"],html[data-theme="dark"] [style*="background: white"],
+html[data-theme="dark"] [style*="background:#fff"],html[data-theme="dark"] [style*="background: #fff"],
+html[data-theme="dark"] [style*="background:#FFF;"],html[data-theme="dark"] [style*="background:#ffffff"]{background:var(--cfa-white) !important;}
+html[data-theme="dark"] [style*="background:#f7f7f7"],html[data-theme="dark"] [style*="background: #f7f7f7"]{background:var(--cfa-light) !important;}
+html[data-theme="dark"] [style*="background:#FFF3CD"],html[data-theme="dark"] [style*="background: #FFF3CD"]{background:#3A3115 !important;}
+html[data-theme="dark"] [style*="color:#856404"],html[data-theme="dark"] [style*="color: #856404"]{color:#E8C66A !important;}
+html[data-theme="dark"] [style*=";color:#666"],html[data-theme="dark"] [style^="color:#666"],html[data-theme="dark"] [style*=" color:#666"],
+html[data-theme="dark"] [style^="color:#555"],html[data-theme="dark"] [style*=";color:#555"],html[data-theme="dark"] [style*=" color:#555"]{color:var(--text-secondary) !important;}
+html[data-theme="dark"] [style^="color:#222"],html[data-theme="dark"] [style*=";color:#222"],html[data-theme="dark"] [style*=" color:#222"],
+html[data-theme="dark"] [style^="color:#1C1B19"],html[data-theme="dark"] [style*=";color:#1C1B19"],html[data-theme="dark"] [style*=" color:#1C1B19"],
+html[data-theme="dark"] [style^="color:#1d1d1f"],html[data-theme="dark"] [style*=";color:#1d1d1f"],html[data-theme="dark"] [style*=" color:#1d1d1f"]{color:var(--text-primary) !important;}
+html[data-theme="dark"] [style*="color:#1565C0"]{color:#8CB8F0 !important;}
+html[data-theme="dark"] [style*="color:#B23B1F"]{color:#F08C72 !important;}
+html[data-theme="dark"] [style*="color:#2F7D4F"]{color:#7CCB98 !important;}
+
+/* The header's theme button (theme.js), like the reload button beside it. */
+.hdr-theme{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;padding:0;border:1px solid var(--border);border-radius:999px;background:var(--cfa-white);color:var(--text-primary);cursor:pointer;}
+.hdr-theme:hover{color:var(--cfa-red);}
+html[data-theme="dark"] .hdr-theme:hover{color:var(--ink-red);}
+.hdr-theme:focus-visible{outline:2px solid var(--cfa-navy);outline-offset:2px;}
+.hdr-theme .ic-sun{display:none;}
+html[data-theme="dark"] .hdr-theme .ic-sun{display:block;}
+html[data-theme="dark"] .hdr-theme .ic-moon{display:none;}
+/* On a phone the header's second row is full: the button sits at the end of the title row. */
+@media (max-width:520px){ .hdr{position:relative;} .hdr-theme{position:absolute;top:0;right:0;width:36px;height:36px;} }
+
+/* What the formula can't see: text on an ink chip set in another rule, and
+   colours kept in a section's own tokens. */
+html[data-theme="dark"] .toggle-btn.active .sub{color:rgba(18,20,24,.65);}
+html[data-theme="dark"] .wt-chip.is-on{color:var(--cfa-bg);}
+html[data-theme="dark"] .fs-chip.done .fs-chip-name,html[data-theme="dark"] .fs-status.done,html[data-theme="dark"] .fs-btn.yes:hover{color:#6FCB75;}
+html[data-theme="dark"] .tguide-toggle{filter:brightness(1.7);}
