@@ -133,6 +133,26 @@ class Visits(Base):
         self.assertEqual(p['views'], {'home': 50, 'calendar': 1})
         self.assertEqual(p['visits'], 1)
 
+    def test_tab_open_times(self):
+        # Slowest tabs (Tim, Oct 22 2026): ms from the tap to the content.
+        self.c.post('/api/health/visit', json={'views': {'headcount': 1}, 'opens': {'headcount': [180, 1400], 'home': [40]}})
+        self.c.post('/api/health/visit', json={'opens': {
+            'headcount': [90, -5, 99999, True, 'x', 120.7],                  # bad times dropped
+            'Bad View': [10], 'positions': list(range(100, 130))}})          # a bad name; at most 20 a note
+        p = self.pending()
+        self.assertEqual(p['opens']['headcount'], [180, 1400, 90, 120])
+        self.assertEqual(p['opens']['home'], [40])
+        self.assertNotIn('Bad View', p['opens'])
+        self.assertEqual(p['opens']['positions'], list(range(100, 120)))
+        self.assertNotIn('visits', p)                                       # a later note isn't a visit
+
+    def test_tab_open_times_keep_the_latest(self):
+        for n in range(appmod.HEALTH_OPEN_SAMPLES // 20 + 2):
+            self.c.post('/api/health/visit', json={'opens': {'home': [n] * 20}})
+        home = self.pending()['opens']['home']
+        self.assertEqual(len(home), appmod.HEALTH_OPEN_SAMPLES)
+        self.assertEqual(home[-1], appmod.HEALTH_OPEN_SAMPLES // 20 + 1)
+
     def test_load_times_keep_the_latest(self):
         for n in range(appmod.HEALTH_READY_SAMPLES + 5):
             self.c.post('/api/health/visit', json={'visit': 1, 'ready': n + 1})
@@ -144,9 +164,10 @@ class Visits(Base):
 class Flush(Base):
     def test_adds_to_the_days_record_and_prunes(self):
         old = (date.fromisoformat(self.day) - timedelta(days=appmod.HEALTH_DAYS_KEPT)).isoformat()
-        store[f'health/{self.day}'] = {'saves': 10, 'refused': {'500': 1}, 'views': {'home': 4}, 'ready': [900]}
+        store[f'health/{self.day}'] = {'saves': 10, 'refused': {'500': 1}, 'views': {'home': 4}, 'ready': [900], 'opens': {'home': [50]}}
         store[f'health/{old}'] = {'saves': 3}
-        self.c.post('/api/health/visit', json={'visit': 1, 'ready': 1200, 'views': {'home': 2, 'calendar': 1}})
+        self.c.post('/api/health/visit', json={'visit': 1, 'ready': 1200, 'views': {'home': 2, 'calendar': 1},
+                                               'opens': {'home': [60], 'calendar': [300]}})
         appmod._health_note({'saves': 1, 'refused': {'500': 2}})
         appmod._health_flush()
         rec = store[f'health/{self.day}']
@@ -154,6 +175,7 @@ class Flush(Base):
         self.assertEqual(rec['refused'], {'500': 3})
         self.assertEqual(rec['views'], {'home': 6, 'calendar': 1})
         self.assertEqual(rec['ready'], [900, 1200])
+        self.assertEqual(rec['opens'], {'home': [50, 60], 'calendar': [300]})
         self.assertNotIn(f'health/{old}', store)
         self.assertEqual(appmod._health_pending, {})
         # Nothing under the saved state.
@@ -249,13 +271,22 @@ class PageWiring(unittest.TestCase):
         self.assertIn("headers: Object.assign({'Content-Type': 'application/json'}, headers || {}),", st)
 
     def test_visits_and_the_manage_section(self):
-        self.assertIn("if(typeof hhNoteView === 'function') hhNoteView(view);", read('static', 'js', 'navigation.js'))
+        nav = read('static', 'js', 'navigation.js')
+        # Counted and timed only when the tab changes, not on every redraw
+        # when saved data comes in (Oct 22 2026).
+        self.assertIn("const opened = !was || was.id !== view + 'View';", nav)
+        self.assertIn("if(opened && typeof hhNoteView === 'function') hhNoteView(view, t0);", nav)
         page = read('cfa-buda-ops-hub-complete.html')
         self.assertIn('data-manage-go="health"', page)
         self.assertIn('<section class="manage-group" data-manage-tab="health"', page)
         self.assertIn('<script src="/static/js/hub-health.js"></script>', page)
         hh = read('static', 'js', 'hub-health.js')
-        self.assertIn("hhSend({visit: 1, ready, app: typeof stateStandalone === 'function' && stateStandalone(), role: hhRole(), views});", hh)
+        self.assertIn("hhSend({visit: 1, ready, app: typeof stateStandalone === 'function' && stateStandalone(), role: hhRole(), views, opens});", hh)
+        self.assertIn('hhSend({views, opens}, beacon);', hh)
+        # Tabs that wait on the server are timed until their data shows.
+        self.assertIn("hhOpenArrived('headcount')", read('static', 'js', 'headcount.js'))
+        self.assertIn("hhOpenArrived('health')", hh)
+        self.assertIn('${hhSlowHtml(w)}', hh)
         self.assertNotIn('acUser.name', hh)                         # never a name
 
 

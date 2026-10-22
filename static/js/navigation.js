@@ -6,6 +6,11 @@ function activateView(view){
   if(view === 'headcount' && !(typeof hcAllowed === 'function' && hcAllowed())) view = 'home';
   // Safe Count: not for Team Members or Trainers (fohoe-and-safecount.js).
   if(view === 'safecount' && typeof scHidden === 'function' && scHidden()) view = 'home';
+  // An open (a tap) or a redraw of the page already showing (saved data
+  // came in): only an open is counted and timed in Manage → Health.
+  const was = document.querySelector('.view.active');
+  const opened = !was || was.id !== view + 'View';
+  const t0 = performance.now();
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
   document.getElementById(view+'View').classList.add('active');
   if(view === 'positions') renderPositionsTab();
@@ -31,7 +36,7 @@ function activateView(view){
   if(view === 'forms' && typeof renderForms === 'function') renderForms();
   if(view === 'manage' && typeof refreshManage === 'function') refreshManage();
   if(typeof launchSubnavRender === 'function') launchSubnavRender(view);
-  if(typeof hhNoteView === 'function') hhNoteView(view);
+  if(opened && typeof hhNoteView === 'function') hhNoteView(view, t0);
 }
 
 function sbShowPanel(key){
