@@ -807,6 +807,24 @@ function fcDaypartRatios(hours, windows){
   wins.forEach(w => { const a = acc[w.name]; out[w.name] = a && a.l > 0 ? (a.s / a.l) / day : 1; });
   return out;
 }
+// A weekday report by daypart (Productivity PDF, Display Daypart): each
+// daypart's sales per labor hour over the day's. Dayparts it doesn't name
+// stay at 1. Null when it names fewer than two of the windows.
+function fcDaypartsRatios(dps, dayProd, windows){
+  if(!dps) return null;
+  const parts = Object.values(dps).filter(v => v && v.sales > 0 && v.labor > 0);
+  const day = parts.length >= 2 ? parts.reduce((t, v) => t + v.sales, 0) / parts.reduce((t, v) => t + v.labor, 0) : dayProd;
+  if(!(day > 0)) return null;
+  const wins = windows || fcDaypartWindows();
+  let named = 0;
+  const out = {};
+  wins.forEach(w => { const v = dps[fcDaypartKey(w.name)]; if(v && v.prod > 0){ out[w.name] = v.prod / day; named++; } else out[w.name] = 1; });
+  return named >= 2 ? out : null;
+}
+// A profile's daypart ratios: from its daypart report, else its hours.
+function fcProfileRatios(p, windows){
+  return p ? (fcDaypartsRatios(p.dayparts, p.dayProd, windows) || fcDaypartRatios(p.hours, windows)) : null;
+}
 function fcDefaultRatios(windows){
   const out = {};
   (windows || fcDaypartWindows()).forEach(w => { const r = FC_DEFAULT_PROD_RATIO[fcDaypartKey(w.name)]; out[w.name] = r > 0 ? r : 1; });
@@ -920,19 +938,26 @@ function fcNumbersPlan(dates){
     const adj = +s.adjustments[iso] || 0;
     const sales = base.sales * (1 + adj / 100);
     const prof = typeof breakProfileFor === 'function' ? breakProfileFor(iso) : null;
-    const weights = prof ? fcHourWeights(prof.hours) : null;
+    // The weekday's own report first; the all-days Sales Curve for what it
+    // lacks (an hourly productivity report carries no hours worked).
+    const profiles = typeof productivityProfiles !== 'undefined' && productivityProfiles ? productivityProfiles : {};
+    const ownDay = typeof breakWeekday === 'function' ? breakWeekday(iso) : '';
+    const pool = [profiles[ownDay] ? {day: ownDay, ...profiles[ownDay]} : null, prof, profiles.All ? {day: 'All', ...profiles.All} : null].filter(Boolean);
+    const wProf = pool.find(p => fcHourWeights(p.hours));
+    const weights = wProf ? fcHourWeights(wProf.hours) : null;
     // The split: a mix set by hand, else the weekday's own mix learned from
     // the weekly daypart files, else the weekday's hourly report, else
     // Buda's typical mix.
     const learned = mix ? null : fcWeekdayMix(base.dow);
     const useMix = mix || (learned && fcMixShares(learned.mix, windows) ? learned.mix : null);
-    const profRatios = byDaypart && prof ? fcDaypartRatios(prof.hours, windows) : null;
+    const rProf = byDaypart ? pool.find(p => fcProfileRatios(p, windows)) : null;
+    const profRatios = rProf ? fcProfileRatios(rProf, windows) : null;
     const ratios = byDaypart ? (profRatios || fcDefaultRatios(windows)) : null;
     const goals = {};
     windows.forEach(w => { goals[w.name] = goal == null ? null : goal * (ratios ? ratios[w.name] : 1); });
     return {date: iso, dow: base.dow, sales, baseline: base.sales, adj, model: fcModelLabel(s.model, base.yoyWeight), goal, goals,
-      split: fcSplitDay(sales, useMix ? null : weights, windows, useMix), source: mix ? 'mix' : useMix ? `${learned.weeks} weeks` : weights ? prof.day : 'default',
-      goalSource: !byDaypart ? 'flat' : profRatios ? prof.day : 'default'};
+      split: fcSplitDay(sales, useMix ? null : weights, windows, useMix), source: mix ? 'mix' : useMix ? `${learned.weeks} weeks` : weights ? wProf.day : 'default',
+      goalSource: !byDaypart ? 'flat' : profRatios ? rProf.day : 'default'};
   }).filter(Boolean);
 }
 

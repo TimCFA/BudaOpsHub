@@ -43,9 +43,9 @@ const DU_SOURCES = [
     feeds: 'Accountability points · Know the Numbers actual productivity (hours clocked in each daypart) · weekly leader report'
   },
   {
-    key: 'productivity', short: 'productivity reports', icon: '', name: 'Productivity by hour', freq: 'monthly', accept: '.csv,.txt', multiple: true,
-    how: 'Productivity dashboard → Total | Daypart | Productivity, export as CSV, one per weekday (it says “for Tuesday” etc.). Month to date or longer.',
-    feeds: 'Break planner — keeps breaks out of each day’s busiest hours'
+    key: 'productivity', short: 'productivity reports', icon: '', name: 'Productivity, labor cost & sales curve', freq: 'monthly', accept: '.pdf,.csv,.txt', multiple: true,
+    how: 'Easiest: the Productivity, Labor Cost and Sales Curve PDFs in the Schedule Builder’s zip — drop the whole zip. Or from Analytics Hub, month to date: Productivity (Display Hours, and Display Daypart), Labor Cost (Display Hours) and Sales Curve, each saved as PDF. The older CSV export (Total | Daypart | Productivity, one per weekday) still works.',
+    feeds: 'Break planner (breaks stay out of each day’s busiest hours) · Forecast daypart productivity goals · labor % by hour'
   },
   {
     key: 'salesMix', short: 'Sales Mix', icon: '', name: 'Sales Mix (items sold)', freq: 'weekly', accept: '.csv,.xlsx,.xls,.txt', multiple: true,
@@ -557,6 +557,7 @@ async function duHandleFiles(fileList, hint){
   }
   // Rosters in week order, so their reviews open earliest week first.
   jobs.sort((a, b) => ((order[a.kind] ?? 9) - (order[b.kind] ?? 9)) || (a.kind === 'roster' && b.kind === 'roster' ? String(weeklyRosterStartFromFileName(a.file.name) || '').localeCompare(String(weeklyRosterStartFromFileName(b.file.name) || '')) : 0));
+  const quarterDays = new Set();   // days the 15-minute files in this upload were matched to
   for(const job of jobs){
     const src = DU_SOURCES.find(s => s.key === job.kind);
     try{
@@ -599,9 +600,13 @@ async function duHandleFiles(fileList, hint){
       }
       else if(job.kind === 'punch') text = await kaImportPunchReport(job.file);
       else if(job.kind === 'salesQuarter'){
-        try{ text = await anFileQuarter(job.file, job.text); }
+        try{
+          text = await anFileQuarter(job.file, job.text, null, quarterDays);
+        }
         catch(err){
           if(!err.waiting) throw err;
+          // Which day it is: picked in the daypart row, with the likely day first.
+          duPending.push({id: ++duPendingSeq, kind: 'dayparts', need: 'date', file: job.file, text: job.text, total: err.total, suggestFrom: quarterDays});
           duResults[job.i] = {file: job.file.name, state: 'waiting', kind: '15-minute sales (Analytics Hub)', text: err.message};
           renderDataUploads();
           continue;
@@ -613,6 +618,7 @@ async function duHandleFiles(fileList, hint){
         // A punch report under another name: read it first (kn-actuals.js).
         const punch = !dash && /\.pdf$/i.test(job.file.name) ? await duTryPunch(job.file) : null;
         if(dash && dash.kind === 'dailyDetail'){ job.kind = 'labor'; text = await anFileDailyDetail(job.file, dash.rows); }
+        else if(dash && ['productivity', 'laborCost', 'salesCurve'].includes(dash.kind)){ job.kind = 'productivity'; text = await anFileDashboard(job.file, dash); }
         else if(dash && dash.kind === 'salesData'){ job.kind = 'sales'; text = await rpFileSales(job.file, dash.sales); }
         else if(punch){ job.kind = 'punch'; text = await kaImportPunchReport(job.file, punch); }
         else {
@@ -666,7 +672,7 @@ async function duTryPunch(file){
 // leader says save it anyway or skip it.
 function duWaitTwin(resultIndex, file, iso, twin){
   duPending.push({id: ++duPendingSeq, kind: 'salesMix', need: 'twin', file, iso, twin: {date: twin.date, file: twin.file || ''}});
-  const r = {file: file.name, state: 'waiting', kind: 'Sales Mix (items sold)', text: `Not saved yet — identical to ${duLongDay(twin.date)}. Check it in the Sales Mix row.`};
+  const r = {file: file.name, state: 'waiting', kind: 'Sales Mix (items sold)', text: `Not saved yet — identical to ${duLongDay(twin.date)}. Check it below.`};
   if(resultIndex !== null && resultIndex !== undefined) duResults[resultIndex] = r;
   else {
     const i = duResults.findIndex(x => x.file === file.name);
@@ -678,7 +684,7 @@ function duWaitTwin(resultIndex, file, iso, twin){
 function duWait(job, need){
   duPending.push({id: ++duPendingSeq, kind: job.kind, need, file: job.file, text: job.text});
   const src = DU_SOURCES.find(s => s.key === job.kind);
-  duResults[job.i] = {file: job.file.name, state: 'waiting', kind: src ? src.name : job.kind, text: need === 'date' ? 'No date in this file — pick the day in the Sales Mix row below.' : need === 'dtGroup' ? 'Which ranking is this? Pick Region, Market, State or Chain in the Drive-thru rankings row below.' : 'No weekday in this export — pick it in the Productivity row below.'};
+  duResults[job.i] = {file: job.file.name, state: 'waiting', kind: src ? src.name : job.kind, text: need === 'date' ? 'No date in this file: pick the day below.' : need === 'dtGroup' ? 'Which ranking is this? Pick Region, Market, State or Chain below.' : 'No weekday in this export: pick it below.'};
 }
 
 async function duResolvePending(id, value){
@@ -696,6 +702,8 @@ async function duResolvePending(id, value){
       catch(err){ if(!err.twin) throw err; duWaitTwin(null, item.file, iso, err.twin); renderDataUploads(); return; }
     } else if(item.kind === 'dtRank'){
       text = await rpImportDtRank(item.file, item.text, value);
+    } else if(item.kind === 'dayparts'){
+      text = await anFileQuarter(item.file, item.text, value);
     } else {
       text = await duImportProductivity(item.file, item.text, value);
     }
@@ -710,8 +718,8 @@ async function duResolvePending(id, value){
 
 // The day picker for a waiting Sales Mix file: the last week's open days as
 // one-tap chips (yesterday first), plus a calendar for anything older.
-function duPendingHtml(item){
-  const name = `<div class="du-pending-file">${escapeHtml(item.file.name)}</div>`;
+function duPendingHtml(item, underFile){
+  const name = underFile ? '' : `<div class="du-pending-file">${escapeHtml(item.file.name)}</div>`;
   if(item.need === 'twin'){
     return `<div class="du-pending is-twin">${name}
       <div class="du-pending-q">⚠ Identical to ${escapeHtml(duLongDay(item.twin.date))}${item.twin.file ? ` (${escapeHtml(item.twin.file)})` : ''}</div>
@@ -758,12 +766,13 @@ function duPendingHtml(item){
   // The last six open days (closed Sundays), newest first.
   const days = [];
   for(let n = 1; days.length < 6 && n < 14; n++){ const d = duAddDays(today0, -n); if(d.getDay() !== 0) days.push({n, d}); }
-  const chips = days.map(({n, d})=>{
+  const suggest = item.suggestFrom && typeof anQuarterSuggest === 'function' ? anQuarterSuggest(item.suggestFrom) : null;
+  const chips = (suggest ? `<button type="button" class="du-chip is-wide is-suggest" data-du-pending="${item.id}" data-du-value="${suggest}"><span>Likely: next after the other files</span><b>${escapeHtml(duLongDay(suggest))}</b></button>` : '') + days.filter(({d}) => duISO(d) !== suggest).map(({n, d})=>{
     const top = n === 1 ? 'Yesterday' : d.toLocaleDateString('en-US', {weekday: 'short'});
     return `<button type="button" class="du-chip" data-du-pending="${item.id}" data-du-value="${duISO(d)}"><span>${top}</span><b>${d.toLocaleDateString('en-US', {month: 'short', day: 'numeric'})}</b></button>`;
   }).join('');
   return `<div class="du-pending">${name}
-    <div class="du-pending-q">What day are these sales from?</div>
+    <div class="du-pending-q">What day are these sales from?${item.total ? ` <span class="du-pending-sub">Day total ${escapeHtml(fcMoney(item.total))}</span>` : ''}</div>
     <div class="du-chips is-days">${chips}</div>
     <div class="du-pending-row">
       <label class="du-date-other">Another day <input type="date" max="${duISO(duAddDays(today0, -1))}" data-du-pending-date="${item.id}"></label>
@@ -876,7 +885,7 @@ async function duSalesMixUploadFor(iso, file){
   const named = pbDateFromFileName(file.name);
   if(named && named !== iso){
     duPending.push({id: ++duPendingSeq, kind: 'salesMix', need: 'date', file, choices: [iso, named]});
-    duResults = [{file: file.name, state: 'waiting', kind: 'Sales Mix (items sold)', text: `You tapped ${duLongDay(iso)}, but the file name says ${duLongDay(named)} — pick one in the Sales Mix row.`}];
+    duResults = [{file: file.name, state: 'waiting', kind: 'Sales Mix (items sold)', text: `You tapped ${duLongDay(iso)}, but the file name says ${duLongDay(named)} — pick one below.`}];
     renderDataUploads();
     return;
   }
@@ -1009,7 +1018,7 @@ async function duProdUploadForDay(file, day){
   const named = duProductivityDay(text);
   if(named && named !== day){
     duPending.push({id: ++duPendingSeq, kind: 'productivity', need: 'weekday', file, text, choices: [day, named]});
-    duResults = [{file: file.name, state: 'waiting', kind: 'Productivity by hour', text: `You tapped ${day}, but the report says ${named} — pick one in the Productivity row.`}];
+    duResults = [{file: file.name, state: 'waiting', kind: 'Productivity, labor cost & sales curve', text: `You tapped ${day}, but the report says ${named} — pick one below.`}];
   } else {
     try{
       const out = await duImportProductivity(file, text, day);
@@ -1125,9 +1134,26 @@ function duLevelsetHtml(){
   </div>`;
 }
 
-// The list starts with only what's due (Tim, Oct 2026: fourteen rows with
-// their month grids ran four screens); "Show the N up to date" opens the rest.
+// The tab (Tim, Oct 22 2026: elite, clear, easy, and worth opening): a
+// header that says where things stand, one drop zone that takes the
+// Schedule Builder's whole zip, what the last drop did (what needs a tap
+// first), what the uploads say, then each report that needs an upload with
+// what it feeds; the ones up to date fold into a short list.
 let duShowAll = false;
+const duOpenRows = new Set();      // up-to-date rows opened in full
+// Most-used first when several are due together.
+const DU_PRIORITY = ['roster', 'punch', 'labor', 'salesMix', 'cem', 'dayparts', 'productivity', 'sales', 'numbers', 'pea', 'sos', 'dtRank', 'smartShop', 'foodSafety', 'qiv'];
+// What one Schedule Builder zip brings in (upload-bundle.js, analytics-reports.js).
+const DU_ZIP_COVERS = {roster: 'rosters', punch: 'punch report', labor: 'Daily Detail', sales: 'Sales Data', dayparts: '15-minute sales', productivity: 'productivity & labor PDFs'};
+
+const DU_ICON = {
+  upload: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-5 5m5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>',
+  check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v5m0 3.5v.01M10.3 3.9 2.6 17.3A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.7L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+  arrow: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>',
+  spark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19 9.5 12l4 3.5L20 6"/><path d="M15 6h5v5"/></svg>'
+};
 
 // What needs a look first: problems, then what's waiting on a tap, then
 // what was filed; files set aside (a bundle's schedule-only reports) last.
@@ -1135,60 +1161,173 @@ function duResultsShown(){
   const rank = {error: 0, waiting: 1, working: 2, ok: 2, skip: 3};
   return duResults.map((r, i) => ({r, i})).sort((a, b) => ((rank[a.r.state] ?? 2) - (rank[b.r.state] ?? 2)) || a.i - b.i).map(x => x.r);
 }
+// A file waiting on a choice shows the choice right under it.
+const duPendingFor = r => r.state === 'waiting' ? duPending.find(p => p.file && p.file.name === r.file) : null;
+function duResultHtml(r){
+  const pending = duPendingFor(r);
+  return `<li class="du-result is-${r.state}"><b>${escapeHtml(String(r.file).replace(/^[0-9a-f]{8}-/i, ''))}</b>${r.kind ? ` <span>${escapeHtml(r.kind)}</span>` : ''}<div>${escapeHtml(r.text)}</div>${r.action ? `<button type="button" class="du-sync-btn du-result-act" ${r.action.skipRoster ? 'data-du-skip-roster' : 'data-du-evi'}="${escapeHtml(r.action.key)}">${escapeHtml(r.action.label)}</button>` : ''}${pending ? duPendingHtml(pending, true) : ''}</li>`;
+}
+// Choices not already shown with the last drop's results, for a report's row.
+const duRowPending = key => duPending.filter(p => p.kind === key && !duResults.some(r => duPendingFor(r) === p));
+// The last drop: a count, then what needs you, what was filed, what was set aside.
+function duResultsHtml(){
+  if(!duResults.length) return '';
+  const shown = duResultsShown();
+  const need = shown.filter(r => r.state === 'error' || r.state === 'waiting');
+  const busy = shown.filter(r => r.state === 'working');
+  const ok = shown.filter(r => r.state === 'ok');
+  const skip = shown.filter(r => r.state === 'skip');
+  const parts = [ok.length && `${ok.length} filed`, need.length && `${need.length} need${need.length === 1 ? 's' : ''} you`, busy.length && `${busy.length} reading`, skip.length && `${skip.length} set aside`].filter(Boolean);
+  return `<section class="du-run" aria-label="What the last upload did">
+    <div class="du-run-head"><b>${duResults.length} file${duResults.length === 1 ? '' : 's'}</b><span>${parts.join(' · ')}</span>${busy.length ? '' : '<button type="button" class="du-run-clear" data-du-clear>Clear</button>'}</div>
+    ${need.length ? `<h5 class="du-run-h is-need">${DU_ICON.alert}Needs you</h5><ul class="du-results">${need.map(duResultHtml).join('')}</ul>` : ''}
+    ${busy.length ? `<ul class="du-results">${busy.map(duResultHtml).join('')}</ul>` : ''}
+    ${ok.length ? `<h5 class="du-run-h is-ok">${DU_ICON.check}Filed</h5><ul class="du-results">${ok.map(duResultHtml).join('')}</ul>` : ''}
+    ${skip.length ? `<details class="du-run-skip"><summary>${skip.length} set aside, and why</summary><ul class="du-results">${skip.map(duResultHtml).join('')}</ul></details>` : ''}
+  </section>`;
+}
+
+// ----- What the uploads say -----
+// A few lines worth acting on, from what's on file: sales against last year
+// this month, each weekday's busiest hour, the hours labor runs heaviest,
+// and the strongest and weakest daypart.
+const DU_LABOR_HOT = 30;          // % of sales
+function duInsights(now){
+  const out = [];
+  const month = duISO(new Date(now.getFullYear(), now.getMonth(), 1)), todayIso = duISO(now);
+  if(typeof salesHistory !== 'undefined' && salesHistory){
+    const days = Object.keys(salesHistory).filter(d => d >= month && d < todayIso && salesHistory[d].sales > 0 && salesHistory[d].lastYearSales > 0);
+    if(days.length >= 3){
+      const ty = days.reduce((t, d) => t + salesHistory[d].sales, 0), ly = days.reduce((t, d) => t + salesHistory[d].lastYearSales, 0);
+      const pct = (ty / ly - 1) * 100;
+      out.push({tone: pct < 0 ? 'down' : 'up', text: `Sales this month are ${Math.abs(pct).toFixed(1)}% ${pct < 0 ? 'below' : 'above'} last year (${days.length} days, $${Math.round(ty).toLocaleString('en-US')}).`, go: 'forecast', label: 'Forecast'});
+    }
+  }
+  const profiles = typeof productivityProfiles !== 'undefined' && productivityProfiles ? productivityProfiles : {};
+  const busy = DU_WEEKDAYS.map(day => {
+    const hours = Object.entries((profiles[day] || {}).hours || {}).filter(([h, v]) => v && v.prod != null && +h >= 360 && +h <= 1260);
+    if(!hours.length) return null;
+    const [h] = hours.sort((a, b) => b[1].prod - a[1].prod)[0];
+    return `${day.slice(0, 3)} ${duHour(+h)}`;
+  }).filter(Boolean);
+  if(busy.length >= 3) out.push({tone: 'info', text: `Busiest hour by sales per labor hour: ${busy.join(' · ')}. Breaks are planned around these.`, go: 'positions', label: 'Set Ups'});
+  const hot = [];
+  DU_WEEKDAYS.forEach(day => Object.entries((profiles[day] || {}).hours || {}).forEach(([h, v]) => {
+    if(v && v.laborPct != null && +h >= 360 && +h <= 1260 && v.laborPct >= DU_LABOR_HOT) hot.push({day, h: +h, pct: v.laborPct});
+  }));
+  if(hot.length){
+    hot.sort((a, b) => b.pct - a.pct);
+    out.push({tone: 'down', text: `Labor runs heaviest (over ${DU_LABOR_HOT}% of sales) at ${hot.slice(0, 4).map(x => `${x.day.slice(0, 3)} ${duHour(x.h)} (${Math.round(x.pct)}%)`).join(', ')}${hot.length > 4 ? ` and ${hot.length - 4} more hour${hot.length - 4 === 1 ? '' : 's'}` : ''}: the first places to look at who’s on.`, go: 'forecast', label: 'Forecast'});
+  }
+  const dps = [];
+  DU_WEEKDAYS.forEach(day => Object.entries((profiles[day] || {}).dayparts || {}).forEach(([dp, v]) => { if(v && v.prod > 0) dps.push({day, dp, prod: v.prod}); }));
+  if(dps.length >= 8){
+    dps.sort((a, b) => b.prod - a.prod);
+    const hi = dps[0], lo = dps[dps.length - 1];
+    out.push({tone: 'info', text: `Strongest daypart: ${hi.day} ${hi.dp.toLowerCase()} at $${Math.round(hi.prod)} a labor hour; weakest: ${lo.day} ${lo.dp.toLowerCase()} at $${Math.round(lo.prod)}. Each weekday’s daypart goals now follow its own numbers.`, go: 'forecast', label: 'Forecast'});
+  }
+  return out;
+}
+function duHour(m){ const h = Math.floor(m / 60) % 24; return `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`; }
+function duInsightsHtml(now){
+  const list = duInsights(now);
+  if(!list.length) return '';
+  return `<section class="du-insights" aria-label="What the uploads say">
+    <h4>${DU_ICON.spark}What your uploads say</h4>
+    <ul>${list.map(x => `<li class="is-${x.tone}"><span>${escapeHtml(x.text)}</span>${x.go ? `<button type="button" class="du-insight-go full-only" data-du-go="${x.go}">${escapeHtml(x.label)} ${DU_ICON.arrow}</button>` : ''}</li>`).join('')}</ul>
+  </section>`;
+}
+
+function duRowHtml(src, st){
+  const s = DU_STATUS[st.status];
+  const log = duLastLog(src.key);
+  const lastText = st.last ? `Last upload ${st.last.toLocaleDateString('en-US', {month: 'short', day: 'numeric'})}${log && log.file ? ` · ${log.file}` : ''}` : 'No upload logged here yet';
+  const icon = st.status === 'fresh' ? DU_ICON.check : st.status === 'due' ? DU_ICON.clock : DU_ICON.alert;
+  return `
+    <li class="du-row is-${st.status}" id="du-row-${src.key}">
+      <div class="du-row-head">
+        <span class="du-row-icon" aria-hidden="true">${src.icon}</span>
+        <span class="du-row-name">${escapeHtml(src.name)}</span>
+        <span class="du-cadence">${escapeHtml(DU_FREQUENCIES[st.freq])}</span>
+        <span class="du-status ${s.cls}">${icon} ${s.label}</span>
+      </div>
+      <div class="du-cover">${escapeHtml(st.cover)}</div>
+      ${st.note ? `<div class="du-note">${escapeHtml(st.note)}</div>` : ''}
+      <div class="du-feeds-line">${DU_ICON.arrow}<span>${escapeHtml(src.feeds)}</span></div>
+      ${src.key === 'salesMix' ? duSalesMixCalendarHtml() : src.key === 'cem' ? duCemGridHtml() : src.key === 'productivity' ? duProdGridHtml() : ''}
+      ${duRowPending(src.key).map(duPendingHtml).join('')}
+      ${src.key === 'pea' ? duLevelsetHtml() : ''}
+      ${src.key === 'roster' && typeof hsSyncInstallHtml === 'function' ? hsSyncInstallHtml() : ''}
+      <div class="du-row-actions">
+        <label class="du-row-upload"><input type="file" accept="${src.accept}" ${src.multiple ? 'multiple' : ''} data-du-row-input="${src.key}"><span>${DU_ICON.upload} Upload ${escapeHtml(src.short || src.name.split(' (')[0])}${src.key === 'pea' ? ' (backup)' : ''}</span></label>
+        ${src.key === 'numbers' && typeof salesHistory !== 'undefined' && Object.keys(salesHistory || {}).length ? '<button type="button" class="du-sync-btn full-only" data-du-forecast="1">See the forecast split</button>' : ''}
+        ${src.key === 'numbers' ? '<button type="button" class="du-sync-btn" data-du-template="1">Download template</button>' : ''}
+      </div>
+      <details class="du-more">
+        <summary>How to get it</summary>
+        <p>${escapeHtml(src.how)}</p>
+        <p class="du-feeds">${escapeHtml(lastText)}</p>
+        ${src.fixedFreq ? '' : `<label class="du-freq">Due <select data-du-freq="${src.key}">${Object.entries(DU_FREQUENCIES).map(([k, v]) => `<option value="${k}" ${k === st.freq ? 'selected' : ''}>${v}</option>`).join('')}</select></label>`}
+      </details>
+    </li>`;
+}
+// An up-to-date report, folded to one line; tap to open it in full.
+function duMiniHtml(src, st){
+  return `<li><button type="button" class="du-mini" data-du-open="${src.key}" aria-expanded="false">
+    <span class="du-mini-dot" aria-hidden="true">${DU_ICON.check}</span>
+    <b>${escapeHtml(src.name)}</b>
+    <span>${escapeHtml(st.cover)}</span>
+  </button></li>`;
+}
 
 function renderDataUploads(){
   const root = document.getElementById('dataUploadsRoot');
   if(!root) return;
   const now = new Date();
-  const rows = DU_SOURCES.map(src => ({src, st: duSourceState(src, now)}));
-  const dueCount = rows.filter(r => r.st.status !== 'fresh').length;
-  const shown = duShowAll || !dueCount ? rows : rows.filter(r => r.st.status !== 'fresh');
+  const rank = k => { const i = DU_PRIORITY.indexOf(k); return i === -1 ? 99 : i; };
+  const rows = DU_SOURCES.map(src => ({src, st: duSourceState(src, now), pending: duRowPending(src.key).length > 0}));
+  const count = st => rows.filter(r => r.st.status === st).length;
+  const overdue = count('overdue'), due = count('due'), fresh = count('fresh');
+  // A report waiting on a tap is shown first whatever its status.
+  const needs = rows.filter(r => r.pending || r.st.status !== 'fresh')
+    .sort((a, b) => (b.pending - a.pending) || ((a.st.status === 'overdue' ? 0 : 1) - (b.st.status === 'overdue' ? 0 : 1)) || rank(a.src.key) - rank(b.src.key));
+  const current = rows.filter(r => !r.pending && r.st.status === 'fresh').sort((a, b) => rank(a.src.key) - rank(b.src.key));
+  const lastAt = Object.entries(dataUploadLog || {}).map(([k, list]) => ({k, e: (list || [])[list.length - 1]})).filter(x => x.e && x.e.at).sort((a, b) => String(b.e.at).localeCompare(String(a.e.at)))[0];
+  const lastText = lastAt ? `Last upload ${new Date(lastAt.e.at).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})} · ${(DU_SOURCES.find(s => s.key === lastAt.k) || {name: lastAt.k}).name}` : 'Nothing uploaded yet';
+  const zipNeeds = Object.keys(DU_ZIP_COVERS).filter(k => needs.some(r => r.src.key === k));
   root.innerHTML = `
     ${duRestoreHtml()}
-    <div class="du-summary ${dueCount ? 'has-due' : ''}">${dueCount ? `${dueCount} of ${rows.length} need an upload` : `All ${rows.length} data sources are up to date`}</div>
+    <div class="du-head">
+      <div class="du-head-main ${needs.length ? 'has-due' : ''}">${needs.length
+        ? `<b>${needs.length}</b><span>of ${rows.length} reports need an upload</span>`
+        : `<b>${DU_ICON.check}</b><span>All ${rows.length} reports are up to date</span>`}</div>
+      <div class="du-head-stats">
+        ${overdue ? `<span class="du-pill is-overdue">${overdue} overdue</span>` : ''}${due ? `<span class="du-pill is-due">${due} due</span>` : ''}<span class="du-pill is-fresh">${fresh} current</span>
+      </div>
+      <div class="du-head-last">${escapeHtml(lastText)}</div>
+    </div>
     <label class="du-drop" data-du-drop>
-      <input type="file" multiple accept=".csv,.xlsx,.xls,.pdf,.zip,.txt,.tsv" data-du-input>
-      <span class="du-drop-main">Drop files here or tap to choose</span>
-      <span class="du-drop-sub">Any of the reports below, several at once — each is recognized and filed where it belongs.</span>
+      <input type="file" multiple accept=".csv,.xlsx,.xls,.pdf,.zip,.txt,.tsv,.png,.jpg,.jpeg" data-du-input>
+      <span class="du-drop-icon" aria-hidden="true">${DU_ICON.upload}</span>
+      <span class="du-drop-main">Drop the Schedule Builder zip or any report</span>
+      <span class="du-drop-sub">PDF, CSV, Excel or a whole zip, several at once. Each file is recognized and filed where it belongs.</span>
+      ${zipNeeds.length ? `<span class="du-drop-zip">The zip alone brings ${zipNeeds.length === 1 ? 'this one' : `${zipNeeds.length} of these`} up to date: ${zipNeeds.map(k => escapeHtml(DU_ZIP_COVERS[k])).join(', ')}.</span>` : ''}
     </label>
-    ${duResults.length ? `<ul class="du-results">${duResultsShown().map(r => `<li class="du-result is-${r.state}"><b>${escapeHtml(String(r.file).replace(/^[0-9a-f]{8}-/i, ''))}</b>${r.kind ? ` <span>${escapeHtml(r.kind)}</span>` : ''}<div>${escapeHtml(r.text)}</div>${r.action ? `<button type="button" class="du-sync-btn du-result-act" ${r.action.skipRoster ? 'data-du-skip-roster' : 'data-du-evi'}="${escapeHtml(r.action.key)}">${escapeHtml(r.action.label)}</button>` : ''}</li>`).join('')}</ul>` : ''}
-    <ul class="du-list">
-      ${shown.map(({src, st}) => {
-        const s = DU_STATUS[st.status];
-        const log = duLastLog(src.key);
-        const lastText = st.last ? `Last upload ${st.last.toLocaleDateString('en-US', {month: 'short', day: 'numeric'})}${log && log.file ? ` · ${log.file}` : ''}` : 'No upload logged here yet';
-        return `
-        <li class="du-row">
-          <div class="du-row-head">
-            <span class="du-row-icon" aria-hidden="true">${src.icon}</span>
-            <span class="du-row-name">${escapeHtml(src.name)}</span>
-            <span class="du-status ${s.cls}"><span aria-hidden="true">${s.icon}</span> ${s.label}</span>
-          </div>
-          <div class="du-cover">${escapeHtml(st.cover)}</div>
-          ${st.note ? `<div class="du-note">${escapeHtml(st.note)}</div>` : ''}
-          ${src.key === 'salesMix' ? duSalesMixCalendarHtml() : src.key === 'cem' ? duCemGridHtml() : src.key === 'productivity' ? duProdGridHtml() : ''}
-          ${duPending.filter(p => p.kind === src.key).map(duPendingHtml).join('')}
-          ${src.key === 'pea' ? duLevelsetHtml() : ''}
-          ${src.key === 'roster' && typeof hsSyncInstallHtml === 'function' ? hsSyncInstallHtml() : ''}
-          ${src.key === 'numbers' && typeof salesHistory !== 'undefined' && Object.keys(salesHistory || {}).length ? '<button type="button" class="du-sync-btn full-only" data-du-forecast="1">See the forecast split</button>' : ''}
-          ${src.key === 'numbers' ? '<button type="button" class="du-sync-btn" data-du-template="1">Download template</button>' : ''}
-          <label class="du-row-upload"><input type="file" accept="${src.accept}" ${src.multiple ? 'multiple' : ''} data-du-row-input="${src.key}"><span>⬆ Upload ${escapeHtml(src.short || src.name.split(' (')[0])}${src.key === 'pea' ? ' (backup)' : ''}</span></label>
-          <details class="du-more">
-            <summary>How to get it · ${src.fixedFreq ? DU_FREQUENCIES[st.freq] : `<span>${DU_FREQUENCIES[st.freq]}</span>`}</summary>
-            <p>${escapeHtml(src.how)}</p>
-            <p class="du-feeds">Updates: ${escapeHtml(src.feeds)}</p>
-            <p class="du-feeds">${escapeHtml(lastText)}</p>
-            ${src.fixedFreq ? '' : `<label class="du-freq">Due <select data-du-freq="${src.key}">${Object.entries(DU_FREQUENCIES).map(([k, v]) => `<option value="${k}" ${k === st.freq ? 'selected' : ''}>${v}</option>`).join('')}</select></label>`}
-          </details>
-        </li>`;
-      }).join('')}
-    </ul>
-    ${shown.length < rows.length ? `<button type="button" class="du-showall" data-du-showall="1">Show the ${rows.length - shown.length} up to date</button>` : duShowAll && dueCount ? '<button type="button" class="du-showall" data-du-showall="0">Show only what’s due</button>' : ''}`;
+    ${duResultsHtml()}
+    ${duInsightsHtml(now)}
+    ${needs.length ? `<h4 class="du-section-h">Needs an upload</h4><ul class="du-list">${needs.map(r => duRowHtml(r.src, r.st)).join('')}</ul>` : ''}
+    ${current.length ? `<h4 class="du-section-h">Up to date</h4>
+      <ul class="du-list is-current">${current.map(r => duShowAll || duOpenRows.has(r.src.key) ? duRowHtml(r.src, r.st) : duMiniHtml(r.src, r.st)).join('')}</ul>
+      <button type="button" class="du-showall" data-du-showall="${duShowAll ? 0 : 1}">${duShowAll ? 'Fold the up-to-date reports' : `Open all ${current.length} up to date`}</button>` : ''}`;
 }
-
 document.getElementById('dataUploadsRoot').addEventListener('click', e=>{
   const sa = e.target.closest('[data-du-showall]');
-  if(sa){ duShowAll = sa.dataset.duShowall === '1'; renderDataUploads(); return; }
+  if(sa){ duShowAll = sa.dataset.duShowall === '1'; if(!duShowAll) duOpenRows.clear(); renderDataUploads(); return; }
+  const open = e.target.closest('[data-du-open]');
+  if(open){ duOpenRows.add(open.dataset.duOpen); renderDataUploads(); return; }
+  if(e.target.closest('[data-du-clear]')){ duResults = []; renderDataUploads(); return; }
+  const go = e.target.closest('[data-du-go]');
+  if(go){ launchShowTab(go.dataset.duGo); window.scrollTo(0, 0); return; }
   if(e.target.closest('[data-du-levelset]')) peaLevelsetSync(false);
   if(e.target.closest('[data-du-forecast]')){ fcTab = 'forecast'; fcNumbersOpen = true; launchShowTab('forecast'); const c = document.getElementById('fcNumbersCard'); if(c && c.scrollIntoView) c.scrollIntoView({block: 'start'}); }
   if(e.target.closest('[data-du-restore]')) duRestoreBackup();

@@ -172,7 +172,8 @@ class FifteenMinuteSales(unittest.TestCase):
         self.assertEqual(sorted(d['weeks']['q:2026-10-12']['days']), ['Sun', 'Tue'])
 
     def test_which_pdfs_are_asked_of_the_server(self):
-        self.assertEqual(quarter({})['pdfs'], [True, True, False, False])
+        # The Sales Curve too, since Oct 22 2026.
+        self.assertEqual(quarter({})['pdfs'], [True, True, True, False])
 
 
 class Wiring(unittest.TestCase):
