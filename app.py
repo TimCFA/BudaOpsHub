@@ -24,6 +24,7 @@ from pea_parser import parse_pea_pdf, PeaParseError
 from pin_report import read_pin_report, PinReportError
 from permit_sheet import read_permit_sheet, PermitSheetError
 from analytics_pdf import read_analytics_pdf, AnalyticsPdfError
+from event_fixes import fix_events
 import forms_api
 from reports_parser import parse_report_file, ReportParseError
 import levelset_sync
@@ -256,7 +257,27 @@ def _refresh_cache(only_if_cold=False):
                     _cache[name] = {'data': data, 'ver': _new_version(), 'canon': data_canon}
             _cache_ready = True
             _cache_read_at = time.monotonic()
+        _apply_event_fixes()
         return True
+
+def _apply_event_fixes():
+    """One-time corrections to the saved Events (event_fixes.py), applied
+    while an event still holds the misread text: a deploy that overlapped an
+    old server's save gets them again on the next read. Never fails a load."""
+    try:
+        name = next((n for n, keys in STATE_SECTIONS.items() if 'storeEvents' in keys), None)
+        with _state_lock:
+            entry = _cache.get(name)
+            data = entry['data'] if entry else None
+            if not isinstance(data, dict) or not isinstance(data.get('storeEvents'), list):
+                return
+            fixed, changed = fix_events(data['storeEvents'])
+            if not changed:
+                return
+            _write_section(name, dict(data, storeEvents=fixed))
+        print(f"[EVENTS] corrected {len(changed)}: {'; '.join(changed)}")
+    except Exception as e:
+        print(f"[EVENTS] corrections not applied: {type(e).__name__}")
 
 def _cache_cold():
     return not _cache_ready or not _cache
