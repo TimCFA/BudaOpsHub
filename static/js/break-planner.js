@@ -49,8 +49,12 @@ function breakWeekday(date){
 
 // The productivity profile for a date's weekday: that day, else the closest
 // kind of day (Mon–Thu or Fri–Sat), else any.
+// Only a profile with sales per labor hour counts: one with only labor %
+// (a Labor Cost PDF on its own) can't say which hours are busy.
 function breakProfileFor(date){
-  const profiles = productivityProfiles || {};
+  const all = productivityProfiles || {};
+  const profiles = {};
+  Object.keys(all).forEach(d => { if(all[d] && Object.values(all[d].hours || {}).some(v => v && v.prod != null)) profiles[d] = all[d]; });
   const day = breakWeekday(date);
   if(profiles[day]) return {day, ...profiles[day]};
   if(profiles.All) return {day: 'All', ...profiles.All};

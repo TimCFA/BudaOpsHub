@@ -1064,9 +1064,10 @@ def accounts_pins_read():
 
 @app.route('/api/reports/analytics-pdf', methods=['POST'])
 def reports_analytics_pdf():
-    """An Analytics Hub Daily Detail or Sales Data PDF (the Schedule Builder's
-    bundle carries these, Tim, Oct 20 2026): read into rows for the page to
-    file (analytics_pdf.py). Managers only; nothing from the file is kept."""
+    """An Analytics Hub dashboard PDF from the Schedule Builder's bundle
+    (Daily Detail and Sales Data, Tim, Oct 20 2026; Productivity, Labor Cost
+    and Sales Curve, Oct 22): read into rows for the page to file
+    (analytics_pdf.py). Managers only; nothing from the file is kept."""
     if not session.get('manager'):
         return jsonify({'error': 'Manager sign-in required'}), 403
     f = request.files.get('file')

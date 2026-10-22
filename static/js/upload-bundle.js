@@ -82,10 +82,9 @@ function duScheduleOnly(file, text){
   if(/^(README|SHA256|MANIFEST|CHECKSUM)/i.test(n) || /\.(md|sha256)$/i.test(n)) return {skip: 'Bundle notes', why: 'Not a report.'};
   if(/availability/i.test(n)) return {skip: 'HotSchedules availability', why: 'Used to build the schedule; the hub gets the finished schedule from the roster.'};
   if(/time.?off|HotSchedules_-_Online/i.test(n)) return {skip: 'HotSchedules time off & requests', why: 'Used to build the schedule; the hub gets the finished schedule from the roster.'};
-  // Daily Detail and Sales Data PDFs and the 15-minute sales CSVs are read
-  // (analytics-reports.js); the other dashboard pictures are set aside.
-  const dash = n.match(/^(Sales_Curve|Labor_Cost|Productivity)(_\d+)?\.pdf$/i);
-  if(dash) return {skip: `Analytics Hub ${dash[1].replace(/_/g, ' ')} (PDF)`, why: 'A picture of the dashboard, used to build the schedule. The hub reads these numbers from the Daily Detail and Sales Data PDFs and the 15-minute sales.'};
+  // The Analytics Hub dashboard PDFs (Daily Detail, Sales Data, Productivity,
+  // Labor Cost, Sales Curve) and the 15-minute sales CSVs are all read
+  // (analytics-reports.js; Tim, Oct 22 2026: everything out of the zip).
   if(/positional-ratings.*\.pdf$/i.test(n)) return {skip: 'Levelset PEA ratings (PDF)', why: 'The Levelset sync brings PEAs in on its own.'};
   return null;
 }

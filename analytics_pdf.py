@@ -15,6 +15,17 @@ and the Forecast had nothing newer than Oct 4.
 
 The page sends the file; this hands back what it read, in the shapes the
 page's own importers use (fcMergeRecords, rpParseSales). Nothing is kept.
+
+The bundle's other dashboard PDFs (Tim, Oct 22 2026: get everything out of
+the zip) are tables with a column per weekday, read by where each number
+sits under its column's heading, since an empty cell leaves no gap in the
+text:
+ - Productivity: sales per labor hour by hour ("Display Hours") or by
+   daypart ("Display Daypart", with the daypart's sales and timekeeping
+   hours too), Monday to Saturday.
+ - Labor Cost: labor cost as a % of sales by hour, Monday to Saturday.
+ - Sales Curve: the average hour (all days): sales, timekeeping hours and
+   sales per labor hour.
 """
 import io
 import re
@@ -123,12 +134,154 @@ def read_sales_data(text):
     return out
 
 
+# ----- The dashboards with a column per weekday -----
+
+WEEKDAYS = ('Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday')
+DAYPARTS = ('Breakfast', 'Lunch', 'Afternoon', 'Dinner', 'Latenight')
+TABLE_TITLES = {'Productivity': 'prod', 'Sales $': 'sales', 'Timekeeping Hours': 'hours', '% of Sales': 'pct'}
+VALUE = re.compile(r'^\(?-?\$?[\d,]+(?:\.\d+)?%?\)?$')
+
+
+def _lines(data):
+    """Each page's words grouped into lines, top to bottom: [[(x, text)]]."""
+    try:
+        with pdfplumber.open(io.BytesIO(data)) as pdf:
+            if len(pdf.pages) > MAX_PAGES:
+                raise AnalyticsPdfError(f'That PDF has over {MAX_PAGES} pages.')
+            out = []
+            for page in pdf.pages:
+                # A word within 3 points of the line's first word is on that
+                # line (a row's label and numbers can sit a point or two apart).
+                line, top = [], None
+                for w in sorted(page.extract_words(), key=lambda w: w['top']):
+                    if top is not None and w['top'] - top > 3:
+                        out.append(sorted(line))
+                        line = []
+                    if not line:
+                        top = w['top']
+                    line.append(((w['x0'] + w['x1']) / 2, w['text']))
+                if line:
+                    out.append(sorted(line))
+            return out
+    except AnalyticsPdfError:
+        raise
+    except Exception:
+        raise AnalyticsPdfError('Couldn’t open that PDF.')
+
+
+def _hour(words):
+    """'6 AM' at the start of a line → minutes after midnight, else None."""
+    if len(words) >= 2 and words[0].isdigit() and words[1] in ('AM', 'PM') and 1 <= int(words[0]) <= 12:
+        return int(words[0]) % 12 * 60 + (720 if words[1] == 'PM' else 0)
+    return None
+
+
+def _nearest(x, cols):
+    """The column a value centred at x sits under, if it's clearly under one."""
+    if not cols:
+        return None
+    gap = min((b[0] - a[0] for a, b in zip(cols, cols[1:])), default=200)
+    best = min(cols, key=lambda c: abs(c[0] - x))
+    return best[1] if abs(best[0] - x) <= gap * 0.6 else None
+
+
+def read_weekday_tables(lines):
+    """{table: {row: {weekday | 'AVERAGE': value}}} for every table headed by
+    weekday names; a row is an hour (minutes) or a daypart."""
+    tables, title, cols = {}, None, []
+    for line in lines:
+        words = [t for _, t in line]
+        joined = ' '.join(words)
+        if joined in TABLE_TITLES:
+            title, cols = TABLE_TITLES[joined], []
+            continue
+        if sum(w in WEEKDAYS for w in words) >= 3:
+            cols = [(x, t) for x, t in line if t in WEEKDAYS or t == 'AVERAGE']
+            continue
+        if not (title and cols):
+            continue
+        row = _hour(words)
+        if row is None and words[0] in DAYPARTS + ('AVERAGE',):
+            row = words[0]
+        if row is None:
+            continue
+        cells = {}
+        for x, t in line:
+            if VALUE.match(t) and (t.startswith(('$', '(')) or '.' in t or t.endswith('%')):
+                col = _nearest(x, cols)
+                if col and col not in cells:
+                    cells[col] = _num(t)
+        if cells:
+            tables.setdefault(title, {})[row] = cells
+    return tables
+
+
+def read_sales_curve(lines):
+    """The table under the chart: a column per hour ('4 AM' … '11 PM'), rows
+    of average timekeeping hours, average sales and productivity. →
+    {minutes: {labor, sales, prod}}"""
+    head = None
+    for i, line in enumerate(lines):
+        words = [t for _, t in line]
+        hours = [(line[j][0] + line[j + 1][0]) / 2 for j in range(len(words) - 1) if _hour(words[j:j + 2]) is not None]
+        if len(hours) >= 10:
+            head = (i, [(x, _hour([words[j], words[j + 1]])) for x, j in
+                        zip(hours, [j for j in range(len(words) - 1) if _hour(words[j:j + 2]) is not None])])
+    if not head:
+        raise AnalyticsPdfError('No hour-by-hour table in this Sales Curve PDF.')
+    i, cols = head
+    rows = []
+    for line in lines[i + 1:]:
+        vals = [(x, t) for x, t in line if VALUE.match(t)]
+        if len(vals) >= len(cols) * 0.6:
+            rows.append({c: _num(t) for x, t in vals for c in [_nearest(x, cols)] if c is not None})
+        if len(rows) == 3:
+            break
+    if len(rows) < 3:
+        raise AnalyticsPdfError('The Sales Curve table is missing its hours, sales or productivity row.')
+    labor, sales, prod = rows
+    return {m: {'labor': labor.get(m), 'sales': sales.get(m), 'prod': prod.get(m)} for _, m in cols}
+
+
+def _dash_meta(text):
+    """The dashboard's date range and when it was last updated."""
+    meta = {}
+    up = re.search(r'Last Update:\s*(\d{1,2})/(\d{1,2})/(\d{4})', text)
+    if up:
+        meta['updated'] = f'{int(up.group(3)):04d}-{int(up.group(1)):02d}-{int(up.group(2)):02d}'
+    custom = re.search(r'Custom Dates\s+(\d{1,2})/(\d{1,2})/(\d{4})\s+(\d{1,2})/(\d{1,2})/(\d{4})', text)
+    if custom:
+        g = [int(v) for v in custom.groups()]
+        meta['from'] = f'{g[2]:04d}-{g[0]:02d}-{g[1]:02d}'
+        meta['to'] = f'{g[5]:04d}-{g[3]:02d}-{g[4]:02d}'
+        meta['range'] = 'custom'
+    elif 'Month to Date' in text:
+        meta['range'] = 'month to date'
+    elif 'Year to Date' in text:
+        meta['range'] = 'year to date'
+    return meta
+
+
 def read_analytics_pdf(data):
-    """{kind: 'dailyDetail', rows} or {kind: 'salesData', sales}; raises
+    """{kind: 'dailyDetail', rows} or {kind: 'salesData', sales}, or a
+    weekday dashboard: {kind: 'productivity' | 'laborCost', by: 'hour' |
+    'daypart', tables, ...meta}, {kind: 'salesCurve', hours, ...meta}; raises
     AnalyticsPdfError for any other PDF."""
     if not data or not data.startswith(b'%PDF'):
         raise AnalyticsPdfError('Not a PDF.')
     text = _text(data)
+    title = next((l.strip() for l in text.splitlines() if l.strip()), '')
+    if title in ('Productivity', 'Labor Cost') and re.search(r'Labor (Productivity|Cost %)', text):
+        tables = read_weekday_tables(_lines(data))
+        by = 'daypart' if any(isinstance(r, str) and r in DAYPARTS for t in tables.values() for r in t) else 'hour'
+        tables = {k: {str(r): v for r, v in t.items()} for k, t in tables.items()}
+        want = 'prod' if title == 'Productivity' else 'pct'
+        if want not in tables:
+            raise AnalyticsPdfError(f'No {title.lower()} table found in this PDF.')
+        return {'kind': 'productivity' if title == 'Productivity' else 'laborCost', 'by': by, 'tables': tables, **_dash_meta(text)}
+    if title == 'Sales Curve':
+        hours = read_sales_curve(_lines(data))
+        return {'kind': 'salesCurve', 'hours': {str(m): v for m, v in hours.items()}, **_dash_meta(text)}
     if re.search(r'^Daily Detail\b', text, re.M):
         rows = read_daily_detail(text)
         if not rows:
@@ -136,4 +289,4 @@ def read_analytics_pdf(data):
         return {'kind': 'dailyDetail', 'rows': rows}
     if re.search(r'^Sales Analytics\b', text, re.M) and 'Sales Details by Day' in text:
         return {'kind': 'salesData', 'sales': read_sales_data(text)}
-    raise AnalyticsPdfError('Not an Analytics Hub Daily Detail or Sales Data PDF.')
+    raise AnalyticsPdfError('Not an Analytics Hub Daily Detail, Sales Data, Productivity, Labor Cost or Sales Curve PDF.')
