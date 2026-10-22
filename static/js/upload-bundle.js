@@ -153,7 +153,7 @@ function duBundleImage(file){
 function duReadBundleImage(key){
   const file = duBundleImages[key];
   if(!file || typeof eviStart !== 'function') return;
-  if(typeof manageShowTab === 'function') manageShowTab('events');
+  if(typeof manageShowTab === 'function') manageShowTab('calendar');
   const root = document.getElementById('eventsImportRoot');
   if(root && root.scrollIntoView) root.scrollIntoView({block: 'start'});
   eviStart(file);

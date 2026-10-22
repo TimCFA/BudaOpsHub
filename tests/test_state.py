@@ -491,6 +491,11 @@ class SafeCountTest(unittest.TestCase):
             {'id': 'b', 'date': old_day, 'timestamp': 1, 'total': 4400}]})
         appmod._cache.clear()
         appmod._cache_ready = False
+        # A leader signed in on a team device (Tim, Oct 21 2026: a device nobody signed in on gets nothing).
+        self.assertEqual(self.team.get(f'/api/safe-counts/today?date={today}').status_code, 403)
+        with self.team.session_transaction() as sess:
+            sess['user'] = {'name': 'Casey Example', 'role': 'lead'}
+            sess['teamEnds'] = int(time.time()) + 3600
         r = self.team.get(f'/api/safe-counts/today?date={today}')
         self.assertEqual(r.status_code, 200)
         self.assertEqual([c['id'] for c in r.get_json()['counts']], ['a'])
@@ -523,11 +528,11 @@ class SafeCountTest(unittest.TestCase):
         self.assertEqual([c['id'] for c in self.mgr.get('/api/safe-counts/recent').get_json()['counts']], ['today', 'six'])
         self.assertEqual(member.get('/api/safe-counts/recent').status_code, 403)
         self.assertEqual(self.team.get('/api/safe-counts/recent').status_code, 403)
-        # Team Members and Trainers don't see the Safe Count at all, not even today's;
-        # a device nobody signed in on (a shared store device) still does.
+        # Team Members and Trainers don't see the Safe Count at all, not even today's,
+        # nor does a device nobody signed in on (Tim, Oct 21 2026).
         self.assertEqual(member.get(f'/api/safe-counts/today?date={day(0)}').status_code, 403)
         self.assertEqual(lead.get(f'/api/safe-counts/today?date={day(0)}').status_code, 200)
-        self.assertEqual(self.team.get(f'/api/safe-counts/today?date={day(0)}').status_code, 200)
+        self.assertEqual(self.team.get(f'/api/safe-counts/today?date={day(0)}').status_code, 403)
         # Still never the whole private section for a lead.
         body = lead.post('/api/state/load', json={}).get_json()
         self.assertNotIn('safe', body.get('sections', {}))

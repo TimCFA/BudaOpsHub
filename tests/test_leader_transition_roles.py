@@ -1,7 +1,7 @@
 """The Leader Transition List is a Team Lead and above item (Tim, Oct 20
 2026): Team Members and Trainers signed in by clock-in PIN don't see it,
-the same people the Safe Count is hidden from. A device nobody signed in on
-still does, since leaders use shared store devices.
+the same people the Safe Count is hidden from, and (Tim, Oct 21 2026) a
+device nobody signed in on: a leader signs in on the shared iPad.
 
 Run: python3 -m unittest discover tests   (the role check runs in node)
 """
@@ -23,11 +23,12 @@ const fs = require('fs'), vm = require('vm');
 const js = fs.readFileSync(process.argv[1], 'utf8');
 const ctx = {launchManager: false, acUser: null};
 vm.createContext(ctx);
-vm.runInContext(js.match(/function scHidden\(\)\{[\s\S]*?\n}\n/)[0] + js.match(/function ltHidden\(\)\{.*\}\n/)[0], ctx);
+vm.runInContext(js.match(/function scHidden\(\)\{[\s\S]*?\n}\n/)[0] + js.match(/function scSignedOut\(\)\{[\s\S]*?\n}\n/)[0] + js.match(/function ltHidden\(\)\{.*\}\n/)[0], ctx);
 const out = {};
 for(const role of [null, 'member', 'trainer', 'lead', 'admin', 'director']){
   vm.runInContext(`acUser = ${JSON.stringify(role ? {name: 'Jordan Testcase', role} : null)}; launchManager = false;`, ctx);
   out[role || 'nobody'] = vm.runInContext('ltHidden()', ctx);
+  if(!role) out.signedOut = vm.runInContext('scSignedOut()', ctx);
 }
 vm.runInContext(`acUser = {name: 'x', role: 'member'}; launchManager = true;`, ctx);
 out.managerSession = vm.runInContext('ltHidden()', ctx);
@@ -39,7 +40,7 @@ class WhoSeesIt(unittest.TestCase):
     def test_team_lead_and_above(self):
         out = subprocess.run(['node', '-e', RUNNER, os.path.join(ROOT, 'static', 'js', 'fohoe-and-safecount.js')],
                              capture_output=True, text=True, check=True)
-        self.assertEqual(json.loads(out.stdout), {'nobody': False, 'member': True, 'trainer': True, 'lead': False,
+        self.assertEqual(json.loads(out.stdout), {'nobody': True, 'signedOut': True, 'member': True, 'trainer': True, 'lead': False,
                                                   'admin': False, 'director': False, 'managerSession': False})
 
     def test_wiring(self):
@@ -49,6 +50,9 @@ class WhoSeesIt(unittest.TestCase):
         self.assertIn("|| (l.page === 'leaders' && typeof ltHidden === 'function' && ltHidden());", launch)
         self.assertIn('const here = group.filter(l => l.view === view && !hidden(l));', launch)   # the pill opens Zone Resets instead
         self.assertIn('body.lt-hidden #leaderTransitionCard{display:none !important;}', read('static', 'css', 'theme-cfa.css'))
+        # Signed out: a line says where they went, and opens the PIN pad.
+        self.assertIn("const showHint = group === LAUNCH_LISTS && typeof scSignedOut === 'function' && scSignedOut();", launch)
+        self.assertIn("if(e.target.closest('[data-launch-signin]')){", launch)
         self.assertIn('<div class="standup-card" id="leaderTransitionCard"', read('cfa-buda-ops-hub-complete.html'))
 
 

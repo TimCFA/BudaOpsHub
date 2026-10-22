@@ -281,16 +281,24 @@ let safeCountsDays = 1;      // how many days safeCountsToday covers
 function scIsLead(){ return typeof acUser !== 'undefined' && !!acUser && acUser.role === 'lead'; }
 
 // Team Members and Trainers don't see the Safe Count at all (Tim, Oct 20
-// 2026); a device nobody signed in on still does, since a leader may count
-// on a shared store device.
+// 2026), and neither does a device nobody signed in on (Tim, Oct 21 2026:
+// leader features stay off the shared iPads until a leader signs in with
+// their clock-in PIN).
 function scHidden(){
   if(typeof launchManager !== 'undefined' && launchManager) return false;
-  return typeof acUser !== 'undefined' && !!acUser && ['member', 'trainer'].includes(acUser.role);
+  if(typeof acUser === 'undefined' || !acUser) return true;
+  return ['member', 'trainer'].includes(acUser.role);
+}
+function scSignedOut(){
+  return !(typeof launchManager !== 'undefined' && launchManager) && !(typeof acUser !== 'undefined' && acUser);
 }
 // The Leader Transition List is a Team Lead and above item (Tim, Oct 20
-// 2026): hidden from the same people as the Safe Count.
+// 2026): hidden from the same people as the Safe Count, a signed-out
+// device included.
 function ltHidden(){ return scHidden(); }
 function scSyncVisibility(){
+  if(typeof fmSync === 'function') fmSync();   // Forms: leader forms, Submissions
+  if(typeof hcSyncTab === 'function') hcSyncTab();   // Our Team: directors and the Admin Team
   const hide = scHidden();
   document.body.classList.toggle('sc-hidden', hide);
   document.body.classList.toggle('lt-hidden', ltHidden());

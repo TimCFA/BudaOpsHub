@@ -31,6 +31,7 @@ const DIR_PEA_DAYS = 14;        // a leader or team member past this many days s
 const DIR_PEA_COUNT_DAYS = 30;  // PEAs given in this many days, per leader
 const DIR_GAP_MIN = 30;         // a leader-less stretch shorter than this isn't a gap
 const DIR_CLOSE_MIN = 21 * 60 + 30;   // a leader on until here counts as closing
+const DIR_DAY_START_MIN = 5 * 60 + 30; // the store's first scheduled start: no leader gap is counted before it (Tim, Oct 21 2026)
 
 let dirWeekOffset = 0;   // 0 = this week, 1 = next
 // Four destinations, one level (Tim, Oct 19 2026): Brief, People (the
@@ -103,12 +104,14 @@ function dirDirectorShifts(iso){
   return (Array.isArray(adminShifts[iso]) ? adminShifts[iso] : []).filter(s => dirIsDirector(s.name)).map(s => ({...s, span: dirSpan(s)})).filter(s => s.span);
 }
 
-// Stretches of the day's open hours (first shift start to last shift end)
-// with no leader on: [{start, end}] in minutes.
+// Stretches of the day's open hours (first shift start, never before 5:30,
+// to last shift end) with no leader on: [{start, end}] in minutes. A shift
+// imported at 5:00 (Saturday, Oct 24 2026) isn't a leader gap: the leaders'
+// day starts at 5:30.
 function dirLeaderGaps(iso){
   const floor = dirFloor(iso);
   if(!floor.length) return [];
-  const open = {start: Math.min(...floor.map(p => p.span.start)), end: Math.max(...floor.map(p => p.span.end))};
+  const open = {start: Math.max(DIR_DAY_START_MIN, Math.min(...floor.map(p => p.span.start))), end: Math.max(...floor.map(p => p.span.end))};
   const spans = floor.filter(p => p.leader).map(p => p.span).sort((a, b) => a.start - b.start);
   const gaps = [];
   let at = open.start;

@@ -254,6 +254,11 @@ class HeadcountTest(unittest.TestCase):
     def test_page_wiring(self):
         page = read('cfa-buda-ops-hub-complete.html')
         self.assertIn('<div class="view" id="headcountView">', page)
+        # A tab of its own for those who can open it (Tim, Oct 21 2026: no clean way to the permit dates).
+        self.assertIn('<button type="button" class="tab hc-only" role="tab" aria-selected="false" aria-controls="headcountView" data-view="headcount">Our Team', page)
+        self.assertIn("document.body.classList.toggle('hc-allowed', hcAllowed());", read('static', 'js', 'headcount.js'))
+        self.assertIn("if(typeof hcSyncTab === 'function') hcSyncTab();", read('static', 'js', 'fohoe-and-safecount.js'))
+        self.assertIn('body:not(.hc-allowed) .hc-only{display:none !important;}', read('static', 'css', 'theme-cfa.css'))
         self.assertIn('<script src="/static/js/headcount.js"></script>', page)
         nav = read('static', 'js', 'navigation.js')
         self.assertIn("if(view === 'headcount' && !(typeof hcAllowed === 'function' && hcAllowed())) view = 'home';", nav)

@@ -122,7 +122,7 @@ class Page(unittest.TestCase):
     def test_wired_into_manage_events(self):
         with open(os.path.join(ROOT, 'cfa-buda-ops-hub-complete.html'), encoding='utf-8') as f:
             page = f.read()
-        events = page[page.index('data-manage-tab="events"'):page.index('data-manage-tab="scoreboards"')]
+        events = page[page.index('data-manage-tab="calendar"'):].split('</section>')[0]   # Manage → Calendar (Tim, Oct 21 2026)
         self.assertLess(events.index('id="eventsImportRoot"'), events.index('id="eventsManageRoot"'))
         self.assertLess(page.index('/static/js/events.js'), page.index('/static/js/events-import.js'))
 

@@ -117,6 +117,12 @@ class Week(unittest.TestCase):
         got = run("c => { fohRoster = {'2026-10-13': [{name: 'Noah Bennett', start: '6:00a', end: '2:00p'}]}; return dirLeaderGaps('2026-10-13'); }")
         self.assertEqual(got, [{'start': 6 * 60, 'end': 14 * 60}])
 
+    def test_no_gap_before_the_days_first_scheduled_start(self):
+        # Tim, Oct 21 2026: one Saturday shift was imported at 5:00; the leaders' day starts at 5:30.
+        got = run("c => { fohRoster = {'2026-10-24': [{name: 'A', start: '5:30a', end: '2:00p', leader: true}, {name: 'B', start: '1:45p', end: '10:00p', leader: true}]}; bohRoster = {'2026-10-24': [{name: 'C', start: '5:00a', end: '2:30p'}]}; return [dirLeaderGaps('2026-10-24'), (bohRoster['2026-10-24'][0].start = '6:00a', fohRoster['2026-10-24'][0].start = '7:00a', dirLeaderGaps('2026-10-24'))]; }")
+        self.assertEqual(got[0], [])
+        self.assertEqual(got[1], [{'start': 6 * 60, 'end': 7 * 60}])   # a real gap after 5:30 still shows
+
     def test_short_gaps_are_ignored(self):
         got = run("c => { fohRoster = {'2026-10-13': [{name: 'A', start: '6:00a', end: '2:00p', leader: true}, {name: 'B', start: '2:15p', end: '10:00p', leader: true}]}; return dirLeaderGaps('2026-10-13'); }")
         self.assertEqual(got, [])

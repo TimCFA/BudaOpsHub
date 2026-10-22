@@ -23,6 +23,7 @@ from pea_parser import parse_pea_pdf, PeaParseError
 from pin_report import read_pin_report, PinReportError
 from permit_sheet import read_permit_sheet, PermitSheetError
 from analytics_pdf import read_analytics_pdf, AnalyticsPdfError
+import forms_api
 from reports_parser import parse_report_file, ReportParseError
 import levelset_sync
 from state_patch import PatchError, apply_ops, canon, check_ops, union_merge
@@ -1538,9 +1539,11 @@ def safe_counts_today():
     the opening count before doing the transition one. The full log stays
     manager-only (TIM-48): only today (by the store's calendar, give or take
     a day for time zones) can be asked for."""
-    # Team Members and Trainers don't see the Safe Count (Tim, Oct 20 2026).
-    if not session.get('manager') and (session.get('user') or {}).get('role') in ('member', 'trainer'):
-        return jsonify({'error': 'The Safe Count is for leaders.'}), 403
+    # Team Members and Trainers don't see the Safe Count (Tim, Oct 20 2026),
+    # nor does a device nobody signed in on (Tim, Oct 21 2026).
+    role = (session.get('user') or {}).get('role')
+    if not session.get('manager') and (not role or role in ('member', 'trainer')):
+        return jsonify({'error': 'The Safe Count is for leaders. Sign in with your clock-in PIN.'}), 403
     try:
         day = date.fromisoformat(request.args.get('date', ''))
     except ValueError:
@@ -2110,6 +2113,9 @@ def not_found(e):
 @app.errorhandler(500)
 def server_error(e):
     return jsonify({'error': 'Internal server error'}), 500
+
+# ===== FORMS (forms_api.py; Tim, Oct 21 2026) =====
+forms_api.register(app, _client_ip)
 
 # ===== START SERVER =====
 

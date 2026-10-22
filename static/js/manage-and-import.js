@@ -78,7 +78,11 @@ document.getElementById('btnLock').addEventListener('click', async ()=>{
 // chips at the top pick one section and only it shows; the device remembers
 // the last one picked.
 const MANAGE_TAB_KEY = 'cfaBudaManageTab';
+// The chips took the main tabs' names (Tim, Oct 21 2026); a device that
+// last had an older one open lands on where its cards went.
+const MANAGE_TAB_RENAMED = {numbers: 'forecast', events: 'calendar', scoreboards: 'experience', talent: 'experience', pea: 'directors'};
 function manageShowTab(key){
+  key = MANAGE_TAB_RENAMED[key] || key;
   const groups = [...document.querySelectorAll('#manageContent .manage-group')];
   if(!groups.some(g => g.dataset.manageTab === key)) key = 'uploads';
   groups.forEach(g => g.classList.toggle('is-active', g.dataset.manageTab === key));
@@ -88,6 +92,7 @@ function manageShowTab(key){
     b.setAttribute('aria-selected', on);
   });
   try{ localStorage.setItem(MANAGE_TAB_KEY, key); }catch(err){ /* private mode */ }
+  if(key === 'forms' && typeof renderFormsManage === 'function') renderFormsManage();
 }
 function manageCurrentTab(){
   try{ return localStorage.getItem(MANAGE_TAB_KEY) || 'uploads'; }catch(err){ return 'uploads'; }
