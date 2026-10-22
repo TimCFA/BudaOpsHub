@@ -51,12 +51,29 @@ function launchSubnavRender(view){
   const nav = root.querySelector('[data-launch-subnav]');
   if(!nav) return;
   const shown = group.filter(l => !hidden(l));
+  // A device nobody signed in on: say where Leader Transition and Safe Count went.
+  let hint = nav.nextElementSibling && nav.nextElementSibling.classList.contains('launch-signin-hint') ? nav.nextElementSibling : null;
+  const showHint = group === LAUNCH_LISTS && typeof scSignedOut === 'function' && scSignedOut();
+  if(showHint && !hint){
+    hint = document.createElement('p');
+    hint.className = 'launch-signin-hint';
+    hint.innerHTML = `Team Leads: <button type="button" data-launch-signin>sign in with your clock-in PIN</button> for Leader Transition and Safe Count.${esLine('Leads sign in hint')}`;
+    nav.after(hint);
+  }
+  if(hint) hint.hidden = !showHint;
   nav.innerHTML = shown.map(l => {
     const on = l.view === view && (l.page || '') === page;
     return `<button type="button" class="launch-pill ${on ? 'active' : ''}" aria-current="${on ? 'page' : 'false'}" data-launch-go="${l.view}" data-launch-pick="${l.page || ''}">${l.label}<span>${l.sub}</span></button>`;
   }).join('');
 }
 document.addEventListener('click', e=>{
+  if(e.target.closest('[data-launch-signin]')){
+    launchShowTab('manage');
+    window.scrollTo({top: 0});
+    const pin = document.getElementById('pinInput');
+    if(pin) pin.focus();
+    return;
+  }
   const go = e.target.closest('[data-launch-go]');
   if(go){ launchListPage = go.dataset.launchPick || null; launchShowTab(go.dataset.launchGo); window.scrollTo({top: 0}); }
 });

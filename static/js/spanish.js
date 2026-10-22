@@ -172,6 +172,9 @@ const ES = {
   'No waste logged yet today': 'Todavía no hay desperdicio hoy',
   'Export CSV': 'Exportar CSV',
 
+  // ----- Lists -----
+  'Leads sign in hint': 'Líderes de equipo: inicia sesión con tu PIN para la Transición de Líderes y el Conteo de la Caja Fuerte.',
+
   // ----- Food Safety -----
   'Complete': 'Completo',
   'In progress': 'En progreso',

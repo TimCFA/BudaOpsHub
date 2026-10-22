@@ -270,3 +270,4 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .fsf-n{color:var(--ink-red);}
 :where(html[data-theme="dark"]) .fm-q-head > b{color:var(--ink-red);}
 :where(html[data-theme="dark"]) .fm-err{color:var(--ink-red);}
+:where(html[data-theme="dark"]) .launch-signin-hint button{color:var(--ink-red);}

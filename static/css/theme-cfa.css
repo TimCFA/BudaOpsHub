@@ -2245,3 +2245,9 @@ button.fs-history-row:hover > span:first-child{color:var(--cfa-red);}
   body.launch-mode .tabs::-webkit-scrollbar{display:none;}
   body.launch-mode .tab{flex:0 0 auto;padding:12px 10px;}
 }
+
+/* Lists on a device nobody signed in on: where Leader Transition and Safe
+   Count went (launch-mode.js; Tim, Oct 21 2026). */
+.launch-signin-hint{margin:-4px 0 14px;font-family:var(--font-ui);font-size:13px;color:var(--text-secondary);}
+.launch-signin-hint button{padding:0;border:0;background:none;color:var(--cfa-red);font:inherit;font-weight:700;text-decoration:underline;text-underline-offset:2px;cursor:pointer;}
+.launch-signin-hint .es-line{display:block;margin-top:2px;}
