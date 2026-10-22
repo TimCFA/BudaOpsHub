@@ -30,8 +30,17 @@ function hcAllowed(){
 
 // The Our Team tab shows to those who can open it (Tim, Oct 21 2026: there
 // was no clean way to the permit dates).
+// Loaded ahead once the tab shows (Tim, Oct 22 2026: it should open at once),
+// and dropped at sign-out so a shared iPad doesn't keep it.
 function hcSyncTab(){
-  document.body.classList.toggle('hc-allowed', hcAllowed());
+  const ok = hcAllowed();
+  document.body.classList.toggle('hc-allowed', ok);
+  if(!ok){ hcData = null; return; }
+  if(!hcData) hcWhenIdle(() => hcLoad());
+}
+function hcWhenIdle(fn){
+  if(typeof requestIdleCallback === 'function') requestIdleCallback(fn, {timeout: 2000});
+  else setTimeout(fn, 300);
 }
 
 async function hcLoad(force){
@@ -41,7 +50,8 @@ async function hcLoad(force){
   try{
     const res = await fetch(`${API_BASE}/api/team/headcount`, {cache: 'no-store'});
     if(!res.ok) throw new Error(String(res.status));
-    hcData = await res.json();
+    const data = await res.json();
+    hcData = hcAllowed() ? data : null;     // signed out while it loaded
     hcFailedAt = 0;
   }catch(err){
     hcFailedAt = Date.now();

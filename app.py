@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta, timezone
 from collections import Counter, defaultdict
+from concurrent.futures import ThreadPoolExecutor
 import base64
 import gzip
 import hashlib
@@ -795,6 +796,15 @@ def _turnover_today():
     return datetime.now(levelset_sync.STORE_TZ).date().isoformat()
 
 
+_firebase_pool = ThreadPoolExecutor(max_workers=4)
+
+
+def _firebase_get_all(*paths):
+    """Read several Firebase paths at once: the time of one trip, not one per
+    path. A failed read raises, as a single read would."""
+    return [f.result() for f in [_firebase_pool.submit(lambda p=p: db.reference(p).get()) for p in paths]]
+
+
 def _turnover_key(name):
     return re.sub(r'\s+', ' ', str(name or '')).strip().lower()
 
@@ -852,8 +862,10 @@ def _turnover_after_pins(before, after, source, directors=None):
 
 
 def _turnover_out():
-    data = db.reference(TURNOVER_PATH).get() or {}
-    pins = db.reference(TEAM_PINS_PATH).get() or {}
+    # The three reads at once, not one after another (Our Team opened slowly;
+    # Tim, Oct 22 2026).
+    data, pins, profiles = _firebase_get_all(TURNOVER_PATH, TEAM_PINS_PATH, PROFILES_PATH)
+    data, pins, profiles = data or {}, pins or {}, profiles or {}
     counts = data.get('counts') or {}
     last = counts[max(counts)] if counts else {}
     team = [{'name': v.get('name'), 'role': v.get('role') or 'member'} for v in pins.values() if isinstance(v, dict) and v.get('name')]
@@ -868,7 +880,7 @@ def _turnover_out():
             'names': sorted(p['name'] for p in team),
             'team': sorted(team, key=lambda p: _turnover_key(p['name'])),
             'types': [{'id': k, 'label': v} for k, v in DEPARTURE_TYPES.items()],
-            'profiles': sorted((v for v in (db.reference(PROFILES_PATH).get() or {}).values() if isinstance(v, dict) and v.get('name')),
+            'profiles': sorted((v for v in profiles.values() if isinstance(v, dict) and v.get('name')),
                                key=lambda p: _turnover_key(p['name']))}
 
 
@@ -2069,12 +2081,12 @@ def health_read():
     if not session.get('manager'):
         return jsonify({'error': 'Manager sign-in required'}), 403
     today = date.fromisoformat(_health_today())
-    days = {}
+    week = [(today - timedelta(days=n)).isoformat() for n in range(7)]
     try:
-        for n in range(7):
-            day = (today - timedelta(days=n)).isoformat()
-            rec = db.reference(f'{HEALTH_PATH}/{day}').get()
-            days[day] = rec if isinstance(rec, dict) else {}
+        # The week in one read (days are keyed by date), not one per day:
+        # seven trips to Firebase made Health slow to open (Tim, Oct 22 2026).
+        got = db.reference(HEALTH_PATH).order_by_key().start_at(week[-1]).end_at(week[0]).get() or {}
+        days = {day: got[day] if isinstance(got.get(day), dict) else {} for day in week}
     except Exception as e:
         print(f'[HEALTH] read failed: {e}')
         return jsonify({'error': 'Could not read the counts'}), 500

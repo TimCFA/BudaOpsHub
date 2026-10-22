@@ -75,8 +75,17 @@ function dirSpan(p){
 const dirClock = m => { const h = Math.floor(m / 60) % 24, mm = m % 60; const ap = h >= 12 ? 'p' : 'a'; return `${h % 12 || 12}${mm ? ':' + String(mm).padStart(2, '0') : ''}${ap}`; };
 const dirOverlap = (a, b) => a && b && a.start < b.end && b.start < a.end;
 
-// Everyone on the floor that day: {name, section, leader, span}.
+// Everyone on the floor that day: {name, section, leader, span}. Worked out
+// once per day while the page draws (dirMemo), not once per question asked
+// of it: it took a third of a second on a phone (Oct 22 2026).
+let dirMemo = null;
 function dirFloor(iso){
+  if(dirMemo && dirMemo.floor.has(iso)) return dirMemo.floor.get(iso);
+  const out = dirFloorFresh(iso);
+  if(dirMemo) dirMemo.floor.set(iso, out);
+  return out;
+}
+function dirFloorFresh(iso){
   const out = [];
   [['foh', fohRoster[iso]], ['boh', bohRoster[iso]]].forEach(([section, list]) => {
     (Array.isArray(list) ? list : []).forEach(p => { const span = dirSpan(p); if(span) out.push({name: p.name, section, leader: !!p.leader || dirOnLeaderList(p.name), span}); });
@@ -94,6 +103,12 @@ function dirLeaders(iso){ return dirFloor(iso).filter(p => p.leader); }
 // notes) isn't a roster leader here: it made most of the floor "leaders"
 // (28 of 38 one Monday; Tim, Oct 18 2026).
 function dirOnLeaderList(name){
+  if(dirMemo && dirMemo.leader.has(name)) return dirMemo.leader.get(name);
+  const on = dirOnLeaderListFresh(name);
+  if(dirMemo) dirMemo.leader.set(name, on);
+  return on;
+}
+function dirOnLeaderListFresh(name){
   const list = (Array.isArray(leaderRoster) ? leaderRoster : []).map(r => r && r.name ? String(r.name).trim() : '').filter(Boolean);
   if(!list.length || !name) return false;
   const k = dirKey(name);
@@ -258,6 +273,10 @@ function dirTimelineHtml(iso, leaders, dirs, gaps){
 }
 
 function renderDirectorsView(){
+  dirMemo = {floor: new Map(), leader: new Map()};
+  try{ dirRender(); }finally{ dirMemo = null; }
+}
+function dirRender(){
   const root = document.getElementById('directorsRoot');
   if(!root) return;
   if(!dirShown()){ root.innerHTML = ''; return; }

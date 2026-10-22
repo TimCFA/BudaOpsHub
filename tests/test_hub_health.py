@@ -39,6 +39,31 @@ class FakeRef:
     def delete(self):
         store.pop(self.path, None)
 
+    def order_by_key(self):
+        return KeyRange(self.path)
+
+
+class KeyRange:
+    """Firebase's order_by_key().start_at().end_at(): one read of a range of
+    children, counted in `reads`."""
+    reads = []
+
+    def __init__(self, path):
+        self.path, self.lo, self.hi = path, None, None
+
+    def start_at(self, v):
+        self.lo = v
+        return self
+
+    def end_at(self, v):
+        self.hi = v
+        return self
+
+    def get(self):
+        KeyRange.reads.append(self.path)
+        kids = FakeRef(self.path).get() or {}
+        return {k: v for k, v in kids.items() if self.lo <= k <= self.hi} or None
+
 
 appmod.app.config['SESSION_COOKIE_SECURE'] = False
 
@@ -196,6 +221,25 @@ class Read(Base):
         self.assertEqual(body['build'], appmod.BUILD)
         self.assertEqual(body['liveSince'], appmod.STARTED_AT)
         self.assertEqual(self.pending(), {'saves': 2})            # reading doesn't change the counts
+
+    def test_the_week_is_one_read(self):
+        # Seven reads one after another made Health slow to open (Oct 22 2026).
+        old = (date.fromisoformat(self.day) - timedelta(days=7)).isoformat()
+        store[f'health/{old}'] = {'visits': 99}                   # a day before the week
+        with self.c.session_transaction() as sess:
+            sess['manager'] = True
+        calls = []
+        real = FakeRef.get
+        FakeRef.get = lambda ref: calls.append(ref.path) or real(ref)
+        KeyRange.reads.clear()
+        try:
+            body = self.c.get('/api/health').get_json()
+        finally:
+            FakeRef.get = real
+        self.assertEqual(KeyRange.reads, ['health'])
+        self.assertEqual(calls, ['health'])                       # the range read's own children, nothing day by day
+        self.assertEqual(len(body['days']), 7)
+        self.assertNotIn(old, body['days'])
 
 
 class PageWiring(unittest.TestCase):
