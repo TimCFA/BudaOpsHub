@@ -14,7 +14,13 @@ let hhVisitSent = false;
 function hhNoteView(view){
   if(!/^[a-z]{2,20}$/.test(view)) return;
   hhViews[view] = (hhViews[view] || 0) + 1;
-  if(view === 'manage' && typeof manageCurrentTab === 'function' && manageCurrentTab() === 'health') hhLoad();
+  if(view !== 'manage') return;
+  if(typeof manageCurrentTab === 'function' && manageCurrentTab() === 'health') hhLoad();
+  // Loaded ahead on the way into Manage, so Health opens at once (Tim, Oct 22 2026).
+  else if(typeof launchManager !== 'undefined' && launchManager && Date.now() - hhAt > 60000){
+    if(typeof requestIdleCallback === 'function') requestIdleCallback(() => hhLoad(), {timeout: 2000});
+    else setTimeout(hhLoad, 300);
+  }
 }
 
 function hhRole(){
@@ -58,7 +64,7 @@ const HH_VIEW_LABELS = {home: 'Home', positions: 'Set Ups', wastelog: 'Waste', s
   foodsafety: 'Food Safety', safecount: 'Safe Count', prepboard: 'Prep Board', calendar: 'Calendar', manage: 'Manage',
   directors: 'Directors', forecast: 'Forecast', uniforms: 'Uniforms', tx: 'TX', lx: 'LX'};
 const HH_ROLE_LABELS = {member: 'Team Members', trainer: 'Trainers', lead: 'Team Leads', admin: 'Admin Team', director: 'Directors', manager: 'Manager PIN', none: 'not signed in'};
-let hhData = null, hhBusy = false, hhError = '';
+let hhData = null, hhBusy = false, hhError = '', hhAt = 0;
 
 async function hhLoad(){
   if(hhBusy) return;
@@ -67,6 +73,7 @@ async function hhLoad(){
     const res = await fetch(`${API_BASE}/api/health`);
     if(!res.ok) throw new Error(res.status === 403 ? 'Sign in with the manager PIN or a director account.' : 'Couldn’t read the counts. Try again in a moment.');
     hhData = await res.json();
+    hhAt = Date.now();
     hhError = '';
   }catch(err){
     hhError = err.message || 'Couldn’t reach the hub.';

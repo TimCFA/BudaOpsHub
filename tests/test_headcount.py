@@ -118,6 +118,30 @@ class HeadcountTest(unittest.TestCase):
         self.assertTrue(appmod.TURNOVER_PATH.startswith('secure/'))
         self.assertNotIn('teamTurnover', repr(appmod.STATE_SECTIONS))
 
+    def test_the_reads_go_at_once(self):
+        # Our Team opened slowly: three Firebase reads one after another
+        # (Tim, Oct 22 2026). Each read here takes 0.2 s; together, one trip.
+        import threading
+        import time
+        self.upload(TEAM)
+        real, seen = FakeRef.get, set()
+
+        def slow(ref):
+            seen.add(threading.get_ident())
+            time.sleep(0.2)
+            return real(ref)
+        FakeRef.get = slow
+        try:
+            t = time.monotonic()
+            r = self.get()
+            took = time.monotonic() - t
+        finally:
+            FakeRef.get = real
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.get_json()['now']['team'], 4)
+        self.assertLess(took, 0.5)
+        self.assertGreater(len(seen), 1)
+
     def test_the_count_comes_from_the_pin_report(self):
         self.upload(TEAM)
         d = self.get().get_json()
@@ -256,7 +280,12 @@ class HeadcountTest(unittest.TestCase):
         self.assertIn('<div class="view" id="headcountView">', page)
         # A tab of its own for those who can open it (Tim, Oct 21 2026: no clean way to the permit dates).
         self.assertIn('<button type="button" class="tab hc-only" role="tab" aria-selected="false" aria-controls="headcountView" data-view="headcount">Our Team', page)
-        self.assertIn("document.body.classList.toggle('hc-allowed', hcAllowed());", read('static', 'js', 'headcount.js'))
+        js = read('static', 'js', 'headcount.js')
+        self.assertIn("document.body.classList.toggle('hc-allowed', ok);", js)
+        # Loaded ahead when the tab shows; dropped at sign-out (Oct 22 2026).
+        self.assertIn("if(!ok){ hcData = null; return; }", js)
+        self.assertIn("if(!hcData) hcWhenIdle(() => hcLoad());", js)
+        self.assertIn("hcData = hcAllowed() ? data : null;", js)
         self.assertIn("if(typeof hcSyncTab === 'function') hcSyncTab();", read('static', 'js', 'fohoe-and-safecount.js'))
         self.assertIn('body:not(.hc-allowed) .hc-only{display:none !important;}', read('static', 'css', 'theme-cfa.css'))
         self.assertIn('<script src="/static/js/headcount.js"></script>', page)
