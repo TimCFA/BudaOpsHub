@@ -2251,3 +2251,13 @@ button.fs-history-row:hover > span:first-child{color:var(--cfa-red);}
 .launch-signin-hint{margin:-4px 0 14px;font-family:var(--font-ui);font-size:13px;color:var(--text-secondary);}
 .launch-signin-hint button{padding:0;border:0;background:none;color:var(--cfa-red);font:inherit;font-weight:700;text-decoration:underline;text-underline-offset:2px;cursor:pointer;}
 .launch-signin-hint .es-line{display:block;margin-top:2px;}
+
+/* Our Team tab: directors, the manager PIN and the Admin Team (headcount.js hcSyncTab). */
+body:not(.hc-allowed) .hc-only{display:none !important;}
+/* With it, the Admin Team's simplified site has seven tabs: on a phone the
+   row scrolls sideways rather than squeezing the labels into each other. */
+@media (max-width:600px){
+  body.launch-mode.hc-allowed .tabs{overflow-x:auto;scrollbar-width:none;}
+  body.launch-mode.hc-allowed .tabs::-webkit-scrollbar{display:none;}
+  body.launch-mode.hc-allowed .tab{flex:0 0 auto;padding:12px 10px;}
+}
