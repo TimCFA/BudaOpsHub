@@ -169,6 +169,7 @@ class Inbox(Base):
         self.hr = self.send(client(), 'ask_hr', {'store': 'buda', 'name': 'Jordan Testcase', 'topic': 'payroll', 'question': 'Pay stub?'},
                             {'attachment': [png()]}).get_json()['id']
         self.injury = self.send(client(), 'injury_report', {'store': 'west_buda', 'name': 'Riley Sample'}, store='west_buda').get_json()['id']
+        self.harass = self.send(client(), 'harassment_report', {'anonymous': True, 'what': 'x'}).get_json()['id']
 
     def ids(self, c, q=''):
         r = c.get('/api/forms/submissions' + q)
@@ -177,10 +178,13 @@ class Inbox(Base):
     def test_who_reads_what(self):
         self.assertEqual(self.ids(client())[0], 403)
         self.assertEqual(self.ids(client(**LEAD))[0], 403)
-        self.assertEqual(self.ids(client(**ADMIN)), (200, [self.hr]))                     # not the sensitive one
+        # Injury reports: directors and the Admin Team (Tim, Oct 22 2026); harassment: directors only.
+        self.assertEqual(sorted(self.ids(client(**ADMIN))[1]), sorted([self.hr, self.injury]))
         self.assertEqual(self.ids(client(**MANAGER)), (200, [self.hr]))
-        self.assertEqual(sorted(self.ids(client(**DIRECTOR))[1]), sorted([self.hr, self.injury]))
-        self.assertEqual(client(**ADMIN).get(f'/api/forms/submission/injury_report/{self.injury}').status_code, 403)
+        self.assertEqual(sorted(self.ids(client(**DIRECTOR))[1]), sorted([self.hr, self.injury, self.harass]))
+        self.assertEqual(client(**ADMIN).get(f'/api/forms/submission/injury_report/{self.injury}').status_code, 200)
+        self.assertEqual(client(**ADMIN).get(f'/api/forms/submission/harassment_report/{self.harass}').status_code, 403)
+        self.assertEqual(client(**MANAGER).get(f'/api/forms/submission/injury_report/{self.injury}').status_code, 403)
         self.assertEqual(client(**DIRECTOR).get(f'/api/forms/submission/injury_report/{self.injury}').status_code, 200)
         self.assertEqual(self.ids(client(**DIRECTOR), '?store=west_buda'), (200, [self.injury]))
 
@@ -194,7 +198,7 @@ class Inbox(Base):
         self.assertEqual(r.status_code, 200)
         sub = client(**ADMIN).get(f'/api/forms/submission/ask_hr/{self.hr}').get_json()
         self.assertEqual((sub['status'], sub['history'][-1]['note'], sub['history'][-1]['by']), ('done', 'Sent the stub', 'Avery Office'))
-        self.assertEqual(self.ids(client(**ADMIN), '?status=new'), (200, []))
+        self.assertEqual(self.ids(client(**ADMIN), '?status=new'), (200, [self.injury]))   # the HR question is done
         self.assertEqual(client(**ADMIN).post(f'/api/forms/submission/ask_hr/{self.hr}/status', json={'status': 'x'}).status_code, 400)
 
 

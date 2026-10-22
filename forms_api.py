@@ -14,8 +14,8 @@ hub. The page draws every form from static/forms/form-definitions.js
   POST /definitions                      add or change one (a manager session)
 
 Who reads what: the inbox is for directors, the manager PIN and the Admin
-Team; the three sensitive forms (harassment, injury, separation) only for a
-director. Nothing here is reachable through the state proxy: submissions,
+Team; the sensitive forms only for a director, except injury reports, which
+the Admin Team reads too. Nothing here is reachable through the state proxy: submissions,
 files and added forms live under forms/ in Firebase, written only by these
 routes.
 
@@ -73,9 +73,17 @@ def _inbox_reader():
         return 'director' if session.get('director') else 'manager'
     return 'admin' if _user().get('role') == 'admin' else None
 
-def _can_read(meta):
+# Sensitive forms the Admin Team reads too (Tim, Oct 22 2026: injury reports
+# go to directors and admin); the other sensitive ones stay with directors.
+ADMIN_READS_SENSITIVE = ('injury_report',)
+
+def _can_read(meta, form_id=''):
     who = _inbox_reader()
-    return bool(who) and (not meta.get('sensitive') or who == 'director')
+    if not who:
+        return False
+    if not meta.get('sensitive') or who == 'director':
+        return True
+    return who == 'admin' and form_id in ADMIN_READS_SENSITIVE
 
 
 # ----- forms -----
@@ -301,7 +309,7 @@ def register(app, client_ip):
         items = []
         for form_id, recs in (allforms.items() if isinstance(allforms, dict) else []):
             meta = _meta(form_id)
-            if not meta or not _can_read(meta) or (want_form and form_id != want_form) or not isinstance(recs, dict):
+            if not meta or not _can_read(meta, form_id) or (want_form and form_id != want_form) or not isinstance(recs, dict):
                 continue
             for r in recs.values():
                 if not isinstance(r, dict):
@@ -320,7 +328,7 @@ def register(app, client_ip):
         meta = _meta(form_id) if ID_RE.match(form_id) else None
         if not meta or not SUB_ID_RE.match(sub_id):
             return None, None, (jsonify({'error': 'Not found'}), 404)
-        if not _can_read(meta):
+        if not _can_read(meta, form_id):
             return None, None, (jsonify({'error': 'Not allowed'}), 403)
         rec = db.reference(f'{SUBS}/{form_id}/{sub_id}').get()
         if not isinstance(rec, dict):
