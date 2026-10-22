@@ -1962,6 +1962,8 @@ HEALTH_FLUSH_SECONDS = 30 * 60
 HEALTH_READY_SAMPLES = 300           # load times kept per day
 HEALTH_ROLES = ('none', 'member', 'trainer', 'lead', 'admin', 'director', 'manager')
 HEALTH_VIEW_RE = re.compile(r'^[a-z]{2,20}$')
+HEALTH_OPEN_SAMPLES = 100           # tab open times kept per tab per day
+HEALTH_OPENS_PER_NOTE = 20
 STARTED_AT = int(time.time() * 1000)
 _health_lock = threading.Lock()
 _health_pending = {}                 # {date: counts not yet in Firebase}
@@ -1980,6 +1982,10 @@ def _health_add(into, delta):
     for k, v in delta.items():
         if k == 'ready':
             into['ready'] = ((into.get('ready') or []) + list(v))[-HEALTH_READY_SAMPLES:]
+        elif k == 'opens':
+            sub = into.setdefault('opens', {})
+            for view, times in v.items():
+                sub[view] = ((sub.get(view) or []) + list(times))[-HEALTH_OPEN_SAMPLES:]
         elif k == 'lastSaveAt':
             into[k] = max(into.get(k) or 0, v or 0)
         elif isinstance(v, dict):
@@ -2069,6 +2075,18 @@ def health_visit():
                  if isinstance(k, str) and HEALTH_VIEW_RE.match(k) and isinstance(n, int) and n > 0}
         if clean:
             delta['views'] = clean
+    # How long each tab took from the tap to its content (ms), for Slowest tabs.
+    opens = body.get('opens')
+    if isinstance(opens, dict):
+        clean = {}
+        for k, times in list(opens.items())[:30]:
+            if isinstance(k, str) and HEALTH_VIEW_RE.match(k) and isinstance(times, list):
+                ok = [int(t) for t in times[:HEALTH_OPENS_PER_NOTE]
+                      if isinstance(t, (int, float)) and not isinstance(t, bool) and 0 <= t < 60000]
+                if ok:
+                    clean[k] = ok
+        if clean:
+            delta['opens'] = clean
     if delta:
         _health_note(delta)
     return jsonify({'success': True})

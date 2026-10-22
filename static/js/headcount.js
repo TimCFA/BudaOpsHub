@@ -57,7 +57,10 @@ async function hcLoad(force){
     hcFailedAt = Date.now();
   }
   hcLoading = false;
-  if(document.getElementById('headcountView').classList.contains('active')) renderHeadcountView();
+  if(document.getElementById('headcountView').classList.contains('active')){
+    renderHeadcountView();
+    if(hcData && typeof hhOpenArrived === 'function') hhOpenArrived('headcount');
+  }
   if(typeof renderRightNow === 'function') renderRightNow();
 }
 
