@@ -306,3 +306,5 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .tl-banner p{color:#FFCA70;}
 :where(html[data-theme="dark"]) .tl-error{color:var(--ink-dark-red);}
 :where(html[data-theme="dark"]) .tl-focus-edit{color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .lxq-cell.is-r1 small{color:var(--ink-red);}
+:where(html[data-theme="dark"]) .lxq-cell.is-r3 small{color:var(--ink-navy);}

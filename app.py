@@ -62,7 +62,7 @@ app.config.update(
 MANAGER_ONLY_KEYS = {
     'wasteTarget', 'safeTarget', 'products',
     'deletedProductIds', 'productFixesVersion', 'productCategoryOrder',
-    'lxPillars', 'lxMetrics', 'lxLastUpdated',
+    'lxPillars', 'lxMetrics', 'lxLastUpdated', 'lxQuarters',
     'gxData', 'txData', 'homeData', 'storeEvents', 'directors', 'leaderRoster', 'peaGoals',
     'peaRatings', 'peaNameAliases',
     'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData',
@@ -167,6 +167,8 @@ STATE_SECTIONS = {
     'cem': ['cemEntries'],
     'forecast': ['salesHistory', 'forecastSettings', 'forecastLog', 'daypartWeeks', 'laborByDaypart'],
     'orders': ['uniformOrders', 'uniformCatalog'],
+    # The LX board by quarter (lx-quarters.js; Tim, Oct 23 2026).
+    'lx': ['lxQuarters'],
     'points': ['pointsRecords', 'pointsUploads', 'pointsSettings', 'pointsTeam', 'pointsMemos'],
     'misc': [],
 }

@@ -766,6 +766,7 @@ const defaultMetrics = [
 let lxPillars = [];
 let lxMetrics = [];
 let lxLastUpdated = null;
+let lxQuarters = {};   // the LX board by quarter (lx-quarters.js)
 
 const defaultGXData = {
   wig: {

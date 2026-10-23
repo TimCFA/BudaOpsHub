@@ -835,7 +835,10 @@
 
       <div>
         <h2 class="sb-h2">Business Metrics</h2>
-        <table class="metrics-table" id="metricsTable"></table>
+        <!-- By quarter (lx-quarters.js): this quarter live, the last four, the year to date. -->
+        <div id="lxQuarterBar"></div>
+        <div id="lxLiveRoot"><table class="metrics-table" id="metricsTable"></table></div>
+        <div id="lxQuarterRoot" hidden></div>
       </div>
     </div>
   </div>
@@ -1190,6 +1193,7 @@
 <script src="/static/js/state-patch.js"></script>
 <script src="/static/js/storage.js"></script>
 <script src="/static/js/management-views.js"></script>
+<script src="/static/js/lx-quarters.js"></script>
 <script src="/static/js/scoreboards-and-eoi.js"></script>
 <script src="/static/js/navigation.js"></script>
 <script src="/static/js/waste-log.js"></script>

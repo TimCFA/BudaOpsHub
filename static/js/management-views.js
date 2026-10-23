@@ -31,7 +31,11 @@ function renderLXScoreboard(){
   const metricsTable = document.getElementById('metricsTable');
   // Values linked to uploads / the Guest Obsession score (report-uploads.js).
   // On a manager's page, keep the change (only a manager can save LX).
-  if(typeof rpSyncLx === 'function' && rpSyncLx() && typeof launchManager !== 'undefined' && launchManager) saveState();
+  // A quarter just ended is kept, and past quarters follow the CEM's OSAT (lx-quarters.js).
+  const linked = typeof rpSyncLx === 'function' && rpSyncLx();
+  const quarters = typeof lxQuartersSync === 'function' && typeof launchManager !== 'undefined' && launchManager && lxQuartersSync();
+  if((linked || quarters) && typeof launchManager !== 'undefined' && launchManager) saveState();
+  if(typeof lxRenderQuarterView === 'function') lxRenderQuarterView();
   const headerHtml = `
     <thead>
       <tr>

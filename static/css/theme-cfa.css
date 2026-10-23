@@ -2480,3 +2480,27 @@ body:not(.hc-allowed) .hc-only{display:none !important;}
 .tl-focus.is-folded{align-items:center;}
 .tl-focus-none{font-size:12px;color:var(--text-tertiary);}
 .tl-focus-edit{border:0;background:none;padding:4px 6px;min-height:30px;font-family:var(--font-ui);font-size:12.5px;font-weight:700;color:var(--cfa-navy);cursor:pointer;}
+
+/* LX by quarter (lx-quarters.js; Tim, Oct 23 2026): this quarter live, the last four, the year to date */
+.lxq-bar{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;}
+.lxq-chip{display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px;min-height:44px;padding:6px 14px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-white);color:var(--text-primary);font-family:var(--font-ui);font-size:14px;font-weight:700;cursor:pointer;}
+.lxq-chip small{font-size:11px;font-weight:600;color:var(--text-tertiary);}
+.lxq-chip[aria-pressed="true"]{background:var(--cfa-navy);border-color:var(--cfa-navy);color:#F6F1E8;}
+.lxq-chip[aria-pressed="true"] small{color:rgba(246,241,232,.75);}
+.lxq-note{margin:0 0 10px;font-size:13px;color:var(--text-secondary);}
+.lxq-src{display:block;margin-top:2px;font-size:11.5px;font-weight:500;color:var(--text-tertiary);}
+.lxq-none{color:var(--text-tertiary);}
+.lxq-input{width:100%;min-width:90px;min-height:40px;padding:6px 10px;border:1px solid var(--border);border-radius:10px;background:var(--cfa-white);font-family:var(--font-ui);font-size:15px;color:var(--text-primary);}
+.lxq-select{min-height:40px;padding:6px 8px;border:1px solid var(--border);border-radius:10px;background:var(--cfa-white);font-family:var(--font-ui);font-size:14px;color:var(--text-primary);}
+.lxq-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.lxq-ytd th small{font-weight:600;color:var(--text-tertiary);}
+.lxq-cell{white-space:nowrap;font-variant-numeric:tabular-nums;}
+.lxq-cell small{display:flex;align-items:center;gap:3px;margin-top:2px;font-size:11.5px;font-weight:700;}
+.lxq-cell.is-r1 small{color:var(--cfa-red);}
+.lxq-cell.is-r2 small{color:var(--ok);}
+.lxq-cell.is-r3 small{color:var(--cfa-navy);}
+.lxq-met b{font-family:var(--font-display);font-size:18px;font-weight:600;}
+.lxq-met small{display:block;font-size:11px;color:var(--text-tertiary);}
+.lxq-scroll{max-width:100%;}
+.lxq-scroll .metrics-table th,.lxq-scroll .metrics-table td{padding:10px 10px;}
+.lxq-past .lxq-input{min-width:120px;}
