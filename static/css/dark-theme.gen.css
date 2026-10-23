@@ -179,6 +179,11 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .dir-flags{color:var(--ink-dark-red);}
 :where(html[data-theme="dark"]) .dir-list-sm li.is-flag span:first-child{color:var(--ink-dark-red);}
 :where(html[data-theme="dark"]) .dir-x:hover{color:var(--ink-dark-red);}
+:where(html[data-theme="dark"]) .dir-needs .is-r0 .dir-need-ic,:where(html[data-theme="dark"]) .dir-needs .is-r1 .dir-need-ic{background:#342225;color:var(--ink-red);}
+:where(html[data-theme="dark"]) .dir-tile.is-flag{background:#2F2426;}
+:where(html[data-theme="dark"]) .dir-tile.is-flag .dir-tile-mark{color:var(--ink-red);}
+:where(html[data-theme="dark"]) .dir-tile.is-today .dir-tile-wd{color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .dir-strip-key svg{color:var(--ink-red);}
 :where(html[data-theme="dark"]) .ld-status.is-behind{background:#3B2023;color:var(--ink-dark-red);}
 :where(html[data-theme="dark"]) .ld-ring-fill{stroke:var(--ink-navy);}
 :where(html[data-theme="dark"]) .ld-ring.is-done .ld-ring-fill{stroke:var(--ink-red);}

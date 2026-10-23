@@ -1440,6 +1440,43 @@ body:not(.is-manager) .manager-only{display:none !important;}
 .dir-note-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--text-tertiary);}
 .dir-x{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:0;border-radius:16px;background:transparent;color:var(--text-tertiary);cursor:pointer;flex:none;}
 .dir-x:hover{background:var(--cfa-soft);color:var(--cfa-dark-red);}
+/* The brief (Tim, Oct 23 2026): what needs a director first, the week as tiles, the rest folded */
+.dir-needs{list-style:none;margin:0;padding:0;display:grid;gap:6px;}
+.dir-need{width:100%;display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-light);text-align:left;font-family:var(--font-ui);color:var(--text-primary);}
+button.dir-need{cursor:pointer;}
+button.dir-need:hover{border-color:var(--cfa-red);}
+.dir-need-ic{flex:none;display:grid;place-items:center;width:24px;height:24px;border-radius:999px;margin-top:1px;background:var(--cfa-soft);color:var(--text-secondary);}
+.dir-needs .is-r0 .dir-need-ic,.dir-needs .is-r1 .dir-need-ic{background:#FDECEF;color:var(--cfa-red);}
+.dir-need-tx{flex:1;min-width:0;display:grid;gap:2px;font-size:14.5px;}
+.dir-need-tx b{font-weight:700;}
+.dir-need-tx small{font-size:12.5px;color:var(--text-secondary);}
+.dir-allclear{display:flex;align-items:center;gap:8px;margin:0;padding:10px 12px;border-radius:12px;background:var(--ok-soft);color:var(--ok);font-size:14px;font-weight:600;}
+.dir-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(48px,1fr));gap:6px;}
+.dir-tile{display:grid;justify-items:center;gap:2px;min-height:84px;padding:8px 2px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-light);font-family:var(--font-ui);color:var(--text-primary);cursor:pointer;}
+.dir-tile-wd{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary);}
+.dir-tile b{font-family:var(--font-display);font-size:20px;font-weight:600;line-height:1.1;}
+.dir-tile-mark{display:grid;place-items:center;height:16px;color:var(--ok);font-size:13px;}
+.dir-tile.is-flag{border-color:var(--cfa-red);background:#FDF3F5;}
+.dir-tile.is-flag .dir-tile-mark{color:var(--cfa-red);}
+.dir-tile.is-empty .dir-tile-mark{color:var(--text-tertiary);}
+.dir-tile.is-today .dir-tile-wd{color:var(--cfa-navy);}
+.dir-tile.is-open{box-shadow:inset 0 0 0 2px var(--cfa-navy);}
+.dir-tile-dir{display:inline-block;width:7px;height:7px;border-radius:999px;background:var(--cfa-navy);}
+.dir-tile-dirs{display:flex;justify-content:center;height:7px;}
+.dir-strip-key{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;margin:8px 0 10px;}
+.dir-strip-key span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;}
+.dir-strip-key svg{color:var(--cfa-red);}
+.dir-folds{padding:4px 14px;}
+.dir-fold{border-top:1px solid var(--border);}
+.dir-fold:first-child{border-top:0;}
+.dir-fold summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;cursor:pointer;font-family:var(--font-display);font-size:17px;font-weight:600;list-style:none;}
+.dir-fold summary::-webkit-details-marker{display:none;}
+.dir-fold summary::after{content:'';flex:none;width:8px;height:8px;margin-left:auto;border-right:2px solid var(--text-tertiary);border-bottom:2px solid var(--text-tertiary);transform:rotate(45deg);transition:transform .15s;}
+.dir-fold[open] summary::after{transform:rotate(-135deg);}
+.dir-fold summary span{font-family:var(--font-ui);font-size:12.5px;font-weight:600;color:var(--text-tertiary);}
+.dir-fold-body{padding:0 0 14px;}
+.dir-fold .dir-card{margin:0;padding:0;border:0;background:none;}
+.dir-fold .dir-card > h3{display:none;}
 .dir-nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr));gap:10px;}
 .dir-num{display:grid;gap:2px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-light);}
 .dir-num span{font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-secondary);}
