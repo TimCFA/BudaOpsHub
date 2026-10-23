@@ -9,8 +9,8 @@
 // The Uniforms tab has the form and the order list (New → Ordered → Handed
 // out, with a CSV for placing the order). The items, sizes, colors and prices
 // are edited in Manage → Uniforms. Until a manager edits them, the list is
-// UNIFORM_SEED: the items Connecteam's form showed (Tim's PDF, women's
-// outerwear); the rest are added in Manage, never guessed here.
+// UNIFORM_SEED: the items Connecteam's form showed (Tim's PDFs, women's and
+// men's outerwear); the rest are added in Manage, never guessed here.
 //
 // uniformOrders [{id, at, by, name, role, split, lines: [{itemId, item, group,
 // color, size, qty, price}], status: 'new' | 'ordered' | 'done', orderedAt,
@@ -29,6 +29,14 @@ const UNIFORM_SEED = [
   {id: 'uw-tanasbourne', group: 'Outerwear for Women', name: 'Tanasbourne Rainjacket', price: 70, colors: ['Red', 'Blue'], sizes: UNIFORM_SIZES},
   {id: 'uw-northeast8', group: 'Outerwear for Women', name: 'Northeast 8 Jacket', price: 72.75, colors: ['Blue', 'Red'], sizes: UNIFORM_SIZES},
   {id: 'uw-parka', group: 'Outerwear for Women', name: 'Parka', price: 131.5, colors: [], sizes: UNIFORM_SIZES},
+  // Men's outerwear, from Connecteam's form (Tim's PDF, Oct 23 2026), with its
+  // pictures (static/uniforms; img 'bundled' until a manager uploads another).
+  {id: 'um-palomar', group: 'Outerwear for Men', name: 'Palomar Pullover', price: 35, colors: [], sizes: UNIFORM_SIZES, img: 'bundled'},
+  {id: 'um-chapel', group: 'Outerwear for Men', name: 'Chapel Fleece', price: 20, colors: ['Red', 'Blue'], sizes: UNIFORM_SIZES, img: 'bundled'},
+  {id: 'um-softshell', group: 'Outerwear for Men', name: 'Softshell Jacket', price: 50, colors: ['Red', 'Blue'], sizes: UNIFORM_SIZES, img: 'bundled'},
+  {id: 'um-tanasbourne', group: 'Outerwear for Men', name: 'Tanasbourne Rainjacket', price: 70, colors: ['Red', 'Blue'], sizes: UNIFORM_SIZES, img: 'bundled'},
+  {id: 'um-northeast8', group: 'Outerwear for Men', name: 'Northeast 8 Jacket', price: 72.75, colors: ['Blue', 'Red'], sizes: UNIFORM_SIZES, img: 'bundled'},
+  {id: 'um-parka', group: 'Outerwear for Men', name: 'Parka', price: 161.5, colors: [], sizes: UNIFORM_SIZES, img: 'bundled'},
 ];
 const UNIFORM_STATUS = {new: 'New', ordered: 'Ordered', done: 'Handed out'};
 

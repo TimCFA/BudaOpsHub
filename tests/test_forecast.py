@@ -139,6 +139,24 @@ def sos_export(dt_count, mobile_count):
 SOS_OP = 'c => { try { const s = rpParseSos(c.text, new Date("2026-10-04T12:00:00")); return {ok: true, from: s.from, to: s.to, dt: rpSosDriveThru(s), lanes: s.destinations}; } catch(e){ return {ok: false, error: e.message}; } }'
 
 
+# Analytics Hub "Custom by Hour": a seconds row and a count row per destination
+# and averages, the value under each hour; no dates anywhere (made-up numbers).
+def sos_by_hour():
+    hours = ['05', '06', '07', '08', '09', '10', '11', '12']
+    def row(order, total, fulfill, dest, measure, vals):
+        return '\t'.join([order, '0 min 0 sec', total, fulfill, dest, measure] + [str(v) if v else '' for v in vals])
+    rows = [
+        '\t'.join(['Avg Order Time', 'Avg Payment Time', 'Avg Total Time', 'Avg Fulfillment Time', 'Destination Type Breakout (group)', ''] + hours),
+        row('1 min 0 sec', '3 min 0 sec', '2 min 0 sec', 'Drive Thru', 'SOS Section (FC)', [0, 150, 180, 0, 0, 0, 200, 0]),
+        row('1 min 0 sec', '3 min 0 sec', '2 min 0 sec', 'Drive Thru', 'Trans Count Sos', [0, 100, 100, 0, 0, 0, 200, 0]),
+        row('0 min 30 sec', '2 min 0 sec', '1 min 30 sec', 'M: Drive Thru', 'SOS Section (FC)', [0, 0, 120, 0, 0, 0, 0, 0]),
+        row('0 min 30 sec', '2 min 0 sec', '1 min 30 sec', 'M: Drive Thru', 'Trans Count Sos', [0, 0, 100, 0, 0, 0, 0, 0]),
+        row('0 min 0 sec', '1 min 25 sec', '1 min 24 sec', 'Dine In', 'SOS Section (FC)', [0, 0, 0, 0, 0, 0, 90, 0]),
+        row('0 min 0 sec', '1 min 25 sec', '1 min 24 sec', 'Dine In', 'Trans Count Sos', [0, 0, 0, 0, 0, 0, 50, 0]),
+    ]
+    return '\n'.join(rows) + '\n'
+
+
 class ForecastFilesTest(unittest.TestCase):
     def test_sales_export_feeds_history_with_destinations(self):
         res, = run([{'op': 'c => { const hist = {}; const parsed = rpParseSales(c.text); const n = fcMergeSalesExport(parsed, hist); return {n, hist, channels: parsed.channels}; }', 'text': SALES_EXPORT}])
@@ -162,6 +180,28 @@ class ForecastFilesTest(unittest.TestCase):
         self.assertFalse(res['ok'])
         self.assertIn('2,348,056 transactions in one day', res['error'])
         self.assertIn('Export Custom by Day again', res['error'])
+
+    def test_custom_by_hour_is_read_by_hour(self):
+        op = 'c => { const s = rpParseSosByHour(c.text); return {isHour: rpIsSosByHour(c.text), isDay: rpIsSosByHour(c.day), s, dt: rpSosDriveThru(s)}; }'
+        res, = run([{'op': op, 'text': sos_by_hour(), 'day': sos_export(1000, 500)}])
+        self.assertTrue(res['isHour'])
+        self.assertFalse(res['isDay'])                                           # Custom by Day still goes the old way
+        lanes = res['s']['destinations']
+        self.assertEqual(lanes['Drive Thru']['cars'], 400)
+        self.assertAlmostEqual(lanes['Drive Thru']['total'], (150 * 100 + 180 * 100 + 200 * 200) / 400)
+        self.assertEqual(lanes['Dine In']['cars'], 50)
+        self.assertEqual(res['dt']['cars'], 500)                                 # both drive-thru lanes
+        self.assertEqual(sorted(res['s']['dtHours']), ['11', '6', '7'])
+        self.assertAlmostEqual(res['s']['dtHours']['7']['total'], (180 * 100 + 120 * 100) / 200)
+        self.assertTrue(res['s']['byHour'])
+        self.assertNotIn('from', res['s'])                                       # the file has no dates
+        dps = res['s']['dtDayparts']
+        self.assertAlmostEqual(dps['Early Breakfast']['cars'], 300)              # 6 and 7 AM
+        self.assertAlmostEqual(dps['Early Breakfast']['total'], (150 * 100 + 150 * 200) / 300)
+
+    def test_clock_rounds_whole_seconds(self):
+        res = run([{'op': 'c => rpClock(c.v)', 'v': v} for v in [179.6, 179.4, 59.5, 0]])
+        self.assertEqual(res, ['3:00', '2:59', '1:00', '0:00'])
 
     def test_labor_csv_is_mapped_from_headers(self):
         res, = run([{'op': 'c => { const t = fcParseTable(c.text); const map = fcGuessMap(t.headers, t.rows); const recs = fcRecordsFromTable(t, map); const hist = {"2026-09-01": {sales: 9999, channels: {"Dine In": 1}}}; const n = fcMergeRecords(recs, hist); return {map, recs, hist, n, labor: fcLooksLikeLabor(c.text)}; }', 'text': LABOR_CSV}])

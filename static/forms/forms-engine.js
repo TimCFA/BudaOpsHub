@@ -299,7 +299,7 @@
       var v = {};
       flat(fields).forEach(function (f) {
         if (!f.id) return;
-        if (f.type === 'store') { var s = lsGet('store', null); if (s && stores.some(function (x) { return x.v === s; })) v[f.id] = s; }
+        if (f.type === 'store') { var s = stores.length === 1 ? stores[0].v : lsGet('store', null); if (s && stores.some(function (x) { return x.v === s; })) v[f.id] = s; }
         if (f.remember && !def.noRemember) { var r = lsGet('remember:' + f.remember, ''); if (r) v[f.id] = r; }
         if (f.default === 'today') v[f.id] = today();
         else if (f.default === 'now') v[f.id] = nowLocal();
@@ -407,6 +407,8 @@
         el = h('div', { class: 'of-group' + (f.plain ? ' plain' : '') }, f.label ? h('div', { class: 'of-group-t' }, L(f, 'label')) : null, f.fields.map(renderField));
       } else if (f.type === 'info') {
         el = renderInfo(f);
+      } else if (f.type === 'store' && stores.length < 2) {
+        return null;   // one store: answered on its own (initialValues)
       } else {
         el = wrap(f, control(f));
       }
@@ -783,7 +785,7 @@
         return String(v);
       }
       var parts = (def.openSummary || []).map(lab).filter(Boolean);
-      var st = stores.filter(function (s) { return s.v === it.store; })[0];
+      var st = stores.length > 1 && stores.filter(function (s) { return s.v === it.store; })[0];
       var since = it.createdAt ? new Date(it.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
       return { title: parts[0] || '—', sub: parts.slice(1).concat([st && st.l, since && (t('since') + ' ' + since)]).filter(Boolean).join(' · ') };
     }
@@ -912,7 +914,7 @@
     var filt = { formId: '', status: 'new', store: '' };
     root.classList.add('of-root');
 
-    function storeName(v) { var s = stores.filter(function (x) { return x.v === v; })[0]; return s ? s.l : (v || ''); }
+    function storeName(v) { if (stores.length < 2) return ''; var s = stores.filter(function (x) { return x.v === v; })[0]; return s ? s.l : (v || ''); }
     function allFields(def) {
       var out = [];
       (def.stages || [{ fields: def.fields }]).forEach(function (s) { flat(s.fields).forEach(function (f) { out.push(f); }); });
@@ -941,7 +943,8 @@
         h('div', { class: 'of-top' }, h('h2', { class: 'of-h1' }, 'Form submissions')),
         h('div', { class: 'of-filters' }, formSel,
           seg(STATUSES.concat([{ v: '', l: 'All' }]), 'status'),
-          seg([{ v: '', l: 'Both stores' }].concat(stores), 'store')),
+          stores.length > 1 ? seg([{ v: '', l: 'Both stores' }].concat(stores), 'store') : null,
+          h('button', { type: 'button', class: 'of-ghost of-export', onclick: function () { exportSheet(this); } }, 'Export spreadsheet')),
         rows);
       function load() {
         rows.innerHTML = ''; rows.append(h('div', { class: 'of-empty' }, 'Loading…'));
@@ -962,6 +965,70 @@
         }, function (e) { rows.innerHTML = ''; rows.append(h('div', { class: 'of-empty' }, "Couldn't load submissions. " + (e && e.message ? '(' + e.message + ')' : ''))); });
       }
       load();
+    }
+
+    // Export spreadsheet (Tim, Oct 23 2026): what the filters show, one sheet
+    // per form, a column per question, as Excel (CSV if Excel can't be made).
+    function cellText(f, v) {
+      if (v == null || v === '') return '';
+      switch (f.type) {
+        case 'choice': return optLabel(f, v);
+        case 'store': return (stores.filter(function (x) { return x.v === v; })[0] || { l: v }).l;
+        case 'multi':
+          var all = f.options || [];
+          if (f.sections) f.sections.forEach(function (s) { all = all.concat(s.items); });
+          return (Array.isArray(v) ? v : []).map(function (x) { var o = all.filter(function (y) { return y.v === x; })[0]; return o ? o.l : x; }).join(', ');
+        case 'yesno': return v ? 'Yes' : 'No';
+        case 'currency': case 'number': return Number(v);
+        case 'items': return v && v.total != null ? Number(v.total) : '';
+        case 'repeat': return (Array.isArray(v) ? v : []).map(function (r) { return f.columns.map(function (c) { return r[c.id]; }).filter(function (x) { return x != null && x !== ''; }).join(' '); }).join('; ');
+        case 'ack': return v ? 'Yes' : '';
+        default: return typeof v === 'object' ? JSON.stringify(v) : v;
+      }
+    }
+    var SKIP_IN_SHEET = ['info', 'group', 'photo', 'file', 'signature'];
+    function sheetRows(def, items) {
+      var fields = allFields(def).filter(function (f) { return f.id && SKIP_IN_SHEET.indexOf(f.type) === -1 && !(f.type === 'store' && stores.length < 2); });
+      var head = ['Submitted', 'Status', 'Submitted by'].concat(fields.map(function (f) { return f.label || f.id; }));
+      var body = items.map(function (it) {
+        var vals = it.values || {};
+        return [new Date(it.createdAt).toLocaleString('en-US'), statusLabel(it.status), it.anonymous ? 'Anonymous' : (it.submittedBy || '')]
+          .concat(fields.map(function (f) { return cellText(f, vals[f.id]); }));
+      });
+      return [head].concat(body);
+    }
+    function exportSheet(btn) {
+      var was = btn.textContent;
+      btn.disabled = true; btn.textContent = 'Exporting…';
+      Promise.resolve(api.listSubmissions(filt)).then(function (items) {
+        if (!items.length) { btn.textContent = 'Nothing to export'; return; }
+        var byForm = {};
+        items.forEach(function (it) { (byForm[it.formId] = byForm[it.formId] || []).push(it); });
+        var stamp = new Date().toISOString().slice(0, 10);
+        if (global.XLSX) {
+          var wb = global.XLSX.utils.book_new(), used = {};
+          Object.keys(byForm).forEach(function (id) {
+            var def = byId[id] || { title: id, fields: [] };
+            var name = String(def.title).replace(/[\\/?*\[\]:]/g, ' ').slice(0, 28), n = 2, base = name;
+            while (used[name]) name = base.slice(0, 26) + ' ' + (n++);
+            used[name] = true;
+            global.XLSX.utils.book_append_sheet(wb, global.XLSX.utils.aoa_to_sheet(sheetRows(def, byForm[id])), name);
+          });
+          global.XLSX.writeFile(wb, 'Form submissions ' + stamp + '.xlsx');
+        } else {
+          var lines = [];
+          Object.keys(byForm).forEach(function (id) {
+            var def = byId[id] || { title: id, fields: [] };
+            sheetRows(def, byForm[id]).forEach(function (r, i) { lines.push([i ? def.title : 'Form'].concat(r).map(function (c) { return '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"'; }).join(',')); });
+            lines.push('');
+          });
+          var a = h('a', { href: URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' })), download: 'Form submissions ' + stamp + '.csv' });
+          document.body.append(a); a.click(); a.remove();
+        }
+        btn.textContent = 'Exported ' + items.length;
+      }, function (e) { btn.textContent = "Couldn't export"; }).then(function () {
+        setTimeout(function () { btn.disabled = false; btn.textContent = was; }, 2500);
+      });
     }
 
     function statusLabel(s) {
