@@ -101,7 +101,7 @@ class ServerApplies(unittest.TestCase):
     def test_called_after_every_full_read(self):
         with open(os.path.join(os.path.dirname(__file__), '..', 'app.py'), encoding='utf-8') as f:
             src = f.read()
-        self.assertIn('            _cache_read_at = time.monotonic()\n        _apply_event_fixes()\n        return True', src)
+        self.assertIn('            _cache_read_at = time.monotonic()\n        _apply_event_fixes()\n', src)
 
 
 if __name__ == '__main__':

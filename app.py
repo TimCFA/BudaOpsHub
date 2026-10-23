@@ -258,6 +258,7 @@ def _refresh_cache(only_if_cold=False):
             _cache_ready = True
             _cache_read_at = time.monotonic()
         _apply_event_fixes()
+        _apply_once('uniformMensOuterwear', 'uniformCatalog', add_mens_outerwear)
         return True
 
 def _apply_event_fixes():
@@ -278,7 +279,6 @@ def _apply_event_fixes():
         print(f"[EVENTS] corrected {len(changed)}: {'; '.join(changed)}")
     except Exception as e:
         print(f"[EVENTS] corrections not applied: {type(e).__name__}")
-    _apply_once('uniformMensOuterwear', 'uniformCatalog', add_mens_outerwear)
 
 ONCE_PATH = 'secure/appliedOnce'   # {name: time}: one-time changes already made
 
