@@ -1,5 +1,6 @@
-"""Set Ups (Tim, Oct 23 2026): in today's daypart on the clock, a spot whose
-person comes in partway through shows yellow until they arrive, then plain.
+"""Set Ups (Tim, Oct 23 2026): today, a spot whose person comes in partway
+through its daypart shows yellow until they arrive, then plain: in the
+daypart on the clock and the later ones too.
 
 Run: python3 -m unittest discover tests
 Names are made up.
@@ -38,9 +39,9 @@ class NotHereYet(unittest.TestCase):
             {'now': '11:30', 'names': ['Avery Example']},                      # here: plain
             {'now': '11:05', 'names': ['Casey Sample']},                       # here from the start
             {'now': '11:05', 'names': []},                                     # an open spot
-            {'now': '11:05', 'names': ['Avery Example'], 'dp': 'Dinner'},      # not the daypart on the clock
+            {'now': '11:05', 'names': ['Avery Example'], 'dp': 'Dinner'},      # a later daypart: yellow too
             {'now': '11:05', 'names': ['Avery Example'], 'date': '2026-10-24'},  # another day
-        ]), [690, None, None, None, None, None])
+        ]), [690, None, None, None, 690, None])
 
     def test_wired_into_both_views_and_a_timer(self):
         with open(os.path.join(ROOT, 'static', 'js', 'setups-board.js'), encoding='utf-8') as f:
