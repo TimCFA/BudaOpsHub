@@ -8,6 +8,9 @@
 // and choices show once a leader signs in; the server checks again.
 
 const FM_ENDPOINT = `${typeof API_BASE !== 'undefined' ? API_BASE : ''}/api/forms`;
+// Buda only (Tim, Oct 23 2026): the forms don't ask which store, and the
+// submissions don't split by store.
+const FM_STORES = [{v: 'buda', l: 'Buda'}];
 let fmApp = null;            // the engine's form library, once mounted
 let fmInbox = null;          // the engine's inbox, once mounted
 let fmMode = 'fill';         // 'fill' | 'inbox'
@@ -61,10 +64,10 @@ async function renderForms(){
   fill.hidden = fmMode !== 'fill';
   inbox.hidden = fmMode !== 'inbox';
   if(fmMode === 'fill'){
-    if(!fmApp) fmApp = OpsForms.mount(fill, {endpoint: FM_ENDPOINT, definitions: fmDefs(), isLeader: fmIsLeader(), roster: fmRoster()});
+    if(!fmApp) fmApp = OpsForms.mount(fill, {endpoint: FM_ENDPOINT, definitions: fmDefs(), isLeader: fmIsLeader(), roster: fmRoster(), stores: FM_STORES});
     else fmApp.setLeader(fmIsLeader());
   } else {
-    if(!fmInbox) fmInbox = OpsForms.mountInbox(inbox, {endpoint: FM_ENDPOINT, definitions: fmDefs()});
+    if(!fmInbox) fmInbox = OpsForms.mountInbox(inbox, {endpoint: FM_ENDPOINT, definitions: fmDefs(), stores: FM_STORES});
     else fmInbox.refresh();
   }
 }
