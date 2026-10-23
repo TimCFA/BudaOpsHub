@@ -175,7 +175,7 @@ class Page(unittest.TestCase):
         self.assertIn('PEA SCOREBOARD (Q4 2026)', run("c => { " + QUARTER + " return dirBriefText(); }"))
 
     def test_page_wiring(self):
-        self.assertIn('id="leadersManageRoot"', PAGE)
+        self.assertIn('id="peaGoalsRoot"', PAGE)                 # the PEA goals, in Manage → Levelset (Oct 23 2026)
         self.assertLess(PAGE.index('/static/js/directors.js'), PAGE.index('/static/js/leaders.js'))
         with open(os.path.join(ROOT, 'static', 'js', 'manage-and-import.js'), encoding='utf-8') as f:
             self.assertIn('renderLeadersManage', f.read())

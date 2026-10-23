@@ -174,7 +174,7 @@ class Page(unittest.TestCase):
     def test_tab_view_and_manage_card(self):
         self.assertIn('data-view="directors"', PAGE)
         self.assertIn('class="tab manager-only" role="tab" aria-selected="false" aria-controls="directorsView"', PAGE)
-        self.assertIn('id="directorsManageRoot"', PAGE)
+        self.assertIn('id="teamListRoot"', PAGE)                 # the director team is edited in the team list (Oct 23 2026)
         self.assertLess(PAGE.index('/static/js/forecast.js'), PAGE.index('/static/js/directors.js'))
 
     def test_meeting_kind_and_director_flag(self):

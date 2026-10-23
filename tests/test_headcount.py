@@ -118,6 +118,25 @@ class HeadcountTest(unittest.TestCase):
         self.assertTrue(appmod.TURNOVER_PATH.startswith('secure/'))
         self.assertNotIn('teamTurnover', repr(appmod.STATE_SECTIONS))
 
+    def test_a_role_set_from_the_team_list(self):
+        # Manage → Directors, the team list (Tim, Oct 23 2026): a director
+        # sets someone's role; it's their sign-in role from then on.
+        self.upload(TEAM)
+        r = self.owner.post('/api/team/role', json={'name': 'jordan  testcase', 'role': 'lead'})
+        self.assertEqual(r.status_code, 200, r.get_json())
+        self.assertEqual(r.headers['Cache-Control'], 'no-store')
+        self.assertIn({'name': 'Jordan Testcase', 'role': 'lead'}, r.get_json()['team'])
+        self.assertEqual(self.login('123456').get('/api/manager/status').status_code, 200)
+        c = appmod.app.test_client()
+        self.assertEqual(c.post('/api/manager/login', json={'pin': '123456'}).get_json()['role'], 'lead')
+        # Never a director (a clock-in PIN never opens Manage), never a stranger.
+        self.assertEqual(self.owner.post('/api/team/role', json={'name': 'Jordan Testcase', 'role': 'director'}).status_code, 400)
+        self.assertEqual(self.owner.post('/api/team/role', json={'name': 'Nobody Here', 'role': 'lead'}).status_code, 404)
+        # Directors and the manager PIN only: not the Admin Team, not a lead.
+        for pin in ('567890', '345678'):
+            self.assertEqual(self.login(pin).post('/api/team/role', json={'name': 'Riley Sample', 'role': 'admin'}).status_code, 403, pin)
+        self.assertEqual(self.login('1111').post('/api/team/role', json={'name': 'Riley Sample', 'role': 'member'}).status_code, 200)
+
     def test_the_reads_go_at_once(self):
         # Our Team opened slowly: three Firebase reads one after another
         # (Tim, Oct 22 2026). Each read here takes 0.2 s; together, one trip.

@@ -80,7 +80,7 @@ document.getElementById('btnLock').addEventListener('click', async ()=>{
 const MANAGE_TAB_KEY = 'cfaBudaManageTab';
 // The chips took the main tabs' names (Tim, Oct 21 2026); a device that
 // last had an older one open lands on where its cards went.
-const MANAGE_TAB_RENAMED = {numbers: 'forecast', events: 'calendar', scoreboards: 'experience', talent: 'experience', pea: 'directors'};
+const MANAGE_TAB_RENAMED = {numbers: 'forecast', events: 'calendar', scoreboards: 'experience', talent: 'experience', pea: 'levelset'};
 function manageShowTab(key){
   key = MANAGE_TAB_RENAMED[key] || key;
   const groups = [...document.querySelectorAll('#manageContent .manage-group')];
@@ -168,8 +168,8 @@ async function renderManage(){
   if(typeof renderEventsManage === 'function') renderEventsManage();
   if(typeof eviRender === 'function') eviRender();
   if(typeof renderUniformCatalogManage === 'function') renderUniformCatalogManage();
-  if(typeof renderDirectorsManage === 'function') renderDirectorsManage();
   if(typeof renderLeadersManage === 'function') renderLeadersManage();
+  if(typeof renderTeamList === 'function') renderTeamList();
   refreshManage(true);
 }
 
@@ -191,8 +191,8 @@ function refreshManage(opening){
   if(opening || clean('homeManageList')) renderHomeManage();
   if(typeof renderEventsManage === 'function' && (opening || !evEditId)) renderEventsManage();
   if(typeof renderUniformCatalogManage === 'function' && (opening || !uoEditId)) renderUniformCatalogManage();
-  if(typeof renderDirectorsManage === 'function' && (opening || !document.activeElement || !document.activeElement.closest('#directorsManageRoot'))) renderDirectorsManage();
-  if(typeof renderLeadersManage === 'function' && (opening || !document.activeElement || !document.activeElement.closest('#leadersManageRoot'))) renderLeadersManage();
+  if(typeof renderLeadersManage === 'function' && (opening || !document.activeElement || !document.activeElement.closest('#peaGoalsRoot'))) renderLeadersManage();
+  if(typeof renderTeamList === 'function' && (opening || !document.activeElement || !document.activeElement.closest('#teamListRoot'))) renderTeamList();
   renderTXManage();
   renderEOISubmissions();
   renderScoreboardManage(opening);
