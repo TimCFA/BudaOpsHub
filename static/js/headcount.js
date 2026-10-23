@@ -62,6 +62,7 @@ async function hcLoad(force){
     if(hcData && typeof hhOpenArrived === 'function') hhOpenArrived('headcount');
   }
   if(typeof renderRightNow === 'function') renderRightNow();
+  if(typeof renderTeamList === 'function') renderTeamList();
 }
 
 function hcAddDays(iso, n){

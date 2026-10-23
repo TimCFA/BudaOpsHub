@@ -15,17 +15,18 @@ class Chips(unittest.TestCase):
     def test_every_chip_has_a_section_and_every_section_a_chip(self):
         chips = re.findall(r'data-manage-go="([a-z]+)"', MANAGE)
         groups = re.findall(r'data-manage-tab="([a-z]+)"', MANAGE)
-        # The main tabs' names, in their order (Tim, Oct 21 2026), then Manage's own.
-        self.assertEqual(chips, ['home', 'waste', 'experience', 'scoreboard', 'forecast', 'calendar', 'forms', 'uniforms', 'directors', 'uploads', 'settings', 'health'])
+        # The main tabs' names, in their order (Tim, Oct 21 2026), then Manage's own;
+        # Levelset (the PEA material) has its own since Oct 23 2026.
+        self.assertEqual(chips, ['home', 'waste', 'experience', 'scoreboard', 'forecast', 'calendar', 'forms', 'uniforms', 'directors', 'levelset', 'uploads', 'settings', 'health'])
         self.assertEqual(groups, chips)
         labels = re.findall(r'data-manage-go="[a-z]+" aria-selected="false">([^<]+)<', MANAGE)
         tabs = re.findall(r'class="tab[^"]*"[^>]*data-view="[a-z]+"[^>]*>([A-Z][A-Za-z ]+?) <span', PAGE) + re.findall(r'class="tab-group-label"[^>]*>([A-Za-z]+) ', PAGE)
-        self.assertEqual([l for l in labels if l not in ('Uploads', 'Settings', 'Health')], ['Home', 'Waste', 'Experience', 'Scoreboard', 'Forecast', 'Calendar', 'Forms', 'Uniforms', 'Directors'])
-        self.assertTrue(set(labels) - {'Uploads', 'Settings', 'Health'} <= set(tabs), (labels, tabs))
+        self.assertEqual([l for l in labels if l not in ('Levelset', 'Uploads', 'Settings', 'Health')], ['Home', 'Waste', 'Experience', 'Scoreboard', 'Forecast', 'Calendar', 'Forms', 'Uniforms', 'Directors'])
+        self.assertTrue(set(labels) - {'Levelset', 'Uploads', 'Settings', 'Health'} <= set(tabs), (labels, tabs))
 
     def test_older_saved_chips_land_where_their_cards_went(self):
         with open(os.path.join(ROOT, 'static', 'js', 'manage-and-import.js'), encoding='utf-8') as f:
-            self.assertIn("const MANAGE_TAB_RENAMED = {numbers: 'forecast', events: 'calendar', scoreboards: 'experience', talent: 'experience', pea: 'directors'};", f.read())
+            self.assertIn("const MANAGE_TAB_RENAMED = {numbers: 'forecast', events: 'calendar', scoreboards: 'experience', talent: 'experience', pea: 'levelset'};", f.read())
 
     def test_no_accordion_left(self):
         self.assertNotIn('manage-group-header', MANAGE)

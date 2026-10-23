@@ -919,6 +919,7 @@
         <button type="button" class="manage-tab" role="tab" id="manageTab-forms" data-manage-go="forms" aria-selected="false">Forms</button>
         <button type="button" class="manage-tab" role="tab" id="manageTab-uniforms" data-manage-go="uniforms" aria-selected="false">Uniforms</button>
         <button type="button" class="manage-tab" role="tab" id="manageTab-directors" data-manage-go="directors" aria-selected="false">Directors</button>
+        <button type="button" class="manage-tab" role="tab" id="manageTab-levelset" data-manage-go="levelset" aria-selected="false">Levelset</button>
         <button type="button" class="manage-tab" role="tab" id="manageTab-uploads" data-manage-go="uploads" aria-selected="false">Uploads</button>
         <button type="button" class="manage-tab" role="tab" id="manageTab-settings" data-manage-go="settings" aria-selected="false">Settings</button>
         <button type="button" class="manage-tab" role="tab" id="manageTab-health" data-manage-go="health" aria-selected="false">Health</button>
@@ -1056,19 +1057,25 @@
         </div>
       </section>
 
-      <!-- GROUP: Directors: the director and leader lists, PEA ratings -->
+      <!-- GROUP: Directors: the team list, everyone with their role (team-list.js; Tim, Oct 23 2026) -->
       <section class="manage-group" data-manage-tab="directors" aria-labelledby="manageTab-directors">
         <div class="manage-group-body">
-<div class="standup-card">
-            <h3>Directors</h3>
-            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">The director team, with each name as HotSchedules has it, so their Administrative shifts show on the Directors page. Saves as you go.</p>
-            <div id="directorsManageRoot"></div>
+          <div class="standup-card">
+            <h3>Our team</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Everyone at Buda in one list: the directors, and everyone on the clock-in PIN list with their role. A role here is what they see when they sign in; a Team Lead's focus shows on their leader card. Saves as you go.</p>
+            <div id="teamListRoot"></div>
             <div id="directorPinRoot" class="tp-dpin-root"></div>
           </div>
-<div class="standup-card">
-            <h3>Leaders</h3>
-            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">The PEA goals for the quarter, and the leaders: who the hub treats as a Team Lead, each with their PEC role so their role card shows on their profile (Directors → Leaders). Names as Levelset spells them. Saves as you go.</p>
-            <div id="leadersManageRoot"></div>
+        </div>
+      </section>
+
+      <!-- GROUP: Levelset: PEA goals and ratings, coverage, strength, name matching (Tim, Oct 23 2026: its own tab) -->
+      <section class="manage-group" data-manage-tab="levelset" aria-labelledby="manageTab-levelset">
+        <div class="manage-group-body">
+          <div class="standup-card">
+            <h3>PEA goals</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">PEAs the team and each leader aim for every quarter, and which PEA types count. Saves as you go.</p>
+            <div id="peaGoalsRoot"></div>
           </div>
 
           <div class="standup-card">
@@ -1216,6 +1223,7 @@
 <script src="/static/forms/forms-engine.js"></script>
 <script src="/static/js/forms.js"></script>
 <script src="/static/js/headcount.js"></script>
+<script src="/static/js/team-list.js"></script>
 <script src="/static/js/leaders.js"></script>
 <script src="/static/js/team-pea.js"></script>
 <script src="/static/js/leader-report.js"></script>

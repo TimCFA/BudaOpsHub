@@ -1010,6 +1010,33 @@ def team_headcount():
     return resp
 
 
+@app.route('/api/team/role', methods=['POST'])
+def team_role():
+    """Set someone's role on the clock-in PIN list ({name, role}) from the
+    team list in Manage → Directors (Tim, Oct 23 2026: one list, each person
+    with their role). Directors and the manager PIN only. A team role only:
+    a clock-in PIN never opens Manage. The PIN stays as it is."""
+    if not session.get('manager'):
+        return jsonify({'error': 'Directors only.'}), 403
+    body = request.get_json(silent=True) or {}
+    name = re.sub(r'\s+', ' ', str(body.get('name') or '')).strip()
+    role = str(body.get('role') or '')
+    if not name:
+        return jsonify({'error': 'Whose role?'}), 400
+    if role not in TEAM_ROLES:
+        return jsonify({'error': 'Pick Team Member, Trainer, Team Lead or Admin Team.'}), 400
+    pins = db.reference(TEAM_PINS_PATH).get() or {}
+    keys = [k for k, v in pins.items() if isinstance(v, dict) and _turnover_key(v.get('name')) == _turnover_key(name)]
+    if not keys:
+        return jsonify({'error': 'That name isn’t on the PIN list. Reload and try again.'}), 404
+    for k in keys:
+        db.reference(f'{TEAM_PINS_PATH}/{k}').set(dict(pins[k], role=role))
+    print(f"[TEAM] role set: {ROLE_LABELS[role]}")
+    resp = jsonify(dict(_turnover_out(), success=True))
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
+
+
 @app.route('/api/team/departures', methods=['POST', 'DELETE'])
 def team_departures():
     """Log or update a departure ({id?, name, lastDay, type, reason, rehire}),

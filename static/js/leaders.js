@@ -567,30 +567,21 @@ document.addEventListener('submit', e => {
   ldNoteOpen = false; ldRender(); showToast('Note saved'); saveState();
 });
 
-// ----- Manage → Settings: the leaders, their PEC roles, the PEA goals -----
+// ----- Manage → Levelset: the PEA goals -----
+// The leaders themselves (who counts, and each one's focus) are set in the
+// team list in Manage → Directors (team-list.js; Tim, Oct 23 2026).
 function ldEnsureOwn(){ if(!Array.isArray(leaderRoster)) leaderRoster = []; }
 function renderLeadersManage(){
-  const root = document.getElementById('leadersManageRoot');
+  const root = document.getElementById('peaGoalsRoot');
   if(!root) return;
   const goals = ldGoals();
-  const known = [...new Set([...ldRatings().map(r => r.leader), ...ldInferredLeaderNames(ldQuarterNow())].filter(Boolean))].sort((a, b) => a.localeCompare(b));
   root.innerHTML = `
-    <p class="ld-m-note">${ldListDecides()
-      ? 'This list decides who the hub treats as a leader (Set Ups badges, Lead Captain choices, the Leaders page, the Directors brief), plus Team Leader shifts on the roster. Take a name off and they stop counting.'
-      : 'Empty, so the hub guesses: anyone who gave a PEA this quarter, was rated as a leader or has notes counts. Add the real leaders here and the list takes over.'}</p>
     <div class="ld-goals"><label>Team, per quarter <input type="number" min="1" max="999" value="${goals.team}" data-ld-goal="team"></label><label>Each leader, per quarter <input type="number" min="1" max="99" value="${goals.leader}" data-ld-goal="leader"></label><label class="ld-goal-pos">PEA types that count toward the goals (as Levelset names them, comma-separated; blank = every PEA) <input type="text" value="${escapeHtml(goals.positions.join(', '))}" placeholder="Team Lead" maxlength="200" data-ld-goal-pos="1"></label></div>
-    <datalist id="ldKnownLeaders">${known.map(n => `<option value="${escapeHtml(n)}">`).join('')}</datalist>
-    <div class="dir-m-list">${ldRoster().map((r, i) => `
-      <div class="ld-m-row">
-        <div class="ld-m-top"><input type="text" value="${escapeHtml(r.name)}" maxlength="80" list="ldKnownLeaders" placeholder="Name as in Levelset" data-ld-m-name="${i}" aria-label="Name"><button type="button" class="dir-x" data-ld-m-del="${i}" aria-label="Remove ${escapeHtml(r.name)}">${UO_X_ICON}</button></div>
-        <div class="ld-m-roles">${LD_ROLES.map(role => `<button type="button" class="ld-chip ${(r.roles || []).includes(role) ? 'is-on' : ''}" data-ld-m-role="${escapeHtml(role)}" data-ld-m-i="${i}" aria-pressed="${(r.roles || []).includes(role) ? 'true' : 'false'}">${escapeHtml(role)}</button>`).join('')}</div>
-      </div>`).join('')}</div>
-    <button type="button" class="btn btn-ghost dir-btn" data-ld-m-add>+ Add a leader</button>
     <p class="mv-saved" data-mv-saved>Saves as you go</p>`;
 }
 document.addEventListener('change', e => {
   const t = e.target;
-  if(!t || !t.closest || !t.closest('#leadersManageRoot')) return;
+  if(!t || !t.closest || !t.closest('#peaGoalsRoot')) return;
   if(t.dataset.ldGoal){
     const g = ldGoals(); const v = Math.round(+t.value);
     if(v > 0) g[t.dataset.ldGoal] = v;
@@ -600,21 +591,5 @@ document.addEventListener('change', e => {
     const g = ldGoals();
     g.positions = t.value.split(',').map(s => s.trim()).filter(Boolean);
     peaGoals = g; saveState(); dirRerender(); return;
-  }
-  if(t.dataset.ldMName !== undefined){ ldEnsureOwn(); const r = leaderRoster[+t.dataset.ldMName]; if(r){ r.name = t.value.trim(); saveState(); dirRerender(); } }
-});
-document.addEventListener('click', e => {
-  const t = e.target && e.target.closest ? e.target : null;
-  if(!t || !t.closest('#leadersManageRoot')) return;
-  if(t.closest('[data-ld-m-add]')){ ldEnsureOwn(); leaderRoster.push({name: '', roles: []}); renderLeadersManage(); const rows = document.querySelectorAll('#leadersManageRoot [data-ld-m-name]'); if(rows.length) rows[rows.length - 1].focus(); return; }
-  const del = t.closest('[data-ld-m-del]');
-  if(del){ ldEnsureOwn(); leaderRoster.splice(+del.dataset.ldMDel, 1); renderLeadersManage(); saveState(); dirRerender(); return; }
-  const role = t.closest('[data-ld-m-role]');
-  if(role){
-    ldEnsureOwn(); const r = leaderRoster[+role.dataset.ldMI]; if(!r) return;
-    r.roles = Array.isArray(r.roles) ? r.roles : [];
-    const name = role.dataset.ldMRole;
-    r.roles = r.roles.includes(name) ? r.roles.filter(x => x !== name) : [...r.roles, name];
-    renderLeadersManage(); saveState(); dirRerender();
   }
 });

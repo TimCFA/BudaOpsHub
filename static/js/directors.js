@@ -478,35 +478,5 @@ document.addEventListener('change', e => {
   }
 });
 
-// ----- Manage → Settings: the director team -----
-function renderDirectorsManage(){
-  const root = document.getElementById('directorsManageRoot');
-  if(!root) return;
-  const list = dirList();
-  root.innerHTML = `
-    <div class="dir-m-list">${list.map((d, i) => `
-      <div class="dir-m-row">
-        <input type="text" value="${escapeHtml(d.name)}" maxlength="80" placeholder="Name as in HotSchedules" data-dir-m="name" data-dir-i="${i}" aria-label="Name">
-        <input type="text" value="${escapeHtml(d.title || '')}" maxlength="40" placeholder="Title" data-dir-m="title" data-dir-i="${i}" aria-label="Title">
-        <button type="button" class="dir-x" data-dir-m-del="${i}" aria-label="Remove ${escapeHtml(d.name)}">${UO_X_ICON}</button>
-      </div>`).join('')}</div>
-    <button type="button" class="btn btn-ghost dir-btn" data-dir-m-add>+ Add a director</button>
-    <p class="mv-saved" data-mv-saved>Saves as you go</p>`;
-}
-document.addEventListener('change', e => {
-  const t = e.target;
-  if(!t || !t.dataset || !t.dataset.dirM || !t.closest('#directorsManageRoot')) return;
-  dirEnsureOwn();
-  const d = directors[+t.dataset.dirI];
-  if(!d) return;
-  d[t.dataset.dirM] = t.value.trim();
-  saveState(); dirRerender();
-});
-document.addEventListener('click', e => {
-  const t = e.target && e.target.closest ? e.target : null;
-  if(!t || !t.closest('#directorsManageRoot')) return;
-  if(t.closest('[data-dir-m-add]')){ dirEnsureOwn(); directors.push({name: '', title: 'Director'}); renderDirectorsManage(); const f = root_last_input(); if(f) f.focus(); return; }
-  const del = t.closest('[data-dir-m-del]');
-  if(del){ dirEnsureOwn(); directors.splice(+del.dataset.dirMDel, 1); renderDirectorsManage(); saveState(); dirRerender(); }
-});
-function root_last_input(){ const rows = document.querySelectorAll('#directorsManageRoot [data-dir-m="name"]'); return rows[rows.length - 1] || null; }
+// The director team is edited in the team list, Manage → Directors
+// (team-list.js; Tim, Oct 23 2026).
