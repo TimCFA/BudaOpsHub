@@ -35,7 +35,7 @@ const RP_QIV_KEEP = 8;   // QIV visits kept
 const rpNum = v => { const n = parseFloat(String(v == null ? '' : v).replace(/[$,%\s]/g, '')); return isNaN(n) ? null : n; };
 const rpMoney = n => '$' + Math.round(n).toLocaleString('en-US');
 const rpPct = (fraction, digits = 1, plus = true) => `${plus && fraction > 0 ? '+' : ''}${(fraction * 100).toFixed(digits)}%`;
-const rpClock = secs => `${Math.floor(secs / 60)}:${String(Math.round(secs % 60)).padStart(2, '0')}`;
+const rpClock = secs => { const s = Math.round(secs); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 function rpRange(from, to){ return from === to ? duShort(from) : `${duShort(from)} – ${duShort(to)}`; }
 
 // ----- Recognizing the files -----
@@ -195,6 +195,64 @@ function rpParseSosHourly(rows){
   return {from: days[0], to: days[days.length - 1], destinations, dtDayparts: dt};
 }
 
+// Custom by Hour (Tim, Oct 23 2026): a row per destination and measure
+// ("SOS Section (FC)" seconds, "Trans Count Sos" cars) with a column per hour
+// ("05" … "23"), each pair of rows sharing its averages. It doesn't say which
+// dates it covers: the upload asks (rpImportSos's range).
+function rpSosHourCols(rows){
+  const hi = rows.findIndex(r => r.some(c => /Destination Type/i.test(c)));
+  if(hi === -1) return null;
+  const cols = rows[hi].map((c, i) => /^\d{2}$/.test(String(c).trim()) ? [i, +String(c).trim()] : null).filter(Boolean);
+  return cols.length >= 5 ? {hi, cols} : null;
+}
+function rpIsSosByHour(text){ return !!rpSosHourCols(duParseTsv(text)); }
+function rpParseSosByHour(text){
+  const rows = duParseTsv(text);
+  const {hi, cols} = rpSosHourCols(rows);
+  const header = rows[hi].map(c => String(c).trim());
+  const col = re => header.findIndex(c => re.test(c));
+  const destCol = col(/Destination Type/i), measureCol = destCol + 1;
+  const orderCol = col(/^Avg Order Time$/i), fulfillCol = col(/^Avg Fulfillment Time$/i);
+  const secs = v => { const m = String(v).match(/(\d+)\s*min\s*(\d+)\s*sec/); return m ? +m[1] * 60 + +m[2] : null; };
+  // Pair each seconds row with the count row of the same averages and destination.
+  const key = r => r.slice(0, measureCol).join('\t');
+  const timeRows = {};
+  rows.slice(hi + 1).forEach(r => { if(/^SOS Section/i.test(String(r[measureCol] || '').trim())) timeRows[key(r)] = r; });
+  const acc = {}, dtHours = {};
+  const add = (bucket, k, cars, total, order, fulfill) => {
+    const a = bucket[k] = bucket[k] || {cars: 0, total: 0, order: 0, fulfill: 0};
+    a.cars += cars; a.total += cars * total; a.order += cars * (order || 0); a.fulfill += cars * (fulfill || 0);
+  };
+  rows.slice(hi + 1).forEach(r => {
+    if(!/^Trans Count Sos$/i.test(String(r[measureCol] || '').trim())) return;
+    const dest = String(r[destCol] || '').trim(), t = timeRows[key(r)];
+    if(!dest || !t) return;
+    const order = orderCol === -1 ? null : secs(r[orderCol]), fulfill = fulfillCol === -1 ? null : secs(r[fulfillCol]);
+    cols.forEach(([i, hour]) => {
+      const cars = rpNum(r[i]), total = rpNum(t[i]);
+      if(!cars || total === null) return;
+      add(acc, dest, cars, total, order, fulfill);
+      if(/^(M:\s*)?Drive Thru$/i.test(dest)) add(dtHours, hour, cars, total, order, fulfill);
+    });
+  });
+  const avg = a => ({cars: a.cars, total: a.total / a.cars, order: a.order / a.cars, fulfill: a.fulfill / a.cars});
+  const destinations = {};
+  Object.entries(acc).forEach(([k, a]) => { destinations[k] = avg(a); });
+  if(!Object.keys(destinations).length) throw new Error('No speed of service numbers in this export.');
+  // Drive-thru by the hub's dayparts: each hour's cars shared by how much of it each daypart covers.
+  const wins = typeof fcDaypartWindows === 'function' ? fcDaypartWindows(fohDayparts) : [];
+  const dps = {};
+  Object.entries(dtHours).forEach(([hour, a]) => wins.forEach(w => {
+    const f = Math.max(0, Math.min(w.end, hour * 60 + 60) - Math.max(w.start, hour * 60)) / 60;
+    if(f > 0) add(dps, String(w.name).replace(/\s*\(.*$/, ''), a.cars * f, a.total / a.cars, a.order / a.cars, a.fulfill / a.cars);
+  }));
+  const dtDayparts = {};
+  Object.entries(dps).forEach(([k, a]) => { if(a.cars) dtDayparts[k] = avg(a); });
+  const hours = {};
+  Object.entries(dtHours).forEach(([h, a]) => { hours[h] = avg(a); });
+  return {destinations, dtDayparts, dtHours: hours, byHour: true};
+}
+
 function rpParseSos(text, now){
   const rows = duParseTsv(text);
   if((rows[0] || []).some(c => /Avg Total Time \(sec\)/i.test(c))) return rpParseSosHourly(rows);
@@ -260,8 +318,18 @@ function rpSosDriveThru(sos){
   return {cars, total: lanes.reduce((s, d) => s + d.total * d.cars, 0) / cars};
 }
 
-async function rpImportSos(file, text){
-  const s = rpParseSos(text, new Date());
+// `range` {from, to}: the dates a Custom by Hour export covers, picked on upload.
+async function rpImportSos(file, text, range){
+  let s;
+  if(rpIsSosByHour(text)){
+    const parsed = rpParseSosByHour(text);
+    if(!range){
+      const err = new Error('A Custom by Hour export doesn’t say which dates it covers: pick them below.');
+      err.needRange = true;
+      throw err;
+    }
+    s = {...parsed, from: range.from, to: range.to};
+  } else s = rpParseSos(text, new Date());
   reportData.sos = {...s, file: file.name, at: new Date().toISOString()};
   rpApplyToScoreboard();
   const dt = rpSosDriveThru(s);

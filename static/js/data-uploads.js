@@ -592,7 +592,16 @@ async function duHandleFiles(fileList, hint){
       else if(job.kind === 'sales') text = await rpImportSales(job.file, job.text);
       else if(job.kind === 'dayparts') text = await fcImportDaypartWeek(job.file, job.text);
       else if(job.kind === 'labor') text = await fcImportLaborFile(job.file, job.text, job.buffer);
-      else if(job.kind === 'sos') text = await rpImportSos(job.file, job.text);
+      else if(job.kind === 'sos'){
+        try{ text = await rpImportSos(job.file, job.text); }
+        catch(err){
+          if(!err.needRange) throw err;
+          duPending.push({id: ++duPendingSeq, kind: 'sos', need: 'range', file: job.file, text: job.text});
+          duResults[job.i] = {file: job.file.name, state: 'waiting', kind: 'Speed of service (Analytics Hub)', text: err.message};
+          renderDataUploads();
+          continue;
+        }
+      }
       else if(job.kind === 'dtRank'){
         const d = rpParseDtRank(job.text);
         if(d.count >= RP_DT_CHAIN_MIN) text = await rpImportDtRank(job.file, job.text, 'chain');
@@ -702,6 +711,9 @@ async function duResolvePending(id, value){
       catch(err){ if(!err.twin) throw err; duWaitTwin(null, item.file, iso, err.twin); renderDataUploads(); return; }
     } else if(item.kind === 'dtRank'){
       text = await rpImportDtRank(item.file, item.text, value);
+    } else if(item.kind === 'sos'){
+      const [from, to] = String(value).split('|');
+      text = await rpImportSos(item.file, item.text, {from, to});
     } else if(item.kind === 'dayparts'){
       text = await anFileQuarter(item.file, item.text, value);
     } else {
@@ -727,6 +739,24 @@ function duPendingHtml(item, underFile){
       <div class="du-pending-row">
         <button type="button" class="du-chip is-wide" data-du-pending="${item.id}" data-du-value="force">Save to ${escapeHtml(duLongDay(item.iso))} anyway</button>
         <button type="button" class="du-pending-skip" data-du-pending-skip="${item.id}">Skip this file</button>
+      </div>
+    </div>`;
+  }
+  if(item.need === 'range'){
+    // The dates a Custom by Hour export covers: this month so far, last
+    // month, or any range.
+    const t0 = duStartOfDay(new Date()), y = duAddDays(t0, -1);
+    const mtd = [duISO(new Date(y.getFullYear(), y.getMonth(), 1)), duISO(y)];
+    const last = [duISO(new Date(t0.getFullYear(), t0.getMonth() - 1, 1)), duISO(new Date(t0.getFullYear(), t0.getMonth(), 0))];
+    const chip = ([a, b], label) => `<button type="button" class="du-chip is-wide" data-du-pending="${item.id}" data-du-value="${a}|${b}"><span>${label}</span><b>${escapeHtml(rpRange(a, b))}</b></button>`;
+    return `<div class="du-pending">${name}
+      <div class="du-pending-q">Which dates did you export?</div>
+      <div class="du-chips">${chip(mtd, 'This month so far')}${chip(last, 'Last month')}</div>
+      <div class="du-pending-row du-range">
+        <label class="du-date-other">From <input type="date" max="${duISO(y)}" data-du-range-from="${item.id}"></label>
+        <label class="du-date-other">To <input type="date" max="${duISO(y)}" data-du-range-to="${item.id}"></label>
+        <button type="button" class="du-chip" data-du-range-save="${item.id}">Use these dates</button>
+        <button type="button" class="du-pending-skip" data-du-pending-skip="${item.id}">Skip</button>
       </div>
     </div>`;
   }
@@ -1431,6 +1461,14 @@ document.getElementById('dataUploadsRoot').addEventListener('click', async e=>{
     if(typeof renderPrepBoard === 'function') renderPrepBoard();
     showToast(`${duLongDay(iso)} removed`);
     await saveState();
+    return;
+  }
+  const range = e.target.closest('[data-du-range-save]');
+  if(range){
+    const id = range.dataset.duRangeSave, box = range.closest('.du-pending');
+    const from = box.querySelector(`[data-du-range-from="${id}"]`).value, to = box.querySelector(`[data-du-range-to="${id}"]`).value;
+    if(!from || !to || from > to){ showToast('Pick a From date on or before the To date'); return; }
+    duResolvePending(+id, `${from}|${to}`);
     return;
   }
   const pick = e.target.closest('[data-du-pending]');
