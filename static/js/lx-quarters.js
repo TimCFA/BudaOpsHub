@@ -39,19 +39,22 @@ function lxPastQuarters(){
 function lxRecord(q){ return lxQuarters && lxQuarters.quarters ? lxQuarters.quarters[q] || null : null; }
 function lxSnapshot(){ return lxMetrics.map(m => ({id: m.id, name: m.name, standard: m.standard, value: m.value || '', rating: m.rating})); }
 
-// OSAT for a quarter from the CEM uploads: {osat, n, note} or null.
+// OSAT for a quarter from the CEM uploads, with its top 5%: {osat, top5, n, note} or null.
 function lxCemOsat(q){
   if(typeof ctPeriods !== 'function' || typeof ctTotalEntry !== 'function') return null;
   const b = lxQuarterBounds(q);
   const total = p => { const t = ctTotalEntry(p.periodKey); return t && t.scores && t.scores.overall != null ? t : null; };
   const periods = ctPeriods();
   const whole = periods.find(p => p.periodType !== 'month' && p.periodStart === b.start && p.periodEnd === b.end && total(p));
-  if(whole){ const t = total(whole); return {osat: t.scores.overall, n: t.n || null, note: whole.periodLabel}; }
+  const top5Of = t => t.benchmark && t.benchmark.overall != null ? t.benchmark.overall : null;
+  if(whole){ const t = total(whole); return {osat: t.scores.overall, top5: top5Of(t), n: t.n || null, note: whole.periodLabel}; }
   const months = periods.filter(p => p.periodType === 'month' && p.periodStart >= b.start && p.periodStart <= b.end)
     .map(p => ({p, t: total(p)})).filter(x => x.t);
   if(!months.length) return null;
   const n = months.reduce((s, x) => s + (x.t.n || 1), 0);
-  return {osat: months.reduce((s, x) => s + x.t.scores.overall * (x.t.n || 1), 0) / n, n, note: `${b.label}, ${months.length} of 3 months`};
+  const benched = months.filter(x => top5Of(x.t) != null), bn = benched.reduce((s, x) => s + (x.t.n || 1), 0);
+  return {osat: months.reduce((s, x) => s + x.t.scores.overall * (x.t.n || 1), 0) / n,
+    top5: bn ? benched.reduce((s, x) => s + top5Of(x.t) * (x.t.n || 1), 0) / bn : null, n, note: `${b.label}, ${months.length} of 3 months`};
 }
 
 // On a manager's page: freeze a quarter that's ended, and keep the CEM's
@@ -74,11 +77,13 @@ function lxQuartersSync(){
     if(!rec){ rec = lxQuarters.quarters[q] = {metrics: lxSnapshot().map(m => ({...m, value: '', rating: null}))}; changed = true; }
     const m = rec.metrics.find(x => /osat/i.test(x.name));
     if(!m || m.typed) return;
-    const notSat = Math.round(100 - cem.osat), goal = parseFloat(String(m.standard).replace(/[^\d.]/g, ''));
-    const value = `${notSat}% · OSAT ${Math.round(cem.osat)}%`;
-    const rating = isNaN(goal) ? m.rating : notSat <= goal ? 2 : 1;
+    // Against the top 5% (Tim, Oct 23 2026: the goal, and the CEM's benchmark).
+    const o = {osat: Math.round(cem.osat), top5: cem.top5 != null ? Math.round(cem.top5) : null};
+    const value = typeof rpLxOsatValue === 'function' ? rpLxOsatValue(o) : `OSAT ${o.osat}%${o.top5 != null ? ` · top 5% ${o.top5}%` : ''}`;
+    const rating = o.top5 == null ? m.rating : o.osat >= o.top5 ? 2 : 1;
     const source = `From the CEM upload: ${cem.note}`;
-    if(m.value !== value || m.rating !== rating || m.source !== source){ Object.assign(m, {value, rating, source}); changed = true; }
+    const name = typeof RP_LX_OSAT_NAME !== 'undefined' ? RP_LX_OSAT_NAME : 'OSAT · Top 5%', standard = typeof RP_LX_OSAT_STANDARD !== 'undefined' ? RP_LX_OSAT_STANDARD : 'Top 5%';
+    if(m.value !== value || m.rating !== rating || m.source !== source || m.name !== name || m.standard !== standard){ Object.assign(m, {value, rating, source, name, standard}); changed = true; }
   });
   return changed;
 }

@@ -210,23 +210,24 @@ class ForecastFilesTest(unittest.TestCase):
             {name: 'Productivity', standard: '$90+', value: '', rating: 3}];
           globalThis.reportData = {}; globalThis.gxData = {}; globalThis.lxLastUpdated = '';
           globalThis.duCemLatest = () => ({periodKey: '2026-10', periodLabel: 'October 2026 (through Oct 14)'});
-          globalThis.ctTotalEntry = () => ({scores: {overall: 81.4}});
+          globalThis.ctTotalEntry = () => ({scores: {overall: 87.2}, benchmark: {overall: 86}});
           globalThis.productivityProfiles = {All: {hours: {}},
             Monday: {dayparts: {Breakfast: {sales: 4000, labor: 50}, Lunch: {sales: 9000, labor: 80}}, sources: {'productivity-daypart': {range: 'month to date, as of Oct 18'}}},
             Tuesday: {dayparts: {Breakfast: {sales: 3000, labor: 40}, Lunch: {sales: 0, labor: 0}}}};
           const links = rpLxLinks().map(l => [l.index, l.kind, l.title]);
           const changed = rpSyncLx();
           const first = lxMetrics.map(m => [m.value, m.rating]);
-          globalThis.ctTotalEntry = () => ({scores: {overall: 76}});
+          globalThis.ctTotalEntry = () => ({scores: {overall: 76}, benchmark: {overall: 86}});
           productivityProfiles.Monday.dayparts.Lunch.labor = 120;
           rpSyncLx();
-          return {links, changed, first, after: lxMetrics.map(m => [m.value, m.rating])}; }"""
+          return {links, changed, first, after: lxMetrics.map(m => [m.value, m.rating]), osat: [lxMetrics[0].name, lxMetrics[0].standard]}; }"""
         res, = run([{'op': op}])
         self.assertEqual(res['links'], [[0, 'osat', 'From the CEM upload: October 2026 (through Oct 14)'],
                                         [2, 'prod', 'From the Productivity report upload (month to date, as of Oct 18)']])
         self.assertTrue(res['changed'])
-        self.assertEqual(res['first'], [['19% · OSAT 81%', 2], ['', 2], ['$94.12', 3]])     # 16,000 / 170 hours; Exceeding kept
-        self.assertEqual(res['after'], [['24% · OSAT 76%', 1], ['', 2], ['$76.19', 1]])     # 16,000 / 210 hours: Below
+        self.assertEqual(res['first'], [['OSAT 87% · top 5% 86%', 2], ['', 2], ['$94.12', 3]])   # at or above the top 5%; 16,000 / 170 hours, Exceeding kept
+        self.assertEqual(res['osat'], ['OSAT · Top 5%', 'Top 5%'])                         # Tim: the goal is the top 5%, not the top 20%
+        self.assertEqual(res['after'], [['OSAT 76% · top 5% 86%', 1], ['', 2], ['$76.19', 1]])   # under the top 5%; 16,000 / 210 hours: Below
 
     def test_labor_csv_is_mapped_from_headers(self):
         res, = run([{'op': 'c => { const t = fcParseTable(c.text); const map = fcGuessMap(t.headers, t.rows); const recs = fcRecordsFromTable(t, map); const hist = {"2026-09-01": {sales: 9999, channels: {"Dine In": 1}}}; const n = fcMergeRecords(recs, hist); return {map, recs, hist, n, labor: fcLooksLikeLabor(c.text)}; }', 'text': LABOR_CSV}])

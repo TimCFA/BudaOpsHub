@@ -469,18 +469,23 @@ function rpApplyToScoreboard(){
 // ----- LX business metrics -----
 // Drive-Thru Ranking follows the chain rank upload; Food Safety Score follows
 // the score typed once in Guest Obsession. Since Oct 23 2026 (Tim): OSAT
-// follows the latest CEM month (the share not highly satisfied, the
-// metric's "≤ 20%"), and Productivity the Productivity report's dayparts
-// (sales per labor hour, every weekday's together). [{index, kind, title}]
+// follows the latest CEM month against its Top 5% (Tim: "our new goal is top
+// 5%, not top 20%"; the CEM export's benchmark is the top 5%), and
+// Productivity the Productivity report's dayparts (sales per labor hour,
+// every weekday's together). [{index, kind, title}]
 
-// The CEM month the scoreboard uses: {notSat, osat, label} or null.
+// The CEM month the scoreboard uses: {osat, top5, label} or null.
 function rpLxOsat(){
   if(typeof duCemLatest !== 'function' || typeof ctTotalEntry !== 'function') return null;
   const latest = duCemLatest();
   const total = latest ? ctTotalEntry(latest.periodKey) : null;
   if(!total || total.scores.overall == null) return null;
-  return {osat: Math.round(total.scores.overall), notSat: Math.round(100 - total.scores.overall), label: latest.periodLabel};
+  const top5 = total.benchmark && total.benchmark.overall != null ? Math.round(total.benchmark.overall) : null;
+  return {osat: Math.round(total.scores.overall), top5, label: latest.periodLabel};
 }
+// The OSAT line's name and standard since the goal became the top 5%.
+const RP_LX_OSAT_NAME = 'OSAT · Top 5%', RP_LX_OSAT_STANDARD = 'Top 5%';
+function rpLxOsatValue(o){ return `OSAT ${o.osat}%${o.top5 != null ? ` · top 5% ${o.top5}%` : ''}`; }
 // Sales per labor hour from the Productivity report: {prod, range} or null.
 function rpLxProductivity(){
   if(typeof productivityProfiles === 'undefined' || !productivityProfiles) return null;
@@ -520,15 +525,18 @@ function rpSyncLx(){
   let changed = false;
   const fsMetric = Array.isArray(lxMetrics) ? lxMetrics.find(m => /food safety/i.test(m.name)) : null;
   if(fsMetric && fsMetric.standard !== RP_LX_FOOD_SAFETY_STANDARD){ fsMetric.standard = RP_LX_FOOD_SAFETY_STANDARD; changed = true; }
+  // The old OSAT goal (+2 pts above the top 20%) became the top 5%.
+  const osMetric = Array.isArray(lxMetrics) ? lxMetrics.find(m => /osat/i.test(m.name)) : null;
+  if(osMetric && osMetric.standard !== RP_LX_OSAT_STANDARD){ osMetric.standard = RP_LX_OSAT_STANDARD; osMetric.name = RP_LX_OSAT_NAME; changed = true; }
   rpLxLinks().forEach(({index, kind})=>{
     const m = lxMetrics[index];
     let value = m.value, rating = m.rating;
     // Meets the standard: Meets (or Exceeding, if a leader set that); else Below.
     const meets = ok => ok ? (m.rating === 3 ? 3 : 2) : 1;
     if(kind === 'osat'){
-      const o = rpLxOsat(), goal = parseFloat(String(m.standard).replace(/[^\d.]/g, ''));
-      value = `${o.notSat}% · OSAT ${o.osat}%`;
-      if(!isNaN(goal)) rating = meets(o.notSat <= goal);
+      const o = rpLxOsat();
+      value = rpLxOsatValue(o);
+      if(o.top5 != null) rating = meets(o.osat >= o.top5);
     } else if(kind === 'prod'){
       const p = rpLxProductivity(), goal = parseFloat(String(m.standard).replace(/[^\d.]/g, ''));
       value = '$' + p.prod.toFixed(2);
