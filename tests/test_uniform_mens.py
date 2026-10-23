@@ -27,7 +27,10 @@ class FakeRef:
         self.path = path.strip('/')
 
     def get(self):
-        return store.get(self.path)
+        if self.path in store:
+            return store[self.path]
+        prefix = self.path + '/'
+        return {k[len(prefix):]: v for k, v in store.items() if k.startswith(prefix)} or None
 
     def set(self, value):
         store[self.path] = value
@@ -93,6 +96,18 @@ class ServerApplies(unittest.TestCase):
         appmod._cache[self.name] = {'data': {'uniformCatalog': None}, 'ver': 'v1', 'canon': ''}
         appmod._apply_once('uniformMensOuterwear', 'uniformCatalog', add_mens_outerwear)
         self.assertIsNone(appmod._cache[self.name]['data']['uniformCatalog'])
+        self.assertTrue(store[f'{appmod.ONCE_PATH}/uniformMensOuterwear'])
+
+    def test_a_full_read_applies_it_when_the_events_need_nothing(self):
+        # Live on Oct 22 2026 the step sat after the event fixes' early
+        # return, so with the calendar already right it never ran.
+        for name in appmod.STATE_SECTIONS:
+            store[f'{appmod.STATE_ROOT}/{name}'] = json.dumps({})
+        store[f'{appmod.STATE_ROOT}/{self.name}'] = json.dumps({'uniformOrders': [], 'uniformCatalog': women()})
+        self.assertTrue(appmod._refresh_cache())
+        ids = [c['id'] for c in json.loads(store[f'{appmod.STATE_ROOT}/{self.name}'])['uniformCatalog']]
+        self.assertIn('um-parka', ids)
+        self.assertEqual(ids, [c['id'] for c in appmod._cache[self.name]['data']['uniformCatalog']])
         self.assertTrue(store[f'{appmod.ONCE_PATH}/uniformMensOuterwear'])
 
     def test_the_pictures_come_with_the_app_until_one_is_uploaded(self):
