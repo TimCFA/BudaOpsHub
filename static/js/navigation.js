@@ -28,12 +28,13 @@ function activateView(view){
     // The simplified site has the Waste panel only (launch-mode.js).
     if(typeof launchIsOn === 'function' && launchIsOn()) sbShowPanel('waste');
     renderScoreboardView(); renderOperationalIntelligence(); renderCustomScoreboards();
-    renderGXScoreboard(); renderCemTrends(); renderTXScoreboard(); renderTrainerTrial(); renderTeamLeadTrial(); renderLXScoreboard();
+    renderGXScoreboard(); renderTXScoreboard(); renderTrainerTrial(); renderTeamLeadTrial(); renderLXScoreboard();
   }
   if(view === 'tx') renderTXScoreboard();
   if(view === 'lx') renderLXScoreboard();
   if(view === 'home') renderHomeScoreboard();
   if(view === 'forecast') renderForecastView();
+  if(view === 'cem' && typeof renderCemTrends === 'function') renderCemTrends();
   if(view === 'calendar' && typeof renderCalendarView === 'function') renderCalendarView();
   if(view === 'directors' && typeof renderDirectorsView === 'function') renderDirectorsView();
   if(view === 'headcount'){ renderHeadcountView(); hcLoad(true); }

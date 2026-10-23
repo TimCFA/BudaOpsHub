@@ -6,6 +6,7 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .tab:hover,:where(html[data-theme="dark"]) .tab-group-label:hover{color:var(--ink-dark-red);}
 :where(html[data-theme="dark"]) .toggle-btn.active{color:var(--cfa-bg);}
 :where(html[data-theme="dark"]) #positionsView{--su-ink:#DDDBD9;--su-muted:#BBB7B0;--su-line:#3C3933;--su-unrated:#493E2B;}
+:where(html[data-theme="dark"]) .gx-cem-link{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .su-week-toggle-btn.active,:where(html[data-theme="dark"]) .week-toggle-btn.active{color:var(--ink-dark-red);}
 :where(html[data-theme="dark"]) .day-pill:hover{color:var(--ink-dark-red);}
 :where(html[data-theme="dark"]) .su-mode-btn.active{color:var(--cfa-bg);}

@@ -22,6 +22,10 @@ class Chips(unittest.TestCase):
         self.assertEqual(groups, chips)
         labels = re.findall(r'data-manage-go="[a-z]+" aria-selected="false">([^<]+)<', MANAGE)
         tabs = re.findall(r'class="tab[^"]*"[^>]*data-view="[a-z]+"[^>]*>([A-Z][A-Za-z ]+?) <span', PAGE) + re.findall(r'class="tab-group-label"[^>]*>([A-Za-z]+) ', PAGE)
+        # The Forecast is a page in Tools since Oct 23 2026: its chip keeps the page's name.
+        with open(os.path.join(ROOT, 'static', 'js', 'launch-mode.js'), encoding='utf-8') as f:
+            self.assertIn("{view: 'forecast', label: 'Sales & Labor Forecast'", f.read())
+        tabs.append('Forecast')
         self.assertEqual([l for l in labels if l not in ('Levelset', 'Uploads', 'Settings', 'Health')], ['Home', 'Waste', 'Experience', 'Scoreboard', 'Forecast', 'Calendar', 'Forms', 'Directors'])
         self.assertTrue(set(labels) - {'Levelset', 'Uploads', 'Settings', 'Health'} <= set(tabs), (labels, tabs))
 

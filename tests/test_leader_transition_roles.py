@@ -47,7 +47,7 @@ class WhoSeesIt(unittest.TestCase):
         js = read('static', 'js', 'fohoe-and-safecount.js')
         self.assertIn("document.body.classList.toggle('lt-hidden', ltHidden());", js)
         launch = read('static', 'js', 'launch-mode.js')
-        self.assertIn("|| (l.page === 'leaders' && typeof ltHidden === 'function' && ltHidden());", launch)
+        self.assertIn("|| (l.page === 'leaders' && typeof ltHidden === 'function' && ltHidden())", launch)
         self.assertIn('const here = group.filter(l => l.view === view && !hidden(l));', launch)   # the pill opens Zone Resets instead
         self.assertIn('body.lt-hidden #leaderTransitionCard{display:none !important;}', read('static', 'css', 'theme-cfa.css'))
         # Signed out: a line says where they went, and opens the PIN pad.
