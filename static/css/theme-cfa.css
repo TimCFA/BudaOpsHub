@@ -2036,10 +2036,19 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .hc-prow:hover b{color:var(--cfa-red);}
 .hc-prow-name{display:grid;gap:1px;flex:1;min-width:0;}
 .hc-prow-name small{font-size:12px;color:var(--text-tertiary);}
-.hc-permit.is-ok{background:#E6F2EA;color:#2E7D45;}
-.hc-permit.is-soon{background:#FFF1DA;color:#8A5300;}
-.hc-permit.is-expired{background:#FDECEF;color:var(--cfa-dark-red);}
-.hc-permit.is-missing{background:transparent;border:1px dashed var(--border);color:var(--text-tertiary);}
+/* A person's row: an icon for a certificate expired or due, a birthday, a work anniversary this month */
+.hc-mark{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:999px;flex:none;}
+.hc-mark.is-expired{background:#FDECEF;color:var(--cfa-red);}
+.hc-mark.is-soon{background:#FFF1DA;color:#8A5300;}
+.hc-mark.is-bday{background:rgba(0,79,113,.1);color:var(--cfa-navy);}
+.hc-mark.is-anniv{background:rgba(0,79,113,.1);color:var(--cfa-navy);}
+.hc-legend{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;margin:8px 0 2px;font-size:12px;color:var(--text-tertiary);}
+.hc-legend > span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;}
+.hc-legend .hc-mark{width:22px;height:22px;}
+.hc-legend .hc-mark svg{width:14px;height:14px;}
+.hc-mark-line{display:flex;align-items:center;gap:6px;margin-top:4px;}
+.hc-mark-line .hc-mark{width:24px;height:24px;}
+.hc-mark-line .hc-mark svg{width:15px;height:15px;}
 .hc-chip.is-minor{background:rgba(0,79,113,.1);color:var(--cfa-navy);}
 .hc-bad{color:var(--cfa-red);}
 .hc-others{margin-top:8px;}

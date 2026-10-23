@@ -318,5 +318,42 @@ class HeadcountTest(unittest.TestCase):
         self.assertIn('.hc-page{', read('static', 'css', 'theme-cfa.css'))
 
 
+
+class RowIcons(unittest.TestCase):
+    """Tim, Oct 23 2026: the first glance stays simple: no permit list, just
+    an icon on a person's row for a certificate expired or due soon, a
+    birthday this month, a work anniversary this month."""
+
+    def marks(self, profile):
+        import json
+        import subprocess
+        runner = (
+            "const fs=require('fs'),vm=require('vm');"
+            "const c={today:'2026-10-23',escapeHtml:s=>String(s),toLocalISODate:d=>d.toISOString().slice(0,10)};vm.createContext(c);"
+            "const js=fs.readFileSync(process.argv[1],'utf8');"
+            "vm.runInContext(js.slice(js.indexOf('function hcAddDays'),js.indexOf('function hcTypeLabel'))+"
+            "js.slice(js.indexOf('const HC_PERMIT_SOON_DAYS'),js.indexOf('const HC_ROLE_LABELS'))+"
+            "js.slice(js.indexOf('// expired | soon'),js.indexOf('function hcAge'))+"
+            "js.slice(js.indexOf('// The icons on a person'),js.indexOf('function hcTeamHtml')),c);"
+            "process.stdout.write(JSON.stringify(vm.runInContext('hcMarks('+process.argv[2]+')',c).map(m=>m[1]+' '+m[2])));")
+        out = subprocess.run(['node', '-e', runner, os.path.join(ROOT, 'static', 'js', 'headcount.js'), json.dumps(profile)],
+                             capture_output=True, text=True, check=True).stdout
+        return json.loads(out)
+
+    def test_icons(self):
+        self.assertEqual(self.marks({'name': 'Jordan Testcase', 'permitExpires': '2026-10-01', 'birthday': '2008-10-30', 'hireDate': '2023-10-05'}),
+                         ['is-expired Food handler certificate expired Oct 1', 'is-bday Birthday Oct 30', 'is-anniv 3-year anniversary Oct 5'])
+        self.assertEqual(self.marks({'name': 'Riley Sample', 'permitExpires': '2026-11-10'}), ['is-soon Food handler certificate due Nov 10'])
+        # Current, no date, hired this month, born another month: nothing to show.
+        self.assertEqual(self.marks({'name': 'Casey Example', 'permitExpires': '2027-05-01', 'birthday': '2001-03-02', 'hireDate': '2026-10-02'}), [])
+        self.assertEqual(self.marks({'name': 'No Dates'}), [])
+        self.assertEqual(self.marks(None), [])
+
+    def test_no_permit_list_at_first_glance(self):
+        js = read('static', 'js', 'headcount.js')
+        self.assertNotIn('Food handler permits', js)
+        self.assertIn("${hcMarks(p).map(hcMarkIcon).join('')}</button>", js)
+
+
 if __name__ == '__main__':
     unittest.main()
