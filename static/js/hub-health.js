@@ -98,7 +98,7 @@ setInterval(() => hhFlushViews(false), 5 * 60 * 1000);
 
 // ----- Manage → Health -----
 const HH_VIEW_LABELS = {home: 'Home', positions: 'Set Ups', wastelog: 'Waste', scoreboard: 'Scoreboard', zonereset: 'Zone Reset',
-  foodsafety: 'Food Safety', safecount: 'Safe Count', prepboard: 'Prep Board', calendar: 'Calendar', manage: 'Manage',
+  foodsafety: 'Food Safety', safecount: 'Safe Count', prepboard: 'Prep Board', cem: 'CEM Insights', calendar: 'Calendar', manage: 'Manage',
   directors: 'Directors', forecast: 'Forecast', uniforms: 'Uniforms', tx: 'TX', lx: 'LX', forms: 'Forms', headcount: 'Our Team',
   health: 'Manage → Health'};
 const HH_ROLE_LABELS = {member: 'Team Members', trainer: 'Trainers', lead: 'Team Leads', admin: 'Admin Team', director: 'Directors', manager: 'Manager PIN', none: 'not signed in'};

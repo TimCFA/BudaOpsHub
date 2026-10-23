@@ -13,7 +13,9 @@ const FM_ENDPOINT = `${typeof API_BASE !== 'undefined' ? API_BASE : ''}/api/form
 const FM_STORES = [{v: 'buda', l: 'Buda'}];
 let fmApp = null;            // the engine's form library, once mounted
 let fmInbox = null;          // the engine's inbox, once mounted
-let fmMode = 'fill';         // 'fill' | 'inbox'
+let fmMode = 'fill';         // 'fill' | 'inbox' | 'uniforms'
+let fmFrom = 'fill';         // where Uniform orders' back button goes
+let fmUniformsIn = false;    // the Uniform order card is in the mounted library
 let fmCustom = [];           // forms added in Manage (hidden ones too, for a manager)
 let fmCustomLoaded = false;
 let fmBuilder = null;        // the form open in the builder
@@ -27,8 +29,34 @@ function fmCanInbox(){
   if(typeof launchManager !== 'undefined' && launchManager) return true;
   return typeof acUser !== 'undefined' && !!acUser && acUser.role === 'admin';
 }
+// Uniform orders live in Forms too (Tim, Oct 23 2026): a card that opens
+// the order page (uniform-orders.js) here, for manager sessions as before,
+// since the orders are in the private 'orders' section.
+function fmUniformsShown(){ return typeof uoShown === 'function' && uoShown() && !!document.getElementById('uniformsRoot'); }
+const FM_UNIFORM_CARD = {id: 'uniform_order', title: 'Uniform order', title_es: 'Pedido de uniforme', category: 'people', icon: 'shirt', audience: 'leaders',
+  blurb: 'Fill it in with the team member; it comes out of their paycheck', blurb_es: 'Llénalo con el miembro del equipo; se descuenta de su cheque',
+  keywords: ['uniform', 'shirt', 'jacket', 'outerwear', 'pants', 'order', 'uniforme', 'pedido'], open: () => fmOpenUniforms('new')};
 function fmDefs(){
   return [...(window.OPS_FORM_DEFINITIONS || []), ...fmCustom.filter(d => !d.hidden)];
+}
+function fmLibraryDefs(){
+  return fmUniformsShown() ? [...fmDefs(), FM_UNIFORM_CARD] : fmDefs();
+}
+function fmOpenUniforms(pane){
+  if(!fmUniformsShown()) return;
+  if(fmMode !== 'uniforms') fmFrom = fmMode;
+  fmMode = 'uniforms';
+  if(pane && typeof uoPane !== 'undefined') uoPane = pane;
+  renderForms();
+  try{ document.getElementById('formsRoot').scrollIntoView({block: 'start'}); }catch(e){ /* ignore */ }
+}
+function fmUniformLinkHtml(){
+  const open = typeof uoOpenCount === 'function' ? uoOpenCount() : 0;
+  return `<button type="button" class="fm-uo-link" data-fm-uniforms="orders">
+    <span class="fm-uo-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3.5L3 6.5l2 4.5 3-1.2V21h8V9.8l3 1.2 2-4.5-5-3c-.6 1.5-2.1 2.4-4 2.4S8.6 5 8 3.5z"/></svg></span>
+    <span class="fm-uo-tx"><b>Uniform orders</b><small>${open ? `${open} open` : 'None open'} · mark them ordered and handed out</small></span>
+    <span class="fm-uo-chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+  </button>`;
 }
 // Names on the schedule around today, for the name boxes' suggestions.
 function fmRoster(){
@@ -53,7 +81,9 @@ async function renderForms(){
   const root = document.getElementById('formsRoot');
   if(!root || typeof OpsForms === 'undefined') return;
   if(!fmCustomLoaded) await fmLoadCustom();
-  if(!fmCanInbox()) fmMode = 'fill';
+  if(fmMode === 'uniforms' && !fmUniformsShown()) fmMode = 'fill';
+  if(fmMode === 'inbox' && !fmCanInbox()) fmMode = 'fill';
+  if(fmFrom === 'inbox' && !fmCanInbox()) fmFrom = 'fill';
   const sw = document.getElementById('formsSwitch');
   sw.innerHTML = fmCanInbox() ? `
     <div class="fm-switch" role="tablist" aria-label="Forms">
@@ -61,10 +91,25 @@ async function renderForms(){
       <button type="button" role="tab" aria-selected="${fmMode === 'inbox'}" class="${fmMode === 'inbox' ? 'is-on' : ''}" data-fm-mode="inbox">Submissions</button>
     </div>` : '';
   const fill = document.getElementById('formsFill'), inbox = document.getElementById('formsInbox');
+  const uniforms = document.getElementById('formsUniforms'), link = document.getElementById('formsUniformLink');
+  sw.hidden = fmMode === 'uniforms';
   fill.hidden = fmMode !== 'fill';
   inbox.hidden = fmMode !== 'inbox';
+  uniforms.hidden = fmMode !== 'uniforms';
+  link.hidden = !(fmMode === 'inbox' && fmUniformsShown());
+  link.innerHTML = link.hidden ? '' : fmUniformLinkHtml();
+  if(fmMode === 'uniforms'){
+    document.getElementById('formsUniformsBack').lastChild.textContent = fmFrom === 'inbox' ? ' Submissions' : ' All forms';
+    renderUniformsView();
+    return;
+  }
   if(fmMode === 'fill'){
-    if(!fmApp) fmApp = OpsForms.mount(fill, {endpoint: FM_ENDPOINT, definitions: fmDefs(), isLeader: fmIsLeader(), roster: fmRoster(), stores: FM_STORES});
+    // The Uniform order card comes and goes with a manager sign-in.
+    if(fmApp && fmUniformsIn !== fmUniformsShown()){ fmApp = null; fill.innerHTML = ''; fill.className = ''; }
+    if(!fmApp){
+      fmUniformsIn = fmUniformsShown();
+      fmApp = OpsForms.mount(fill, {endpoint: FM_ENDPOINT, definitions: fmLibraryDefs(), isLeader: fmIsLeader(), roster: fmRoster(), stores: FM_STORES});
+    }
     else fmApp.setLeader(fmIsLeader());
   } else {
     if(!fmInbox) fmInbox = OpsForms.mountInbox(inbox, {endpoint: FM_ENDPOINT, definitions: fmDefs(), stores: FM_STORES});
@@ -90,6 +135,11 @@ document.getElementById('formsSwitch').addEventListener('click', e => {
   if(!b) return;
   fmMode = b.dataset.fmMode;
   renderForms();
+});
+document.getElementById('formsRoot').addEventListener('click', e => {
+  const go = e.target.closest('[data-fm-uniforms]');
+  if(go){ fmOpenUniforms(go.dataset.fmUniforms); return; }
+  if(e.target.closest('#formsUniformsBack')){ fmMode = fmFrom; renderForms(); }
 });
 
 // ===== Manage → Forms: the forms directors and managers add =====

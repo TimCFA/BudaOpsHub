@@ -1310,6 +1310,70 @@ function duMiniHtml(src, st){
   </button></li>`;
 }
 
+// ----- Today's uploads (Tim, Oct 23 2026) -----
+// The admin team's list for the day: every report due or behind, plus the
+// ones already brought in today, ticked. When nothing's left, a word of
+// encouragement in the house style: one a day, the same all day.
+const DU_CAUGHT_UP = [
+  'Every report is in. That’s second-mile service on the spreadsheets.',
+  'All caught up. Somebody’s earned a waffle fry break.',
+  'Nothing left to file. The numbers are as fresh as a just-breaded filet.',
+  'Clean sweep. Even the cows would be impressed.',
+  'All in. Today’s reports, served with a smile.',
+  'Caught up! You just made every leader’s day a little easier.',
+  'That’s a wrap. The hub is humming because of you.',
+  'Winning hearts every day, one report at a time. Thank you!',
+  'All caught up. Now that’s a my-pleasure kind of day.',
+  'Done and filed. That’s how Buda does it.'
+];
+function duCaughtUpLine(iso){
+  let h = 0;
+  for(const ch of String(iso)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return DU_CAUGHT_UP[h % DU_CAUGHT_UP.length];
+}
+// When this source was uploaded today (a Date), or null.
+function duUploadedToday(key){
+  const at = ((dataUploadLog || {})[key] || []).map(e => e && e.at).filter(Boolean).sort().pop();
+  if(!at) return null;
+  const d = new Date(at);
+  return toLocalISODate(d) === today ? d : null;
+}
+const DU_ICON_CHEER = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4.5a2.5 2.5 0 0 0 2.6 4M17 6h2.5a2.5 2.5 0 0 1-2.6 4"/></svg>';
+function duTodayHtml(rows, counts, lastText){
+  const items = rows.map(r => ({...r, at: duUploadedToday(r.src.key)}))
+    .filter(r => r.pending || r.st.status !== 'fresh' || r.at)
+    .map(r => ({...r, done: !r.pending && r.st.status === 'fresh' && !!r.at}));
+  const left = items.filter(r => !r.done).length, total = items.length;
+  const clock = d => d.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'});
+  const note = r => r.done ? `Done ${clock(r.at)}` : r.pending ? 'Waiting on a tap below' : r.st.status === 'overdue' ? 'Behind' : `Due ${r.st.freq === 'daily' ? 'today' : r.st.freq === 'monthly' ? 'this month' : 'this week'}`;
+  const pct = total ? Math.round((total - left) / total * 100) : 100;
+  return `
+    <section class="du-today ${left ? '' : 'is-done'}" aria-live="polite">
+      <div class="du-today-head">
+        <span class="du-today-ring" style="--p:${pct}" aria-hidden="true">${left ? `<b>${total - left}/${total}</b>` : DU_ICON_CHEER}</span>
+        <div class="du-today-t">
+          <h3>${left ? 'Today’s uploads' : 'All caught up!'}</h3>
+          <p>${left ? `${left} to go${total - left ? `, ${total - left} done` : ''}. Drop them below and each one ticks off.` : escapeHtml(duCaughtUpLine(today))}</p>
+        </div>
+      </div>
+      ${(() => {
+        if(!items.length) return '';
+        const list = `<ul class="du-today-list">${items.sort((a, b) => (a.done - b.done) || ((a.st.status === 'overdue' ? 0 : 1) - (b.st.status === 'overdue' ? 0 : 1))).map(r => `
+        <li class="${r.done ? 'is-done' : `is-${r.st.status}`}">
+          <span class="du-today-box" aria-hidden="true">${r.done ? DU_ICON.check : ''}</span>
+          <span class="du-today-name">${escapeHtml(r.src.name)}</span>
+          <small>${escapeHtml(note(r))}</small>
+        </li>`).join('')}</ul>`;
+        // All in: the ticked list folds, so the thanks is what shows.
+        return left ? list : `<details class="du-today-fold"><summary>${total} uploaded today</summary>${list}</details>`;
+      })()}
+      <div class="du-today-foot">
+        ${counts.overdue ? `<span class="du-pill is-overdue">${counts.overdue} overdue</span>` : ''}${counts.due ? `<span class="du-pill is-due">${counts.due} due</span>` : ''}<span class="du-pill is-fresh">${counts.fresh} current</span>
+        <span class="du-head-last">${escapeHtml(lastText)}</span>
+      </div>
+    </section>`;
+}
+
 function renderDataUploads(){
   const root = document.getElementById('dataUploadsRoot');
   if(!root) return;
@@ -1327,15 +1391,7 @@ function renderDataUploads(){
   const zipNeeds = Object.keys(DU_ZIP_COVERS).filter(k => needs.some(r => r.src.key === k));
   root.innerHTML = `
     ${duRestoreHtml()}
-    <div class="du-head">
-      <div class="du-head-main ${needs.length ? 'has-due' : ''}">${needs.length
-        ? `<b>${needs.length}</b><span>of ${rows.length} reports need an upload</span>`
-        : `<b>${DU_ICON.check}</b><span>All ${rows.length} reports are up to date</span>`}</div>
-      <div class="du-head-stats">
-        ${overdue ? `<span class="du-pill is-overdue">${overdue} overdue</span>` : ''}${due ? `<span class="du-pill is-due">${due} due</span>` : ''}<span class="du-pill is-fresh">${fresh} current</span>
-      </div>
-      <div class="du-head-last">${escapeHtml(lastText)}</div>
-    </div>
+    ${duTodayHtml(rows, {overdue, due, fresh}, lastText)}
     <label class="du-drop" data-du-drop>
       <input type="file" multiple accept=".csv,.xlsx,.xls,.pdf,.zip,.txt,.tsv,.png,.jpg,.jpeg" data-du-input>
       <span class="du-drop-icon" aria-hidden="true">${DU_ICON.upload}</span>

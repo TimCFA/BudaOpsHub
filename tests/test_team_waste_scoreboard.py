@@ -84,7 +84,7 @@ class PageWiring(unittest.TestCase):
         launch = read('static', 'js', 'launch-mode.js')
         self.assertRegex(launch, r"const LAUNCH_VIEWS = \[[^\]]*'scoreboard'")
         self.assertIn("{view: 'scoreboard', label: 'Scoreboard', sub: 'Tablero'}", launch)
-        self.assertIn("const LAUNCH_SUBNAVS = [LAUNCH_LISTS, LAUNCH_WASTE];", launch)
+        self.assertIn("const LAUNCH_SUBNAVS = [LAUNCH_LISTS, LAUNCH_WASTE, LAUNCH_TOOLS];", launch)
         page = read('cfa-buda-ops-hub-complete.html')
         self.assertIn('data-view="wastelog" data-views="wastelog scoreboard"', page)
         self.assertEqual(page.count('<nav class="launch-subnav launch-only" aria-label="Waste" data-launch-subnav></nav>'), 2)

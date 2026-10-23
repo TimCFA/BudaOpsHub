@@ -154,11 +154,18 @@ class Orders(unittest.TestCase):
 
 
 class Page(unittest.TestCase):
-    def test_tab_is_leaders_only(self):
-        tab = re.search(r'<button[^>]*data-view="uniforms"[^>]*>', PAGE).group(0)
-        self.assertIn('manager-only', tab)
+    def test_it_lives_in_forms_for_manager_sessions(self):
+        # Tim, Oct 23 2026: no Uniforms tab; the page is in Forms, opened by
+        # the Uniform order card (manager sessions only, as before).
+        self.assertNotIn('data-view="uniforms"', PAGE)
+        forms = PAGE[PAGE.index('id="formsView"'):]
+        self.assertLess(forms.index('id="uniformsRoot"'), forms.index('</div>\n  </div>\n'))
+        with open(os.path.join(ROOT, 'static', 'js', 'forms.js'), encoding='utf-8') as f:
+            src = f.read()
+        self.assertIn("function fmUniformsShown(){ return typeof uoShown === 'function' && uoShown()", src)
+        self.assertIn("return fmUniformsShown() ? [...fmDefs(), FM_UNIFORM_CARD] : fmDefs();", src)
         with open(os.path.join(ROOT, 'static', 'js', 'navigation.js'), encoding='utf-8') as f:
-            self.assertIn("view === 'uniforms'", f.read())
+            self.assertIn("if(view === 'uniforms'){\n    view = 'forms';", f.read())   # an old link still lands
 
     def test_no_store_question(self):
         with open(os.path.join(ROOT, 'static', 'js', 'uniform-orders.js'), encoding='utf-8') as f:

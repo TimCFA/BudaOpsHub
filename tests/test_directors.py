@@ -82,9 +82,14 @@ class Week(unittest.TestCase):
         self.assertEqual(got, [True, ['Maya Torres', 'Ava Morales']])
 
     def test_day_card_is_a_timeline(self):
+        # The week is six tiles; the open day (here Tue, the one with a gap) shows its timeline.
         html = run("c => { " + WEEK + """ const root = {innerHTML: ''}; document.getElementById = id => id === 'directorsRoot' ? root : null; renderDirectorsView();
-          return root.innerHTML.split('The week at a glance')[1].split('Where directors overlap')[0]; }""")
-        tue = html.split('Tue, Oct 13')[1].split('class="dir-day')[0]
+          return root.innerHTML.split('<h3>The week</h3>')[1].split('<h3>The numbers</h3>')[0]; }""")
+        self.assertEqual(html.count('class="dir-tile '), 6)
+        self.assertIn('class="dir-tile is-flag is-open" data-dir-day="2026-10-13" aria-pressed="true"', html)
+        self.assertIn('class="dir-tile is-empty is-today" data-dir-day="2026-10-12" aria-pressed="false"', html)
+        self.assertEqual(html.count('class="dir-day-head"'), 1)               # one day open at a time
+        tue = html.split('Tue, Oct 13')[2].split('dir-tl-key')[0]
         self.assertEqual(tue.count('class="dir-tl-row"'), 3)                 # Maya, Ava, the director
         self.assertEqual(tue.count('dir-tl-name is-leader'), 2)
         self.assertEqual(tue.count('dir-tl-bar is-director'), 1)
@@ -153,6 +158,35 @@ class Pea(unittest.TestCase):
 
 
 class Brief(unittest.TestCase):
+    def test_needs_you_leads_with_what_needs_a_director(self):
+        got = run("c => { " + WEEK + """ storeEvents = [{id: 'm', kind: 'meeting', title: 'Leadership meeting', date: '2026-10-13', from: '15:00', to: '16:00'}];
+          peaRows = [{date: '2026-09-01', leader: 'Maya Torres', employee: 'Noah Bennett'}];
+          const root = {innerHTML: ''}; document.getElementById = id => id === 'directorsRoot' ? root : null; renderDirectorsView();
+          return {needs: dirNeeds(getWeekDays(0).map(d => d.date)).map(n => [n.rank, n.text, n.sub || '']), html: root.innerHTML}; }""")
+        self.assertEqual(got['needs'], [
+            [0, 'Leadership meeting, Tue, Oct 13 · 3p–4p', 'No leader on the floor at that time'],
+            [1, 'Tue, Oct 13: no leader 2p–4p', ''],
+            [2, '2 leaders with no PEA given in 14 days', 'Ava Morales, Maya Torres'],                  # none on record first
+        ])
+        page = got['html']
+        self.assertLess(page.index('This week needs you'), page.index('<h3>The week</h3>'))
+        self.assertIn('<details class="dir-fold"><summary>PEA cadence</summary>', page)    # the detail is folded
+        self.assertNotIn('<section class="dir-card"><h3>PEA cadence', page)
+
+    def test_all_clear(self):
+        html = run("""c => { fohRoster = {'2026-10-13': [{name: 'Maya Torres', start: '5:30a', end: '10:30p', leader: true}]};
+            const root = {innerHTML: ''}; document.getElementById = id => id === 'directorsRoot' ? root : null; renderDirectorsView(); return root.innerHTML; }""")
+        self.assertIn('Nothing needs you this week', html)
+
+    def test_a_name_spelled_with_and_without_an_accent_is_one_leader(self):
+        got = run("""c => { fohRoster = {'2026-10-13': [{name: 'Aurora Méndez', start: '6:00a', end: '2:00p', leader: true}],
+                                    '2026-10-14': [{name: 'Aurora Mendez', start: '6:00a', end: '2:00p', leader: true}]};
+            adminShifts = {'2026-10-13': [{name: 'Timothy Lane', start: '9:00a', end: '1:00p'}]};
+            const dates = getWeekDays(0).map(d => d.date);
+            return {pea: dirPeaCadence(dates).leaders.map(l => l.name), needs: dirNeeds(dates).map(n => n.text)}; }""")
+        self.assertEqual(got['pea'], ['Aurora Méndez'])
+        self.assertFalse([n for n in got['needs'] if 'alongside' in n])
+
     def test_text_brief_names_the_gaps_and_flags(self):
         text = run("c => { " + WEEK + """ storeEvents = [{id: 'm', kind: 'meeting', title: 'Leadership meeting', date: '2026-10-13', from: '15:00', to: '16:00'}];
           peaRows = [{date: '2026-09-01', leader: 'Maya Torres', employee: 'Noah Bennett'}]; return dirBriefText(); }""")

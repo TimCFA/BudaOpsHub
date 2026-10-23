@@ -154,7 +154,8 @@ function suDaypartModel(section, date, dp, dpIndex){
       develop: first ? devNames.has(first.toLowerCase()) : false,
       flagged: !!posVacancyFlags[key + '||' + slot],
       notes: posNotesFor(key + '||' + slot).length,
-      timeNote: suSlotTimeNote(timing, names)
+      timeNote: suSlotTimeNote(timing, names),
+      coming: suNotHereYet(section, date, dp, timing, names)
     };
   });
   // A mid-daypart handoff pair shares one spot, so it counts once.
@@ -490,7 +491,7 @@ function suTileHtml(t){
   const avatar = t.names.length ? suInitials(t.names[0]) : '+';
   const label = `${t.slot}, priority ${t.rank}: ${t.names.length ? t.names.join(' then ') : (t.needed ? 'needed' : 'open')}${t.cell ? `, ${t.cell.tier.label} ${t.cell.avg.toFixed(2)}` : ''}${t.notes ? `, ${t.notes} note${t.notes === 1 ? '' : 's'}` : ''}`;
   return `
-    <button type="button" class="su-tile ${t.needed ? 'is-needed' : ''} ${!t.names.length ? 'is-open' : ''} ${t.flagged ? 'is-flagged' : ''}" data-su-tile="${escapeHtml(t.slot)}" aria-label="${escapeHtml(label)}">
+    <button type="button" class="su-tile ${t.needed ? 'is-needed' : ''} ${!t.names.length ? 'is-open' : ''} ${t.flagged ? 'is-flagged' : ''} ${t.coming ? 'is-coming' : ''}" data-su-tile="${escapeHtml(t.slot)}" ${t.coming ? `data-su-arrives="${t.coming}"` : ''} aria-label="${escapeHtml(label + (t.coming ? `, not here yet, arrives ${suClock(t.coming)}` : ''))}">
       <span class="su-tile-top"><span class="su-tile-slot">${escapeHtml(t.slot)}</span><span class="su-tile-rank">${t.notes ? `<span class="su-tile-noted" title="Has a note">${SU_ICON_NOTE}</span>` : ''}#${t.rank}</span></span>
       <span class="su-tile-who">
         <span class="su-avatar su-av-${t.tier}" aria-hidden="true">${escapeHtml(avatar)}</span>

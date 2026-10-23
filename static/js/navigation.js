@@ -1,7 +1,12 @@
 function activateView(view){
-  // Uniforms and Directors are managers-only (Tim, Oct 2026); the Calendar
-  // is for everyone (Oct 18).
-  if((view === 'uniforms' || view === 'directors') && typeof launchManager !== 'undefined' && !launchManager) view = 'home';
+  // Directors is managers-only (Tim, Oct 2026); the Calendar is for
+  // everyone (Oct 18). Uniform orders moved into Forms (Oct 23): a link to
+  // the old tab opens them there.
+  if(view === 'uniforms'){
+    view = 'forms';
+    if(typeof fmMode !== 'undefined' && typeof fmUniformsShown === 'function' && fmUniformsShown()){ fmFrom = 'fill'; fmMode = 'uniforms'; }
+  }
+  if(view === 'directors' && typeof launchManager !== 'undefined' && !launchManager) view = 'home';
   // Our Team: directors and the Admin Team (headcount.js).
   if(view === 'headcount' && !(typeof hcAllowed === 'function' && hcAllowed())) view = 'home';
   // Safe Count: not for Team Members or Trainers (fohoe-and-safecount.js).
@@ -23,14 +28,14 @@ function activateView(view){
     // The simplified site has the Waste panel only (launch-mode.js).
     if(typeof launchIsOn === 'function' && launchIsOn()) sbShowPanel('waste');
     renderScoreboardView(); renderOperationalIntelligence(); renderCustomScoreboards();
-    renderGXScoreboard(); renderCemTrends(); renderTXScoreboard(); renderTrainerTrial(); renderTeamLeadTrial(); renderLXScoreboard();
+    renderGXScoreboard(); renderTXScoreboard(); renderTrainerTrial(); renderTeamLeadTrial(); renderLXScoreboard();
   }
   if(view === 'tx') renderTXScoreboard();
   if(view === 'lx') renderLXScoreboard();
   if(view === 'home') renderHomeScoreboard();
   if(view === 'forecast') renderForecastView();
+  if(view === 'cem' && typeof renderCemTrends === 'function') renderCemTrends();
   if(view === 'calendar' && typeof renderCalendarView === 'function') renderCalendarView();
-  if(view === 'uniforms' && typeof renderUniformsView === 'function') renderUniformsView();
   if(view === 'directors' && typeof renderDirectorsView === 'function') renderDirectorsView();
   if(view === 'headcount'){ renderHeadcountView(); hcLoad(true); }
   if(view === 'forms' && typeof renderForms === 'function') renderForms();

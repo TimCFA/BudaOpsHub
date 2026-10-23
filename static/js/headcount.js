@@ -8,7 +8,10 @@
 // "To explain" until someone logs why, or marks it a false alarm.
 // Profiles (TIM-82, Oct 20 2026): each person's food handler permit expiry,
 // hire date, birthday (who's under 18) and notes; a permit expired or due in
-// 30 days shows here and on the Right Now card.
+// 30 days shows on the Right Now card. On this page (Tim, Oct 23 2026) the
+// first glance stays simple: no permit list, just an icon on the person's
+// row for a certificate expired or due soon, a birthday this month, a work
+// anniversary this month; the details are in their profile.
 
 let hcData = null;        // the server's answer, once loaded
 let hcLoading = false;
@@ -98,7 +101,7 @@ function hcSummary(){
   const counted = first ? recent.filter(d => hcWhen(d) >= first.date).length : 0;   // only since the counts began
   const pace = days >= 14 && avg > 0 ? Math.round(counted / avg * 365 / days * 100) : null;
   const last = logged.slice().sort((a, b) => hcWhen(b).localeCompare(hcWhen(a)))[0] || null;
-  return {now: hcData.now, pending, logged, recent, joined, pace, days, last, permits: hcPermits(),
+  return {now: hcData.now, pending, logged, recent, joined, pace, days, last,
     quit: recent.filter(d => d.type === 'quit').length, letGo: recent.filter(d => d.type === 'let-go').length};
 }
 
@@ -124,32 +127,26 @@ function hcYearsMonths(from){
   return months < 1 ? 'new this month' : months < 12 ? `${months} mo` : `${Math.floor(months / 12)} yr${months >= 24 ? 's' : ''}${months % 12 ? ` ${months % 12} mo` : ''}`;
 }
 
-// Everyone on the PIN list, with their permit state.
-function hcPermits(){
-  const team = (hcData && hcData.team) || [];
-  const rows = team.map(p => ({...p, profile: hcProfileFor(p.name)})).map(p => ({...p, state: hcPermitState(p.profile)}));
-  const n = st => rows.filter(r => r.state === st).length;
-  return {rows, expired: n('expired'), soon: n('soon'), missing: n('missing'), ok: n('ok')};
+// The icons on a person's row: [kind, words], certificate first.
+const HC_ICONS = {
+  cert: '<path d="M4 4h16v11H4z"/><path d="M8 8h8M8 11h4"/><circle cx="16.5" cy="15.5" r="2.5"/><path d="M15.3 17.7L14.5 21l2-1 2 1-.8-3.3"/>',
+  bday: '<path d="M4 21h16v-6.5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2z"/><path d="M4 16.5c1.3.9 2.7.9 4 0s2.7-.9 4 0 2.7.9 4 0 2.7-.9 4 0"/><path d="M12 12.5V9"/><path d="M12 6.5c.8-.6 1-1.5 0-2.5-1 1-.8 1.9 0 2.5z"/>',
+  anniv: '<circle cx="12" cy="9" r="5.5"/><path d="M8.6 13.4L7 21l5-2.5 5 2.5-1.6-7.6"/><path d="M12 6.5v5M9.5 9h5"/>'
+};
+function hcMarks(p){
+  if(!p) return [];
+  const marks = [], month = today.slice(5, 7), st = hcPermitState(p);
+  if(st === 'expired') marks.push(['cert', 'is-expired', `Food handler certificate expired ${hcDate(p.permitExpires)}`]);
+  if(st === 'soon') marks.push(['cert', 'is-soon', `Food handler certificate due ${hcDate(p.permitExpires)}`]);
+  if(p.birthday && p.birthday.slice(5, 7) === month) marks.push(['bday', 'is-bday', `Birthday ${hcDate(today.slice(0, 5) + p.birthday.slice(5))}`]);
+  if(p.hireDate && p.hireDate.slice(5, 7) === month && p.hireDate.slice(0, 4) < today.slice(0, 4)){
+    const years = +today.slice(0, 4) - +p.hireDate.slice(0, 4);
+    marks.push(['anniv', 'is-anniv', `${years}-year anniversary ${hcDate(today.slice(0, 5) + p.hireDate.slice(5))}`]);
+  }
+  return marks;
 }
-
-function hcPermitChip(p){
-  const st = hcPermitState(p);
-  const label = st === 'missing' ? 'No permit date' : st === 'expired' ? `Permit expired ${hcDate(p.permitExpires)}` : st === 'soon' ? `Permit due ${hcDate(p.permitExpires)}` : `Permit to ${hcDate(p.permitExpires)}${p.permitExpires.slice(0, 4) !== today.slice(0, 4) ? ' ' + p.permitExpires.slice(0, 4) : ''}`;
-  return `<span class="hc-chip hc-permit is-${st}">${escapeHtml(label)}</span>`;
-}
-
-function hcPermitsHtml(s){
-  const P = s.permits;
-  if(!P.rows.length) return '';
-  const urgent = P.rows.filter(r => r.state === 'expired' || r.state === 'soon')
-    .sort((a, b) => (a.profile.permitExpires || '').localeCompare(b.profile.permitExpires || ''));
-  return `
-    <section class="hc-card${P.expired ? ' hc-alert' : ''}">
-      <h3 class="hc-h">Food handler permits <span>${P.ok} of ${P.rows.length} current</span></h3>
-      <p class="hc-note">${[P.expired ? `<b class="hc-bad">${P.expired} expired</b>` : '', P.soon ? `${P.soon} due in ${HC_PERMIT_SOON_DAYS} days` : '', P.missing ? `${P.missing} with no date yet` : ''].filter(Boolean).join(' · ') || 'Everyone’s permit is current.'}</p>
-      ${urgent.map(r => `
-        <button type="button" class="hc-prow" data-hc-profile="${escapeHtml(r.name)}"><b>${escapeHtml(r.name)}</b>${hcPermitChip(r.profile)}</button>`).join('')}
-    </section>`;
+function hcMarkIcon([kind, cls, words]){
+  return `<span class="hc-mark ${cls}" title="${escapeHtml(words)}" role="img" aria-label="${escapeHtml(words)}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${HC_ICONS[kind]}</svg></span>`;
 }
 
 function hcTeamHtml(){
@@ -160,12 +157,13 @@ function hcTeamHtml(){
     const age = hcAge(p && p.birthday);
     return `<button type="button" class="hc-prow" data-hc-profile="${escapeHtml(name)}" data-hc-find="${escapeHtml(hcKey(name))}">
       <span class="hc-prow-name"><b>${escapeHtml(name)}</b><small>${escapeHtml([HC_ROLE_LABELS[role] || '', p && p.hireDate ? hcYearsMonths(p.hireDate) : ''].filter(Boolean).join(' · '))}</small></span>
-      ${age !== null && age < 18 ? '<span class="hc-chip is-minor">Under 18</span>' : ''}${hcPermitChip(p)}</button>`;
+      ${age !== null && age < 18 ? '<span class="hc-chip is-minor">Under 18</span>' : ''}${hcMarks(p).map(hcMarkIcon).join('')}</button>`;
   };
   return `
     <section class="hc-card">
       <h3 class="hc-h">Profiles <span>${team.length} on the PIN list</span></h3>
       <input type="search" class="hc-find" id="hcFind" placeholder="Find someone" aria-label="Find someone" autocomplete="off">
+      <p class="hc-legend"><span>${hcMarkIcon(['cert', 'is-expired', 'Certificate'])} Food handler certificate expired or due</span><span>${hcMarkIcon(['bday', 'is-bday', 'Birthday'])} Birthday this month</span><span>${hcMarkIcon(['anniv', 'is-anniv', 'Anniversary'])} Work anniversary this month</span></p>
       <div class="hc-plist">${team.map(t => row(t.name, t.role, hcProfileFor(t.name))).join('')}</div>
       ${others.length ? `<details class="hc-others"><summary>Not on the PIN list (${others.length})</summary><div class="hc-plist">${others.map(p => row(p.name, '', p)).join('')}</div></details>` : ''}
       <div class="hc-team-go">
@@ -186,6 +184,7 @@ function hcProfileHtml(){
       <div class="hc-profile-head">
         <h3 class="hc-h">${p.isNew ? 'New profile' : escapeHtml(p.name)}</h3>
         <span>${escapeHtml([HC_ROLE_LABELS[p.role] || '', age !== null ? `${age} years old` : '', p.hireDate ? `with us ${hcYearsMonths(p.hireDate)}` : ''].filter(Boolean).join(' · '))}</span>
+        ${hcMarks(p).map(m => `<span class="hc-mark-line">${hcMarkIcon(m)} ${escapeHtml(m[2])}</span>`).join('')}
       </div>
       ${p.isNew ? `<div class="field"><label for="hcpName">Name</label><input type="text" id="hcpName" maxlength="80" required></div>` : ''}
       <div class="hc-form-row hc-form-row3">
@@ -474,7 +473,6 @@ function renderHeadcountView(){
     ${hcImport ? hcImportHtml() : ''}
     ${hcProfile ? hcProfileHtml() : ''}
     ${hcPendingHtml(s)}
-    ${hcPermitsHtml(s)}
     ${hcTeamHtml()}
     ${hcDeparturesHtml(s)}
     ${hcWhyHtml(s)}

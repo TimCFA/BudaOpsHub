@@ -3,16 +3,18 @@
 // hub already holds says about the coming week, on one page behind the PIN,
 // and as a plain-text brief to copy into a text or email, or a PDF.
 //
-//  1. The week at a glance: each day's leaders, team members and director
-//     time, and the hours with no leader on the floor.
-//  2. Where the directors' shifts overlap the leaders'.
-//  3. Needs attention: meetings and events marked for a director, with who
-//     leads the floor at the time.
-//  4. PEA cadence: leaders by how long since their last PEA given, team
-//     members by their last received.
-//  5. The PEA scoreboard in short (the Leaders view, leaders.js, has the
-//     profiles: scoreboard, focus, notes, PEC calibration, quarter history).
-//  6. The numbers: the week's forecast, last week's accuracy, waste, orders.
+// The page leads with what needs a director (Tim, Oct 23 2026: "way too
+// much information… will not be used because of its complexity"):
+//  1. This week needs you: a handful of lines, worst first: a day or an
+//     hour with no leader, a meeting with no leader on the floor, leaders
+//     behind on PEAs, leaders no director works with this week.
+//  2. The week as six day tiles; a tap opens that day's timeline (its
+//     leaders, team members and director time, the gaps in red).
+//  3. The numbers: the week's forecast, last week's accuracy, waste, orders.
+//  4. Folded until opened: where directors overlap leaders, other events,
+//     PEA cadence, and the PEA scoreboard in short (the People view,
+//     leaders.js, has the profiles).
+// Copy and PDF send the whole brief as text.
 //
 // Directors are named in Manage → Settings (directors, {name, title}, as
 // HotSchedules spells them); their time is the Administrative shifts the
@@ -34,6 +36,7 @@ const DIR_CLOSE_MIN = 21 * 60 + 30;   // a leader on until here counts as closin
 const DIR_DAY_START_MIN = 5 * 60 + 30; // the store's first scheduled start: no leader gap is counted before it (Tim, Oct 21 2026)
 
 let dirWeekOffset = 0;   // 0 = this week, 1 = next
+let dirDayOpen = null;   // the day whose timeline shows under the week ('' = none open; null = today's, or the first day needing a look)
 // Four destinations, one level (Tim, Oct 19 2026): Brief, People (the
 // leaders, the team and the raters, leaders.js + team-pea.js), Report
 // (leader-report.js) and Points (points.js). The old 'leaders' and 'team'
@@ -61,7 +64,8 @@ function dirShowsTeam(){ dirNormalizeView(); return dirView === 'people' && dirP
 
 function dirList(){ return Array.isArray(directors) ? directors : DIRECTORS_SEED; }
 function dirEnsureOwn(){ if(!Array.isArray(directors)) directors = JSON.parse(JSON.stringify(DIRECTORS_SEED)); }
-const dirKey = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+// Accents folded: Levelset and HotSchedules spell some names differently (Méndez, Mendez).
+const dirKey = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/\s+/g, ' ');
 function dirIsDirector(name){ const k = dirKey(name); return dirList().some(d => dirKey(d.name) === k); }
 
 // ----- The week's people -----
@@ -170,8 +174,8 @@ function dirPeaCadence(dates){
     const E = byEmployee[r.employee] = byEmployee[r.employee] || {name: r.employee, last: ''}; if(r.date > E.last) E.last = r.date;
   });
   // Leaders this week with no PEA on record show too.
-  const weekLeaders = new Set();
-  dates.forEach(iso => dirLeaders(iso).forEach(p => weekLeaders.add(p.name)));
+  const weekLeaders = new Map();
+  dates.forEach(iso => dirLeaders(iso).forEach(p => { if(!weekLeaders.has(dirKey(p.name))) weekLeaders.set(dirKey(p.name), p.name); }));
   weekLeaders.forEach(n => { if(!Object.keys(byLeader).some(k => dirKey(k) === dirKey(n))) byLeader[n] = {name: n, last: '', recent: 0}; });
   const days = last => last ? Math.round((new Date(today + 'T00:00:00') - new Date(last + 'T00:00:00')) / 86400000) : null;
   const leaders = Object.values(byLeader).map(L => ({...L, days: days(L.last)})).sort((a, b) => (b.days ?? 9999) - (a.days ?? 9999));
@@ -200,7 +204,46 @@ function dirNumbers(dates){
   return out;
 }
 
+// ----- This week needs you -----
+// [{rank, iso, text, sub}], worst first: 0 no leader at all or a meeting with
+// none on the floor, 1 a gap or no closer, 2 meetings and PEAs, 3 who no
+// director works with.
+const DIR_NEEDS_SHOWN = 5;
+function dirNeeds(dates){
+  const out = [];
+  dates.forEach(iso => {
+    const floor = dirFloor(iso);
+    if(!floor.length) return;
+    if(!floor.some(p => p.leader)){ out.push({rank: 0, iso, text: `${dirDay(iso)}: no leader on the roster`}); return; }
+    const gaps = dirLeaderGaps(iso);
+    if(gaps.length) out.push({rank: 1, iso, text: `${dirDay(iso)}: no leader ${gaps.map(dirSpanText).join(', ')}`});
+    if(!dirHasCloser(iso)) out.push({rank: 1, iso, text: `${dirDay(iso)}: no leader through close`});
+  });
+  dirAttention(dates).forEach(x => {
+    const when = `${dirDay(x.iso)}${x.span ? ' · ' + dirSpanText(x.span) : ''}`;
+    out.push(x.leaders.length
+      ? {rank: 2, iso: x.iso, text: `${x.ev.title}, ${when}`, sub: `On the floor: ${x.leaders.map(p => dirShort(p.name)).join(', ')}`}
+      : {rank: 0, iso: x.iso, text: `${x.ev.title}, ${when}`, sub: 'No leader on the floor at that time'});
+  });
+  const pea = dirPeaCadence(dates);
+  const behind = pea.leaders.filter(p => p.days === null || p.days > DIR_PEA_DAYS);
+  if(pea.any && behind.length){
+    const names = behind.map(p => dirShort(p.name));
+    out.push({rank: 2, iso: '', text: `${behind.length} leader${behind.length === 1 ? '' : 's'} with no PEA given in ${DIR_PEA_DAYS} days`,
+      sub: names.length > 4 ? `${names.slice(0, 3).join(', ')} and ${names.length - 3} more` : names.join(', ')});
+  }
+  if(dates.some(iso => dirDirectorShifts(iso).length)){
+    const seen = new Set();
+    dates.forEach(iso => dirDirectorShifts(iso).forEach(d => dirLeaders(iso).forEach(p => { if(dirOverlap(p.span, d.span)) seen.add(dirKey(p.name)); })));
+    const unseen = [...new Map(dates.flatMap(iso => dirLeaders(iso).map(p => [dirKey(p.name), p.name]))).values()].filter(n => !seen.has(dirKey(n)));
+    if(unseen.length) out.push({rank: 3, iso: '', text: `No director works alongside ${unseen.length === 1 ? dirShort(unseen[0]) : unseen.length + ' leaders'} this week`, sub: unseen.length > 1 ? unseen.map(dirShort).join(', ') : ''});
+  }
+  return out.sort((a, b) => a.rank - b.rank || (a.iso || '9').localeCompare(b.iso || '9'));
+}
+
 // ----- Rendering -----
+const DIR_ICON_OK = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const DIR_ICON_DOT = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>';
 const DIR_ICON_WARN = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l10 18H2z"/><path d="M12 10v4"/><path d="M12 17.5v.5"/></svg>';
 const dirDay = iso => new Date(iso + 'T00:00:00').toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric'});
 const dirShort = n => typeof suDisplayName === 'function' ? suDisplayName(n) : n;
@@ -315,30 +358,53 @@ function dirRender(){
   const pea = dirPeaCadence(dates);
   const nums = dirNumbers(dates);
 
-  const dayRows = dates.map(iso => {
-    const floor = dirFloor(iso), leaders = floor.filter(p => p.leader), dirs = dirDirectorShifts(iso);
-    const gaps = dirLeaderGaps(iso);
+  // The day tiles, and the open day's timeline under them.
+  const dayInfo = iso => {
+    const floor = dirFloor(iso), leaders = floor.filter(p => p.leader), dirs = dirDirectorShifts(iso), gaps = dirLeaderGaps(iso);
     const flags = [];
     if(floor.length && !leaders.length) flags.push('no leader on the roster');
     gaps.forEach(g => flags.push(`no leader ${dirSpanText(g)}`));
     if(floor.length && leaders.length && !dirHasCloser(iso)) flags.push('no leader through close');
-    return `
-      <div class="dir-day ${flags.length ? 'is-flag' : ''} ${iso === today ? 'is-today' : ''}">
-        <div class="dir-day-head"><b>${escapeHtml(dirDay(iso))}</b>${floor.length ? `<span>${leaders.length} leader${leaders.length === 1 ? '' : 's'} · ${floor.length - leaders.length} team</span>` : '<span>no roster yet</span>'}</div>
-        ${floor.length ? dirTimelineHtml(iso, leaders.sort((a, b) => a.span.start - b.span.start), dirs.sort((a, b) => a.span.start - b.span.start), gaps) : ''}
-        ${floor.length && !dirs.length ? '<div class="dir-none">No director shift</div>' : ''}
-        ${flags.length ? `<div class="dir-flags">${flags.map(f => `<span>${DIR_ICON_WARN}${escapeHtml(f)}</span>`).join('')}</div>` : ''}
-      </div>`;
+    return {floor, leaders, dirs, gaps, flags};
+  };
+  const info = Object.fromEntries(dates.map(iso => [iso, dayInfo(iso)]));
+  if(dirDayOpen !== '' && !dates.includes(dirDayOpen)) dirDayOpen = null;
+  // Open first: the day picked, else today if it's on the roster, else the first day with a gap.
+  const openDay = dirDayOpen === '' ? null : dirDayOpen || (dates.includes(today) && info[today].floor.length ? today : dates.find(iso => info[iso].flags.length) || null);
+  const tiles = dates.map(iso => {
+    const d = info[iso], on = iso === openDay;
+    const state = !d.floor.length ? 'is-empty' : d.flags.length ? 'is-flag' : 'is-ok';
+    const label = `${dirDay(iso)}: ${!d.floor.length ? 'no roster yet' : d.flags.length ? d.flags.join(', ') : 'a leader on all day'}${d.dirs.length ? ', director on' : ''}`;
+    return `<button type="button" class="dir-tile ${state}${on ? ' is-open' : ''}${iso === today ? ' is-today' : ''}" data-dir-day="${iso}" aria-pressed="${on}" aria-label="${escapeHtml(label)}">
+      <span class="dir-tile-wd">${escapeHtml(dirDay(iso).slice(0, 3))}</span><b>${+iso.slice(8)}</b>
+      <span class="dir-tile-mark">${!d.floor.length ? '–' : d.flags.length ? DIR_ICON_WARN : DIR_ICON_OK}</span>
+      <span class="dir-tile-dirs">${d.dirs.length ? '<i class="dir-tile-dir" aria-hidden="true"></i>' : ''}</span>
+    </button>`;
   }).join('');
+  const dayDetail = iso => {
+    const d = info[iso];
+    if(!d.floor.length) return `<div class="dir-day"><div class="dir-day-head"><b>${escapeHtml(dirDay(iso))}</b><span>no roster yet</span></div></div>`;
+    return `
+      <div class="dir-day ${d.flags.length ? 'is-flag' : ''}">
+        <div class="dir-day-head"><b>${escapeHtml(dirDay(iso))}</b><span>${d.leaders.length} leader${d.leaders.length === 1 ? '' : 's'} · ${d.floor.length - d.leaders.length} team</span></div>
+        ${d.flags.length ? `<div class="dir-flags">${d.flags.map(f => `<span>${DIR_ICON_WARN}${escapeHtml(f)}</span>`).join('')}</div>` : ''}
+        ${dirTimelineHtml(iso, d.leaders.slice().sort((a, b) => a.span.start - b.span.start), d.dirs.slice().sort((a, b) => a.span.start - b.span.start), d.gaps)}
+        ${!d.dirs.length ? '<div class="dir-none">No director shift</div>' : ''}
+        <p class="dir-note dir-tl-key"><span class="is-leader">■</span> leaders <span class="is-director">■</span> directors <span class="is-gap">■</span> no leader on</p>
+      </div>`;
+  };
+  const needs = dirNeeds(dates);
+  const needsHtml = needs.length ? `<ul class="dir-needs">${needs.slice(0, DIR_NEEDS_SHOWN).map(n => `
+      <li class="is-r${n.rank}">${n.iso ? `<button type="button" class="dir-need" data-dir-day="${n.iso}">` : '<div class="dir-need">'}
+        <span class="dir-need-ic">${n.rank < 2 ? DIR_ICON_WARN : DIR_ICON_DOT}</span>
+        <span class="dir-need-tx"><b>${escapeHtml(n.text)}</b>${n.sub ? `<small>${escapeHtml(n.sub)}</small>` : ''}</span>
+      ${n.iso ? '</button>' : '</div>'}</li>`).join('')}</ul>${needs.length > DIR_NEEDS_SHOWN ? `<p class="dir-note">And ${needs.length - DIR_NEEDS_SHOWN} more: the red days below.</p>` : ''}`
+    : `<p class="dir-allclear">${DIR_ICON_OK} ${hasRoster ? 'Nothing needs you this week: a leader on every hour, every close covered.' : 'Nothing yet: the week fills in once its schedule is in.'}</p>`;
 
   const overlapRows = dates.flatMap(iso => dirDirectorShifts(iso).map(d => {
     const with_ = dirLeaders(iso).filter(p => dirOverlap(p.span, d.span)).sort((a, b) => a.span.start - b.span.start);
     return `<li><b>${escapeHtml(dirShort(d.name))}</b> <span class="dir-muted">${escapeHtml(dirDay(iso))} · ${escapeHtml(dirSpanText(d.span))}</span><br>${with_.length ? with_.map(p => `<span class="dir-chip is-leader">${escapeHtml(dirShort(p.name))} <small>${escapeHtml(dirSpanText(p.span))}</small></span>`).join(' ') : '<span class="dir-muted">no leader on at the same time</span>'}</li>`;
   }));
-  // Leaders a director never overlaps this week.
-  const seenWith = new Set();
-  dates.forEach(iso => dirDirectorShifts(iso).forEach(d => dirLeaders(iso).forEach(p => { if(dirOverlap(p.span, d.span)) seenWith.add(dirKey(p.name)); })));
-  const unseen = [...new Set(dates.flatMap(iso => dirLeaders(iso).map(p => p.name)))].filter(n => !seenWith.has(dirKey(n)));
 
   const peaRow = (p, what) => `<li class="${p.days === null || p.days > DIR_PEA_DAYS ? 'is-flag' : ''}"><span>${escapeHtml(dirShort(p.name))}</span><span class="dir-muted">${p.days === null ? `no PEA ${what} on record` : p.days === 0 ? 'today' : `${p.days} day${p.days === 1 ? '' : 's'} ago`}${what === 'given' && p.recent ? ` · ${p.recent} in ${DIR_PEA_COUNT_DAYS} days` : ''}</span></li>`;
 
@@ -346,31 +412,30 @@ function dirRender(){
   if(nums.forecast) numParts.push(`<div class="dir-num"><span>Forecast, ${nums.forecast.days} days</span><b>${escapeHtml(fcMoney(nums.forecast.sales))}</b><small>${nums.forecast.vsLastYear != null ? `${escapeHtml(fcPctFmt(nums.forecast.vsLastYear))} vs last year` : 'the Forecast tab’s baseline'}</small></div>`);
   if(nums.track) numParts.push(`<div class="dir-num"><span>Sent forecasts</span><b>${nums.track.accuracy.toFixed(1)}%</b><small>${nums.track.days} days scored · ${nums.track.bias > 1 ? 'runs high' : nums.track.bias < -1 ? 'runs low' : 'no lean'}</small></div>`);
   if(nums.waste) numParts.push(`<div class="dir-num"><span>Waste last week</span><b>${nums.waste.under} of ${nums.waste.days}</b><small>days under $${nums.waste.limit}</small></div>`);
-  if(nums.orders != null) numParts.push(`<div class="dir-num"><span>Uniform orders open</span><b>${nums.orders}</b><small>Uniforms tab</small></div>`);
+  if(nums.orders != null) numParts.push(`<div class="dir-num"><span>Uniform orders open</span><b>${nums.orders}</b><small>Forms → Uniform orders</small></div>`);
 
   const weekPick = dirPickHtml('dirWeekPick', 'Week', [{value: 0, on: dirWeekOffset === 0, label: 'This week', attr: 'data-dir-week="0"'}, {value: 1, on: dirWeekOffset === 1, label: 'Next week', attr: 'data-dir-week="1"'}]);
+  const fold = (title, body, note) => `<details class="dir-fold"><summary>${title}${note ? ` <span>${note}</span>` : ''}</summary><div class="dir-fold-body">${body}</div></details>`;
   root.innerHTML = `
     ${dirHeadHtml('Brief', `${escapeHtml(dirDay(dates[0]))} – ${escapeHtml(dirDay(dates[dates.length - 1]))}`, weekPick, [{attr: 'data-dir-copy', label: 'Copy brief'}, {attr: 'data-dir-pdf', label: 'PDF'}])}
     ${nav}
     ${!hasRoster ? `<p class="dir-empty">No roster for this week yet. Import the week's HotSchedules CSV in Manage → Uploads and the days fill in.</p>` : ''}
-    <section class="dir-card"><h3>The week at a glance</h3><p class="dir-note">Leaders are the leader list in Manage, Team Leader shifts and anyone set as Lead Captain. Directors’ time is their Administrative shifts. A gap is ${DIR_GAP_MIN} minutes or more with no leader on.</p><div class="dir-days">${dayRows}</div><p class="dir-note dir-tl-key"><span class="is-leader">■</span> leaders <span class="is-director">■</span> directors <span class="is-gap">■</span> no leader on</p></section>
-    <section class="dir-card"><h3>Where directors overlap leaders</h3>
-      ${overlapRows.length ? `<ul class="dir-list">${overlapRows.join('')}</ul>` : '<p class="dir-empty">No director shifts on the roster this week.</p>'}
-      ${unseen.length ? `<p class="dir-note"><b>Leaders no director overlaps this week:</b> ${escapeHtml(unseen.map(dirShort).join(', '))}</p>` : ''}
+    <section class="dir-card dir-needs-card"><h3>This week needs you</h3>${needsHtml}</section>
+    <section class="dir-card"><h3>The week</h3>
+      <div class="dir-strip" role="group" aria-label="Pick a day">${tiles}</div>
+      <p class="dir-note dir-strip-key"><span>${DIR_ICON_WARN} a gap with no leader</span><span><i class="dir-tile-dir" aria-hidden="true"></i> a director on</span><span>Tap a day for its shifts</span></p>
+      ${openDay ? dayDetail(openDay) : ''}
     </section>
-    <section class="dir-card"><h3>Needs attention</h3>
-      ${attention.length ? `<ul class="dir-list">${attention.map(x => `<li><b>${escapeHtml(x.ev.title)}</b> <span class="dir-muted">${escapeHtml(dirDay(x.iso))}${x.span ? ' · ' + escapeHtml(dirSpanText(x.span)) : ' · all day'}${x.ev.detail ? ' · ' + escapeHtml(x.ev.detail) : ''}</span><br><span class="dir-muted">On the floor:</span> ${x.leaders.length ? x.leaders.map(p => `<span class="dir-chip is-leader">${escapeHtml(dirShort(p.name))}</span>`).join(' ') : '<span class="dir-flag-text">no leader on at that time</span>'}</li>`).join('')}</ul>`
-        : '<p class="dir-empty">Nothing marked. Meetings, and any event ticked “Needs a director” in Manage → Events, show here.</p>'}
-      ${others.length ? `<p class="dir-note"><b>Also this week:</b> ${others.map(x => `${escapeHtml(x.ev.title)} (${escapeHtml(dirDay(x.iso))})`).join(' · ')}</p>` : ''}
-    </section>
-    <section class="dir-card"><h3>PEA cadence</h3>
-      ${pea.any || pea.leaders.length ? `<div class="dir-two">
+    ${numParts.length ? `<section class="dir-card"><h3>The numbers</h3><div class="dir-nums">${numParts.join('')}</div></section>` : ''}
+    <section class="dir-card dir-folds">
+      ${fold('Directors with leaders', `${overlapRows.length ? `<ul class="dir-list">${overlapRows.join('')}</ul>` : '<p class="dir-empty">No director shifts on the roster this week.</p>'}<p class="dir-note">Leaders are the leader list in Manage, Team Leader shifts and anyone set as Lead Captain. Directors’ time is their Administrative shifts. A gap is ${DIR_GAP_MIN} minutes or more with no leader on.</p>`, overlapRows.length ? `${overlapRows.length} shift${overlapRows.length === 1 ? '' : 's'}` : '')}
+      ${fold('Events this week', `${attention.length ? `<ul class="dir-list">${attention.map(x => `<li><b>${escapeHtml(x.ev.title)}</b> <span class="dir-muted">${escapeHtml(dirDay(x.iso))}${x.span ? ' · ' + escapeHtml(dirSpanText(x.span)) : ' · all day'}${x.ev.detail ? ' · ' + escapeHtml(x.ev.detail) : ''}</span><br><span class="dir-muted">On the floor:</span> ${x.leaders.length ? x.leaders.map(p => `<span class="dir-chip is-leader">${escapeHtml(dirShort(p.name))}</span>`).join(' ') : '<span class="dir-flag-text">no leader on at that time</span>'}</li>`).join('')}</ul>` : '<p class="dir-empty">Nothing marked for a director. Meetings, and any event ticked “Needs a director” in Manage → Calendar, show here.</p>'}${others.length ? `<p class="dir-note"><b>Also this week:</b> ${others.map(x => `${escapeHtml(x.ev.title)} (${escapeHtml(dirDay(x.iso))})`).join(' · ')}</p>` : ''}`, `${attention.length + others.length}`)}
+      ${fold('PEA cadence', pea.any || pea.leaders.length ? `<div class="dir-two">
         <div><h4>Leaders, by last PEA given</h4><ul class="dir-list dir-list-sm">${pea.leaders.map(p => peaRow(p, 'given')).join('')}</ul></div>
         <div><h4>Team members, longest since a PEA</h4><ul class="dir-list dir-list-sm">${pea.employees.slice(0, 12).map(p => peaRow(p, 'received')).join('')}</ul></div>
-      </div><p class="dir-note">Flagged past ${DIR_PEA_DAYS} days. From the Levelset ratings in Manage → PEA.</p>` : '<p class="dir-empty">No PEA ratings on file yet. Sync Levelset in Manage → PEA.</p>'}
-    </section>
-    ${typeof ldSummaryHtml === 'function' ? ldSummaryHtml() : ''}
-    <section class="dir-card"><h3>The numbers</h3>${numParts.length ? `<div class="dir-nums">${numParts.join('')}</div>` : '<p class="dir-empty">Upload sales history and waste fills in here.</p>'}</section>`;
+      </div><p class="dir-note">Flagged past ${DIR_PEA_DAYS} days. From the Levelset ratings in Manage → Levelset.</p>` : '<p class="dir-empty">No PEA ratings on file yet. Sync Levelset in Manage → Levelset.</p>')}
+      ${typeof ldSummaryHtml === 'function' ? fold('PEA scoreboard', ldSummaryHtml()) : ''}
+    </section>`;
 }
 
 function dirRerender(){
@@ -455,6 +520,15 @@ document.addEventListener('click', e => {
   if(vw){ dirSetView(vw.dataset.dirView); if(vw.dataset.dirPeople) dirSetPeople(vw.dataset.dirPeople); renderDirectorsView(); window.scrollTo(0, 0); return; }
   const who = t.closest('[data-dir-people]');
   if(who){ dirSetPeople(who.dataset.dirPeople); renderDirectorsView(); return; }
+  const day = t.closest('[data-dir-day]');
+  if(day){
+    // A tile opens its day (a second tap closes it); a needs-you line opens its day and goes to it.
+    const iso = day.dataset.dirDay, tile = day.classList.contains('dir-tile');
+    dirDayOpen = tile && day.getAttribute('aria-pressed') === 'true' ? '' : iso;
+    renderDirectorsView();
+    if(!tile){ const el = document.querySelector('#directorsRoot .dir-day'); if(el) el.scrollIntoView({behavior: 'smooth', block: 'start'}); }
+    return;
+  }
   const wk = t.closest('button[data-dir-week]');
   if(wk){ dirWeekOffset = +wk.dataset.dirWeek; renderDirectorsView(); return; }
   if(t.closest('[data-dir-copy]')){ dirCopy(t.closest('[data-dir-copy]')); return; }

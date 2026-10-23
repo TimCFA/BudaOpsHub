@@ -1,8 +1,9 @@
 // ===== LAUNCH MODE =====
 // While the team is getting started, the site shows only Home and the
-// essentials: Set Ups, Waste, Lists and the store's Calendar. The Lists tab opens Zone Reset &
-// Walkthroughs in one tap; Food Safety Walkthrough, Daily Safe Count and the
-// Prep Board are pills at the top of each list page. Everything else is still there:
+// essentials: Set Ups, Waste, Lists, Tools and the store's Calendar. The Lists tab opens Zone Reset &
+// Walkthroughs in one tap; Food Safety Walkthrough and Daily Safe Count are
+// pills at the top of each list page. Tools opens the Prep Board (on the full
+// site, the Forecast and CEM Insights are pills beside it). Everything else is still there:
 // a device signed in with the manager PIN (Manage tab) sees every tab again,
 // and a manager can turn launch mode off for everyone in Manage.
 //
@@ -22,7 +23,13 @@ const LAUNCH_LISTS = [
   {view: 'zonereset', page: 'leaders', label: 'Leader Transition', sub: 'Transición'},
   {view: 'foodsafety', label: 'Food Safety', sub: 'Seguridad'},
   {view: 'safecount', label: 'Safe Count', sub: 'Caja Fuerte'},
+];
+// Tools (Tim, Oct 23 2026): the pages that work the numbers for us. The
+// Forecast and CEM Insights are for the full site (managers).
+const LAUNCH_TOOLS = [
   {view: 'prepboard', label: 'Prep Board', sub: 'Preparación'},
+  {view: 'forecast', label: 'Sales & Labor Forecast', sub: 'Pronóstico', full: true},
+  {view: 'cem', label: 'CEM Insights', sub: 'Encuestas', full: true},
 ];
 // The Waste tab: logging, and the waste scoreboard (Tim, Oct 18 2026). On
 // the scoreboard the team sees the Waste panel's waste cards only.
@@ -30,7 +37,7 @@ const LAUNCH_WASTE = [
   {view: 'wastelog', label: 'Log Waste', sub: 'Registrar'},
   {view: 'scoreboard', label: 'Scoreboard', sub: 'Tablero'},
 ];
-const LAUNCH_SUBNAVS = [LAUNCH_LISTS, LAUNCH_WASTE];
+const LAUNCH_SUBNAVS = [LAUNCH_LISTS, LAUNCH_WASTE, LAUNCH_TOOLS];
 let launchManager = false;
 let launchListPage = null;   // the page a pill asked for; the tab itself opens the first
 
@@ -41,7 +48,8 @@ function launchSubnavRender(view){
   if(!group) return;
   // Safe Count and the Leader Transition List aren't for Team Members or Trainers.
   const hidden = l => (l.view === 'safecount' && typeof scHidden === 'function' && scHidden())
-    || (l.page === 'leaders' && typeof ltHidden === 'function' && ltHidden());
+    || (l.page === 'leaders' && typeof ltHidden === 'function' && ltHidden())
+    || (l.full && launchIsOn());
   const here = group.filter(l => l.view === view && !hidden(l));
   if(!here.length) return;
   const page = here.some(l => l.page === launchListPage) ? launchListPage : (here[0].page || '');
@@ -61,6 +69,8 @@ function launchSubnavRender(view){
     nav.after(hint);
   }
   if(hint) hint.hidden = !showHint;
+  // One page in the group (the team's Tools): no pill row.
+  nav.hidden = shown.length < 2;
   nav.innerHTML = shown.map(l => {
     const on = l.view === view && (l.page || '') === page;
     return `<button type="button" class="launch-pill ${on ? 'active' : ''}" aria-current="${on ? 'page' : 'false'}" data-launch-go="${l.view}" data-launch-pick="${l.page || ''}">${l.label}<span>${l.sub}</span></button>`;
@@ -115,10 +125,10 @@ function launchApply(){
 // A manager session found (on load, or the PIN just entered).
 async function launchSetManager(isManager){
   launchManager = isManager;
-  // Tabs marked .manager-only (Uniforms, Directors) show only with the
+  // Tabs marked .manager-only (Directors) show only with the
   // PIN, launch mode or not; Set Ups' event chips follow the same session.
   document.body.classList.toggle('is-manager', !!isManager);
-  if(!isManager && ['uniformsView', 'directorsView'].some(id => document.getElementById(id).classList.contains('active'))) launchShowTab('home');
+  if(!isManager && document.getElementById('directorsView').classList.contains('active')) launchShowTab('home');
   launchApply();
   if(typeof renderAllDayparts === 'function' && document.getElementById('positionsView').classList.contains('active')) renderAllDayparts();
   // Pick up the private sections this page wasn't sent without a session,

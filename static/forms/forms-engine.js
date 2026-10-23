@@ -81,7 +81,8 @@
     camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
     check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>', x: '<path d="M6 6l12 12M18 6L6 18"/>',
     search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>', file: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/>',
-    inbox: '<path d="M3 13l3-8h12l3 8v6H3z"/><path d="M3 13h5l1 3h6l1-3h5"/>'
+    inbox: '<path d="M3 13l3-8h12l3 8v6H3z"/><path d="M3 13h5l1 3h6l1-3h5"/>',
+    shirt: '<path d="M8 3.5L3 6.5l2 4.5 3-1.2V21h8V9.8l3 1.2 2-4.5-5-3c-.6 1.5-2.1 2.4-4 2.4S8.6 5 8 3.5z"/>'
   };
   function icon(name, size) {
     var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -264,7 +265,7 @@
           any = true;
           list.append(h('div', { class: 'of-cat' }, L(c, 'l')));
           items.forEach(function (d) {
-            list.append(h('button', { type: 'button', class: 'of-card', onclick: function () { openForm(d); } },
+            list.append(h('button', { type: 'button', class: 'of-card', onclick: function () { if (typeof d.open === 'function') d.open(); else openForm(d); } },
               h('span', { class: 'of-card-ic' }, icon(d.icon, 22)),
               h('span', { class: 'of-card-tx' }, h('span', { class: 'of-card-t' }, L(d, 'title')), h('span', { class: 'of-card-b' }, L(d, 'blurb') || '')),
               hasDraft(d) ? h('span', { class: 'of-pill' }, t('draft')) : null,
