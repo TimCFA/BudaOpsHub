@@ -70,7 +70,7 @@
       <!-- Tools (Tim, Oct 23 2026): the pages that work the numbers for us. The
            team gets the Prep Board; managers also the Forecast and CEM Insights,
            as pills at the top (launch-mode.js LAUNCH_TOOLS). -->
-      <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="prepboardView" data-view="prepboard" data-views="prepboard forecast cem">Tools <span class="sub"><i>Herramientas</i></span></button>
+      <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="prepboardView" data-view="prepboard" data-views="prepboard knownumbers forecast cem">Tools <span class="sub"><i>Herramientas</i></span></button>
 
       <div class="tab-group full-only" data-group="experience">
         <button type="button" class="tab-group-label" aria-haspopup="true" aria-expanded="false">Experience <span class="chevron-mini">▾</span></button>
@@ -835,12 +835,21 @@
 
       <div>
         <h2 class="sb-h2">Business Metrics</h2>
-        <table class="metrics-table" id="metricsTable"></table>
+        <!-- By quarter (lx-quarters.js): this quarter live, the last four, the year to date. -->
+        <div id="lxQuarterBar"></div>
+        <div id="lxLiveRoot"><table class="metrics-table" id="metricsTable"></table></div>
+        <div id="lxQuarterRoot" hidden></div>
       </div>
     </div>
   </div>
 
   <!-- Manage View -->
+  <!-- Know the Numbers (kn-page.js): each daypart's productivity goal and what it takes, for Team Leads and up. In Tools. -->
+  <div class="view" id="knownumbersView">
+    <nav class="launch-subnav" aria-label="Tools" data-launch-subnav></nav>
+    <div class="knp-page" id="knPageRoot"></div>
+  </div>
+
   <!-- CEM Insights (cem-trends.js): the guest survey months, trends and what drives OSAT. In Tools. -->
   <div class="view" id="cemView">
     <nav class="launch-subnav" aria-label="Tools" data-launch-subnav></nav>
@@ -1190,6 +1199,7 @@
 <script src="/static/js/state-patch.js"></script>
 <script src="/static/js/storage.js"></script>
 <script src="/static/js/management-views.js"></script>
+<script src="/static/js/lx-quarters.js"></script>
 <script src="/static/js/scoreboards-and-eoi.js"></script>
 <script src="/static/js/navigation.js"></script>
 <script src="/static/js/waste-log.js"></script>
@@ -1223,6 +1233,7 @@
 <script src="/static/js/forecast.js"></script>
 <script src="/static/js/kn-actuals.js"></script>
 <script src="/static/js/analytics-reports.js"></script>
+<script src="/static/js/kn-page.js"></script>
 <script src="/static/js/directors.js"></script>
 <script src="/static/forms/form-definitions.js"></script>
 <script src="/static/forms/forms-engine.js"></script>

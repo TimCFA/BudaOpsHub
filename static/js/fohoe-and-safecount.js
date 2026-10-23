@@ -304,6 +304,10 @@ function scSyncVisibility(){
   document.body.classList.toggle('lt-hidden', ltHidden());
   if(typeof launchSubnavRender === 'function' && document.getElementById('zoneresetView').classList.contains('active')) launchSubnavRender('zonereset');
   if(hide && document.getElementById('safecountView').classList.contains('active') && typeof launchShowTab === 'function') launchShowTab('home');
+  // Know the Numbers and the Tools pills follow the sign-in too.
+  const tools = ['prepboard', 'knownumbers'].find(v => document.getElementById(v + 'View').classList.contains('active'));
+  if(tools === 'knownumbers' && hide && typeof launchShowTab === 'function') launchShowTab('prepboard');
+  else if(tools && typeof launchSubnavRender === 'function'){ launchSubnavRender(tools); if(tools === 'knownumbers' && typeof renderKnPage === 'function') renderKnPage(); }
 }
 
 async function scLoadToday(){

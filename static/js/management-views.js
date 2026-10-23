@@ -31,7 +31,11 @@ function renderLXScoreboard(){
   const metricsTable = document.getElementById('metricsTable');
   // Values linked to uploads / the Guest Obsession score (report-uploads.js).
   // On a manager's page, keep the change (only a manager can save LX).
-  if(typeof rpSyncLx === 'function' && rpSyncLx() && typeof launchManager !== 'undefined' && launchManager) saveState();
+  // A quarter just ended is kept, and past quarters follow the CEM's OSAT (lx-quarters.js).
+  const linked = typeof rpSyncLx === 'function' && rpSyncLx();
+  const quarters = typeof lxQuartersSync === 'function' && typeof launchManager !== 'undefined' && launchManager && lxQuartersSync();
+  if((linked || quarters) && typeof launchManager !== 'undefined' && launchManager) saveState();
+  if(typeof lxRenderQuarterView === 'function') lxRenderQuarterView();
   const headerHtml = `
     <thead>
       <tr>
@@ -114,7 +118,7 @@ function renderLXManage(){
     const notes = {
       dt: 'Automatic from the chain ranking upload — the status follows the Top 100 standard.',
       fs: 'Follows the Food Safety score in Guest Obsession — type it there. The status follows the standard of 1: a 1 meets it, higher is Below.',
-      osat: `Automatic from the latest CEM month in Data Uploads, ${title.replace(/^From the CEM upload: /, '')}: the share of guests not highly satisfied, then OSAT. At or under the standard meets it.`,
+      osat: `Automatic from the latest CEM month in Data Uploads, ${title.replace(/^From the CEM upload: /, '')}: OSAT against the top 5% in the same export. At or above the top 5% meets it.`,
       prod: `Automatic from the Productivity report in Data Uploads: sales per labor hour, every weekday together${title.match(/\((.*)\)$/) ? ', ' + title.match(/\((.*)\)$/)[1] : ''}. At or over the standard meets it.`
     };
     el.parentElement.insertAdjacentHTML('afterend', `<div class="lx-link-note">${escapeHtml(notes[kind] || title)}</div>`);

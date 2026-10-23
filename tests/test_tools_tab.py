@@ -22,7 +22,7 @@ LAUNCH = read('static', 'js', 'launch-mode.js')
 
 class Tools(unittest.TestCase):
     def test_one_tab_on_both_sites(self):
-        tab = re.search(r'<button[^>]*data-views="prepboard forecast cem"[^>]*>Tools <span class="sub"><i>Herramientas</i></span>', PAGE)
+        tab = re.search(r'<button[^>]*data-views="prepboard knownumbers forecast cem"[^>]*>Tools <span class="sub"><i>Herramientas</i></span>', PAGE)
         self.assertTrue(tab)
         self.assertNotIn('launch-only', tab.group(0))
         self.assertNotIn('full-only', tab.group(0))
@@ -36,11 +36,13 @@ class Tools(unittest.TestCase):
 
     def test_the_tools_and_who_sees_them(self):
         tools = LAUNCH[LAUNCH.index('const LAUNCH_TOOLS'):LAUNCH.index('];', LAUNCH.index('const LAUNCH_TOOLS'))]
-        self.assertEqual(re.findall(r"view: '(\w+)'", tools), ['prepboard', 'forecast', 'cem'])
+        self.assertEqual(re.findall(r"view: '(\w+)'", tools), ['prepboard', 'knownumbers', 'forecast', 'cem'])
+        self.assertEqual(re.findall(r"view: '(\w+)'[^}]*leaders: true", tools), ['knownumbers'])   # Team Leads and up
+        self.assertIn("|| (l.leaders && typeof knPageShown === 'function' && !knPageShown());", LAUNCH)
         self.assertEqual(re.findall(r"view: '(\w+)'[^}]*full: true", tools), ['forecast', 'cem'])
-        self.assertIn('|| (l.full && launchIsOn());', LAUNCH)
+        self.assertIn('|| (l.full && launchIsOn())', LAUNCH)
         self.assertIn('nav.hidden = shown.length < 2;', LAUNCH)          # the team's one tool: no pill row
-        for view in ('prepboard', 'forecast', 'cem'):
+        for view in ('prepboard', 'knownumbers', 'forecast', 'cem'):
             body = PAGE[PAGE.index(f'id="{view}View"'):]
             self.assertTrue(body.startswith(f'id="{view}View">\n    <nav class="launch-subnav" aria-label="Tools" data-launch-subnav></nav>'), view)
 

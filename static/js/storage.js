@@ -31,6 +31,8 @@ const STATE_SECTIONS = {
   cem: ['cemEntries'],
   forecast: ['salesHistory', 'forecastSettings', 'forecastLog', 'daypartWeeks', 'laborByDaypart'],
   orders: ['uniformOrders', 'uniformCatalog'],
+  // The LX board by quarter (lx-quarters.js; Tim, Oct 23 2026): a section of its own.
+  lx: ['lxQuarters'],
   points: ['pointsRecords', 'pointsUploads', 'pointsSettings', 'pointsTeam', 'pointsMemos'],
   misc: []
 };
@@ -86,7 +88,7 @@ function stateSnapshot(){
     prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, prepMade, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, launchMode, prepTimes, prepTimers,
     salesHistory, forecastSettings, forecastLog, daypartWeeks, zoneOwners, posNotes, storeEvents, truckShifts,
     uniformOrders, uniformCatalog, directors, adminShifts, leaderNotes, leaderRoster, peaGoals, leaderFocus, teamNotes, safeOrderSettings,
-    pointsRecords, pointsUploads, pointsSettings, pointsTeam, pointsMemos
+    pointsRecords, pointsUploads, pointsSettings, pointsTeam, pointsMemos, lxQuarters
   };
 }
 
@@ -438,6 +440,7 @@ function applyStateData(data){
   lxPillars = data.lxPillars || defaultPillars;
   lxMetrics = data.lxMetrics || defaultMetrics;
   lxLastUpdated = data.lxLastUpdated || null;
+  lxQuarters = (data.lxQuarters && typeof data.lxQuarters === 'object' && !Array.isArray(data.lxQuarters)) ? data.lxQuarters : {};
   gxData = data.gxData || JSON.parse(JSON.stringify(defaultGXData));
   // Backfill any sub-fields added to defaultGXData since this store's gxData
   // was last saved (e.g. a new CEM metric breakdown) — never overwrites a

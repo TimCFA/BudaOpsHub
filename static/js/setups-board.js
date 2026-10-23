@@ -304,7 +304,11 @@ function suDaypartBriefHtml(section, date, dp){
 function suNumbersLineHtml(date, dp, pill){
   const {sales, goal, actual, off, ev} = suNumbersParts(date, dp);
   if(!sales && !goal && !ev && !actual) return '';
-  return `<div class="su-dp-nums"${pill ? '' : ` data-su-dp-toggle="${escapeHtml(dp.name)}"`}>${sales ? `<span class="su-dp-num"><b>${escapeHtml(sales)}</b> projected${esHtml('projected')}</span>` : ''}${actual ? `<span class="su-dp-num"><b>${escapeHtml(actual)}</b> actual${esHtml('actual')}${off}</span>` : ''}${goal ? `<span class="su-dp-num"><b>${escapeHtml(goal)}</b>/labor hr${esHtml('per labor hour')}</span>` : ''}${ev ? `<span class="su-dp-num is-event" title="${escapeHtml(ev)}">${escapeHtml(ev)}</span>` : ''}</div>`;
+  // Team Leads and up: the daypart's goals in full on Know the Numbers (kn-page.js).
+  const n = typeof knDaypartOf === 'function' ? knDaypartOf(dp) : null;
+  const more = goal && n && typeof knPageShown === 'function' && knPageShown()
+    ? `<button type="button" class="su-dp-kn" data-launch-go="knownumbers" data-kn-open="${escapeHtml(n.name.replace(/\s*\(.*$/, ''))}" data-kn-date="${escapeHtml(date)}">Goals${esHtml('Goals')}</button>` : '';
+  return `<div class="su-dp-nums"${pill ? '' : ` data-su-dp-toggle="${escapeHtml(dp.name)}"`}>${sales ? `<span class="su-dp-num"><b>${escapeHtml(sales)}</b> projected${esHtml('projected')}</span>` : ''}${actual ? `<span class="su-dp-num"><b>${escapeHtml(actual)}</b> actual${esHtml('actual')}${off}</span>` : ''}${goal ? `<span class="su-dp-num"><b>${escapeHtml(goal)}</b>/labor hr${esHtml('per labor hour')}</span>` : ''}${ev ? `<span class="su-dp-num is-event" title="${escapeHtml(ev)}">${escapeHtml(ev)}</span>` : ''}${more}</div>`;
 }
 
 // ----- Layout: daypart pills (Oct 2026) or the stacked cards -----

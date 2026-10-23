@@ -756,7 +756,7 @@ const defaultPillars = [
 ];
 
 const defaultMetrics = [
-  { id: 'metric1', name: 'OSAT +2pt ≤ 20%', standard: '≤ 20%', value: '', rating: 2 },
+  { id: 'metric1', name: 'OSAT · Top 5%', standard: 'Top 5%', value: '', rating: 2 },
   { id: 'metric2', name: 'Food Safety Score', standard: '1', value: '', rating: 2 },
   { id: 'metric3', name: 'Drive-Thru Ranking', standard: 'Top 100', value: '', rating: 2 },
   { id: 'metric4', name: 'Food Cost Gap', standard: '0.50%', value: '', rating: 2 },
@@ -766,6 +766,7 @@ const defaultMetrics = [
 let lxPillars = [];
 let lxMetrics = [];
 let lxLastUpdated = null;
+let lxQuarters = {};   // the LX board by quarter (lx-quarters.js)
 
 const defaultGXData = {
   wig: {

@@ -77,11 +77,12 @@ async function suRunRefresh(){
   showToast(moved ? `Set up refreshed: ${moved} spot${moved === 1 ? '' : 's'} changed` : result.changed ? 'Set up refreshed' : 'Your set up is up to date');
 }
 
-// Not here yet (Tim, Oct 23 2026): on today's daypart on the clock, a spot
-// whose person comes in partway through shows yellow until they arrive.
+// Not here yet (Tim, Oct 23 2026): today, a spot whose person comes in
+// partway through its daypart shows yellow until they arrive, in the daypart
+// on the clock and the ones still ahead (Tim: "highlight later dayparts too").
 // → their arrival (minutes) while they're still to come, else null.
 function suNotHereYet(section, date, dp, timing, names){
-  if(date !== today || !timing || !names.length || suDefaultDaypart(section, date) !== dp.name) return null;
+  if(date !== today || !timing || !names.length) return null;
   const p = suTimingFor(timing, names[0]);
   if(!p || p.arrives === null) return null;
   const now = new Date();
