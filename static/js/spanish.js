@@ -333,6 +333,17 @@ const ES = {
   'Next: SPOT at DP': (spot, dp) => `Siguiente: ${spot} en ${dp}`,
   'Nobody is on SPOT for DP': (spot, dp) => `Nadie está en ${spot} para ${dp}`,
   'Everything is covered for DP': dp => `Todo está cubierto para ${dp}`,
+  // The kitchen iPad's card (right-now.js rnKitchenCard; Tim, Oct 23 2026).
+  'This iPad': 'Este iPad',
+  'Front': 'Frente',
+  'Back': 'Atrás',
+  'Still to prep': n => `${n} por preparar`,
+  'All prep made today': 'Toda la preparación de hoy está hecha',
+  'AM breaks left': (n, total) => `Descansos AM pendientes: ${n} de ${total}`,
+  'PM breaks left': (n, total) => `Descansos PM pendientes: ${n} de ${total}`,
+  'Next break': (who, time) => `Siguiente: ${who} a las ${time}`,
+  'Kitchen waste today': 'Desperdicio de cocina hoy',
+  'Most wasted': (item, money) => `Más desperdiciado: ${item} ${money}`,
 };
 
 // Words of the BOH stations (zone-reset.js bohPositions), lower case. A spot
