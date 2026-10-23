@@ -77,6 +77,25 @@ async function suRunRefresh(){
   showToast(moved ? `Set up refreshed: ${moved} spot${moved === 1 ? '' : 's'} changed` : result.changed ? 'Set up refreshed' : 'Your set up is up to date');
 }
 
+// Not here yet (Tim, Oct 23 2026): on today's daypart on the clock, a spot
+// whose person comes in partway through shows yellow until they arrive.
+// → their arrival (minutes) while they're still to come, else null.
+function suNotHereYet(section, date, dp, timing, names){
+  if(date !== today || !timing || !names.length || suDefaultDaypart(section, date) !== dp.name) return null;
+  const p = suTimingFor(timing, names[0]);
+  if(!p || p.arrives === null) return null;
+  const now = new Date();
+  return now.getHours() * 60 + now.getMinutes() < p.arrives ? p.arrives : null;
+}
+// At an arrival time its yellow comes off: a look every half minute while
+// Set Ups is showing (not while a picker is open).
+setInterval(() => {
+  const view = document.getElementById('positionsView');
+  if(!view || !view.classList.contains('active') || document.querySelector('.modal.active, #posModal.active')) return;
+  const now = new Date(), mins = now.getHours() * 60 + now.getMinutes();
+  if([...document.querySelectorAll('#allDayparts [data-su-arrives]')].some(el => +el.dataset.suArrives <= mins)) renderAllDayparts();
+}, 30000);
+
 // "Josh → Lauren @ 7:30", "Avah (arrives 11:30)", "Dan (leaves 6:00)".
 function suSheetNameHtml(t, brk){
   // A needed spot: its light red row and "+ Choose" (Tim, Oct 19 2026).
@@ -139,8 +158,8 @@ function suSheetViewHtml(section, date, dp, dpIndex, m){
     const notes = posNotesFor(m.key + '||' + x.slot);
     const target = pick && !x.names.length;
     return `
-          <div class="su-rowwrap ${notes.length ? 'has-notes' : ''}">
-          <button type="button" class="su-row su-z-${suZoneKeyOf(section, x.slot)} ${x.needed ? 'is-needed' : ''} ${!x.names.length ? 'is-open' : ''} ${target ? 'is-target' : ''}" data-su-tile="${escapeHtml(x.slot)}" aria-label="${escapeHtml(target ? `Put ${pick} in ${x.slot}` : `#${x.rank} ${x.slot}: ${x.names.length ? x.names.join(' then ') : x.needed ? 'needed' : 'open'}`)}">
+          <div class="su-rowwrap ${notes.length ? 'has-notes' : ''} ${x.coming ? 'is-coming' : ''}">
+          <button type="button" class="su-row su-z-${suZoneKeyOf(section, x.slot)} ${x.needed ? 'is-needed' : ''} ${!x.names.length ? 'is-open' : ''} ${target ? 'is-target' : ''} ${x.coming ? 'is-coming' : ''}" data-su-tile="${escapeHtml(x.slot)}" ${x.coming ? `data-su-arrives="${x.coming}"` : ''} aria-label="${escapeHtml(target ? `Put ${pick} in ${x.slot}` : `#${x.rank} ${x.slot}: ${x.names.length ? x.names.join(' then ') : x.needed ? 'needed' : 'open'}${x.coming ? `, not here yet, arrives ${suClock(x.coming)}` : ''}`)}">
             <span class="su-row-slot"><span class="su-row-rank">${x.rank}</span><span class="su-row-slotname">${escapeHtml(x.slot)}${esSpan(esPlace(x.slot), true)}</span></span>
             <span class="su-row-name">${target ? `<span class="su-row-put">Put ${escapeHtml(pick)} here${esLine('Put NAME here', pick)}</span>` : suSheetNameHtml(x, rowBreak(x))}</span>
           </button>

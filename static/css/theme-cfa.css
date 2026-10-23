@@ -1965,6 +1965,12 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 #allDayparts .su-sheet-list .su-rowwrap:has(.su-row.is-needed){border-color:#EDB3BE;}
 #allDayparts .su-sheet-list .su-row{background:transparent;border-radius:0;min-height:54px;padding:8px 8px 8px 14px;box-shadow:inset 4px 0 0 var(--zc);grid-template-columns:minmax(0,1fr) auto;gap:12px;}
 #allDayparts .su-sheet-list .su-row.is-needed{background:transparent;}
+/* Not here yet (Tim, Oct 23 2026): today's daypart on the clock, until the person arrives */
+#allDayparts .su-sheet-list .su-rowwrap.is-coming{background:#FFF4C7;border-color:#E9C95A;}
+#allDayparts .su-sheet-list .su-row.is-coming:hover{background:#FCEBA6;}
+.su-row.is-coming .su-row-who{opacity:.75;}
+.su-row.is-coming .su-row-note,.su-tile.is-coming .su-tile-time{color:#7A5A00;font-weight:700;}
+.su-tile.is-coming{background:#FFF4C7;box-shadow:inset 0 0 0 1.5px #E9C95A;}
 #allDayparts .su-sheet-list .su-row:hover{background:var(--cfa-light);}
 #allDayparts .su-sheet-list .su-row-rank{box-shadow:none;background:transparent;color:var(--text-tertiary);font-family:var(--font-ui);font-size:12px;font-weight:600;min-width:16px;margin-right:6px;}
 #allDayparts .su-sheet-list .su-row-name{justify-content:flex-end;text-align:right;max-width:58vw;}

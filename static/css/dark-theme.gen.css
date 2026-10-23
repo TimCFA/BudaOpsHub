@@ -239,6 +239,9 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .su-dp-brief-lead{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .su-dp-brief-lead.is-none{color:var(--ink-red);}
 :where(html[data-theme="dark"]) #allDayparts .su-sheet-list .su-rowwrap:has(.su-row.is-needed){border-color:#692D39;}
+:where(html[data-theme="dark"]) #allDayparts .su-sheet-list .su-rowwrap.is-coming{background:#433D23;}
+:where(html[data-theme="dark"]) .su-row.is-coming .su-row-note,:where(html[data-theme="dark"]) .su-tile.is-coming .su-tile-time{color:#FFD661;}
+:where(html[data-theme="dark"]) .su-tile.is-coming{background:#433D23;}
 :where(html[data-theme="dark"]) #allDayparts .su-sheet-list .su-row-who{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) #allDayparts .su-sheet-list .su-row-notebtn:hover{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) #allDayparts .su-sheet-list .su-row-notebtn.has{background:#253239;color:var(--ink-navy);}
