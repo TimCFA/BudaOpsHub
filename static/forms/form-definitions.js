@@ -35,6 +35,13 @@
     if (isNaN(x) || isNaN(y)) return null;
     return Math.round((y - x) / 86400000);
   }
+  // Minutes from one 'HH:MM' to another (past midnight counts as the next day).
+  function minutesBetween(a, b) {
+    var m = /^(\d{1,2}):(\d{2})/, x = m.exec(a || ''), y = m.exec(b || '');
+    if (!x || !y) return null;
+    var d = (+y[1] * 60 + +y[2]) - (+x[1] * 60 + +x[2]);
+    return d < -720 ? d + 1440 : d;
+  }
   function todayStr() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
   var REQUIRED = { en: 'Required', es: 'Obligatorio' };
 
@@ -310,6 +317,64 @@
       ]
     },
 
+    /* ------------------------------------------------------------------ */
+    /* Clock-Out Exception (Connecteam form; Tim, Oct 23 2026)             */
+    /* ------------------------------------------------------------------ */
+    {
+      id: 'clockout_exception', version: 1, category: 'people', icon: 'clock',
+      title: 'Clock-Out Exception', title_es: 'Excepción de salida',
+      blurb: 'Stayed more than 10 minutes past your scheduled out time', blurb_es: 'Te quedaste más de 10 minutos después de tu hora de salida',
+      keywords: ['clock out', 'late', 'overtime', 'stayed', 'exception', 'salida', 'tarde', 'tiempo extra'],
+      inboxSummary: ['name', 'date', 'over', 'approved_by'],
+      fields: [
+        { type: 'info', label: 'Why this form', label_es: 'Para qué es este formulario',
+          text: ['This form is used to document and review any shift extending more than 10 minutes past a scheduled out time to ensure proper approval, protect labor productivity, and respect team members time.'],
+          text_es: ['Este formulario documenta y revisa cualquier turno que se extienda más de 10 minutos después de la hora de salida programada, para asegurar la aprobación correcta, proteger la productividad laboral y respetar el tiempo de los miembros del equipo.'] },
+        { id: 'name', type: 'person', role: 'submitter', remember: 'name', label: 'Name', label_es: 'Nombre', required: true },
+        { id: 'date', type: 'date', default: 'today', label: 'Date', label_es: 'Fecha', required: true },
+        { id: 'scheduled_out', type: 'time', label: 'Scheduled out time', label_es: 'Hora programada de salida', required: true },
+        { id: 'actual_out', type: 'time', label: 'Actual clock-out time', label_es: 'Hora real de salida', required: true },
+        { id: 'over', type: 'calc', label: 'Minutes past scheduled out', label_es: 'Minutos después de la hora de salida',
+          calc: function (v) { return minutesBetween(v.scheduled_out, v.actual_out); },
+          warnIf: function (m) { return m <= 10; }, warnText: 'This form is for stays of more than 10 minutes', warnText_es: 'Este formulario es para más de 10 minutos' },
+        { id: 'approved_by', type: 'person', label: 'Who approved you to stay?', label_es: '¿Quién aprobó que te quedaras más tiempo?', required: true },
+        { id: 'reason', type: 'choice', style: 'list', label: 'Reason you stayed', label_es: 'Razón por la que te quedaste', required: true, options: [
+          { v: 'volume', l: 'Guest volume / rush', l_es: 'Volumen de clientes / hora pico' },
+          { v: 'transition', l: 'Cleaning or transition not complete', l_es: 'Limpieza o transición no completada' },
+          { v: 'leader', l: 'Leader asked me to stay', l_es: 'Un líder me pidió quedarme' },
+          { v: 'other', l: 'Other', l_es: 'Otro' }] },
+        { id: 'position', type: 'text', label: 'What position or zone were you supporting?', label_es: '¿Qué posición o zona estabas apoyando?', required: true },
+        { id: 'communicated', type: 'yesno', label: 'Did you communicate with the shift leader before staying?', label_es: '¿Te comunicaste con el líder de turno antes de quedarte?', required: true },
+        { id: 'notes', type: 'textarea', label: 'Notes', label_es: 'Notas' }
+      ]
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* Time Punch Adjustment (Connecteam form; Tim, Oct 23 2026)           */
+    /* ------------------------------------------------------------------ */
+    {
+      id: 'time_punch', version: 1, category: 'people', icon: 'clock',
+      title: 'Time Punch Adjustment', title_es: 'Ajuste de marcación de tiempo',
+      blurb: 'Forgot or couldn’t clock in or out, or punch a break', blurb_es: 'Olvidaste o no pudiste marcar entrada, salida o descanso',
+      keywords: ['punch', 'missed punch', 'clock in', 'clock out', 'forgot', 'break', 'marcar', 'olvidé', 'entrada', 'salida', 'descanso'],
+      inboxSummary: ['name', 'shift_date', 'manager'],
+      fields: [
+        { type: 'info', label: 'Why this form', label_es: 'Para qué es este formulario',
+          text: ['This form is to be completed when a team member forgets or is unable to properly clock in/out for their shift or break periods on the POS. This documentation helps maintain accurate time records and requires manager approval to correct missed time punches in the payroll system.'],
+          text_es: ['Completa este formulario cuando olvides o no puedas marcar tu entrada o salida del turno o de los descansos en el POS. Ayuda a mantener registros de tiempo correctos y requiere la aprobación de un gerente para corregir las marcaciones en el sistema de nómina.'] },
+        STORE,
+        { id: 'name', type: 'person', role: 'submitter', remember: 'name', label: 'Team member name', label_es: 'Nombre del miembro del equipo', required: true },
+        { id: 'shift_date', type: 'date', default: 'today', label: 'Date of the shift', label_es: 'Fecha del turno', required: true },
+        { id: 'clock_in', type: 'time', label: 'What time were you supposed to clock in?', label_es: '¿A qué hora debías marcar tu entrada?', required: true },
+        { id: 'break_start', type: 'time', label: 'What time did your break start (if applicable)?', label_es: '¿A qué hora empezó tu descanso (si aplica)?' },
+        { id: 'break_end', type: 'time', label: 'What time did your break end (if applicable)?', label_es: '¿A qué hora terminó tu descanso (si aplica)?' },
+        { id: 'clock_out', type: 'time', label: 'What time were you supposed to clock out (if applicable)?', label_es: '¿A qué hora debías marcar tu salida (si aplica)?' },
+        { id: 'manager', type: 'person', label: 'Manager approving', label_es: 'Gerente que aprueba', required: true },
+        { id: 'reason', type: 'textarea', label: 'What was the reason for the time punch?', label_es: '¿Cuál fue la razón del ajuste?', required: true }
+      ]
+    },
+
+    /* ------------------------------------------------------------------ */
     /* ------------------------------------------------------------------ */
     /* Payroll Notes: leader-only adjustment types hidden from team members */
     /* ------------------------------------------------------------------ */
