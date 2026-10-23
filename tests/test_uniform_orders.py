@@ -42,7 +42,8 @@ class Catalog(unittest.TestCase):
     def test_seed_is_what_connecteam_showed(self):
         # Tim's PDF of the Connecteam form, Outerwear for Women: names, prices
         # and colors as listed there. Everything else is added in Manage.
-        seed = run('c => UNIFORM_SEED')[0]
+        all_seed = run('c => UNIFORM_SEED')[0]
+        seed = [i for i in all_seed if i['group'] == 'Outerwear for Women']
         self.assertEqual([(i['name'], i['price'], i['colors']) for i in seed], [
             ('Palomar Pullover', 35, []),
             ('Chapel Fleece', 30, ['Red', 'Blue']),
@@ -51,8 +52,17 @@ class Catalog(unittest.TestCase):
             ('Northeast 8 Jacket', 72.75, ['Blue', 'Red']),
             ('Parka', 131.5, []),
         ])
-        self.assertTrue(all(i['group'] == 'Outerwear for Women' for i in seed))
-        self.assertTrue(all(i['sizes'] == ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'] for i in seed))
+        # And Outerwear for Men (Tim's second PDF, Oct 23 2026): its own prices.
+        self.assertEqual([(i['name'], i['price'], i['colors']) for i in all_seed if i['group'] == 'Outerwear for Men'], [
+            ('Palomar Pullover', 35, []),
+            ('Chapel Fleece', 20, ['Red', 'Blue']),
+            ('Softshell Jacket', 50, ['Red', 'Blue']),
+            ('Tanasbourne Rainjacket', 70, ['Red', 'Blue']),
+            ('Northeast 8 Jacket', 72.75, ['Blue', 'Red']),
+            ('Parka', 161.5, []),
+        ])
+        self.assertEqual(len(all_seed), 12)
+        self.assertTrue(all(i['sizes'] == ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'] for i in all_seed))
 
     def test_saved_list_replaces_the_seed(self):
         got = run("c => { uniformCatalog = [{id: 'x', group: 'Shoes', name: 'Non-slip shoe', price: 40, colors: [], sizes: ['9']}]; return uniformItems().map(i => i.name); }")[0]

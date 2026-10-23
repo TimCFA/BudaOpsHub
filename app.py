@@ -24,7 +24,7 @@ from pea_parser import parse_pea_pdf, PeaParseError
 from pin_report import read_pin_report, PinReportError
 from permit_sheet import read_permit_sheet, PermitSheetError
 from analytics_pdf import read_analytics_pdf, AnalyticsPdfError
-from event_fixes import fix_events
+from event_fixes import fix_events, add_mens_outerwear
 import forms_api
 from reports_parser import parse_report_file, ReportParseError
 import levelset_sync
@@ -278,6 +278,34 @@ def _apply_event_fixes():
         print(f"[EVENTS] corrected {len(changed)}: {'; '.join(changed)}")
     except Exception as e:
         print(f"[EVENTS] corrections not applied: {type(e).__name__}")
+    _apply_once('uniformMensOuterwear', 'uniformCatalog', add_mens_outerwear)
+
+ONCE_PATH = 'secure/appliedOnce'   # {name: time}: one-time changes already made
+
+
+def _apply_once(mark, key, change):
+    """A one-time change to a saved key, marked done in Firebase so it never
+    runs again (and an item deleted afterwards stays deleted). A key never
+    saved yet (the page's built-in list in use) needs nothing; the mark is
+    still set. Never fails a load."""
+    try:
+        if db.reference(f'{ONCE_PATH}/{mark}').get():
+            return
+        name = next((n for n, keys in STATE_SECTIONS.items() if key in keys), None)
+        with _state_lock:
+            entry = _cache.get(name)
+            data = entry['data'] if entry else None
+            if not isinstance(data, dict):
+                return
+            value = data.get(key)
+            if isinstance(value, list):
+                changed, n = change(value)
+                if n:
+                    _write_section(name, dict(data, **{key: changed}))
+                    print(f"[ONCE] {mark}: {n} added")
+        db.reference(f'{ONCE_PATH}/{mark}').set(int(time.time()))
+    except Exception as e:
+        print(f"[ONCE] {mark} not applied: {type(e).__name__}")
 
 def _cache_cold():
     return not _cache_ready or not _cache
@@ -1172,6 +1200,8 @@ def _uniform_image_signature(raw):
         return 'image/webp'
     return None
 
+UNIFORM_BUNDLED_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uniforms')
+
 @app.route('/api/uniform-image/<item_id>', methods=['GET'])
 def uniform_image_get(item_id):
     if not _UNIFORM_ID.match(item_id):
@@ -1180,11 +1210,19 @@ def uniform_image_get(item_id):
     if not cached:
         rec = db.reference(f'{UNIFORM_IMAGES_PATH}/{item_id}').get()
         if not isinstance(rec, dict) or not rec.get('data'):
-            return jsonify({'error': 'Not found'}), 404
-        try:
-            raw = base64.b64decode(rec['data'], validate=True)
-        except (ValueError, TypeError):
-            return jsonify({'error': 'Not found'}), 404
+            # A picture that came with the item (static/uniforms; the men's
+            # outerwear, Oct 23 2026), until a manager uploads another.
+            bundled = os.path.join(UNIFORM_BUNDLED_DIR, f'{item_id}.jpg')
+            if not os.path.isfile(bundled):
+                return jsonify({'error': 'Not found'}), 404
+            with open(bundled, 'rb') as f:
+                raw = f.read()
+            rec = {'v': 'bundled'}
+        else:
+            try:
+                raw = base64.b64decode(rec['data'], validate=True)
+            except (ValueError, TypeError):
+                return jsonify({'error': 'Not found'}), 404
         cached = (str(rec.get('v') or ''), _uniform_image_signature(raw) or 'image/jpeg', raw)
         _uniform_image_cache[item_id] = cached
     v, ctype, raw = cached

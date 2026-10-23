@@ -82,3 +82,33 @@ def fix_events(events):
         out.append(dict(MLG))
         changed.append(f"{MLG['id']}: added")
     return (out, changed) if changed else (events, [])
+
+
+# ----- The uniform catalog (Tim, Oct 23 2026: add the men's outerwear) -----
+# The men's outerwear from Connecteam's form, as in uniform-orders.js
+# UNIFORM_SEED. A catalog a manager has already saved doesn't take the seed,
+# so these are added to it once (the server keeps a mark), after the women's
+# outerwear; one deleted later stays deleted.
+SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL']
+MENS_OUTERWEAR = [
+    {'id': 'um-palomar', 'group': 'Outerwear for Men', 'name': 'Palomar Pullover', 'price': 35, 'colors': [], 'sizes': SIZES, 'img': 'bundled'},
+    {'id': 'um-chapel', 'group': 'Outerwear for Men', 'name': 'Chapel Fleece', 'price': 20, 'colors': ['Red', 'Blue'], 'sizes': SIZES, 'img': 'bundled'},
+    {'id': 'um-softshell', 'group': 'Outerwear for Men', 'name': 'Softshell Jacket', 'price': 50, 'colors': ['Red', 'Blue'], 'sizes': SIZES, 'img': 'bundled'},
+    {'id': 'um-tanasbourne', 'group': 'Outerwear for Men', 'name': 'Tanasbourne Rainjacket', 'price': 70, 'colors': ['Red', 'Blue'], 'sizes': SIZES, 'img': 'bundled'},
+    {'id': 'um-northeast8', 'group': 'Outerwear for Men', 'name': 'Northeast 8 Jacket', 'price': 72.75, 'colors': ['Blue', 'Red'], 'sizes': SIZES, 'img': 'bundled'},
+    {'id': 'um-parka', 'group': 'Outerwear for Men', 'name': 'Parka', 'price': 161.5, 'colors': [], 'sizes': SIZES, 'img': 'bundled'},
+]
+
+
+def add_mens_outerwear(catalog):
+    """→ (catalog with the men's outerwear, number added); those already in
+    it (by id) aren't added again."""
+    if not isinstance(catalog, list):
+        return catalog, 0
+    have = {c.get('id') for c in catalog if isinstance(c, dict)}
+    new = [dict(m, sizes=list(m['sizes']), colors=list(m['colors'])) for m in MENS_OUTERWEAR if m['id'] not in have]
+    if not new:
+        return catalog, 0
+    women = [i for i, c in enumerate(catalog) if isinstance(c, dict) and c.get('group') == 'Outerwear for Women']
+    at = women[-1] + 1 if women else len(catalog)
+    return catalog[:at] + new + catalog[at:], len(new)
