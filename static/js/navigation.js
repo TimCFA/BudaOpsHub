@@ -7,6 +7,8 @@ function activateView(view){
     if(typeof fmMode !== 'undefined' && typeof fmUniformsShown === 'function' && fmUniformsShown()){ fmFrom = 'fill'; fmMode = 'uniforms'; }
   }
   if(view === 'directors' && typeof launchManager !== 'undefined' && !launchManager) view = 'home';
+  // Know the Numbers: Team Leads and up (kn-page.js).
+  if(view === 'knownumbers' && typeof knPageShown === 'function' && !knPageShown()) view = 'prepboard';
   // Our Team: directors and the Admin Team (headcount.js).
   if(view === 'headcount' && !(typeof hcAllowed === 'function' && hcAllowed())) view = 'home';
   // Safe Count: not for Team Members or Trainers (fohoe-and-safecount.js).
@@ -35,6 +37,7 @@ function activateView(view){
   if(view === 'home') renderHomeScoreboard();
   if(view === 'forecast') renderForecastView();
   if(view === 'cem' && typeof renderCemTrends === 'function') renderCemTrends();
+  if(view === 'knownumbers' && typeof renderKnPage === 'function') renderKnPage();
   if(view === 'calendar' && typeof renderCalendarView === 'function') renderCalendarView();
   if(view === 'directors' && typeof renderDirectorsView === 'function') renderDirectorsView();
   if(view === 'headcount'){ renderHeadcountView(); hcLoad(true); }

@@ -2504,3 +2504,47 @@ body:not(.hc-allowed) .hc-only{display:none !important;}
 .lxq-scroll{max-width:100%;}
 .lxq-scroll .metrics-table th,.lxq-scroll .metrics-table td{padding:10px 10px;}
 .lxq-past .lxq-input{min-width:120px;}
+
+/* Know the Numbers (kn-page.js; Tim, Oct 23 2026): each daypart's goals at a glance */
+.knp-page{max-width:900px;margin:0 auto;}
+.knp-title{margin:0;font-family:var(--font-display);font-size:26px;font-weight:600;}
+.knp-lede{margin:2px 0 12px;font-size:14px;color:var(--text-secondary);}
+.knp-days{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin:0 0 12px;}
+.knp-day{display:grid;justify-items:center;gap:1px;min-height:54px;padding:6px 2px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-white);font-family:var(--font-ui);color:var(--text-primary);cursor:pointer;}
+.knp-day span{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-secondary);}
+.knp-day b{font-family:var(--font-display);font-size:19px;font-weight:600;}
+.knp-day.is-today span{color:var(--cfa-red);}
+.knp-day.is-on{background:var(--cfa-navy);border-color:var(--cfa-navy);color:#F6F1E8;}
+.knp-day.is-on span{color:rgba(246,241,232,.8);}
+.knp-day-sum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 12px;padding:12px 14px;border-radius:var(--radius);background:var(--cfa-navy);color:#F6F1E8;}
+.knp-day-sum span{display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:rgba(246,241,232,.75);}
+.knp-day-sum b{font-family:var(--font-display);font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;}
+.knp-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:12px;}
+.knp-card{padding:14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--cfa-white);scroll-margin-top:120px;}
+.knp-card.is-now{border-color:var(--cfa-red);box-shadow:inset 0 0 0 1px var(--cfa-red);}
+.knp-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.knp-head h3{margin:0;font-family:var(--font-display);font-size:20px;font-weight:600;}
+.knp-head h3 span{font-family:var(--font-ui);font-size:13px;font-weight:600;color:var(--text-tertiary);}
+.knp-now{padding:2px 9px;border-radius:999px;background:var(--cfa-red);color:#fff;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;}
+.knp-hero{display:flex;align-items:center;gap:12px;margin:8px 0 10px;}
+.knp-hero b{font-family:var(--font-display);font-size:46px;font-weight:700;line-height:1;color:var(--cfa-red);font-variant-numeric:tabular-nums;}
+.knp-hero span{font-size:13px;line-height:1.3;color:var(--text-secondary);}
+.knp-none{font-size:13px;color:var(--text-tertiary);}
+.knp-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+.knp-stat{display:grid;gap:1px;align-content:start;padding:9px 10px;border-radius:12px;background:var(--cfa-light);}
+.knp-k{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-secondary);}
+.knp-stat b{font-family:var(--font-display);font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;}
+.knp-stat small{font-size:12px;line-height:1.3;color:var(--text-tertiary);}
+.knp-stat.is-over{box-shadow:inset 3px 0 0 var(--cfa-red);}
+.knp-stat.is-over small{color:var(--cfa-dark-red);font-weight:600;}
+.knp-stat.is-under small{color:#7A4C00;font-weight:600;}
+.knp-stat.is-under{box-shadow:inset 3px 0 0 #E0A526;}
+.knp-stat.is-ok{box-shadow:inset 3px 0 0 var(--ok);}
+.knp-stat.is-room{box-shadow:inset 3px 0 0 var(--cfa-navy);}
+.knp-stat.is-room small{color:var(--cfa-navy);font-weight:600;}
+.knp-stat.is-ok small{color:var(--ok);font-weight:600;}
+.knp-actual{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:13px;color:var(--text-secondary);}
+.knp-actual b{color:var(--text-primary);}
+.knp-foot{margin:12px 0 0;font-size:12px;color:var(--text-tertiary);}
+.su-dp-kn{margin-left:auto;padding:3px 10px;border:1px solid var(--border);border-radius:999px;background:var(--cfa-white);color:var(--cfa-navy);font-family:var(--font-ui);font-size:12px;font-weight:700;cursor:pointer;}
+.su-dp-kn:hover{border-color:var(--cfa-navy);}

@@ -15,7 +15,7 @@
 // (app.py PRIVATE_SECTIONS), so signing in fetches it right away, and
 // locking reloads the page to clear it from the device.
 
-const LAUNCH_VIEWS = ['home', 'positions', 'wastelog', 'scoreboard', 'zonereset', 'foodsafety', 'safecount', 'prepboard', 'calendar', 'forms', 'manage', 'headcount'];
+const LAUNCH_VIEWS = ['home', 'positions', 'wastelog', 'scoreboard', 'zonereset', 'foodsafety', 'safecount', 'prepboard', 'knownumbers', 'calendar', 'forms', 'manage', 'headcount'];
 // Zone Resets and the Leader Transition List share a view; `page` picks
 // which of its cards show (data-launch-page on the cards).
 const LAUNCH_LISTS = [
@@ -28,6 +28,8 @@ const LAUNCH_LISTS = [
 // Forecast and CEM Insights are for the full site (managers).
 const LAUNCH_TOOLS = [
   {view: 'prepboard', label: 'Prep Board', sub: 'Preparación'},
+  // Know the Numbers (kn-page.js): Team Leads and up.
+  {view: 'knownumbers', label: 'Know the Numbers', sub: 'Los números', leaders: true},
   {view: 'forecast', label: 'Sales & Labor Forecast', sub: 'Pronóstico', full: true},
   {view: 'cem', label: 'CEM Insights', sub: 'Encuestas', full: true},
 ];
@@ -49,7 +51,8 @@ function launchSubnavRender(view){
   // Safe Count and the Leader Transition List aren't for Team Members or Trainers.
   const hidden = l => (l.view === 'safecount' && typeof scHidden === 'function' && scHidden())
     || (l.page === 'leaders' && typeof ltHidden === 'function' && ltHidden())
-    || (l.full && launchIsOn());
+    || (l.full && launchIsOn())
+    || (l.leaders && typeof knPageShown === 'function' && !knPageShown());
   const here = group.filter(l => l.view === view && !hidden(l));
   if(!here.length) return;
   const page = here.some(l => l.page === launchListPage) ? launchListPage : (here[0].page || '');
