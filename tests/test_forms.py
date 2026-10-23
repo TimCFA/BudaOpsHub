@@ -239,7 +239,22 @@ class InStep(unittest.TestCase):
         out = subprocess.run(['node', os.path.join(ROOT, 'tools', 'forms_meta.js')], capture_output=True, text=True, check=True)
         self.assertEqual(json.loads(out.stdout), forms_api.BUILT_IN, 'run: node tools/forms_meta.js > forms_meta.json')
         self.assertEqual(sorted(k for k, m in forms_api.BUILT_IN.items() if m['sensitive']), ['harassment_report', 'injury_report', 'termination'])
-        self.assertEqual(len(forms_api.BUILT_IN), 14)
+        self.assertEqual(len(forms_api.BUILT_IN), 16)
+        # Two Connecteam forms added (Tim, Oct 23 2026): everyone can fill them in.
+        for fid in ('clockout_exception', 'time_punch'):
+            self.assertEqual((forms_api.BUILT_IN[fid]['audience'], forms_api.BUILT_IN[fid]['sensitive']), ('all', False))
+
+    def test_clock_out_exception_counts_the_minutes_over(self):
+        runner = (
+            "const vm=require('vm'),fs=require('fs');const c={};c.window=c;vm.createContext(c);"
+            "vm.runInContext(fs.readFileSync(process.argv[1]+'/static/forms/form-definitions.js','utf8'),c);"
+            "const f=c.OPS_FORM_DEFINITIONS.find(x=>x.id==='clockout_exception').fields.find(x=>x.id==='over');"
+            "process.stdout.write(JSON.stringify([f.calc({scheduled_out:'14:00',actual_out:'14:25'}),"
+            "f.calc({scheduled_out:'23:50',actual_out:'00:15'}),f.calc({scheduled_out:'14:00'}),f.warnIf(8),f.warnIf(25)]));")
+        out = subprocess.run(['node', '-e', runner, ROOT], capture_output=True, text=True, check=True)
+        # 25 minutes over, past midnight too; nothing until both times are in;
+        # under 10 minutes is flagged (the form is for more than 10).
+        self.assertEqual(json.loads(out.stdout), [25, 25, None, True, False])
 
     def test_page_wiring(self):
         page = read('cfa-buda-ops-hub-complete.html')

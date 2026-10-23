@@ -85,6 +85,16 @@
   "sensitive": false,
   "files": {}
  },
+ "clockout_exception": {
+  "audience": "all",
+  "sensitive": false,
+  "files": {}
+ },
+ "time_punch": {
+  "audience": "all",
+  "sensitive": false,
+  "files": {}
+ },
  "payroll_notes": {
   "audience": "all",
   "sensitive": false,

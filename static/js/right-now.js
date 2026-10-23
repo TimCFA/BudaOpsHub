@@ -400,24 +400,114 @@ function rnWithRoster(card, day){
   return card;
 }
 
-// Nobody signed in: the shift as a whole.
-function rnTeamCard(day){
+// ----- This iPad's side (Tim, Oct 23 2026) -----
+// A shared iPad lives up front or in the kitchen. Without a sign-in, a
+// switch on the card picks which, remembered on the iPad: the kitchen gets
+// its own card (in Spanish too), and Set Ups and Waste open on its side.
+const RN_SIDE_KEY = 'cfaBudaSide';
+const RN_PM_FROM = 14 * 60;      // PM shifts start at 2 PM: the break count switches to them then
+function rnDeviceSide(){
+  try{ return localStorage.getItem(RN_SIDE_KEY) === 'boh' ? 'boh' : 'foh'; }catch(e){ return 'foh'; }
+}
+function rnSetDeviceSide(side){
+  try{ localStorage.setItem(RN_SIDE_KEY, side === 'boh' ? 'boh' : 'foh'); }catch(e){ /* this visit only */ }
+  rnApplyDeviceSide();
+  renderRightNow();
+}
+// Set Ups and Waste open on this iPad's side (their own switches still work).
+function rnApplyDeviceSide(){
+  const side = rnDeviceSide();
+  ['#posToggle', '#logToggle'].forEach(sel => {
+    const b = document.querySelector(`${sel} .toggle-btn[data-section="${side}"]`);
+    if(b && !b.classList.contains('active')) b.click();
+  });
+}
+
+// What's left to make on the Prep Board today: [{name, left}], and the totals.
+function rnPrepLeft(){
+  if(typeof pbForecast !== 'function' || typeof pbMade !== 'function') return null;
+  const items = (pbForecast(today).stats || []).filter(it => it.buildTo > 0);
+  if(!items.length) return null;
+  const left = items.map(it => ({name: it.name, left: Math.max(0, it.buildTo - pbMade(today, it.name))})).filter(x => x.left > 0)
+    .sort((a, b) => b.left - a.left);
+  return {left, units: left.reduce((t, x) => t + x.left, 0)};
+}
+
+// The kitchen's breaks not yet marked taken: the morning shifts' until 2 PM,
+// then the afternoon's (Tim: PM shifts start at 2).
+function rnBreaksLeft(side, now){
+  const plan = typeof breakPlanFor === 'function' ? breakPlanFor(side, today) : {breaks: []};
+  const all = (plan.breaks || []).filter(b => b.start !== null);
+  const open = b => !completedBreaks[breakKeyFor(b.name, today, side)];
+  const am = all.filter(b => b.from < RN_PM_FROM), pm = all.filter(b => b.from >= RN_PM_FROM);
+  const pmNow = now >= RN_PM_FROM;
+  const list = pmNow ? pm : am;
+  const left = list.filter(open).sort((a, b) => a.start - b.start);
+  return {pm: pmNow, total: list.length, left};
+}
+
+// The day's kitchen waste and the item that cost the most.
+function rnKitchenWaste(){
+  const mine = (typeof entries !== 'undefined' ? entries : []).filter(e => e.section === 'boh' && wasteEntryDay(e) === today);
+  const by = {};
+  mine.forEach(e => { by[e.name] = (by[e.name] || 0) + (Number(e.cost) || 0); });
+  const top = Object.entries(by).sort((a, b) => b[1] - a[1])[0];
+  return {total: wasteTodayTotal('boh'), top: top ? {name: top[0], cost: top[1]} : null};
+}
+
+// The kitchen iPad, nobody signed in: what to make, the breaks left, Food
+// Safety, the kitchen's waste.
+function rnKitchenCard(day){
   const rows = [];
   if(!day.closed){
-    ['foh', 'boh'].forEach(side => {
-      const g = rnDaypartGaps(side, today, rnDaypartIndex(side, day.now));
-      rows.push(rnRow(`${g.m.filled}/${g.m.filled + g.open.length}`, `${side.toUpperCase()} spots set for ${rnShort(g.dp.name)}`, side === 'boh' ? esText('Set Ups filled') : '', `setups:${side}|${today}|${g.dp.name}`, g.open.length ? 'warn' : 'ok'));
-    });
+    const prep = rnPrepLeft();
+    if(prep){
+      rows.push(prep.left.length
+        ? rnRow(String(prep.units), `still to prep: ${prep.left.slice(0, 3).map(x => `${x.name} ${x.left}`).join(' · ')}${prep.left.length > 3 ? ` · ${prep.left.length - 3} more` : ''}`, esText('Still to prep', prep.units), 'prepboard', 'warn')
+        : rnRow('0', 'All prep made for today', esText('All prep made today'), 'prepboard', 'ok'));
+    }
+    const br = rnBreaksLeft('boh', day.now);
+    if(br.total){
+      const next = br.left[0];
+      const label = br.pm ? 'PM' : 'AM';
+      rows.push(rnRow(String(br.left.length), `${label} break${br.left.length === 1 ? '' : 's'} left (of ${br.total})${next ? ` · next: ${suDisplayName(next.name)} ${rnClock(next.start)}` : ''}`,
+        [esText(br.pm ? 'PM breaks left' : 'AM breaks left', br.left.length, br.total), next ? esText('Next break', suDisplayName(next.name), rnClock(next.start)) : ''].filter(Boolean).join(' · '),
+        `setups:boh|${today}|`, br.left.length ? '' : 'ok'));
+    }
+    const fs = rnFoodSafety();
+    rows.push(rnRow(fs ? `${fs.done}/${fs.total}` : '0', 'Food Safety walkthrough today', esText('Food Safety walkthrough'), 'foodsafety', fs && fs.done === fs.total ? 'ok' : ''));
+    const w = rnKitchenWaste();
+    rows.push(rnRow(rnMoney(w.total), `kitchen waste today${w.top ? ` · most: ${w.top.name} ${rnMoney(w.top.cost)}` : ''}`,
+      [esText('Kitchen waste today'), w.top ? esText('Most wasted', w.top.name, rnMoney(w.top.cost)) : ''].filter(Boolean).join(' · '), 'waste', ''));
+  }
+  rows.push(rnRow('', 'Sign in with your clock-in PIN to see your spot and your break', esText('Sign in to see your spot'), 'signin', ''));
+  return {side: 'boh', first: null, rows, title: '', sideSwitch: true};
+}
+
+// Nobody signed in: the shift as a whole, or the kitchen's card on a kitchen iPad.
+function rnTeamCard(day){
+  if(rnDeviceSide() === 'boh') return rnKitchenCard(day);
+  const rows = [];
+  if(!day.closed){
+    const g = rnDaypartGaps('foh', today, rnDaypartIndex('foh', day.now));
+    rows.push(rnRow(`${g.m.filled}/${g.m.filled + g.open.length}`, `FOH spots set for ${rnShort(g.dp.name)}`, '', `setups:foh|${today}|${g.dp.name}`, g.open.length ? 'warn' : 'ok'));
     const hand = rnHandoff(today);
     if(hand){
       const done = hand.zones.filter(z => z.done).length;
       rows.push(rnRow(`${done}/${hand.zones.length}`, `zones reset · ${hand.title} at ${rnClock(hand.at)}`, '', `zone:${hand.name}`, done === hand.zones.length ? 'ok' : ''));
     }
     const w = rnWaste();
-    rows.push(rnRow(rnMoney(w.total), `waste today, limit ${rnMoney(w.limit)}`, esText('Waste today'), 'waste', w.over ? 'bad' : w.near ? 'warn' : 'ok'));
+    rows.push(rnRow(rnMoney(w.total), `waste today, limit ${rnMoney(w.limit)}`, '', 'waste', w.over ? 'bad' : w.near ? 'warn' : 'ok'));
   }
-  rows.push(rnRow('', 'Sign in with your clock-in PIN to see your spot and your break', esText('Sign in to see your spot'), 'signin', ''));
-  return {side: 'foh', first: null, rows, title: ''};
+  rows.push(rnRow('', 'Sign in with your clock-in PIN to see your spot and your break', '', 'signin', ''));
+  return {side: 'foh', first: null, rows, title: '', sideSwitch: true};
+}
+
+// The Front / Kitchen switch on a signed-out card.
+function rnSideSwitchHtml(){
+  const side = rnDeviceSide();
+  const btn = (s, en, es) => `<button type="button" class="rn-side-btn${side === s ? ' is-on' : ''}" data-rn-side="${s}" aria-pressed="${side === s}">${en} <span class="rn-side-es" lang="es">${es}</span></button>`;
+  return `<div class="rn-side" role="group" aria-label="This iPad: front or back of house">${btn('foh', 'Front', esText('Front'))}${btn('boh', 'Back', esText('Back'))}</div>`;
 }
 
 function rnCardFor(v, day){
@@ -457,6 +547,7 @@ function renderRightNow(){
     <div class="rn-top">
       <span class="rn-kicker">${escapeHtml(kicker)}${boh && kickerEs ? `<span class="es" lang="es"> · ${escapeHtml(kickerEs)}</span>` : ''}</span>
       ${roleLabel ? `<span class="rn-role">${escapeHtml(roleLabel)}</span>` : ''}
+      ${card.sideSwitch ? rnSideSwitchHtml() : ''}
     </div>
     <h2 class="rn-title">${escapeHtml(title)}${day.closed ? '' : ` <span class="rn-time">${escapeHtml(rnClock(day.now))}</span>`}</h2>
     ${card.first ? `<div class="rn-first${card.first.go ? ' is-go' : ''}"${go(card.first.go)}><b>First thing${boh ? `<span class="es" lang="es"> · ${escapeHtml(esText('First thing'))}</span>` : ''}</b><span>${escapeHtml(card.first.text)}</span>${es(card.first.es)}</div>` : ''}
@@ -509,10 +600,13 @@ function rnGo(g){
   else if(what === 'headcount'){ launchShowTab('headcount'); window.scrollTo({top: 0}); }
   else if(what === 'roster'){ rnRosterOpen = !rnRosterOpen; renderRightNow(); }
   else if(what === 'foodsafety'){ launchShowTab('foodsafety'); window.scrollTo({top: 0}); }
+  else if(what === 'prepboard'){ launchShowTab('prepboard'); window.scrollTo({top: 0}); }
   else if(what === 'signin'){ launchShowTab('manage'); window.scrollTo({top: 0}); const pin = document.getElementById('pinInput'); if(pin) pin.focus(); }
 }
 
 document.getElementById('rightNow').addEventListener('click', e => {
+  const sw = e.target.closest('[data-rn-side]');
+  if(sw){ rnSetDeviceSide(sw.dataset.rnSide); return; }
   const t = e.target.closest('[data-rn-go]');
   if(t) rnGo(t.dataset.rnGo);
 });
@@ -525,3 +619,6 @@ document.getElementById('rightNow').addEventListener('keydown', e => {
 setInterval(() => {
   if(document.visibilityState === 'visible' && document.getElementById('homeView').classList.contains('active')) renderRightNow();
 }, 60000);
+
+// Set Ups and Waste open on this iPad's side once the saved data is in.
+if(typeof stateLoaded !== 'undefined') stateLoaded.then(rnApplyDeviceSide).catch(() => {});
