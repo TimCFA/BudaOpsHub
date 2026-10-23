@@ -1,12 +1,14 @@
 // ===== UNIFORM ORDERS =====
 // The uniform order form, moved into the hub from Connecteam (Tim, Oct 2026).
-// Leaders only for now: the Uniforms tab shows once the PIN is entered, and a
-// leader fills it in with the team member. Same questions as the Connecteam
+// Leaders only for now: it shows once the PIN is entered, and a leader fills
+// it in with the team member. It lives in the Forms tab (Tim, Oct 23 2026):
+// the Uniform order card opens it, and Submissions links to the orders
+// (forms.js). Same questions as the Connecteam
 // form (full name, role, split between two checks, then the items); Buda FSU
 // only, so no store question. The order comes out of the team member's
 // paycheck once it's placed.
 //
-// The Uniforms tab has the form and the order list (New → Ordered → Handed
+// The page has the form and the order list (New → Ordered → Handed
 // out, with a CSV for placing the order). The items, sizes, colors and prices
 // are edited in Manage → Uniforms. Until a manager edits them, the list is
 // UNIFORM_SEED: the items Connecteam's form showed (Tim's PDFs, women's and
@@ -125,7 +127,13 @@ function uoRosterNames(){
   return [...names].filter(Boolean).sort((a, b) => a.localeCompare(b));
 }
 
-// ----- The Uniforms tab -----
+// ----- The page (in Forms) -----
+
+// On screen: the Forms tab showing Uniform orders.
+function uoOnScreen(){
+  const view = document.getElementById('formsView');
+  return !!view && view.classList.contains('active') && typeof fmMode !== 'undefined' && fmMode === 'uniforms';
+}
 
 let uoPane = 'new';           // 'new' (the form) or 'orders'
 let uoFilter = 'open';        // orders shown: 'open' | 'done' | 'all'
@@ -311,11 +319,13 @@ function uoRedrawForm(){
 // Another device's change: the order list redraws; the form waits while
 // it's being typed in.
 function uoRerender(){
-  const view = document.getElementById('uniformsView');
-  if(view && view.classList.contains('active')){
+  if(uoOnScreen()){
     const typing = document.activeElement && document.activeElement.closest && document.activeElement.closest('#uoForm');
     if(uoPane === 'orders' || !typing) renderUniformsView();
   }
+  // Submissions' link counts the open orders.
+  const link = document.getElementById('formsUniformLink');
+  if(link && !link.hidden && typeof fmUniformLinkHtml === 'function') link.innerHTML = fmUniformLinkHtml();
   if(typeof renderUniformCatalogManage === 'function' && !uoEditId) renderUniformCatalogManage();
 }
 
@@ -466,8 +476,7 @@ function uoReadCatalogForm(){
 function uoCatalogChanged(msg){
   uoEditId = null;
   renderUniformCatalogManage();
-  const view = document.getElementById('uniformsView');
-  if(view && view.classList.contains('active')) renderUniformsView();
+  if(uoOnScreen()) renderUniformsView();
   showToast(msg);
   saveState();
 }

@@ -84,7 +84,6 @@
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="formsView" data-view="forms">Forms <span class="sub"><i>Formularios</i></span></button>
       <!-- Our Team (headcount, departures, profiles and food handler permits): directors, the manager PIN and the Admin Team (headcount.js hcSyncTab). -->
       <button type="button" class="tab hc-only" role="tab" aria-selected="false" aria-controls="headcountView" data-view="headcount">Our Team <span class="sub"><i>Equipo</i></span></button>
-      <button type="button" class="tab manager-only" role="tab" aria-selected="false" aria-controls="uniformsView" data-view="uniforms">Uniforms <span class="sub"><i>Uniformes</i></span></button>
       <button type="button" class="tab manager-only" role="tab" aria-selected="false" aria-controls="directorsView" data-view="directors">Directors <span class="sub"><i>Directores</i></span></button>
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="manageView" data-view="manage">Manage <span class="sub"><i>Gestionar</i></span></button>
     </div>
@@ -868,12 +867,6 @@
     <div class="cal-page" id="calendarRoot"></div>
   </div>
 
-  <!-- Uniforms View: the uniform order form and the orders (uniform-orders.js).
-       Managers only for now: a leader fills it in with the team member. -->
-  <div class="view" id="uniformsView">
-    <div class="uo-page" id="uniformsRoot"></div>
-  </div>
-
   <!-- Directors View: the week ahead for the director team (directors.js). PIN only. -->
   <div class="view" id="directorsView">
     <div class="dir-page" id="directorsRoot"></div>
@@ -883,7 +876,15 @@
     <div class="fm-page" id="formsRoot">
       <div id="formsSwitch"></div>
       <div id="formsFill"></div>
+      <div id="formsUniformLink" hidden></div>
       <div id="formsInbox" hidden></div>
+      <!-- Uniform orders (uniform-orders.js): the order form and the orders,
+           opened from the Uniform order card or Submissions. Manager sessions
+           only: a leader fills it in with the team member. -->
+      <div id="formsUniforms" hidden>
+        <button type="button" class="fm-back" id="formsUniformsBack"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg> All forms</button>
+        <div class="uo-page" id="uniformsRoot"></div>
+      </div>
     </div>
   </div>
 
@@ -917,7 +918,6 @@
         <button type="button" class="manage-tab" role="tab" id="manageTab-forecast" data-manage-go="forecast" aria-selected="false">Forecast</button>
         <button type="button" class="manage-tab" role="tab" id="manageTab-calendar" data-manage-go="calendar" aria-selected="false">Calendar</button>
         <button type="button" class="manage-tab" role="tab" id="manageTab-forms" data-manage-go="forms" aria-selected="false">Forms</button>
-        <button type="button" class="manage-tab" role="tab" id="manageTab-uniforms" data-manage-go="uniforms" aria-selected="false">Uniforms</button>
         <button type="button" class="manage-tab" role="tab" id="manageTab-directors" data-manage-go="directors" aria-selected="false">Directors</button>
         <button type="button" class="manage-tab" role="tab" id="manageTab-levelset" data-manage-go="levelset" aria-selected="false">Levelset</button>
         <button type="button" class="manage-tab" role="tab" id="manageTab-uploads" data-manage-go="uploads" aria-selected="false">Uploads</button>
@@ -1042,16 +1042,11 @@
             <h3>Forms</h3>
             <div id="formsManageRoot"></div>
           </div>
-        </div>
-      </section>
 
-      <!-- GROUP: Uniforms: the order form's items -->
-      <section class="manage-group" data-manage-tab="uniforms" aria-labelledby="manageTab-uniforms">
-        <div class="manage-group-body">
-
+          <!-- The uniform order form's items (uniform-orders.js); the form is in Forms since Oct 23 2026 -->
           <div class="standup-card">
             <h3>Uniform items</h3>
-            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">What the order form on the Uniforms tab offers, with each item's price, colors and sizes. A change here never alters an order already placed.</p>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">What the uniform order form offers (Forms → Uniform order), with each item's price, colors and sizes. A change here never alters an order already placed.</p>
             <div id="uniformCatalogRoot"></div>
           </div>
         </div>

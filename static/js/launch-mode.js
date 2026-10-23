@@ -115,10 +115,10 @@ function launchApply(){
 // A manager session found (on load, or the PIN just entered).
 async function launchSetManager(isManager){
   launchManager = isManager;
-  // Tabs marked .manager-only (Uniforms, Directors) show only with the
+  // Tabs marked .manager-only (Directors) show only with the
   // PIN, launch mode or not; Set Ups' event chips follow the same session.
   document.body.classList.toggle('is-manager', !!isManager);
-  if(!isManager && ['uniformsView', 'directorsView'].some(id => document.getElementById(id).classList.contains('active'))) launchShowTab('home');
+  if(!isManager && document.getElementById('directorsView').classList.contains('active')) launchShowTab('home');
   launchApply();
   if(typeof renderAllDayparts === 'function' && document.getElementById('positionsView').classList.contains('active')) renderAllDayparts();
   // Pick up the private sections this page wasn't sent without a session,

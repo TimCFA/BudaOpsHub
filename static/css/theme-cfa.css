@@ -2213,6 +2213,15 @@ button.fs-history-row:hover > span:first-child{color:var(--cfa-red);}
 .fm-switch button.is-on{background:var(--cfa-white);color:var(--text-primary);box-shadow:0 1px 3px rgba(0,0,0,.08);}
 /* Manage → Forms: the forms you add */
 .fm-note{margin:0 0 12px;font-size:13.5px;color:var(--text-secondary);}
+.fm-uo-link{width:100%;display:flex;align-items:center;gap:14px;text-align:left;margin:0 0 12px;padding:13px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--cfa-white);color:var(--text-primary);font-family:var(--font-ui);cursor:pointer;}
+.fm-uo-link:hover{border-color:var(--cfa-red);}
+.fm-uo-ic{flex:none;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--cfa-red) 12%,transparent);color:var(--cfa-red);}
+.fm-uo-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.fm-uo-tx b{font-weight:700;}
+.fm-uo-tx small{font-size:13px;color:var(--text-secondary);}
+.fm-uo-chev{flex:none;color:var(--text-tertiary);}
+.fm-back{display:inline-flex;align-items:center;gap:4px;min-height:44px;margin:0 0 6px;padding:0 10px 0 4px;border:0;border-radius:10px;background:none;color:var(--text-secondary);font-family:var(--font-ui);font-size:14px;font-weight:700;cursor:pointer;}
+.fm-back:hover{color:var(--text-primary);}
 .fm-list{list-style:none;margin:0 0 14px;padding:0;display:grid;gap:8px;}
 .fm-list li{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-light);}
 .fm-list li.is-hidden{opacity:.6;}

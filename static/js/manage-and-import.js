@@ -80,7 +80,7 @@ document.getElementById('btnLock').addEventListener('click', async ()=>{
 const MANAGE_TAB_KEY = 'cfaBudaManageTab';
 // The chips took the main tabs' names (Tim, Oct 21 2026); a device that
 // last had an older one open lands on where its cards went.
-const MANAGE_TAB_RENAMED = {numbers: 'forecast', events: 'calendar', scoreboards: 'experience', talent: 'experience', pea: 'levelset'};
+const MANAGE_TAB_RENAMED = {numbers: 'forecast', events: 'calendar', scoreboards: 'experience', talent: 'experience', pea: 'levelset', uniforms: 'forms'};
 function manageShowTab(key){
   key = MANAGE_TAB_RENAMED[key] || key;
   const groups = [...document.querySelectorAll('#manageContent .manage-group')];
