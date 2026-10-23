@@ -126,8 +126,11 @@ function renderSafeOrder(){
   if(typeof launchManager === 'undefined' || !launchManager){ root.innerHTML = ''; return; }
   const now = Date.now();
   const m = soModel(safeCounts, safeOrderSettings, now);
+  // An order on its way counts as coming in: the next order is what's left.
+  const open = soOpenOrder(safeOrders), status = soStatusHtml(open || soLatestOrder(safeOrders), true);
+  Object.assign(m, soLessOpen(m, open));
   if(!m.latest){
-    root.innerHTML = `<section class="so-card"><h3 class="so-title">Change order</h3><p class="so-note">The order sheet fills in once leaders log a safe count.</p></section>`;
+    root.innerHTML = `<section class="so-card"><h3 class="so-title">Change order</h3>${status}<p class="so-note">The order sheet fills in once leaders log a safe count.</p></section>`;
     return;
   }
   const at = new Date(m.latest.timestamp);
@@ -162,11 +165,12 @@ function renderSafeOrder(){
     root.innerHTML = `
     <section class="so-card so-simple">
       <div class="so-kicker">Change order</div>
+      ${status}
       ${noPars ? '<p class="so-note so-hint">Set the build-to for each bill and coin and the order works itself out. <button type="button" class="ld-link" data-so-edit>Set build-tos</button></p>'
-        : m.total ? `<div class="so-big">${soMoney(m.total)}</div><p class="so-note">to order now. It arrives in ${leadText} and brings the change fund back up to its build-to.</p>
+        : m.total ? `<div class="so-big">${soMoney(m.total)}</div><p class="so-note">to order now${open ? ', on top of the order on its way' : ''}. It arrives in ${leadText} and brings the change fund back up to its build-to.</p>
           <ul class="so-lines">${orderRows.map(r => `<li><span>${escapeHtml(r.label)}</span><b>${soMoney(r.dollars)}</b></li>`).join('')}</ul>
-          <div class="so-go"><button type="button" class="btn btn-primary" data-so-copy>Copy order</button></div>`
-        : `<div class="so-big is-none">Nothing to order</div><p class="so-note">The change fund will still be at its build-to when an order would arrive.</p>`}
+          ${soPlacing ? soPlaceFormHtml(m.total) : '<div class="so-go"><button type="button" class="btn btn-primary" data-so-copy>Copy order</button><button type="button" class="btn btn-ghost" data-so-place>Mark as ordered</button></div>'}`
+        : `<div class="so-big is-none">Nothing to order</div><p class="so-note">${open ? 'The order on its way brings the change fund back up to its build-to.' : 'The change fund will still be at its build-to when an order would arrive.'}</p>`}
       <p class="so-note so-asof">From the ${escapeHtml(asOf)} count${m.latest.countedBy ? ` by ${escapeHtml(m.latest.countedBy)}` : ''}.</p>
       <details class="so-more" data-so-more${soDetailsOpen ? ' open' : ''}>
         <summary>How it’s worked out</summary>
@@ -204,6 +208,23 @@ document.getElementById('safeOrderRoot').addEventListener('click', async e => {
   const t = e.target.closest('button');
   if(!t) return;
   if(t.hasAttribute('data-so-edit')){ soEditing = true; renderSafeOrder(); return; }
+  if(t.hasAttribute('data-so-place')){ soPlacing = true; renderSafeOrder(); return; }
+  if(t.hasAttribute('data-so-place-cancel')){ soPlacing = false; renderSafeOrder(); return; }
+  if(t.hasAttribute('data-so-place-save')){
+    const m = soModel(safeCounts, safeOrderSettings, Date.now());
+    const {rows, total} = soLessOpen(m, soOpenOrder(safeOrders));
+    const lines = {};
+    rows.filter(r => r.order).forEach(r => { lines[r.key] = r.dollars; });
+    const exp = document.getElementById('soExpected'), note = document.getElementById('soOrderNote');
+    const by = (typeof acUser !== 'undefined' && acUser && acUser.name) || (typeof getInitials === 'function' && getInitials()) || 'Director';
+    safeOrders = [...(safeOrders || []), {id: 'co-' + Date.now().toString(36), placedAt: new Date().toISOString(), by, lines, total,
+      expected: exp && exp.value ? exp.value : soAddDaysIso(today, soLeadDays(safeOrderSettings || {})), note: note ? note.value.trim().slice(0, 140) : '', status: 'ordered'}];
+    soPlacing = false;
+    renderSafeOrder();
+    await saveState();
+    showToast('Change order marked as ordered');
+    return;
+  }
   if(t.hasAttribute('data-so-cancel')){ soEditing = false; renderSafeOrder(); return; }
   if(t.hasAttribute('data-so-suggest')){
     document.querySelectorAll('#safeOrderRoot [data-so-par]').forEach(inp => { if(inp.placeholder !== '') inp.value = inp.placeholder; });
@@ -228,4 +249,105 @@ document.getElementById('safeOrderRoot').addEventListener('click', async e => {
     try{ await navigator.clipboard.writeText(text); showToast('Order copied'); }
     catch(err){ prompt('Copy the order:', text); }
   }
+});
+
+// ----- The order on its way (Tim, Oct 23 2026) -----
+// "Communication around what change fund was most recently ordered and when
+// it is expected to arrive." A director marks the order placed (what, by
+// whom, the day it's expected: today plus the lead days, changeable); the
+// card and the Team Leads' Safe Count page show it until someone marks it
+// arrived. While it's on its way, the next order counts it as coming in.
+// safeOrders lives in its own private section; a Team Lead gets the latest
+// with their counts (/api/safe-counts/recent) and marks it arrived through
+// /api/safe-orders/received.
+let soPlacing = false;        // the "Mark as ordered" form open
+let safeOrderLead = null;     // a Team Lead's copy of the latest order (scLoadToday)
+
+function soLatestOrder(list){
+  return (Array.isArray(list) ? list : []).filter(o => o && o.placedAt).sort((a, b) => String(a.placedAt).localeCompare(String(b.placedAt))).pop() || null;
+}
+function soOpenOrder(list){ const o = soLatestOrder(list); return o && o.status !== 'received' ? o : null; }
+// A day as "Thu, Oct 23": a date, or a time stamp read in the store's own day.
+function soDayText(iso){
+  if(!iso) return '';
+  const day = String(iso).length > 10 && typeof toLocalISODate === 'function' ? toLocalISODate(new Date(iso)) : String(iso).slice(0, 10);
+  return new Date(day + 'T12:00:00').toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric'});
+}
+function soAddDaysIso(iso, n){ const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return toLocalISODate(d); }
+
+// The order rows less what's already on its way: {rows, total}.
+function soLessOpen(m, open){
+  if(!open || !open.lines) return {rows: m.rows, total: m.total};
+  const rows = m.rows.map(r => {
+    const coming = Number(open.lines[r.key]) || 0;
+    if(!r.order || !coming) return r;
+    const left = Math.max(0, r.dollars - coming), step = r.step > 1 ? r.step : 1;
+    const units = left ? Math.ceil(left / r.value / step) * step : 0;
+    return {...r, order: units, dollars: units * r.value};
+  });
+  return {rows, total: rows.reduce((s, r) => s + (r.order ? r.dollars : 0), 0)};
+}
+
+// The banner: on its way (or arrived lately). `canMark`: show "It arrived".
+function soStatusHtml(o, canMark){
+  if(!o) return '';
+  // Bills then coin, smallest first, whatever order they came back in.
+  const rank = k => { const i = SO_ITEMS.findIndex(x => x.key === k); return i === -1 ? 99 : i; };
+  const lines = Object.entries(o.lines || {}).filter(([, v]) => v > 0).sort((a, b) => rank(a[0]) - rank(b[0])).map(([k, v]) => {
+    const item = SO_ITEMS.find(i => i.key === k);
+    return `<li><span>${escapeHtml(item ? item.label : k)}</span><b>${soMoney(v)}</b></li>`;
+  }).join('');
+  const placed = `${soMoney(o.total || 0)} ordered ${escapeHtml(soDayText(o.placedAt))}${o.by ? ` by ${escapeHtml(o.by)}` : ''}`;
+  if(o.status === 'received'){
+    const days = o.receivedAt ? (Date.now() - o.receivedAt) / SO_DAY_MS : 99;
+    if(days > 7) return '';
+    return `<div class="so-status is-in"><div class="so-status-t"><b>Last change order arrived ${escapeHtml(soDayText(toLocalISODate(new Date(o.receivedAt))))}</b><small>${placed}${o.receivedBy ? ` · marked arrived by ${escapeHtml(o.receivedBy)}` : ''}</small></div></div>`;
+  }
+  const late = o.expected && o.expected < today;
+  return `<div class="so-status ${late ? 'is-late' : ''}">
+    <div class="so-status-t">
+      <b>${late ? `Change order expected ${escapeHtml(soDayText(o.expected))}: not marked arrived yet` : `Change order on its way: arriving ${o.expected === today ? 'today' : escapeHtml(soDayText(o.expected))}`}</b>
+      <small>${placed}</small>
+      ${o.note ? `<small class="so-status-note">${escapeHtml(o.note)}</small>` : ''}
+    </div>
+    ${lines ? `<ul class="so-lines">${lines}</ul>` : ''}
+    ${canMark ? `<button type="button" class="btn btn-ghost so-arrived" data-so-arrived="${escapeHtml(o.id)}">It arrived</button>` : ''}
+  </div>`;
+}
+
+function soPlaceFormHtml(total){
+  const lead = soLeadDays(safeOrderSettings || {});
+  return `<div class="so-place">
+    <p class="so-note">Mark the ${soMoney(total)} order placed, so the leaders know it's coming.</p>
+    <label class="so-lead">Expected to arrive <input type="date" id="soExpected" value="${soAddDaysIso(today, lead)}" min="${today}"></label>
+    <label class="so-lead">Note for the leaders <input type="text" id="soOrderNote" maxlength="140" placeholder="Optional, e.g. delivered with the morning drop"></label>
+    <div class="so-go"><button type="button" class="btn btn-primary" data-so-place-save>Mark as ordered</button><button type="button" class="ld-link" data-so-place-cancel>Cancel</button></div>
+  </div>`;
+}
+
+// A Team Lead's Safe Count page: the latest order from their counts' reply.
+function renderSafeOrderStatus(){
+  const root = document.getElementById('safeOrderStatusRoot');
+  if(!root) return;
+  const manager = typeof launchManager !== 'undefined' && launchManager;
+  root.innerHTML = !manager && typeof scIsLead === 'function' && scIsLead() ? soStatusHtml(safeOrderLead, true) : '';
+}
+
+async function soMarkArrived(id){
+  try{
+    const res = await fetch(`${API_BASE}/api/safe-orders/received`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id})});
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok) throw new Error(data.error || 'Couldn’t mark it arrived. Try again.');
+    const apply = o => { if(o && o.id === id) Object.assign(o, data.order); };
+    (safeOrders || []).forEach(apply);
+    apply(safeOrderLead);
+    renderSafeOrder(); renderSafeOrderStatus();
+    showToast('Change order marked arrived');
+    if(typeof syncState === 'function') syncState();
+  }catch(err){ showToast(err.message); }
+}
+
+document.getElementById('safecountView').addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('[data-so-arrived]');
+  if(b){ b.disabled = true; soMarkArrived(b.dataset.soArrived); }
 });

@@ -314,3 +314,7 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .knp-stat.is-under small{color:#FFC361;}
 :where(html[data-theme="dark"]) .knp-stat.is-room small{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .su-dp-kn{color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .so-status{border:1px solid #335164;background:#262D31;}
+:where(html[data-theme="dark"]) .so-status-t b{color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .so-status.is-late{border-color:#692D39;background:#2F2426;}
+:where(html[data-theme="dark"]) .so-status.is-late .so-status-t b{color:var(--ink-dark-red);}

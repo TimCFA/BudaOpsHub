@@ -304,6 +304,8 @@ function scSyncVisibility(){
   document.body.classList.toggle('lt-hidden', ltHidden());
   if(typeof launchSubnavRender === 'function' && document.getElementById('zoneresetView').classList.contains('active')) launchSubnavRender('zonereset');
   if(hide && document.getElementById('safecountView').classList.contains('active') && typeof launchShowTab === 'function') launchShowTab('home');
+  // The change order on its way leaves a device with its Team Lead.
+  if(typeof safeOrderLead !== 'undefined' && !scIsLead()){ safeOrderLead = null; renderSafeOrderStatus(); }
   // Know the Numbers and the Tools pills follow the sign-in too.
   const tools = ['prepboard', 'knownumbers'].find(v => document.getElementById(v + 'View').classList.contains('active'));
   if(tools === 'knownumbers' && hide && typeof launchShowTab === 'function') launchShowTab('prepboard');
@@ -319,6 +321,8 @@ async function scLoadToday(){
     const data = await res.json();
     safeCountsToday = data.counts || [];
     safeCountsDays = lead ? (data.days || 7) : 1;
+    // The change order on its way, for a Team Lead (safe-order.js).
+    if(typeof safeOrderLead !== 'undefined'){ safeOrderLead = lead ? data.order || null : null; renderSafeOrderStatus(); }
     renderSafeCountLog();
   }catch(err){ /* offline: show what this device logged */ }
 }
