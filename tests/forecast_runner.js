@@ -22,6 +22,8 @@ vm.runInContext(zr.slice(zr.indexOf('const fohDayparts'), zr.indexOf('// leadFro
 vm.runInContext(js('know-numbers.js'), ctx);
 const rp = js('report-uploads.js');
 vm.runInContext(rp.slice(rp.indexOf('const rpNum'), rp.indexOf('// ----- Ops Hub PDFs')), ctx);
+// The LX business metrics that follow the uploads.
+vm.runInContext(rp.slice(rp.indexOf('// ----- LX business metrics -----'), rp.indexOf('// Guest Obsession Manage')), ctx);
 vm.runInContext(js('forecast.js'), ctx);
 
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));

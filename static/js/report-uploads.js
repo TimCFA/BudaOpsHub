@@ -468,7 +468,31 @@ function rpApplyToScoreboard(){
 
 // ----- LX business metrics -----
 // Drive-Thru Ranking follows the chain rank upload; Food Safety Score follows
-// the score typed once in Guest Obsession. [{index, kind, title}]
+// the score typed once in Guest Obsession. Since Oct 23 2026 (Tim): OSAT
+// follows the latest CEM month (the share not highly satisfied, the
+// metric's "≤ 20%"), and Productivity the Productivity report's dayparts
+// (sales per labor hour, every weekday's together). [{index, kind, title}]
+
+// The CEM month the scoreboard uses: {notSat, osat, label} or null.
+function rpLxOsat(){
+  if(typeof duCemLatest !== 'function' || typeof ctTotalEntry !== 'function') return null;
+  const latest = duCemLatest();
+  const total = latest ? ctTotalEntry(latest.periodKey) : null;
+  if(!total || total.scores.overall == null) return null;
+  return {osat: Math.round(total.scores.overall), notSat: Math.round(100 - total.scores.overall), label: latest.periodLabel};
+}
+// Sales per labor hour from the Productivity report: {prod, range} or null.
+function rpLxProductivity(){
+  if(typeof productivityProfiles === 'undefined' || !productivityProfiles) return null;
+  let sales = 0, hours = 0, range = '';
+  Object.values(productivityProfiles).forEach(p => {
+    Object.values((p && p.dayparts) || {}).forEach(d => { if(+d.sales > 0 && +d.labor > 0){ sales += +d.sales; hours += +d.labor; } });
+    const src = p && p.sources && p.sources['productivity-daypart'];
+    if(src && src.range) range = src.range;
+  });
+  return hours ? {prod: sales / hours, range} : null;
+}
+
 function rpLxLinks(){
   if(!Array.isArray(lxMetrics)) return [];
   const links = [];
@@ -478,6 +502,10 @@ function rpLxLinks(){
   const fsIdx = lxMetrics.findIndex(m => /food safety/i.test(m.name));
   const fs = String((gxData.satisfaction && gxData.satisfaction.foodSafety && gxData.satisfaction.foodSafety.value) || '').trim();
   if(fsIdx !== -1 && fs) links.push({index: fsIdx, kind: 'fs', title: 'Follows the Food Safety score in Guest Obsession (Manage → Scoreboards)'});
+  const osat = rpLxOsat(), osIdx = lxMetrics.findIndex(m => /osat/i.test(m.name));
+  if(osIdx !== -1 && osat) links.push({index: osIdx, kind: 'osat', title: `From the CEM upload: ${osat.label}`});
+  const prod = rpLxProductivity(), prIdx = lxMetrics.findIndex(m => /productivity/i.test(m.name));
+  if(prIdx !== -1 && prod) links.push({index: prIdx, kind: 'prod', title: `From the Productivity report upload${prod.range ? ` (${prod.range})` : ''}`});
   return links;
 }
 
@@ -495,7 +523,17 @@ function rpSyncLx(){
   rpLxLinks().forEach(({index, kind})=>{
     const m = lxMetrics[index];
     let value = m.value, rating = m.rating;
-    if(kind === 'dt'){
+    // Meets the standard: Meets (or Exceeding, if a leader set that); else Below.
+    const meets = ok => ok ? (m.rating === 3 ? 3 : 2) : 1;
+    if(kind === 'osat'){
+      const o = rpLxOsat(), goal = parseFloat(String(m.standard).replace(/[^\d.]/g, ''));
+      value = `${o.notSat}% · OSAT ${o.osat}%`;
+      if(!isNaN(goal)) rating = meets(o.notSat <= goal);
+    } else if(kind === 'prod'){
+      const p = rpLxProductivity(), goal = parseFloat(String(m.standard).replace(/[^\d.]/g, ''));
+      value = '$' + p.prod.toFixed(2);
+      if(!isNaN(goal)) rating = meets(p.prod >= goal);
+    } else if(kind === 'dt'){
       const chain = reportData.dtRank.chain;
       value = `#${chain.rank}${chain.count ? ` of ${chain.count.toLocaleString('en-US')}` : ''}`;
       const top = parseInt((String(m.standard).match(/top\s*(\d+)/i) || [])[1], 10);
