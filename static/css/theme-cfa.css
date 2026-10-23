@@ -2321,6 +2321,37 @@ body:not(.hc-allowed) .hc-only{display:none !important;}
    A header that says where things stand, one drop zone, what the last drop
    did, what the uploads say, then the reports that need an upload (each
    with what it feeds); the ones up to date fold to a line each. */
+/* Today's uploads: the day's list, ticked off; all in, a word of thanks */
+.du-today{margin:0 0 12px;padding:14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--cfa-white);}
+.du-today-head{display:flex;align-items:center;gap:14px;}
+.du-today-ring{flex:none;display:grid;place-items:center;width:58px;height:58px;border-radius:999px;background:conic-gradient(var(--ok) calc(var(--p) * 1%), var(--cfa-soft) 0);position:relative;}
+.du-today-ring::before{content:'';position:absolute;inset:6px;border-radius:999px;background:var(--cfa-white);}
+.du-today-ring > *{position:relative;}
+.du-today-ring b{font-family:var(--font-display);font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;}
+.du-today-ring svg{width:26px;height:26px;fill:none;stroke:var(--cfa-red);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.du-today-t h3{margin:0;font-family:var(--font-display);font-size:21px;font-weight:600;}
+.du-today-t p{margin:2px 0 0;font-size:14px;color:var(--text-secondary);}
+.du-today.is-done{border-color:color-mix(in srgb,var(--ok) 35%,var(--border));background:linear-gradient(180deg,var(--ok-soft),var(--cfa-white) 70%);}
+.du-today.is-done .du-today-t h3{color:var(--ok);}
+.du-today.is-done .du-today-t p{color:var(--text-primary);font-weight:600;}
+.du-today.is-done .du-today-ring{animation:du-cheer .6s ease-out 1;}
+@keyframes du-cheer{0%{transform:scale(.6);}60%{transform:scale(1.12);}100%{transform:scale(1);}}
+@media (prefers-reduced-motion: reduce){.du-today.is-done .du-today-ring{animation:none;}}
+.du-today-list{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:2px;}
+.du-today-list li{display:flex;align-items:center;gap:10px;min-height:40px;padding:4px 0;border-top:1px solid var(--border);font-size:14.5px;}
+.du-today-list li:first-child{border-top:0;}
+.du-today-box{flex:none;display:grid;place-items:center;width:22px;height:22px;border-radius:7px;border:2px solid var(--border);}
+.du-today-box svg{width:15px;height:15px;fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;}
+.du-today-name{flex:1;min-width:0;}
+.du-today-list small{flex:none;font-size:12px;font-weight:600;color:var(--text-tertiary);}
+.du-today-list li.is-overdue small{color:var(--cfa-dark-red);}
+.du-today-list li.is-due small{color:#7A4C00;}
+.du-today-list li.is-done .du-today-box{background:var(--ok);border-color:var(--ok);}
+.du-today-list li.is-done .du-today-name{color:var(--text-tertiary);text-decoration:line-through;text-decoration-color:var(--border);}
+.du-today-list li.is-done small{color:var(--ok);}
+.du-today-fold summary{margin-top:10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--ok);}
+.du-today-foot{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);}
+.du-today-foot .du-head-last{margin-left:auto;font-size:12px;color:var(--text-tertiary);}
 .du-head{display:grid;grid-template-columns:1fr auto;align-items:center;gap:6px 12px;margin:0 0 12px;}
 .du-head-main{display:flex;align-items:baseline;gap:8px;color:var(--ok);}
 .du-head-main b{font-family:var(--font-display);font-size:34px;line-height:1;font-weight:700;}
