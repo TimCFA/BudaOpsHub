@@ -1001,7 +1001,8 @@
     function exportSheet(btn) {
       var was = btn.textContent;
       btn.disabled = true; btn.textContent = 'Exporting…';
-      Promise.resolve(api.listSubmissions(filt)).then(function (items) {
+      // The spreadsheet reader loads after the page (the hub's xlsxReady): wait for it, else a CSV.
+      Promise.resolve(typeof global.xlsxReady === 'function' ? global.xlsxReady().catch(function () {}) : null).then(function () { return api.listSubmissions(filt); }).then(function (items) {
         if (!items.length) { btn.textContent = 'Nothing to export'; return; }
         var byForm = {};
         items.forEach(function (it) { (byForm[it.formId] = byForm[it.formId] || []).push(it); });

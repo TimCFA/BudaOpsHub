@@ -35,6 +35,7 @@ let directors = null;    // [{name, title}] the director team (directors.js); nu
 let adminShifts = {};    // {date: [{name, start, end}]}: Administrative shifts from the roster import (directors' time)
 let leaderNotes = {};    // {leader name: [{text, by, ts, date, type, pec}]}: directors' notes on each leader, newest last (leaders.js)
 let leaderRoster = null; // [{name, roles}] the leaders and their PEC roles (leaders.js); null until edited
+let safeOrders = [];          // change orders placed: [{id, placedAt, by, lines, total, expected, note, status, receivedAt, receivedBy}] (safe-order.js)
 let safeOrderSettings = {};   // {par: {'1': bills, Quarters: rolls, ...}, step: {...}}: the change order (safe-order.js)
 let peaGoals = null;     // {team, leader}: PEAs per quarter the team and each leader aim for; null = PEA_GOALS_SEED
 let leaderFocus = {};    // {'<leader key>__2026-Q4': [focus items]}: each leader's focus for the quarter
@@ -269,3 +270,22 @@ const FINAL_CHECK_ITEMS = ['Floors cleaned', 'Trash taken out', 'Surfaces wiped'
 // One line icon per zone (inline SVG, tinted by the text color).
 const ZONE_ICONS = {'Dining Room': '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v8"/><path d="M4 3v5a3 3 0 0 0 6 0V3"/><path d="M7 11v10"/><path d="M17 3c-2 1-3 3-3 6v3h3v9"/></svg>', 'Restrooms': '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="5" r="2.5"/><path d="M4 21v-7a4 4 0 0 1 8 0v7"/><circle cx="17" cy="5" r="2.5"/><path d="M14 21l1-7h4l1 7"/></svg>', 'Front Counter': '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17h16"/><path d="M6 17a6 6 0 0 1 12 0"/><path d="M12 8V6"/><path d="M4 21h16"/></svg>', 'Bagging Station': '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8h12l1 13H5z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>', 'Drinks Zone': '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h12l-1.5 16h-9z"/><path d="M7 10h10"/><path d="M12 2v2"/></svg>', 'Outside': '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 16l1.5-6h11L19 16"/><rect x="3" y="16" width="18" height="4" rx="1"/><path d="M7 20v1"/><path d="M17 20v1"/></svg>', 'Soda Room / Tea Station': '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h12v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z"/><path d="M16 10h2a2 2 0 0 1 0 4h-2"/><path d="M7 4v2"/><path d="M11 4v2"/></svg>', 'The Spot': '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.5-7-11a7 7 0 0 1 14 0c0 4.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>', 'Final Check': '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>'};
 const ALL_ZONE_NAMES = Object.keys(ZONE_CHECKLISTS).concat(['Final Check']);
+
+// The spreadsheet reader (SheetJS, the page's async #xlsxLib) loads without
+// holding up the page (Tim, Oct 23 2026: slow loads). A file read awaits
+// this first in case someone's quicker than the download.
+function xlsxReady(){
+  if(window.XLSX) return Promise.resolve();
+  return new Promise((ok, fail) => {
+    const el = document.getElementById('xlsxLib');
+    if(!el){ fail(new Error('The spreadsheet reader didn’t load. Reload the page and try again.')); return; }
+    el.addEventListener('load', () => ok(), {once: true});
+    el.addEventListener('error', () => fail(new Error('The spreadsheet reader didn’t load. Reload the page and try again.')), {once: true});
+    setTimeout(() => window.XLSX ? ok() : fail(new Error('The spreadsheet reader is still loading. Try again in a moment.')), 15000);
+  });
+}
+// Work that can wait until the page is up and quiet.
+function afterIdle(fn){
+  if(typeof requestIdleCallback === 'function') requestIdleCallback(() => fn(), {timeout: 4000});
+  else setTimeout(fn, 1500);
+}

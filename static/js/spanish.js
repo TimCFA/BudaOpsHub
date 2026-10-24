@@ -40,7 +40,8 @@ const ES = {
   'projected': 'proyectado',
   'actual': 'real',
   'per labor hour': 'por hora de trabajo',
-  'Goals': 'Metas',   // a Set Ups card's link to Know the Numbers
+  'Goals': 'Metas',
+  'Earlier today': 'Más temprano hoy',   // Set Ups: today's dayparts already over, at the bottom   // a Set Ups card's link to Know the Numbers
   'N more spots': n => `+ ${n} ${n === 1 ? 'lugar más' : 'lugares más'} si hay más personas`,
   'Hide open extras': 'Ocultar lugares extra vacíos',
   'needs coverage': 'necesita cobertura',

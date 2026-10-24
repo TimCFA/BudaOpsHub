@@ -1418,6 +1418,7 @@ body:not(.is-manager) .manager-only{display:none !important;}
 .dir-tl-bar{position:absolute;top:0;bottom:0;border-radius:6px;background:var(--cfa-navy);}
 .dir-tl-bar.is-director{background:var(--text-primary);}
 .dir-tl-bar.is-gap{background:var(--cfa-red);border-radius:0;}
+.dir-tl-mark{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--cfa-soft);}
 .dir-tl-span{color:var(--text-tertiary);font-size:11px;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .dir-tl-ticks{min-height:12px;}
 .dir-tl-ticks .dir-tl-track{height:12px;background:none;overflow:visible;}
@@ -2548,3 +2549,25 @@ body:not(.hc-allowed) .hc-only{display:none !important;}
 .knp-foot{margin:12px 0 0;font-size:12px;color:var(--text-tertiary);}
 .su-dp-kn{margin-left:auto;padding:3px 10px;border:1px solid var(--border);border-radius:999px;background:var(--cfa-white);color:var(--cfa-navy);font-family:var(--font-ui);font-size:12px;font-weight:700;cursor:pointer;}
 .su-dp-kn:hover{border-color:var(--cfa-navy);}
+
+/* The change order on its way (safe-order.js; Tim, Oct 23 2026) */
+#safeOrderStatusRoot:not(:empty){margin:0 0 12px;}
+.so-status{display:grid;gap:8px;margin:8px 0 12px;padding:12px 14px;border:1px solid #BFD3E0;border-left:4px solid var(--cfa-navy);border-radius:12px;background:#EEF4F8;}
+.so-status-t{display:grid;gap:2px;}
+.so-status-t b{font-size:15px;color:var(--cfa-navy);}
+.so-status-t small{font-size:12.5px;color:var(--text-secondary);}
+.so-status-note{font-style:italic;}
+.so-status.is-late{border-color:#EDB3BE;border-left-color:var(--cfa-red);background:#FDF3F5;}
+.so-status.is-late .so-status-t b{color:var(--cfa-dark-red);}
+.so-status.is-in{border-color:var(--border);border-left-color:var(--ok);background:var(--ok-soft);}
+.so-status.is-in .so-status-t b{color:var(--ok);}
+.so-status .so-lines{margin:0;}
+.so-arrived{justify-self:start;width:auto !important;min-height:44px;}
+.so-place{display:grid;gap:8px;margin-top:8px;padding:12px;border:1px dashed var(--border);border-radius:12px;}
+.so-place input[type="text"]{width:100%;}
+
+/* Set Ups: today's dayparts already over, under the ones still to come (Tim, Oct 23 2026) */
+.su-dp-earlier{display:flex;align-items:center;gap:10px;margin:14px 2px 2px;color:var(--text-tertiary);font-family:var(--font-ui);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;}
+.su-dp-earlier::before,.su-dp-earlier::after{content:"";flex:1;border-top:1px solid var(--border);}
+.su-dp-earlier .es{text-transform:none;letter-spacing:0;font-weight:400;}
+.su-dp-earlier ~ .su-dp:not(.is-open){opacity:.8;}

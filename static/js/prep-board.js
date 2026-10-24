@@ -529,6 +529,7 @@ function pbDecodeText(buffer){
 }
 
 function pbReadWorkbookRows(file, cb){
+  if(!window.XLSX){ xlsxReady().then(() => pbReadWorkbookRows(file, cb), err => cb(err)); return; }
   const reader = new FileReader();
   const isText = /\.(csv|tsv|txt)$/i.test(file.name);
   reader.onload = function(e){

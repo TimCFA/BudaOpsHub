@@ -537,6 +537,44 @@ class SafeCountTest(unittest.TestCase):
         body = lead.post('/api/state/load', json={}).get_json()
         self.assertNotIn('safe', body.get('sections', {}))
 
+    def test_the_change_order_on_its_way(self):
+        """Tim, Oct 23 2026: what change fund was ordered and when it's
+        expected. Directors place it (the private safeOrders section); a Team
+        Lead sees the latest with the counts and can mark it arrived; nobody
+        else sees it or marks it."""
+        orders = [{'id': 'co-1', 'placedAt': '2026-10-14T15:00:00Z', 'by': 'Avery Example', 'lines': {'5': 400}, 'total': 400, 'expected': '2026-10-16', 'status': 'received'},
+                  {'id': 'co-2', 'placedAt': '2026-10-21T15:00:00Z', 'by': 'Avery Example', 'lines': {'5': 800, 'Quarters': 100}, 'total': 900,
+                   'expected': '2026-10-23', 'note': 'With the morning drop', 'status': 'ordered'}]
+        store['state/safeOrders'] = json.dumps({'safeOrders': orders})
+        appmod._cache.clear()
+        appmod._cache_ready = False
+        lead = appmod.app.test_client()
+        with lead.session_transaction() as sess:
+            sess['user'] = {'name': 'Casey Example', 'role': 'lead'}
+            sess['teamEnds'] = int(time.time()) + 3600
+        member = appmod.app.test_client()
+        with member.session_transaction() as sess:
+            sess['user'] = {'name': 'Jordan Testcase', 'role': 'member'}
+            sess['teamEnds'] = int(time.time()) + 3600
+        latest = lead.get('/api/safe-counts/recent').get_json()['order']
+        self.assertEqual((latest['id'], latest['total'], latest['expected'], latest['note'], latest['status']), ('co-2', 900, '2026-10-23', 'With the morning drop', 'ordered'))
+        # Private: not in a lead's or a team device's sections.
+        self.assertNotIn('safeOrders', lead.post('/api/state/load', json={}).get_json().get('sections', {}))
+        self.assertNotIn('safeOrders', self.team.post('/api/state/sync', json={'versions': {}}).get_json()['sections'])
+        self.assertIn('safeOrders', appmod.MANAGER_ONLY_KEYS)
+        # Marking it arrived: Team Leads and directors only.
+        for who in (member, self.team):
+            self.assertEqual(who.post('/api/safe-orders/received', json={'id': 'co-2'}).status_code, 403)
+        self.assertEqual(lead.post('/api/safe-orders/received', json={'id': 'nope'}).status_code, 404)
+        r = lead.post('/api/safe-orders/received', json={'id': 'co-2'}).get_json()
+        self.assertEqual((r['order']['status'], r['order']['receivedBy']), ('received', 'Casey Example'))
+        saved = section('safeOrders')['safeOrders']
+        self.assertEqual([o['status'] for o in saved], ['received', 'received'])
+        self.assertEqual(saved[1]['total'], 900)                     # the rest of the order kept
+        first = saved[1]['receivedAt']
+        lead.post('/api/safe-orders/received', json={'id': 'co-2'})  # a second tap changes nothing
+        self.assertEqual(section('safeOrders')['safeOrders'][1]['receivedAt'], first)
+
     def test_no_cross_site_access_by_default(self):
         r = self.team.post('/api/state/load', json={}, headers={'Origin': 'https://example.com'})
         self.assertNotIn('Access-Control-Allow-Origin', r.headers)

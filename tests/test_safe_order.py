@@ -184,3 +184,46 @@ class Wiring(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+LESS_OPEN = r"""
+const fs = require('fs'), vm = require('vm');
+const el = {addEventListener(){}, innerHTML: ''};
+const ctx = {document: {getElementById: () => el}, console, today: '2026-10-23', escapeHtml: s => String(s)};
+vm.createContext(ctx);
+vm.runInContext(fs.readFileSync(process.argv[1], 'utf8'), ctx);
+const c = JSON.parse(fs.readFileSync(0, 'utf8'));
+process.stdout.write(JSON.stringify(vm.runInContext('(' + c.op + ')', ctx)(c)));
+"""
+
+
+def js(op, **extra):
+    out = subprocess.run(['node', '-e', LESS_OPEN, os.path.join(ROOT, 'static', 'js', 'safe-order.js')],
+                         input=json.dumps(dict(extra, op=op)), capture_output=True, text=True, check=True)
+    return json.loads(out.stdout)
+
+
+class OnItsWay(unittest.TestCase):
+    """Tim, Oct 23 2026: the change order on its way, and what it means for the next one."""
+
+    def test_the_next_order_counts_what_is_coming(self):
+        got = js("""c => { const m = {total: 1300, rows: [{key: '5', value: 5, step: 1, order: 200, dollars: 1000}, {key: '1', value: 1, step: 100, order: 300, dollars: 300}, {key: 'Dimes', value: 5, step: 1, order: 0, dollars: 0}]};
+            return soLessOpen(m, {lines: {'5': 800, '1': 250}}); }""")
+        self.assertEqual(got['total'], 200 + 100)                    # $5s: 1000 - 800; $1s: 300 - 250 = 50, up to a bundle of 100
+        self.assertEqual([(r['order'], r['dollars']) for r in got['rows']], [(40, 200), (100, 100), (0, 0)])
+
+    def test_latest_and_open(self):
+        got = js("""c => { const list = [{id: 'a', placedAt: '2026-10-14T15:00:00Z', status: 'received'}, {id: 'b', placedAt: '2026-10-21T15:00:00Z', status: 'ordered'}];
+            return [soLatestOrder(list).id, soOpenOrder(list).id, soOpenOrder([list[0]])]; }""")
+        self.assertEqual(got, ['b', 'b', None])
+
+    def test_the_banner(self):
+        got = js("""c => [soStatusHtml({id: 'b', placedAt: '2026-10-21T15:00:00Z', by: 'Avery Example', lines: {'5': 800}, total: 800, expected: '2026-10-24', note: 'With the morning drop', status: 'ordered'}, true),
+                           soStatusHtml({id: 'b', placedAt: '2026-10-20T15:00:00Z', total: 800, expected: '2026-10-22', status: 'ordered'}, false)]""")
+        on, late = got
+        self.assertIn('Change order on its way: arriving Sat, Oct 24', on)
+        self.assertIn('$800 ordered Wed, Oct 21 by Avery Example', on)
+        self.assertIn('With the morning drop', on)
+        self.assertIn('data-so-arrived="b"', on)
+        self.assertIn('not marked arrived yet', late)                 # past its expected day
+        self.assertNotIn('data-so-arrived', late)

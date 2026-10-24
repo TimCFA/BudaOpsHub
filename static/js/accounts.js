@@ -95,6 +95,10 @@ function acRenderGate(){
 function acMountGoogle(){
   const host = document.getElementById('acGoogleBtn');
   if(!host) return;
+  // Google's script only once the gate shows (Manage open), not on every page load.
+  const view = document.getElementById('manageView');
+  if(view && !view.classList.contains('active')) return;
+  if(host.childElementCount) return;
   const render = () => {
     if(!(window.google && google.accounts && google.accounts.id)) return;
     if(!acGoogleReady){

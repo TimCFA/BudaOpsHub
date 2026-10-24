@@ -42,7 +42,10 @@ function activateView(view){
   if(view === 'directors' && typeof renderDirectorsView === 'function') renderDirectorsView();
   if(view === 'headcount'){ renderHeadcountView(); hcLoad(true); }
   if(view === 'forms' && typeof renderForms === 'function') renderForms();
-  if(view === 'manage' && typeof refreshManage === 'function') refreshManage();
+  if(view === 'manage' && typeof refreshManage === 'function'){
+    if(typeof manageStale !== 'undefined' && manageStale) renderManage(); else refreshManage();
+    if(typeof acMountGoogle === 'function') acMountGoogle();   // Google's sign-in button, once Manage shows
+  }
   if(typeof launchSubnavRender === 'function') launchSubnavRender(view);
   if(opened && typeof hhNoteView === 'function') hhNoteView(view, t0);
 }
@@ -50,7 +53,10 @@ function activateView(view){
 function sbShowPanel(key){
   document.querySelectorAll('.sb-subtab-btn').forEach(b => b.classList.toggle('active', b.dataset.sbSubtab === key));
   document.querySelectorAll('.sb-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('sbPanel' + key.charAt(0).toUpperCase() + key.slice(1)).classList.add('active');
+  const panel = document.getElementById('sbPanel' + key.charAt(0).toUpperCase() + key.slice(1));
+  panel.classList.add('active');
+  // The Levelset scoreboard (TX) loads when its panel opens, not with every page.
+  panel.querySelectorAll('iframe[data-src]').forEach(f => { if(!f.src) f.src = f.dataset.src; });
 }
 
 document.querySelector('.sb-subtabs').addEventListener('click', function(e){

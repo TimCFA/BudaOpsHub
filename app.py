@@ -66,7 +66,7 @@ MANAGER_ONLY_KEYS = {
     'gxData', 'txData', 'homeData', 'storeEvents', 'directors', 'leaderRoster', 'peaGoals',
     'peaRatings', 'peaNameAliases',
     'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData',
-    'launchMode', 'safeOrderSettings',
+    'launchMode', 'safeOrderSettings', 'safeOrders',
     # People data (below): private, so only a manager session changes it.
     'eoiSubmissions', 'trainerTrainees', 'trainerProgress', 'teamLeadTrainees',
     'teamLeadProgress', 'scoreboardItems', 'leaderNotes', 'leaderFocus', 'teamNotes',
@@ -84,7 +84,7 @@ MANAGER_ONLY_KEYS = {
 # every other section. The keys in pea, people and forecast are manager-only
 # above; safe counts are append-only below, since leaders log them from any
 # device.
-PRIVATE_SECTIONS = ('pea', 'people', 'safe', 'forecast', 'orders', 'points')
+PRIVATE_SECTIONS = ('pea', 'people', 'safe', 'forecast', 'orders', 'points', 'safeOrders')
 
 # Keys a device without a manager session may add to but never change or
 # remove. It isn't sent these (they're private), so what it sends can only be
@@ -169,6 +169,8 @@ STATE_SECTIONS = {
     'orders': ['uniformOrders', 'uniformCatalog'],
     # The LX board by quarter (lx-quarters.js; Tim, Oct 23 2026).
     'lx': ['lxQuarters'],
+    # Change orders placed, and when each arrives (safe-order.js; Tim, Oct 23 2026).
+    'safeOrders': ['safeOrders'],
     'points': ['pointsRecords', 'pointsUploads', 'pointsSettings', 'pointsTeam', 'pointsMemos'],
     'misc': [],
 }
@@ -484,9 +486,33 @@ else:
 
 # ===== SERVE ROUTES =====
 
+# The page's scripts and stylesheets are stamped with the build (Tim, Oct 23
+# 2026: Home took ten seconds on a phone). Unstamped, each of the 70-odd
+# files was asked about again on every load; stamped, the browser keeps them
+# until the next deploy changes the stamp, so a reload fetches only the page
+# and its data. The page itself is always asked for fresh.
+_PAGE_HTML = {}
+_STAMP_RE = re.compile(r'((?:src|href)="/static/[^"?#]+\.(?:js|css))"')
+
+def _page_html():
+    if BUILD not in _PAGE_HTML:
+        with open('cfa-buda-ops-hub-complete.html', encoding='utf-8') as f:
+            html = f.read()
+        _PAGE_HTML.clear()
+        _PAGE_HTML[BUILD] = _STAMP_RE.sub(lambda m: f'{m.group(1)}?v={BUILD}"', html)
+    return _PAGE_HTML[BUILD]
+
 @app.route('/')
 def serve_html():
-    return send_file('cfa-buda-ops-hub-complete.html')
+    resp = Response(_page_html(), mimetype='text/html')
+    resp.headers['Cache-Control'] = 'no-cache'
+    return resp
+
+@app.after_request
+def _cache_stamped_static(response):
+    if request.path.startswith('/static/') and request.args.get('v') == BUILD and response.status_code == 200:
+        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+    return response
 
 # ===== MANAGER AUTH ROUTES =====
 
@@ -1676,9 +1702,43 @@ def safe_counts_recent():
         return jsonify({'error': 'Could not read safe counts'}), 500
     since = (datetime.now(levelset_sync.STORE_TZ).date() - timedelta(days=SAFE_LEAD_DAYS - 1)).isoformat()
     counts = (sections.get('safe') or {}).get('safeCounts') or []
-    resp = jsonify({'days': SAFE_LEAD_DAYS, 'counts': [c for c in counts if isinstance(c, dict) and str(c.get('date') or '') >= since]})
+    resp = jsonify({'days': SAFE_LEAD_DAYS, 'counts': [c for c in counts if isinstance(c, dict) and str(c.get('date') or '') >= since],
+                    'order': _safe_order_latest(sections)})
     resp.headers['Cache-Control'] = 'no-store'
     return resp
+
+# The change order on its way (Tim, Oct 23 2026: what was most recently
+# ordered and when it's expected). Directors place it on the change order
+# card (safe-order.js, the private safeOrders section); a Team Lead sees the
+# latest one with the counts above, and either can mark it arrived. Never
+# sent to a device nobody signed in on: it says when cash is coming.
+def _safe_order_latest(sections):
+    orders = (sections.get('safeOrders') or {}).get('safeOrders') or []
+    orders = [o for o in orders if isinstance(o, dict) and o.get('placedAt')]
+    if not orders:
+        return None
+    o = max(orders, key=lambda x: str(x.get('placedAt')))
+    keep = ('id', 'placedAt', 'by', 'lines', 'total', 'expected', 'note', 'status', 'receivedAt', 'receivedBy')
+    return {k: o.get(k) for k in keep if k in o}
+
+@app.route('/api/safe-orders/received', methods=['POST'])
+def safe_order_received():
+    user = session.get('user') or {}
+    if not session.get('manager') and user.get('role') != 'lead':
+        return jsonify({'error': 'Team Leads and directors only.'}), 403
+    order_id = str((request.get_json(silent=True) or {}).get('id') or '')
+    with _state_lock:
+        entry = _cache.get('safeOrders')
+        data = dict(entry['data']) if entry and isinstance(entry.get('data'), dict) else {}
+        orders = [dict(o) for o in (data.get('safeOrders') or []) if isinstance(o, dict)]
+        hit = next((o for o in orders if o.get('id') == order_id), None)
+        if not hit:
+            return jsonify({'error': 'That order is no longer on file.'}), 404
+        if hit.get('status') != 'received':
+            hit.update({'status': 'received', 'receivedAt': int(time.time() * 1000),
+                        'receivedBy': str(user.get('name') or ('Director' if session.get('manager') else ''))[:80]})
+            _write_section('safeOrders', dict(data, safeOrders=orders))
+    return jsonify({'success': True, 'order': {k: hit.get(k) for k in ('id', 'status', 'receivedAt', 'receivedBy')}})
 
 # Waste by day, for the team's waste scoreboard (Tim, Oct 18 2026). A team
 # device is sent two days of waste entries (WASTE_TEAM_WINDOW_MS), so its

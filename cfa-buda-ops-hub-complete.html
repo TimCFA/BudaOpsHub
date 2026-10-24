@@ -600,6 +600,8 @@
 
     <!-- The change order for the bank, from the counts (safe-order.js). Directors only. -->
     <div id="safeOrderRoot"></div>
+    <!-- A Team Lead's view of the change order on its way (safe-order.js renderSafeOrderStatus). -->
+    <div id="safeOrderStatusRoot"></div>
     <div class="standup-card fohoe-card fohoe-red">
       <h3>Safe Count Log <span class="sub"><i>Registro de Conteos</i></span></h3>
       <div id="safeCountLogContainer"></div>
@@ -805,7 +807,7 @@
     <div class="sb-panel" id="sbPanelTx">
       <div style="margin-bottom:20px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--cfa-white);">
         <iframe 
-          src="https://app.levelset.io/public/positional-excellence/TJXV5MLEXJZC" 
+          data-src="https://app.levelset.io/public/positional-excellence/TJXV5MLEXJZC" 
           style="width:100%;height:600px;border:none;"
           title="Levelset Positional Excellence Scores"
           allowfullscreen>
@@ -1175,7 +1177,8 @@
 
     </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- The spreadsheet reader loads without holding up the page; a file read waits for it (xlsxReady, state-and-utils.js). -->
+<script id="xlsxLib" async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="/static/js/theme.js"></script>
 <script src="/static/js/state-and-utils.js"></script>
 <script src="/static/js/waste-catalog.js"></script>
