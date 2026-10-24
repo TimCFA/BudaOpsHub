@@ -51,7 +51,7 @@ class NotHereYet(unittest.TestCase):
         with open(os.path.join(ROOT, 'static', 'js', 'setups-sheet.js'), encoding='utf-8') as f:
             sheet = f.read()
         self.assertIn("${x.coming ? 'is-coming' : ''}", sheet)
-        self.assertIn("if([...document.querySelectorAll('#allDayparts [data-su-arrives]')].some(el => +el.dataset.suArrives <= mins)) renderAllDayparts();", sheet)
+        self.assertIn("if([...document.querySelectorAll('#allDayparts [data-su-arrives]')].some(el => +el.dataset.suArrives <= mins)){ renderAllDayparts(); return; }", sheet)
 
 
 if __name__ == '__main__':

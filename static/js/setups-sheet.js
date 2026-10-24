@@ -94,7 +94,11 @@ setInterval(() => {
   const view = document.getElementById('positionsView');
   if(!view || !view.classList.contains('active') || document.querySelector('.modal.active, #posModal.active')) return;
   const now = new Date(), mins = now.getHours() * 60 + now.getMinutes();
-  if([...document.querySelectorAll('#allDayparts [data-su-arrives]')].some(el => +el.dataset.suArrives <= mins)) renderAllDayparts();
+  if([...document.querySelectorAll('#allDayparts [data-su-arrives]')].some(el => +el.dataset.suArrives <= mins)){ renderAllDayparts(); return; }
+  // A new daypart on the clock: today's cards move round so it comes first (setups-board.js).
+  const sec = typeof currentPosSection !== 'undefined' ? currentPosSection : 'foh';
+  const sel = document.getElementById('daySelect');
+  if(sel && sel.value === today && typeof suNowDaypart !== 'undefined' && suNowDaypart[sec] && suDefaultDaypart(sec, today) !== suNowDaypart[sec]) renderAllDayparts();
 }, 30000);
 
 // "Josh → Lauren @ 7:30", "Avah (arrives 11:30)", "Dan (leaves 6:00)".

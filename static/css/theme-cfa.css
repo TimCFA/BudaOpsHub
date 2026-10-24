@@ -2548,3 +2548,9 @@ body:not(.hc-allowed) .hc-only{display:none !important;}
 .knp-foot{margin:12px 0 0;font-size:12px;color:var(--text-tertiary);}
 .su-dp-kn{margin-left:auto;padding:3px 10px;border:1px solid var(--border);border-radius:999px;background:var(--cfa-white);color:var(--cfa-navy);font-family:var(--font-ui);font-size:12px;font-weight:700;cursor:pointer;}
 .su-dp-kn:hover{border-color:var(--cfa-navy);}
+
+/* Set Ups: today's dayparts already over, under the ones still to come (Tim, Oct 23 2026) */
+.su-dp-earlier{display:flex;align-items:center;gap:10px;margin:14px 2px 2px;color:var(--text-tertiary);font-family:var(--font-ui);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;}
+.su-dp-earlier::before,.su-dp-earlier::after{content:"";flex:1;border-top:1px solid var(--border);}
+.su-dp-earlier .es{text-transform:none;letter-spacing:0;font-weight:400;}
+.su-dp-earlier ~ .su-dp:not(.is-open){opacity:.8;}

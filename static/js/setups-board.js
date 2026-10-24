@@ -324,6 +324,10 @@ const SU_LAYOUT = 'cards';
 // today, until someone opens or closes a card, the daypart on the clock
 // opens by itself (Tim, Oct 18 2026). The tier key shows once, under the
 // cards, when any is open.
+// Today the cards start at the daypart on the clock, and the ones already
+// over move to the bottom under "Earlier today" (Tim, Oct 23 2026: what's
+// needed now first, the earlier ones still a scroll away).
+let suNowDaypart = {foh: null, boh: null};   // the daypart on the clock at the last draw, today
 function suDaypartCardsHtml(section, date){
   const open = suOpenCards[section];
   if(date === today && !open.size && !suCardsTouched[section]){
@@ -332,11 +336,18 @@ function suDaypartCardsHtml(section, date){
     suSelectedDaypart[section] = now;
     suAutoOpened = now;
   }
-  const cards = suDaypartsFor(section).map((dp, i)=>{
+  const card = (dp, i) => {
     if(!open.has(dp.name)) return suDaypartCardHtml(section, date, dp, i, false, '', null, false);
     const m = suDaypartModel(section, date, dp, i);
     return suDaypartCardHtml(section, date, dp, i, true, suSheetViewHtml(section, date, dp, i, m), m, false);
-  }).join('');
+  };
+  const dayparts = suDaypartsFor(section);
+  const nowIdx = date === today ? Math.max(0, dayparts.findIndex(dp => dp.name === suDefaultDaypart(section, date))) : 0;
+  suNowDaypart[section] = date === today ? dayparts[nowIdx].name : null;
+  const ahead = dayparts.map((dp, i) => [dp, i]).filter(([, i]) => i >= nowIdx);
+  const earlier = dayparts.map((dp, i) => [dp, i]).filter(([, i]) => i < nowIdx);
+  const cards = ahead.map(([dp, i]) => card(dp, i)).join('')
+    + (earlier.length ? `<div class="su-dp-earlier" role="separator"><span>Earlier today${esHtml('Earlier today')}</span></div>${earlier.map(([dp, i]) => card(dp, i)).join('')}` : '');
   return `<div class="su-dp-list">${cards}</div>${open.size && typeof suTierKeyHtml === 'function' ? suTierKeyHtml() : ''}`;
 }
 
