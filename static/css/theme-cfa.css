@@ -1418,6 +1418,7 @@ body:not(.is-manager) .manager-only{display:none !important;}
 .dir-tl-bar{position:absolute;top:0;bottom:0;border-radius:6px;background:var(--cfa-navy);}
 .dir-tl-bar.is-director{background:var(--text-primary);}
 .dir-tl-bar.is-gap{background:var(--cfa-red);border-radius:0;}
+.dir-tl-mark{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--cfa-soft);}
 .dir-tl-span{color:var(--text-tertiary);font-size:11px;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .dir-tl-ticks{min-height:12px;}
 .dir-tl-ticks .dir-tl-track{height:12px;background:none;overflow:visible;}

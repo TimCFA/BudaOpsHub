@@ -296,7 +296,7 @@ function dirShareClose(menu){
 }
 
 // A day as a timeline (Tim, Oct 18 2026): one row per leader and per
-// director shift, a bar across the open hours, and a coverage row on top
+// director, a bar across the open hours, and a coverage row on top
 // with the leader-less stretches in red. Reads in a glance where the chips
 // were a wall of names.
 const DIR_DAY_START = 5 * 60 + 30, DIR_DAY_END = 22 * 60 + 30;   // 5:30a–10:30p, wider if a shift is
@@ -305,12 +305,36 @@ function dirTimelineHtml(iso, leaders, dirs, gaps){
   const lo = Math.min(DIR_DAY_START, ...floor.map(p => p.span.start)), hi = Math.max(DIR_DAY_END, ...floor.map(p => p.span.end));
   const pct = m => Math.max(0, Math.min(100, (m - lo) / (hi - lo) * 100));
   const bar = (s, cls) => `<span class="dir-tl-bar ${cls}" style="left:${pct(s.start).toFixed(1)}%;width:${(pct(s.end) - pct(s.start)).toFixed(1)}%"></span>`;
-  const row = (p, cls) => `<div class="dir-tl-row"><span class="dir-tl-name ${cls}">${escapeHtml(dirShort(p.name))}</span><span class="dir-tl-track">${bar(p.span, cls)}</span><small class="dir-tl-span">${escapeHtml(dirSpanText(p.span))}</small></div>`;
+  // One row per person (Tim, Oct 24 2026): back-to-back shifts read as one
+  // bar with a thin mark where one shift hands to the next, not as several
+  // people with the same name.
+  const people = [];
+  [[leaders, 'is-leader'], [dirs, 'is-director']].forEach(([list, cls]) => list.forEach(p => {
+    const k = dirKey(p.name);
+    let who = people.find(w => w.key === k);
+    if(!who) people.push(who = {key: k, name: p.name, cls, shifts: []});
+    if(cls === 'is-director') who.cls = cls;
+    who.shifts.push({span: p.span, cls});
+  }));
+  const row = who => {
+    const shifts = who.shifts.slice().sort((a, b) => a.span.start - b.span.start || a.span.end - b.span.end);
+    const blocks = [], marks = [];
+    shifts.forEach(({span, cls}) => {
+      const last = blocks[blocks.length - 1];
+      if(last && span.start <= last.end){
+        if(span.start > last.start && !marks.includes(span.start)) marks.push(span.start);
+        last.end = Math.max(last.end, span.end);
+        if(cls === 'is-director') last.cls = cls;
+      }else blocks.push({start: span.start, end: span.end, cls});
+    });
+    const markHtml = marks.map(m => `<i class="dir-tl-mark" style="left:${pct(m).toFixed(1)}%" title="Shift change ${dirClock(m)}"></i>`).join('');
+    return `<div class="dir-tl-row"><span class="dir-tl-name ${who.cls}">${escapeHtml(dirShort(who.name))}</span><span class="dir-tl-track">${blocks.map(b => bar(b, b.cls)).join('')}${markHtml}</span><small class="dir-tl-span">${escapeHtml(blocks.map(dirSpanText).join(', '))}</small></div>`;
+  };
   const ticks = [];
   for(let m = Math.ceil(lo / 240) * 240; m <= hi; m += 240) ticks.push(m);
   return `<div class="dir-tl">
     <div class="dir-tl-row is-cover"><span class="dir-tl-name">Leader on</span><span class="dir-tl-track">${gaps.map(g => bar(g, 'is-gap')).join('')}</span><small class="dir-tl-span">${gaps.length ? escapeHtml(gaps.map(g => 'gap ' + dirSpanText(g)).join(', ')) : 'all day'}</small></div>
-    ${leaders.map(p => row(p, 'is-leader')).join('')}${dirs.map(d => row(d, 'is-director')).join('')}
+    ${people.map(row).join('')}
     <div class="dir-tl-row dir-tl-ticks" aria-hidden="true"><span></span><span class="dir-tl-track">${ticks.map(m => `<i style="left:${pct(m).toFixed(1)}%">${dirClock(m)}</i>`).join('')}</span><span></span></div>
   </div>`;
 }

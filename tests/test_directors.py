@@ -97,6 +97,19 @@ class Week(unittest.TestCase):
         self.assertIn('gap 2p–4p', tue)
         self.assertNotIn('dir-chip', html)                                   # no wall of chips in the day cards
 
+    def test_back_to_back_shifts_are_one_row(self):
+        # Several shifts for one director read as one row with a thin mark at
+        # each hand-off, not as several people with the same name (Tim, Oct 24 2026).
+        html = run("c => { " + WEEK + """ adminShifts = {'2026-10-13': [{name: 'Timothy Lane', start: '2:30p', end: '7:00p'}, {name: 'Timothy Lane', start: '9:00a', end: '11:30a'}, {name: 'Timothy Lane', start: '11:30a', end: '2:30p'}, {name: 'Timothy Lane', start: '8:00p', end: '9:00p'}]};
+          return dirTimelineHtml('2026-10-13', dirLeaders('2026-10-13'), dirDirectorShifts('2026-10-13'), dirLeaderGaps('2026-10-13')); }""")
+        rows = [r for r in html.split('<div class="dir-tl-row">')[1:]]
+        tim = [r for r in rows if 'is-director' in r]
+        self.assertEqual(len(tim), 1)
+        self.assertEqual(tim[0].count('class="dir-tl-mark"'), 2)            # 11:30a and 2:30p
+        self.assertIn('Shift change 11:30a', tim[0])
+        self.assertEqual(tim[0].count('dir-tl-bar is-director'), 2)         # 9a–7p and 8p–9p
+        self.assertIn('9a–7p, 8p–9p', tim[0])
+
     def test_a_filled_leader_list_decides(self):
         # With names in Manage → Settings → Leaders, giving a PEA or having
         # notes no longer makes a leader (Tim, Oct 18 2026); Team Leader
