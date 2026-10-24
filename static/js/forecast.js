@@ -288,6 +288,7 @@ function fcLooksLikeLabor(text){
 async function fcImportLaborFile(file, text, buffer){
   let table;
   if(/\.(xlsx|xls)$/i.test(file.name)){
+    await xlsxReady();
     const wb = XLSX.read(new Uint8Array(buffer), {type: 'array'});
     table = fcParseTable(XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]));
   } else table = fcParseTable(text);
@@ -1671,6 +1672,7 @@ function fcRenderData(){
 // A file chosen on the Data tab: read it, show which column was taken for
 // what, and save on confirmation.
 function fcPickFile(file){
+  if(!window.XLSX && /\.(xlsx|xls)$/i.test(file.name)){ xlsxReady().then(() => fcPickFile(file), err => showToast(err.message)); return; }
   const reader = new FileReader();
   reader.onload = () => {
     let table;
