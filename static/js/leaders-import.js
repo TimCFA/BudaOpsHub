@@ -210,6 +210,7 @@ function ldiReadText(text, source){
   else ldiStage(ldiParseText(t, ldiKnownNames()), source);
 }
 function ldiReadFile(file){
+  if(!window.XLSX && /\.(xlsx|xls)$/i.test(file.name)){ xlsxReady().then(() => ldiReadFile(file), err => showToast(err.message)); return; }
   const reader = new FileReader();
   if(/\.(xlsx|xls)$/i.test(file.name)){
     reader.onload = () => {

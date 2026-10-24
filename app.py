@@ -486,9 +486,33 @@ else:
 
 # ===== SERVE ROUTES =====
 
+# The page's scripts and stylesheets are stamped with the build (Tim, Oct 23
+# 2026: Home took ten seconds on a phone). Unstamped, each of the 70-odd
+# files was asked about again on every load; stamped, the browser keeps them
+# until the next deploy changes the stamp, so a reload fetches only the page
+# and its data. The page itself is always asked for fresh.
+_PAGE_HTML = {}
+_STAMP_RE = re.compile(r'((?:src|href)="/static/[^"?#]+\.(?:js|css))"')
+
+def _page_html():
+    if BUILD not in _PAGE_HTML:
+        with open('cfa-buda-ops-hub-complete.html', encoding='utf-8') as f:
+            html = f.read()
+        _PAGE_HTML.clear()
+        _PAGE_HTML[BUILD] = _STAMP_RE.sub(lambda m: f'{m.group(1)}?v={BUILD}"', html)
+    return _PAGE_HTML[BUILD]
+
 @app.route('/')
 def serve_html():
-    return send_file('cfa-buda-ops-hub-complete.html')
+    resp = Response(_page_html(), mimetype='text/html')
+    resp.headers['Cache-Control'] = 'no-cache'
+    return resp
+
+@app.after_request
+def _cache_stamped_static(response):
+    if request.path.startswith('/static/') and request.args.get('v') == BUILD and response.status_code == 200:
+        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+    return response
 
 # ===== MANAGER AUTH ROUTES =====
 

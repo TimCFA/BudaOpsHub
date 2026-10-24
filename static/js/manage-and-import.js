@@ -66,7 +66,14 @@ document.getElementById('btnLock').addEventListener('click', async ()=>{
       await launchSetManager(true);
       document.getElementById('pinGate').style.display = 'none';
       document.getElementById('manageContent').style.display = 'block';
-      renderManage();
+      // Manage draws when it's opened (navigation.js), not behind Home as
+      // the page loads (Tim, Oct 23 2026: slow loads); the Levelset sync
+      // and the backup check run once the page is quiet.
+      if(document.getElementById('manageView').classList.contains('active')) renderManage();
+      else{
+        manageStale = true;
+        afterIdle(() => { if(typeof peaAutoSync === 'function') peaAutoSync(); if(typeof duCheckBackup === 'function') duCheckBackup(); });
+      }
       if(typeof tpSetDirector === 'function') tpSetDirector(isDirector, directorPinSet);
     }
     if(typeof acApplyStatus === 'function') acApplyStatus(status);
@@ -159,7 +166,9 @@ document.getElementById('targetInput').addEventListener('change', async e=>{
   mvSavedNote(input);
 });
 
+let manageStale = false;   // signed in with Manage not yet drawn: it draws in full when opened
 async function renderManage(){
+  manageStale = false;
   manageShowTab(manageCurrentTab());
   renderDataUploads();
   renderPeaManage();

@@ -547,6 +547,7 @@ async function duHandleFiles(fileList, hint){
       const isExcel = /\.(xlsx|xls)$/i.test(file.name);
       const buffer = isPdf ? null : await duReadFile(file, true);
       const text = buffer && !isExcel ? pbDecodeText(buffer) : '';
+      if(isExcel) await xlsxReady();
       const workbook = isExcel ? XLSX.read(new Uint8Array(buffer), {type: 'array'}) : null;
       const aside = fromBundle.has(file) ? duScheduleOnly(file, text) : null;
       if(aside){ duResults[i] = {file: file.name, state: 'skip', kind: aside.skip, text: aside.why}; continue; }

@@ -248,7 +248,7 @@ document.addEventListener('change', async e => {
   const t = e.target;
   if(!t || !t.matches || !t.matches('#directorsRoot [data-pi-file]') || !t.files || !t.files[0]) return;
   const file = t.files[0];
-  if(typeof XLSX === 'undefined'){ piStatus('The spreadsheet reader didn’t load. Reload the page and try again.'); return; }
+  try{ await xlsxReady(); }catch(err){ piStatus(err.message); return; }
   piStatus(`Reading ${file.name}…`);
   try{
     const wb = XLSX.read(new Uint8Array(await file.arrayBuffer()), {type: 'array'});
