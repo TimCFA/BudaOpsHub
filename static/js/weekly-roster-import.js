@@ -10,8 +10,10 @@
 //   the FOH or BOH roster tagged "In training", like Team Leader, and can be
 //   put in positions. The side comes from the Job ("FOH - …", "Back of
 //   House", "Kitchen"…), else from their other shifts in the file, else from
-//   the side they were on lately; with none of those it's flagged in the
-//   preview. A Trainer's shift there goes on the floor without the tag.
+//   the side they were on lately; with none of those (a brand-new hire whose
+//   Job just says "In Training") the preview asks FOH or BOH per person and
+//   puts them on that side. A Trainer's shift there goes on the floor
+//   without the tag.
 // - Off-floor shifts (Other: Administrative/Truck/Maintenance, and
 //   Leadership · Administrative) are left out of the floor roster; the
 //   preview counts them. Truck shifts are kept apart, as who's on truck
@@ -99,19 +101,7 @@ function parseWeeklyRosterCsv(text){
   const admin = {};   // Administrative shifts by day (directors.js)
   HS_DAY_ORDER.forEach(day => { truck[day] = []; admin[day] = []; });
   const pendingTraining = [];   // Training shifts whose side the Job doesn't give
-  const addShift = (day, section, name, range, leader, training) => {
-    const bucket = result[day][section];
-    let person = bucket.find(p => p.name.toLowerCase() === name.toLowerCase());
-    if(!person){
-      person = {name, start: range.start, end: range.end, blocks: []};
-      bucket.push(person);
-    }
-    person.blocks.push({start: range.start, end: range.end});
-    if(leader) person.leader = true;
-    if(training) person.training = true;
-    if(parseShiftTimeToMinutes(range.start) < parseShiftTimeToMinutes(person.start)) person.start = range.start;
-    if(parseShiftTimeToMinutes(range.end) > parseShiftTimeToMinutes(person.end)) person.end = range.end;
-  };
+  const addShift = (day, section, name, range, leader, training) => wriAddShift(result, day, section, name, range, leader, training);
 
   for(let r = 1; r < rows.length; r++){
     const row = rows[r];
@@ -160,23 +150,56 @@ function parseWeeklyRosterCsv(text){
   pendingTraining.forEach(t => {
     const section = wriSideFromWeek(result, t.name) || wriSideFromRoster(t.name);
     if(section) addShift(t.day, section, t.name, t.range, false, t.training);
-    else unrecognized.push({name: t.name, day: t.day, schedule: `${t.schedule}${t.job ? ` · ${t.job}` : ''}, FOH or BOH?`, job: t.job, shift: t.shift});
+    // needsSide: the preview offers FOH / BOH buttons for this person.
+    else unrecognized.push({name: t.name, day: t.day, schedule: `${t.schedule}${t.job ? ` · ${t.job}` : ''}, FOH or BOH?`, job: t.job, shift: t.shift, needsSide: true, range: t.range, training: t.training});
   });
-  // Back-to-back or overlapping blocks are one stretch on the floor; keep
-  // blocks only when there's a real gap (a split shift).
-  HS_DAY_ORDER.forEach(day => ['foh', 'boh'].forEach(sec => result[day][sec].forEach(p=>{
-    const mins = t => parseShiftTimeToMinutes(t);
-    const merged = [];
-    p.blocks.sort((a, b) => mins(a.start) - mins(b.start)).forEach(b=>{
-      const last = merged[merged.length - 1];
-      if(last && mins(b.start) <= mins(last.end)){ if(mins(b.end) > mins(last.end)) last.end = b.end; }
-      else merged.push({...b});
-    });
-    if(merged.length < 2) delete p.blocks;
-    else p.blocks = merged;
-  })));
+  HS_DAY_ORDER.forEach(day => ['foh', 'boh'].forEach(sec => result[day][sec].forEach(wriMergeBlocks)));
 
   return {result, unrecognized, offFloor, truck, admin};
+}
+
+function wriAddShift(result, day, section, name, range, leader, training){
+  const bucket = result[day][section];
+  let person = bucket.find(p => p.name.toLowerCase() === name.toLowerCase());
+  if(!person){
+    person = {name, start: range.start, end: range.end, blocks: []};
+    bucket.push(person);
+  }
+  // Blocks already merged down to one stretch: start again from that stretch.
+  if(!person.blocks) person.blocks = [{start: person.start, end: person.end}];
+  person.blocks.push({start: range.start, end: range.end});
+  if(leader) person.leader = true;
+  if(training) person.training = true;
+  if(parseShiftTimeToMinutes(range.start) < parseShiftTimeToMinutes(person.start)) person.start = range.start;
+  if(parseShiftTimeToMinutes(range.end) > parseShiftTimeToMinutes(person.end)) person.end = range.end;
+  return person;
+}
+
+// Back-to-back or overlapping blocks are one stretch on the floor; keep
+// blocks only when there's a real gap (a split shift).
+function wriMergeBlocks(p){
+  const mins = t => parseShiftTimeToMinutes(t);
+  const merged = [];
+  (p.blocks || []).sort((a, b) => mins(a.start) - mins(b.start)).forEach(b=>{
+    const last = merged[merged.length - 1];
+    if(last && mins(b.start) <= mins(last.end)){ if(mins(b.end) > mins(last.end)) last.end = b.end; }
+    else merged.push({...b});
+  });
+  if(merged.length < 2) delete p.blocks;
+  else p.blocks = merged;
+}
+
+// The leader picked FOH or BOH for a trainee the file couldn't place: put
+// all of that person's waiting Training shifts on that side. Returns what's
+// still unrecognized.
+function wriPlaceTrainee(result, unrecognized, name, section){
+  const n = String(name).toLowerCase();
+  const rest = [];
+  unrecognized.forEach(u => {
+    if(!u.needsSide || u.name.toLowerCase() !== n){ rest.push(u); return; }
+    wriMergeBlocks(wriAddShift(result, u.day, section, u.name, u.range, false, u.training));
+  });
+  return rest;
 }
 
 // FOH or BOH from a Training shift's Job, or null when it doesn't say.
@@ -328,14 +351,31 @@ function showWeeklyImportPreview(){
   const warn = document.getElementById('weeklyImportUnrecognizedWarning');
   const offFloorText = Object.entries(weeklyImportOffFloor).map(([k, n]) => `${n} ${k}`).join(', ');
   const parts = [];
-  if(weeklyImportUnrecognized.length > 0){
-    parts.push(`⚠️ ${weeklyImportUnrecognized.length} shift(s) had an unrecognized Schedule/Job value and were skipped: ` +
-      weeklyImportUnrecognized.slice(0,5).map(u => escapeHtml(`${u.name} (${u.day}, ${u.schedule})`)).join(', ') +
-      (weeklyImportUnrecognized.length > 5 ? `, +${weeklyImportUnrecognized.length - 5} more` : ''));
+  // Trainees with no FOH/BOH anywhere: one row each with a FOH / BOH choice.
+  const trainees = [];
+  weeklyImportUnrecognized.filter(u => u.needsSide).forEach(u => {
+    let t = trainees.find(x => x.name.toLowerCase() === u.name.toLowerCase());
+    if(!t) trainees.push(t = {name: u.name, days: []});
+    t.days.push(u.day);
+  });
+  const otherUnrecognized = weeklyImportUnrecognized.filter(u => !u.needsSide);
+  if(trainees.length){
+    parts.push(`<b>${trainees.length === 1 ? 'Which side is this trainee on?' : 'Which side are these trainees on?'}</b> The schedule says “In Training” without FOH or BOH. Pick one and their shifts go on that roster, tagged In training.` +
+      trainees.map(t => `<div class="wi-side-row"><span>${escapeHtml(t.name)} <span class="wi-side-days">${escapeHtml(t.days.join(', '))}</span></span>` +
+        `<span class="week-toggle wi-side-pick">${['foh', 'boh'].map(sec => `<button type="button" class="wri-week-btn" data-wi-side="${sec}" data-wi-name="${escapeHtml(t.name)}">${sec.toUpperCase()}</button>`).join('')}</span></div>`).join(''));
+  }
+  if(otherUnrecognized.length > 0){
+    parts.push(`⚠️ ${otherUnrecognized.length} shift(s) had an unrecognized Schedule/Job value and were skipped: ` +
+      otherUnrecognized.slice(0,5).map(u => escapeHtml(`${u.name} (${u.day}, ${u.schedule})`)).join(', ') +
+      (otherUnrecognized.length > 5 ? `, +${otherUnrecognized.length - 5} more` : ''));
   }
   if(offFloorText) parts.push(`Off the floor, not added: ${escapeHtml(offFloorText)} shift${Object.values(weeklyImportOffFloor).reduce((a, b) => a + b, 0) === 1 ? '' : 's'}.`);
   warn.style.display = parts.length ? 'block' : 'none';
   warn.innerHTML = parts.join('<br>');
+  warn.querySelectorAll('[data-wi-side]').forEach(b => b.addEventListener('click', ()=>{
+    weeklyImportUnrecognized = wriPlaceTrainee(weeklyImportParsed, weeklyImportUnrecognized, b.dataset.wiName, b.dataset.wiSide);
+    showWeeklyImportPreview();
+  }));
 
   const day = weeklyImportActiveDay;
   const dayData = weeklyImportParsed[day];
