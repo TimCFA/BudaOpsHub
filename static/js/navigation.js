@@ -21,6 +21,7 @@ function activateView(view){
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
   document.getElementById(view+'View').classList.add('active');
   if(view === 'positions') renderPositionsTab();
+  if(view === 'schedule') renderTeamSchedule();
   if(view === 'wastelog'){ renderGrid(); renderTape(); }
   if(view === 'zonereset'){ renderZoneResetView(); renderWalkthroughsPage(); }
   if(view === 'safecount') renderSafeCount();

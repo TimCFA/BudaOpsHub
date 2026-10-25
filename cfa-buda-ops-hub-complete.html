@@ -52,6 +52,8 @@
     <div class="tabs" role="tablist">
       <button type="button" class="tab active" role="tab" aria-selected="true" aria-controls="homeView" data-view="home">Home <span class="sub"><i>Inicio</i></span></button>
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="positionsView" data-view="positions">Set Ups <span class="sub"><i>Configuración</i></span></button>
+      <!-- The team's shifts for the week (team-schedule.js; Tim, Oct 25 2026). -->
+      <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="scheduleView" data-view="schedule">Schedule <span class="sub"><i>Horario</i></span></button>
 
       <!-- Launch mode (launch-mode.js): Home plus the team's essentials. -->
       <!-- Waste logging, with the waste scoreboard as a pill at the top of the page (launch-mode.js). -->
@@ -848,6 +850,11 @@
   </div>
 
   <!-- Manage View -->
+  <!-- Schedule (team-schedule.js): your shifts this week and who's working each day. -->
+  <div class="view" id="scheduleView">
+    <div class="ts-page" id="scheduleRoot"></div>
+  </div>
+
   <!-- Know the Numbers (kn-page.js): each daypart's productivity goal and what it takes, for Team Leads and up. In Tools. -->
   <div class="view" id="knownumbersView">
     <nav class="launch-subnav" aria-label="Tools" data-launch-subnav></nav>
@@ -1252,6 +1259,7 @@
 <script src="/static/js/points-import.js"></script>
 <script src="/static/js/launch-mode.js"></script>
 <script src="/static/js/right-now.js"></script>
+<script src="/static/js/team-schedule.js"></script>
 <script src="/static/js/hub-health.js"></script>
 </body>
 </html>
