@@ -70,6 +70,22 @@ class TrainingShifts(unittest.TestCase):
         self.assertEqual(r['unrecognized'][0]['name'], 'Tess Abel')
         self.assertIn('FOH or BOH', r['unrecognized'][0]['schedule'])
 
+    def test_leader_picks_the_side_for_an_unplaced_trainee(self):
+        text = csv(row('Tess Abel', Mon=('8:00 AM - 12:00 PM', 'Training', 'In Training'),
+                       Fri=('8:00 AM - 12:00 PM', 'Training', 'In Training')),
+                   row('Ivo Park', Tue=('9:00 AM - 1:00 PM', 'Training', 'In Training')))
+        op = ("c => { const r = parseWeeklyRosterCsv(c.csv); "
+              "const rest = wriPlaceTrainee(r.result, r.unrecognized, 'tess abel', 'boh'); "
+              "return [r.result, rest.map(u => u.name)]; }")
+        out = subprocess.run(['node', RUNNER], input=json.dumps({'cases': [{'op': op, 'csv': text}]}), capture_output=True, text=True, check=True)
+        result, rest = json.loads(out.stdout)[0]
+        self.assertEqual(names(result['Mon']['boh']), [('Tess Abel', True, False)])
+        self.assertEqual(names(result['Fri']['boh']), [('Tess Abel', True, False)])
+        self.assertEqual(result['Mon']['boh'][0]['start'], '8:00a')
+        self.assertNotIn('blocks', result['Mon']['boh'][0])
+        self.assertEqual(result['Mon']['foh'], [])
+        self.assertEqual(rest, ['Ivo Park'])          # the other trainee still waits for a pick
+
     def test_training_and_a_regular_shift_the_same_day_are_one_person(self):
         r = parse(csv(row('Uma Pratt', Mon=('6:00 AM - 9:00 AM', 'Training', 'FOH - Training'))),
                   )
