@@ -1,31 +1,10 @@
-function renderDayPicker(pickerId, selectId, offsetWeeks, onSelect){
-  const days = getWeekDays(offsetWeeks);
-  const picker = document.getElementById(pickerId);
-  const select = document.getElementById(selectId);
-  const previousValue = select.value;
-  const stillValid = days.some(d => d.date === previousValue);
-  
-  let targetValue = stillValid ? previousValue : '';
-  if(!targetValue && offsetWeeks === 0 && days.some(d => d.date === today)){
-    targetValue = today;
-  }
-  
-  picker.innerHTML = days.map(d=>`<div class="day-pill ${d.date === targetValue ? 'active' : ''}" data-date="${d.date}">${d.label}</div>`).join('');
-  select.innerHTML = '<option value="">Choose a day</option>' + days.map(d=>`<option value="${d.date}">${d.weekday}</option>`).join('');
-  select.value = targetValue;
-  
-  picker.querySelectorAll('.day-pill').forEach(pill=>{
-    pill.addEventListener('click', ()=>{
-      picker.querySelectorAll('.day-pill').forEach(p=>p.classList.remove('active'));
-      pill.classList.add('active');
-      select.value = pill.dataset.date;
-      onSelect();
-    });
-  });
-}
-
+// Set Ups' day strip is renderSetupsDayPicker below. (The generic
+// renderDayPicker that once drew the other tabs' pickers had no callers
+// left and went in Oct 2026.)
+// Set Ups' day line is the status row now (renderSetupsStatus), which
+// renderAllDayparts redraws itself; the Safe Count and roster import pages
+// still call this for it after a change.
 function updateSelectedDayInfo(selectId, infoContainerId, skipDate){
-  // Set Ups' day line is the status row now (renderSetupsStatus).
   if(infoContainerId === 'daySelectedInfo'){ renderSetupsStatus(); return; }
   const dateISO = document.getElementById(selectId).value;
   const el = document.getElementById(infoContainerId);
@@ -353,10 +332,9 @@ window.openPosModal = function(key, pos, daypart, note){
   }).sort((a, b) => (b.offShift ? 1 : 0) - (a.offShift ? 1 : 0) || order[a.tier] - order[b.tier] || (b.avg || 0) - (a.avg || 0) || a.name.localeCompare(b.name));
 
   // The open spots after this one, for "next".
-  const dpIndex2 = dayparts.findIndex(d => d.name === daypart);
-  const dpObj = dayparts[dpIndex2];
+  const dpObj = dayparts[dpIndex];
   let m = null;
-  try{ m = dpObj ? suDaypartModel(currentPosSection, dayName, dpObj, dpIndex2) : null; }catch(e){ m = null; }
+  try{ m = dpObj ? suDaypartModel(currentPosSection, dayName, dpObj, dpIndex) : null; }catch(e){ m = null; }
   const openSlots = m ? m.tiles.filter(t => t.needed && t.slot !== pos).map(t => t.slot) : [];
   const after = openSlots.filter(s => setupsSlotsFor(daypart).indexOf(s) > setupsSlotsFor(daypart).indexOf(pos));
   suPickNext = after.length ? after : openSlots;
@@ -501,7 +479,6 @@ window.commitPosAssignment = function(name, how){
     showToast(name ? `${name.split(/\s+/)[0]} → ${keySlot}` : `${keySlot} cleared`);
   }
   renderAllDayparts();
-  updateSelectedDayInfo('daySelect', 'daySelectedInfo');
   saveState();
 };
 
@@ -623,18 +600,20 @@ function renderVacancyOptionList(eligible, filterText){
   container.innerHTML = filtered.map(p=>{
     const isSelected = pendingVacancySelection === p.name;
     return `
-      <div class="pos-option ${isSelected ? 'selected' : ''}" onclick="selectVacancyOption(${jsArg(p.name)})">
+      <button type="button" class="pos-option ${isSelected ? 'selected' : ''}" data-vacancy-pick="${escapeHtml(p.name)}" aria-pressed="${isSelected}">
         <span>${escapeHtml(p.name)}</span>
         <span class="pos-option-check">✓</span>
-      </div>
+      </button>
     `;
   }).join('');
 }
 
-window.selectVacancyOption = function(name){
-  pendingVacancySelection = name;
+document.getElementById('vacancyModalOptions').addEventListener('click', e=>{
+  const opt = e.target.closest('[data-vacancy-pick]');
+  if(!opt) return;
+  pendingVacancySelection = opt.dataset.vacancyPick;
   renderVacancyOptionList(window.currentVacancyEligible || [], document.getElementById('vacancyModalSearch').value);
-};
+});
 
 document.getElementById('vacancyModalSearch').addEventListener('input', (e)=>{
   renderVacancyOptionList(window.currentVacancyEligible || [], e.target.value);
@@ -660,7 +639,6 @@ document.getElementById('btnConfirmVacancy').addEventListener('click', async ()=
   touchLastUpdated(keyDate);
   document.getElementById('vacancyModal').classList.remove('active');
   renderAllDayparts();
-  updateSelectedDayInfo('daySelect', 'daySelectedInfo');
   showToast('✓ Coverage Added!');
   saveState();
 });
@@ -671,7 +649,7 @@ document.getElementById('btnFlagOnly').addEventListener('click', async ()=>{
   posVacancyFlags[currentVacancyKey] = {flaggedBy: initials, flaggedAt: Date.now()};
   document.getElementById('vacancyModal').classList.remove('active');
   renderAllDayparts();
-  showToast('🚨 Flagged — needs coverage');
+  showToast('Flagged: needs coverage');
   saveState();
 });
 
@@ -905,7 +883,6 @@ window.removeFromRoster = async function(name){
   await saveState();
   renderRoster();
   renderAllDayparts();
-  updateSelectedDayInfo('daySelect', 'daySelectedInfo');
   showToast(`${name} removed from roster`);
 };
 
@@ -1074,7 +1051,6 @@ document.getElementById('btnConfirmAddTM').addEventListener('click', async ()=>{
   await saveState();
   renderRoster();
   renderAllDayparts();
-  updateSelectedDayInfo('daySelect', 'daySelectedInfo');
   document.getElementById('addTMModal').classList.remove('active');
   showToast(`✓ ${name} added to ${formatVerboseDate(dayName)}'s roster`);
 });
@@ -1130,9 +1106,4 @@ function formatAsCurrency(raw){
   return num.toLocaleString('en-US', {style: 'currency', currency: 'USD'});
 }
 
-window.formatAndUpdateCurrency = async function(inputEl, dayName, dpName, field){
-  const formatted = formatAsCurrency(inputEl.value);
-  inputEl.value = formatted;
-  await updateNumbersField(dayName, dpName, field, formatted);
-};
 

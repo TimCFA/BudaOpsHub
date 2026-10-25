@@ -21,6 +21,7 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .su-col-l,:where(html[data-theme="dark"]) .su-col-t{--sky:linear-gradient(135deg,#1F2C3D,#222830);}
 :where(html[data-theme="dark"]) .su-col-a{--sky:linear-gradient(135deg,#503D29,#413122);}
 :where(html[data-theme="dark"]) .su-col-d{--sky:linear-gradient(135deg,#37294F,#2E213D);}
+:where(html[data-theme="dark"]) .su-dp .su-dp-fill.is-short{background:#3B2021;color:var(--ink-dark-red);}
 :where(html[data-theme="dark"]) .su-sheet-list .su-row{border-top:1px solid #37342F;}
 :where(html[data-theme="dark"]) .su-sheet-list .su-row.is-needed{background:#3B2021;}
 :where(html[data-theme="dark"]) .roster-leader-badge.is-training{color:var(--ink-navy);}

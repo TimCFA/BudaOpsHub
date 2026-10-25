@@ -179,13 +179,50 @@ function suDaypartModel(section, date, dp, dpIndex){
 
 // ----- Pieces -----
 
-// "6/12" — spots filled / people on shift ("3 placed" or "—" with no roster).
-function suDaypartFillText(section, date, dp, i){
+// The banner's count: what the leader still has to do. "3 open" (red) while
+// spots up to the headcount are empty; otherwise "9/9" (spots filled / people
+// on shift), "3 placed" with no roster, or "—". Until Oct 2026 it counted
+// every filled spot, so it read "8/9" while three spots sat red: a spot
+// filled below the headcount line made up for a skipped one above it.
+function suDaypartOpenCount(section, date, dp, i){
   const posMap = section === 'foh' ? fohPositions : bohPositions;
   const key = suEvalKey(section, date, dp.name);
-  const filled = (posMap[dp.name] || []).filter(s => posAssignments[key + '||' + s]).length;
+  const slots = posMap[dp.name] || [];
+  const filled = slots.filter(s => posAssignments[key + '||' + s]).length;
   const onShift = suDaypartTiming(section, date, i).effective;
-  return onShift ? `${filled}/${onShift}` : filled ? `${filled} placed` : '—';
+  const open = slots.slice(0, onShift).filter(s => !posAssignments[key + '||' + s]).length;
+  return {filled, onShift, open};
+}
+function suDaypartFillText(section, date, dp, i, count){
+  const {filled, onShift, open} = count || suDaypartOpenCount(section, date, dp, i);
+  return open ? `${open} open${esLine('N open', open)}` : onShift ? `${filled}/${onShift}` : filled ? `${filled} placed${esLine('N placed', filled)}` : '—';
+}
+// Red only while it can still be acted on: a daypart already over (earlier
+// today, or any daypart of a past day) shows its open count in grey.
+function suDaypartFillHtml(section, date, dp, i){
+  const count = suDaypartOpenCount(section, date, dp, i);
+  return `<span class="su-dp-fill ${count.open && !suDaypartIsOver(section, date, dp) ? 'is-short' : ''}">${suDaypartFillText(section, date, dp, i, count)}</span>`;
+}
+
+// Where this daypart sits against the clock: its index and today's.
+function suDaypartClock(section, date, dp){
+  const dayparts = suDaypartsFor(section);
+  return {i: dayparts.findIndex(d => d.name === dp.name), nowIdx: date === today ? dayparts.findIndex(d => d.name === suDefaultDaypart(section, date)) : -1};
+}
+function suDaypartIsOver(section, date, dp){
+  if(date < today) return true;
+  const {i, nowIdx} = suDaypartClock(section, date, dp);
+  return date === today && i < nowIdx;
+}
+
+// "Lead: choose" presses only where it's pressing: today's daypart on the
+// clock and the next one. Dayparts already over, later ones and other days
+// keep it grey (still a tap away), so a day being planned isn't six red
+// labels (Oct 2026).
+function suLeadIsPressing(section, date, dp){
+  if(date !== today) return false;
+  const {i, nowIdx} = suDaypartClock(section, date, dp);
+  return i >= nowIdx && i <= nowIdx + 1;
 }
 
 // Each daypart's sky: a soft gradient and a small scene. East is on the
@@ -294,7 +331,7 @@ function suDaypartBriefHtml(section, date, dp){
   const {sales, goal} = suNumbersParts(date, dp);
   const lead = section === 'foh' ? posAssignments[suEvalKey(section, date, dp.name) + '||' + SU_LEAD_CAPTAIN] : '';
   const leadHtml = section !== 'foh' ? ''
-    : suCanChooseLead() ? `<button type="button" class="su-dp-brief-lead ${lead ? '' : 'is-none'}" data-su-lead-open="1" data-su-lead-dp="${escapeHtml(dp.name)}">${lead ? `Lead: ${escapeHtml(suDisplayName(lead))}` : 'Lead: choose'}</button>`
+    : suCanChooseLead() ? `<button type="button" class="su-dp-brief-lead ${lead ? '' : 'is-none'} ${!lead && !suLeadIsPressing(section, date, dp) ? 'is-quiet' : ''}" data-su-lead-open="1" data-su-lead-dp="${escapeHtml(dp.name)}">${lead ? `Lead: ${escapeHtml(suDisplayName(lead))}` : 'Lead: choose'}</button>`
     : lead ? `<span class="su-dp-brief-lead is-static">Lead: ${escapeHtml(suDisplayName(lead))}</span>` : '';
   const nums = [sales ? `<span><b>${escapeHtml(sales)}</b> projected${esHtml('projected')}</span>` : '', goal ? `<span><b>${escapeHtml(goal)}</b>/labor hr${esHtml('per labor hour')}</span>` : ''].filter(Boolean);
   if(!leadHtml && !nums.length) return '';
@@ -406,7 +443,7 @@ function suDaypartCardHtml(section, date, dp, i, open, openHtml, m, pill){
     const headInner = `
           <span class="su-dp-art">${suSkyArt(sky)}</span>
           <span class="su-dp-name">${escapeHtml(suShortDaypart(dp.name))}${time ? ` <span class="su-dp-time">${escapeHtml(time)}</span>` : ''}${isNow ? '<span class="su-dp-now">now</span>' : ''}${esSpan(esDaypart(dp.name), true)}</span>
-          <span class="su-dp-fill">${suDaypartFillText(section, date, dp, i)}</span>`;
+          ${suDaypartFillHtml(section, date, dp, i)}`;
     // A closed card is two lines: the head, then a brief (Lead, numbers).
     // Open, the banner carries the numbers line, the events and the Lead
     // and Fill buttons as before.
@@ -426,14 +463,10 @@ function suDaypartCardHtml(section, date, dp, i, open, openHtml, m, pill){
 
 function suDaypartChipsHtml(section, date, current){
   return `<div class="su-chips" role="tablist" aria-label="Daypart">${suDaypartsFor(section).map((dp, i)=>{
-    const posMap = section === 'foh' ? fohPositions : bohPositions;
-    const key = suEvalKey(section, date, dp.name);
-    const filled = (posMap[dp.name] || []).filter(s => posAssignments[key + '||' + s]).length;
-    const onShift = suDaypartTiming(section, date, i).effective;
     const active = dp.name === current;
     return `<button type="button" role="tab" aria-selected="${active}" class="su-chip ${active ? 'active' : ''}" data-su-daypart="${escapeHtml(dp.name)}">
       <span class="su-chip-name">${escapeHtml(suShortDaypart(dp.name))}</span>
-      <span class="su-chip-fill">${onShift ? `${filled}/${onShift}` : filled ? `${filled} placed` : '—'}</span>
+      <span class="su-chip-fill">${suDaypartFillText(section, date, dp, i)}</span>
     </button>`;
   }).join('')}</div>`;
 }

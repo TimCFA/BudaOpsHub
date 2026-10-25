@@ -132,6 +132,14 @@ Assign team members to positions for each daypart, FOH and BOH.
   open card lists its own spots, and whatever is tapped, held or dragged in a
   card works on that card's daypart (the picker, notes, Fill, the Lead
   sheet); a name drags only within its own card. "More spots" opens per card.
+  The banner's count says what's left to do: **"3 open"**, in red, while
+  spots up to the headcount are empty (it once read "8/9" while three spots
+  sat red, since a spot filled below the headcount line made up for a skipped
+  one above it; Oct 2026); otherwise spots filled / people on shift ("9/9").
+  A daypart already over shows its count in grey.
+  A closed card's **"Lead: choose"** is red only for today's daypart on the
+  clock and the next one; dayparts already over, later ones and other days
+  show it grey, still a tap away.
 - **Pill layout** (Oct 2026: Tim tried it, then went back to the cards; it may
   come back): the dayparts as a row of pills with only the chosen daypart's
   card below, and a **Not placed yet** tray of who's on shift and not in a

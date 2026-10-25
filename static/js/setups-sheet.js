@@ -89,10 +89,12 @@ function suNotHereYet(section, date, dp, timing, names){
   return now.getHours() * 60 + now.getMinutes() < p.arrives ? p.arrives : null;
 }
 // At an arrival time its yellow comes off: a look every half minute while
-// Set Ups is showing (not while a picker is open).
+// Set Ups is showing. Not while a sheet or picker is open or a name is
+// being dragged: a redraw would take a half-typed note's focus (the same
+// check the sync uses, storage.js stateDialogOpen).
 setInterval(() => {
   const view = document.getElementById('positionsView');
-  if(!view || !view.classList.contains('active') || document.querySelector('.modal.active, #posModal.active')) return;
+  if(!view || !view.classList.contains('active') || suDrag || (typeof stateDialogOpen === 'function' && stateDialogOpen())) return;
   const now = new Date(), mins = now.getHours() * 60 + now.getMinutes();
   if([...document.querySelectorAll('#allDayparts [data-su-arrives]')].some(el => +el.dataset.suArrives <= mins)){ renderAllDayparts(); return; }
   // A new daypart on the clock: today's cards move round so it comes first (setups-board.js).
@@ -109,7 +111,7 @@ function suSheetNameHtml(t, brk){
   const lead = t.leaderRole ? `<span class="su-row-role" title="${escapeHtml(t.leaderRole)}">${t.leaderRole === 'Team Lead' ? 'TL' : 'T'}</span>` : '';
   const note = t.timeNote ? `<span class="su-row-note ${t.timeNote.warn ? 'is-warn' : ''} ${t.timeNote.out ? 'is-out' : ''}">${t.timeNote.out ? SU_ICON_OUT : ''}${escapeHtml(t.timeNote.text)}${t.timeNote.es ? esSpan(t.timeNote.es, true) : ''}</span>` : '';
   const flag = t.flagged ? `<span class="su-row-note is-warn">needs coverage${esHtml('needs coverage')}</span>` : '';
-  const brkNote = brk ? `<span class="su-row-note is-break" title="Planned 30-minute break">☕ ${suClock(brk)}</span>` : '';
+  const brkNote = brk ? `<span class="su-row-note is-break" title="Planned 30-minute break">${SU_ICON_CUP_SM}${suClock(brk)}</span>` : '';
   return `<span class="su-row-who">${suTierDotHtml(t)}${escapeHtml(who)}${lead}</span>${note}${brkNote}${flag}`;
 }
 
@@ -182,6 +184,8 @@ function suSheetViewHtml(section, date, dp, dpIndex, m){
   return `<div class="su-sheet-table">${zones}</div>`;
 }
 
+// The planned break on a row: a small cup (a line icon, never emoji).
+const SU_ICON_CUP_SM = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 8h1a4 4 0 0 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z"/><path d="M6 2v2M10 2v2M14 2v2"/></svg>';
 const SU_ICON_PENCIL = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
 const SU_ICON_NOTE_MARK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v12H8l-4 4z"/></svg>';
 const SU_ICON_GRIP = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
