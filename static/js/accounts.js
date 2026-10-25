@@ -19,7 +19,8 @@ let acOwner = false;
 // Google's client ID comes in the page (app.py _page_html), so the button
 // shows even when the status check is slow or fails.
 let acGoogleClientId = (document.querySelector('meta[name="google-client-id"]') || {}).content || '';
-let acGoogleReady = false;
+const acGoogleHd = (document.querySelector('meta[name="google-hd"]') || {}).content || '';
+let acGoogleMode = '';      // how Google's script was set up: 'button', or 'tap' (one tap)
 let acAccounts = null;      // the owner's lists, once loaded
 let acPinRows = null;       // rows read from the pasted or dropped list, before upload
 let acPinUnread = [];       // names in a PDF report whose PIN couldn't be told apart
@@ -40,8 +41,14 @@ function acApplyStatus(d){
   acRenderGate();
   acRenderSettings();
   if(typeof siRender === 'function') siRender();
-  // A device nobody signed in on, sign-in not required yet: the initials box, as before.
-  if(!siIdentity.name && !siIdentity.device && !siIdentity.required && !getInitials() && typeof editInitialsBox === 'function') editInitialsBox();
+  // Nobody signed in on this phone (and it isn't a shared device): the
+  // sign-in sheet, not the initials box (Tim, Oct 25 2026: initials are on
+  // their way out), on a phone with no initials yet, once a day. Otherwise
+  // a director's store Google account gets Google's one tap.
+  if(!siIdentity.name && !siIdentity.device){
+    if(!getInitials() && typeof siAskToday === 'function' && siAskToday()) siOpen();
+    else afterIdle(acOneTap);
+  }
   if(typeof renderRightNow === 'function') renderRightNow();   // the card is the signed-in person's
   if(typeof scSyncVisibility === 'function') scSyncVisibility();   // Safe Count: not for Team Members or Trainers
 }
@@ -99,46 +106,72 @@ function acRenderGate(){
   if(acGoogleClientId) acMountGoogle();
 }
 
-// Google's script, once, and only when a sign-in screen shows (not on every
-// page load); then its button in each one showing: Manage's PIN screen and
+// Google's script, once, and only when it's needed: a sign-in screen
+// showing, or one tap (not on every page load).
+function acGsiReady(){ return !!(window.google && google.accounts && google.accounts.id); }
+function acLoadGsi(onload, onerror){
+  if(acGsiReady()){ onload(); return; }
+  const old = document.getElementById('acGsi');
+  if(old && !old.dataset.failed){ old.addEventListener('load', onload, {once: true}); if(onerror) old.addEventListener('error', onerror, {once: true}); return; }
+  if(old) old.remove();
+  const s = document.createElement('script');
+  s.id = 'acGsi'; s.src = 'https://accounts.google.com/gsi/client'; s.async = true; s.defer = true;
+  s.addEventListener('load', onload, {once: true});
+  s.addEventListener('error', () => { s.dataset.failed = '1'; if(onerror) onerror(); }, {once: true});
+  document.head.appendChild(s);
+}
+
+// Google's button in each sign-in screen showing: Manage's PIN screen and
 // the sign-in sheet (sign-in.js). A host that isn't on screen is drawn when
 // it is (navigation.js, siOpen). If Google's script doesn't load, "Try
-// again" asks for it once more, no reload needed.
+// again" asks for it once more, no reload needed. The button takes any
+// director's Google account (the owner can list ones outside the store's
+// domain), so one tap's domain limit is undone first.
 const AC_GOOGLE_HOSTS = ['acGoogleBtn', 'siGoogleBtn'];
 function acMountGoogle(){
   if(!acGoogleClientId) return;
   const hosts = AC_GOOGLE_HOSTS.map(id => document.getElementById(id)).filter(h => h && h.offsetParent !== null && !h.childElementCount);
   if(!hosts.length) return;
-  const gsi = () => window.google && google.accounts && google.accounts.id;
-  const render = () => {
-    if(!gsi()) return;
-    if(!acGoogleReady){
+  acLoadGsi(() => {
+    if(!acGsiReady()) return;
+    if(acGoogleMode !== 'button'){
+      if(acGoogleMode === 'tap') google.accounts.id.cancel();
       google.accounts.id.initialize({client_id: acGoogleClientId, callback: acGoogleCallback, auto_select: false, cancel_on_tap_outside: true});
-      acGoogleReady = true;
+      acGoogleMode = 'button';
     }
     hosts.filter(h => document.body.contains(h)).forEach(h => {
       h.innerHTML = '';
       google.accounts.id.renderButton(h, {type: 'standard', theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill', width: 260});
     });
-  };
-  if(gsi()){ render(); return; }
-  const old = document.getElementById('acGsi');
-  if(old && !old.dataset.failed){ old.addEventListener('load', render, {once: true}); return; }
-  if(old) old.remove();
-  const s = document.createElement('script');
-  s.id = 'acGsi'; s.src = 'https://accounts.google.com/gsi/client'; s.async = true; s.defer = true;
-  s.onload = render;
-  s.onerror = () => {
-    s.dataset.failed = '1';
+  }, () => {
     hosts.forEach(h => { h.innerHTML = '<p class="ac-hint">Google sign-in didn’t load. <button type="button" class="ld-link" data-ac-google-retry>Try again</button></p>'; });
-  };
-  document.head.appendChild(s);
+  });
 }
 document.addEventListener('click', e => {
   if(!e.target.closest('[data-ac-google-retry]')) return;
   AC_GOOGLE_HOSTS.forEach(id => { const h = document.getElementById(id); if(h) h.innerHTML = ''; });
   acMountGoogle();
 });
+
+// One tap (Tim, Oct 25 2026): a phone or computer already signed in to a
+// store Google account (the one director domain, hd) gets Google's
+// "Continue as …" without opening anything. Only when nobody is signed in
+// here and it isn't a shared device, once a page load, after the page is
+// quiet; Google itself waits longer each time it's closed. A team member's
+// personal Gmail is never offered.
+let acOneTapTried = false;
+function acOneTap(){
+  if(acOneTapTried || !acGoogleClientId || !acGoogleHd) return;
+  if(!siIdentity.known || siIdentity.name || siIdentity.device) return;
+  acOneTapTried = true;
+  acLoadGsi(() => {
+    if(!acGsiReady() || acGoogleMode === 'button' || siIdentity.name) return;   // a sign-in screen is up: its button
+    google.accounts.id.initialize({client_id: acGoogleClientId, callback: acGoogleCallback, hd: acGoogleHd, auto_select: false,
+      cancel_on_tap_outside: true, itp_support: true, use_fedcm_for_prompt: true, context: 'signin'});
+    acGoogleMode = 'tap';
+    google.accounts.id.prompt();
+  });
+}
 
 async function acGoogleCallback(resp){
   // From the sign-in sheet: stay on the page they were using.
@@ -150,7 +183,8 @@ async function acGoogleCallback(resp){
     const d = await res.json().catch(() => ({}));
     if(!res.ok || !d.success) throw new Error(d.error || 'Google sign-in didn’t work.');
     await acSignedIn(Object.assign({via: 'google'}, d), fromSheet);
-    if(fromSheet && typeof siClose === 'function'){ siClose(); showToast(`Signed in as ${d.name || 'Director'}`); }
+    if(fromSheet && typeof siClose === 'function') siClose();
+    if(d.manager) showToast(`Signed in as ${d.name || 'Director'}`);   // a team sign-in says so itself (acSignedIn)
   }catch(err){
     showToast(err.message);
     acRenderGate();

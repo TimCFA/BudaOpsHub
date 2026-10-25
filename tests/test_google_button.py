@@ -42,11 +42,30 @@ class InThePage(unittest.TestCase):
     def test_none_set_no_meta(self):
         self.assertNotIn('google-client-id', self.page(''))
 
+    def test_one_tap_only_offers_the_store_domain(self):
+        old = appmod.DIRECTOR_EMAIL_DOMAINS
+        try:
+            appmod.DIRECTOR_EMAIL_DOMAINS = {'cfabuda.com'}
+            self.assertIn('<meta name="google-hd" content="cfabuda.com">', self.page('123-abc'))
+            appmod.DIRECTOR_EMAIL_DOMAINS = {'cfabuda.com', 'example.com'}
+            self.assertNotIn('google-hd', self.page('123-abc'))          # which one? no one tap
+        finally:
+            appmod.DIRECTOR_EMAIL_DOMAINS = old
+
     def test_escaped(self):
         self.assertIn('content="a&quot;&gt;&lt;x"', self.page('a"><x'))
 
 
 class Wiring(unittest.TestCase):
+    def test_sign_in_sheet_not_initials_and_one_tap(self):
+        js = read('static', 'js', 'accounts.js')
+        self.assertIn("if(!getInitials() && typeof siAskToday === 'function' && siAskToday()) siOpen();\n    else afterIdle(acOneTap);", js)
+        self.assertNotIn('editInitialsBox();', js)
+        self.assertIn('hd: acGoogleHd', js)
+        self.assertIn("if(acGoogleMode === 'tap') google.accounts.id.cancel();", js)
+        self.assertIn("if(!siIdentity.known || siIdentity.name || siIdentity.device) return;", js)
+        self.assertIn("if(localStorage.getItem(SI_ASKED_KEY) === today) return false;", read('static', 'js', 'sign-in.js'))
+
     def test_the_page_reads_it_and_draws_the_gate_at_once(self):
         js = read('static', 'js', 'accounts.js')
         self.assertIn("""let acGoogleClientId = (document.querySelector('meta[name="google-client-id"]') || {}).content || '';""", js)
