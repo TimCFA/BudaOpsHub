@@ -512,9 +512,9 @@ function dirCopy(btn, text = dirBriefText()){
   if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => done(true), () => done(false)); else done(false);
 }
 
-function dirPdf(text = dirBriefText(), fileName = `directors-brief-${dirWeek()[0]}.pdf`){
-  const J = window.jspdf && window.jspdf.jsPDF;
-  if(!J){ showToast('The PDF library didn’t load'); return; }
+async function dirPdf(text = dirBriefText(), fileName = `directors-brief-${dirWeek()[0]}.pdf`){
+  try{ await pdfReady(); }catch(e){ showToast(e.message); return; }
+  const J = window.jspdf.jsPDF;
   const doc = new J({unit: 'pt', format: 'letter'});
   const lines = doc.splitTextToSize(text, 612 - 96);
   let y = 60;

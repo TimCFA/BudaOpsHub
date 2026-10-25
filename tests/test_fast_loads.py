@@ -47,8 +47,14 @@ class Stamped(unittest.TestCase):
 class Deferred(unittest.TestCase):
     def test_spreadsheet_reader_is_async_and_awaited(self):
         page = read('cfa-buda-ops-hub-complete.html')
-        self.assertIn('<script id="xlsxLib" async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>', page)
-        self.assertIn('function xlsxReady(){', read('static', 'js', 'state-and-utils.js'))
+        # Not loaded with the page at all: a file read loads it (Oct 25 2026), and so does making a PDF.
+        self.assertNotIn('xlsx.full.min.js', page)
+        self.assertNotIn('jspdf.umd.min.js', page)
+        utils = read('static', 'js', 'state-and-utils.js')
+        self.assertIn("function xlsxReady(){ return libReady('xlsx'); }", utils)
+        self.assertIn("function pdfReady(){ return libReady('pdf'); }", utils)
+        self.assertIn('await pdfReady();', read('static', 'js', 'directors.js'))
+        self.assertIn('await pdfReady();', read('static', 'js', 'waste-export.js'))
         self.assertIn("if(isExcel) await xlsxReady();", read('static', 'js', 'data-uploads.js'))
         for f in ('forecast.js', 'leaders-import.js', 'prep-board.js', 'points-import.js'):
             self.assertIn('xlsxReady()', read('static', 'js', f), f)

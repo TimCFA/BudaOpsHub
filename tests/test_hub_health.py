@@ -267,7 +267,7 @@ class Read(Base):
 class PageWiring(unittest.TestCase):
     def test_saves_say_which_try(self):
         st = read('static', 'js', 'storage.js')
-        self.assertIn("await statePost('/api/state/patch', {patches}, {'X-Save-Attempt': String(saveRetryN + 1)});", st)
+        self.assertIn("await statePost('/api/state/patch', {patches}, {'X-Save-Attempt': String(saveRetryN + 1)}, 20000);", st)
         self.assertIn("headers: Object.assign({'Content-Type': 'application/json'}, headers || {}),", st)
 
     def test_visits_and_the_manage_section(self):

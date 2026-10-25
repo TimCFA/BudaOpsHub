@@ -58,13 +58,18 @@ function serverClockNote(now, sentAt, gotAt){
   if(typeof now === 'number' && isFinite(now)) serverClockOffset = Math.round(now - (sentAt + gotAt) / 2);
 }
 
-async function statePost(path, body, headers){
+// timeoutMs: give up on an answer after this long (a save then retries on
+// its own), so one stuck request can't hold every later save behind it.
+async function statePost(path, body, headers, timeoutMs){
+  const ctl = timeoutMs && typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = ctl ? setTimeout(() => ctl.abort(), timeoutMs) : null;
   try{
     const sentAt = Date.now();
     const response = await fetch(`${API_BASE}${path}`, {
       method: 'POST',
       headers: Object.assign({'Content-Type': 'application/json'}, headers || {}),
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      signal: ctl ? ctl.signal : undefined
     });
     if(!response.ok) throw new Error(`HTTP ${response.status}`);
     const reply = await response.json();
@@ -73,7 +78,74 @@ async function statePost(path, body, headers){
   }catch(err){
     console.error(`${path} failed:`, err);
     return null;
+  }finally{
+    if(timer) clearTimeout(timer);
   }
+}
+
+// ----- Outbox -----
+// Changes not yet on the server, kept on the phone as the changes themselves
+// (not a whole copy), so a reload can't lose them: the page sends them again
+// once it has loaded. Before this, a phone that reloaded while it couldn't
+// reach the server dropped what it hadn't sent (Set Ups shift simulator,
+// Oct 25 2026). Changes are safe to send twice. After 2 hours only additions
+// to lists (a waste entry, a safe count) are kept: a spot filled that long
+// ago could undo what leaders have set since. After 12 hours, nothing.
+const OUTBOX_KEY = 'cfaBudaOutbox';
+const OUTBOX_MAX_AGE = 12 * 3600 * 1000;
+const OUTBOX_SETS_AGE = 2 * 3600 * 1000;
+// An outbox found at a load that couldn't reach the server: the page then
+// starts from its own copy, which already holds those changes, so they're
+// carried until the server's copy arrives and laid over it then.
+let outboxCarry = null;
+function outboxWrite(patches){
+  if(outboxCarry){
+    patches = Object.assign({}, patches);
+    Object.entries(outboxCarry).forEach(([name, ops]) => { patches[name] = ops.concat(patches[name] || []); });
+  }
+  try{
+    if(Object.keys(patches).length) localStorage.setItem(OUTBOX_KEY, JSON.stringify({at: Date.now(), patches}));
+    else localStorage.removeItem(OUTBOX_KEY);
+  }catch(e){ console.warn('Outbox not kept:', e); }
+}
+function outboxRead(){
+  try{
+    const box = JSON.parse(localStorage.getItem(OUTBOX_KEY) || 'null');
+    const age = box && box.patches ? Date.now() - box.at : Infinity;
+    if(age < OUTBOX_SETS_AGE) return box.patches;
+    if(age < OUTBOX_MAX_AGE){
+      const adds = {};
+      Object.entries(box.patches).forEach(([name, ops]) => {
+        const kept = (Array.isArray(ops) ? ops : []).filter(op => op.o === 'arr' && op.add).map(op => ({o: 'arr', p: op.p, add: op.add}));
+        if(kept.length) adds[name] = kept;
+      });
+      return Object.keys(adds).length ? adds : null;
+    }
+  }catch(e){}
+  return null;
+}
+// Every change this page has that the server hasn't taken, by section.
+function outboxPending(){
+  const sections = stateSections(stateSnapshot()), out = {};
+  Object.keys(sections).forEach(name=>{
+    if(!(name in stateBase) || stateSectionSaved(name, sections[name])) return;
+    const ops = stateDiff(stateBase[name] || {}, JSON.parse(sections[name]));
+    if(ops.length) out[name] = ops;
+  });
+  return out;
+}
+// At load: lay the outbox over what the server has, so it goes out again.
+function outboxReplay(){
+  const box = outboxRead();
+  if(!box) return false;
+  const current = stateSections(stateSnapshot()), parts = {};
+  Object.entries(box).forEach(([name, ops])=>{
+    if(!STATE_SECTIONS[name] || !Array.isArray(ops)) return;
+    try{ parts[name] = stateApplyOps(JSON.parse(current[name]), ops); }catch(e){ console.warn(`Outbox for ${name} not replayed:`, e); }
+  });
+  if(!Object.keys(parts).length) return false;
+  stateAdoptLocal(parts);
+  return true;
 }
 
 // Everything the app saves, in one place (saves and the backup file).
@@ -136,9 +208,10 @@ async function saveOnce(){
     patches[name] = {ver: stateVersions[name] || '?', ops};
     sent[name] = sections[name];
   });
-  if(!Object.keys(patches).length){ setSyncStatus('Synced', 'ok'); return true; }
+  if(!Object.keys(patches).length){ setSyncStatus('Synced', 'ok'); outboxWrite({}); return true; }
+  outboxWrite(Object.fromEntries(Object.entries(patches).map(([name, patch]) => [name, patch.ops])));
   // Which try this is, so Manage → Health can count the retries (app.py).
-  const result = await statePost('/api/state/patch', {patches}, {'X-Save-Attempt': String(saveRetryN + 1)});
+  const result = await statePost('/api/state/patch', {patches}, {'X-Save-Attempt': String(saveRetryN + 1)}, 20000);
   if(result){
     Object.keys(sent).forEach(name=>{
       if(result.sections && name in result.sections) return;   // someone else changed it too: merged below
@@ -148,6 +221,7 @@ async function saveOnce(){
     });
     stateAdoptServer(result.sections, result.versions, sent);
     stateNoteBuild(result.build);
+    outboxWrite(outboxPending());
   }
   setSyncStatus(result ? 'Synced' : 'Saved locally — sync failed', result ? 'ok' : 'error');
   // The server saved everything except manager-only fields (products, team,
@@ -162,10 +236,24 @@ async function saveOnce(){
   return !!result;
 }
 
+// Is this section's current form what the server has? The strings match, or
+// they differ only in key order (the server's copy and the page's list the
+// same spots in different orders): then the server's form is updated to
+// this one, so the next check is a plain compare. Comparing strings alone
+// read every sync as an unsent change, which kept a tablet left overnight
+// from reloading for the new day (Oct 25 2026).
+function stateSectionSaved(name, str){
+  if(str === savedSections[name]) return true;
+  if(!(name in stateBase)) return false;
+  if(stateDiff(stateBase[name] || {}, JSON.parse(str)).length) return false;
+  savedSections[name] = str;
+  return true;
+}
+
 // Changes this page made that the server hasn't taken yet.
 function stateHasUnsent(){
   const sections = stateSections(stateSnapshot());
-  return Object.keys(sections).some(name => name in stateBase && sections[name] !== savedSections[name]);
+  return Object.keys(sections).some(name => name in stateBase && !stateSectionSaved(name, sections[name]));
 }
 
 // The server's latest copy of some sections: keep this page's changes the
@@ -190,6 +278,14 @@ function stateAdoptServer(serverSections, versions, sent){
     stateVersions[name] = versions[name];
   });
   stateAdoptLocal(parts);
+  // The server's copy of every section the carried outbox touches is here now.
+  if(outboxCarry && Object.keys(outboxCarry).every(n => names.includes(n))){
+    const carry = outboxCarry, cur = stateSections(stateSnapshot()), again = {};
+    outboxCarry = null;
+    Object.entries(carry).forEach(([n, ops]) => { if(STATE_SECTIONS[n]) again[n] = stateApplyOps(JSON.parse(cur[n]), ops); });
+    stateAdoptLocal(again);
+    setTimeout(saveState, 0);
+  }
   return true;
 }
 
@@ -235,7 +331,8 @@ let saveRetryTimer = null, saveRetryN = 0;
 function saveState(){
   // The forecast refills Know the Numbers when what it reads has changed (forecast.js).
   if(typeof fcAutoCheck === 'function') fcAutoCheck();
-  if(saveInFlight){ saveAgain = true; return saveInFlight; }
+  // A change made while a save is out goes in the outbox now, not when that save ends.
+  if(saveInFlight){ saveAgain = true; outboxWrite(outboxPending()); return saveInFlight; }
   if(saveRetryTimer){ clearTimeout(saveRetryTimer); saveRetryTimer = null; }
   saveInFlight = (async ()=>{
     let ok = true;
@@ -313,7 +410,17 @@ async function loadState(){
   if(document.readyState === 'loading') await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve, {once: true}));
   stateStartSync();
   let data = null;
-  const loaded = await statePost('/api/state/load', {});
+  // The page's first lines already asked (the head of the HTML), so the data
+  // came down while the scripts loaded; a later load (a manager signing in)
+  // asks again.
+  const early = window.stateEarlyLoad;
+  window.stateEarlyLoad = null;
+  const got = early ? await early : null;
+  let loaded;
+  if(got && got.reply){
+    loaded = got.reply;
+    serverClockNote(loaded.now, got.sentAt, got.gotAt);
+  } else loaded = await statePost('/api/state/load', {});
   if(loaded && loaded.sections && Object.keys(loaded.sections).length){
     data = {};
     Object.entries(loaded.sections).forEach(([name, str])=>{
@@ -350,6 +457,7 @@ async function loadState(){
     // The server couldn't be reached: count what this page starts with as
     // the base, so only changes made here are sent once it's back (merged
     // into whatever the server has, never replacing it).
+    outboxCarry = outboxRead();
     const start = stateSections(stateSnapshot());
     Object.keys(start).forEach(name=>{
       stateBase[name] = JSON.parse(start[name]);
@@ -357,6 +465,8 @@ async function loadState(){
       stateVersions[name] = '?';
     });
   }
+  // Changes a reload cut off before they reached the server go out again.
+  if(!outboxCarry && outboxReplay()) saveState();
   if(data){
     const migrated = migrateLegacyWeekdayKeys();
     // Log finished set ups and numbers before the two-week prune removes them.
@@ -654,7 +764,7 @@ function stateUserBusy(){
 function stateEverythingSaved(){
   if(saveInFlight || stateSyncing) return false;
   const current = stateSections(stateSnapshot());
-  return Object.keys(current).every(name => current[name] === savedSections[name]);
+  return Object.keys(current).every(name => stateSectionSaved(name, current[name]));
 }
 
 function stateMidEdit(){

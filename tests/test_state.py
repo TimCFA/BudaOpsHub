@@ -406,6 +406,70 @@ class PatchTest(unittest.TestCase):
         self.assertLess(len(r.get_data()), 2000)
 
 
+class EtagRef(FakeRef):
+    """The fake with Firebase's conditional write (ETags)."""
+    @staticmethod
+    def tag(value):
+        return str(hash(json.dumps(value, sort_keys=True)))
+
+    def get(self, etag=False):
+        value = super().get()
+        return (value, self.tag(value)) if etag else value
+
+    def set_if_unchanged(self, expected, value):
+        current = store.get(self.path)
+        if self.tag(current) != expected:
+            return False, current, self.tag(current)
+        store[self.path] = value
+        return True, value, self.tag(value)
+
+
+class DeployOverlapTest(unittest.TestCase):
+    """During a deploy the old and the new server both run for a moment. A
+    save on one must never write over a save the other took (shift
+    simulator, Oct 25 2026: the new server wrote its older copy of Set Ups
+    over the old one's saves)."""
+
+    K = 'foh||2026-10-26||Lunch (10:30-1:00)||'
+
+    def setUp(self):
+        appmod.db.reference = lambda path: EtagRef(path)
+        appmod._cache.clear()
+        appmod._etags.clear()
+        appmod._cache_ready = False
+        store.clear()
+        store['appState'] = json.dumps(LEGACY)
+        self.phone = appmod.app.test_client()
+        self.loaded = self.phone.post('/api/state/load', json={}).get_json()
+
+    def other_server_saves(self, key, name):
+        data = section('setups')
+        data['posAssignments'][self.K + key] = name
+        store['state/setups'] = json.dumps(data)
+
+    def save(self, key, name):
+        return self.phone.post('/api/state/patch', json={'patches': {'setups': {'ver': self.loaded['versions']['setups'],
+            'ops': [{'o': 'set', 'p': ['posAssignments', self.K + key], 'v': name}]}}}).get_json()
+
+    def test_first_save_after_a_start_keeps_the_other_servers_saves(self):
+        self.other_server_saves('iPOS 1', 'Avery Test')      # after this server read the data
+        self.save('Drinks 1', 'Blake Test')
+        pa = section('setups')['posAssignments']
+        self.assertEqual([pa.get(self.K + 'iPOS 1'), pa.get(self.K + 'Drinks 1')], ['Avery Test', 'Blake Test'])
+
+    def test_a_later_save_keeps_them_too_and_the_phone_hears_of_them(self):
+        self.save('Drinks 1', 'Blake Test')
+        self.other_server_saves('Host 1', 'Casey Test')
+        reply = self.save('Drinks 2', 'Devon Test')
+        pa = section('setups')['posAssignments']
+        self.assertEqual([pa.get(self.K + k) for k in ('Drinks 1', 'Host 1', 'Drinks 2')], ['Blake Test', 'Casey Test', 'Devon Test'])
+        # The phone gets the section back, so it shows the other server's save.
+        self.assertIn('setups', reply['sections'])
+        self.assertEqual(json.loads(reply['sections']['setups'])['posAssignments'].get(self.K + 'Host 1'), 'Casey Test')
+        # And this server's memory has it for the next phone that asks.
+        self.assertEqual(appmod._cache['setups']['data']['posAssignments'].get(self.K + 'Host 1'), 'Casey Test')
+
+
 class SafeCountTest(unittest.TestCase):
     """TIM-48: safe counts are private, team devices can only add to them,
     and the stored list moves out of 'ops' on its own."""
