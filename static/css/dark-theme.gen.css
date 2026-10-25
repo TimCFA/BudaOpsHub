@@ -318,3 +318,6 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .so-status-t b{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .so-status.is-late{border-color:#692D39;background:#2F2426;}
 :where(html[data-theme="dark"]) .so-status.is-late .so-status-t b{color:var(--ink-dark-red);}
+:where(html[data-theme="dark"]) .ts-hit{color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .ts-who h4{color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .ts-list li.is-me{background:#2F2426;}

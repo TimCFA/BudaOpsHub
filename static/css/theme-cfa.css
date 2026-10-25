@@ -2571,3 +2571,47 @@ body:not(.hc-allowed) .hc-only{display:none !important;}
 .su-dp-earlier::before,.su-dp-earlier::after{content:"";flex:1;border-top:1px solid var(--border);}
 .su-dp-earlier .es{text-transform:none;letter-spacing:0;font-weight:400;}
 .su-dp-earlier ~ .su-dp:not(.is-open){opacity:.8;}
+
+/* Schedule: your week and who's working (team-schedule.js; Tim, Oct 25 2026) */
+.ts-page{display:grid;gap:12px;max-width:640px;margin:0 auto;}
+.ts-head h2{margin:0;font-family:var(--font-display);font-size:26px;color:var(--text-primary);}
+.ts-head h2 .es-line{font-family:var(--font-ui);font-size:13px;font-weight:500;color:var(--text-tertiary);}
+.ts-head p{margin:2px 0 10px;color:var(--text-secondary);font-size:14px;}
+.ts-weeks{display:flex;gap:6px;}
+.ts-week,.ts-chip{border:1px solid var(--border);background:var(--cfa-white);color:var(--text-primary);border-radius:999px;padding:8px 14px;font:600 14px var(--font-ui);min-height:40px;cursor:pointer;}
+.ts-week .es,.ts-chip small{font-weight:500;color:var(--text-tertiary);margin-left:4px;}
+.ts-week.active,.ts-chip.active{background:var(--cfa-navy);border-color:var(--cfa-navy);color:#F6F1E8;}
+.ts-week.active .es,.ts-chip.active small{color:rgba(246,241,232,0.75);}
+.ts-card{background:var(--cfa-white);border:1px solid var(--border);border-radius:14px;padding:14px 16px;}
+.ts-card h3{margin:0;font-family:var(--font-display);font-size:20px;}
+.ts-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;}
+.ts-card-head p{margin:2px 0 0;color:var(--text-secondary);font-size:13px;}
+.ts-mine{border-left:4px solid var(--cfa-red);}
+.ts-days{list-style:none;margin:0;padding:0;}
+.ts-day{display:grid;grid-template-columns:72px 1fr;gap:10px;padding:10px 0;border-top:1px solid var(--border);align-items:baseline;}
+.ts-day:first-child{border-top:none;}
+.ts-day-name{font-weight:700;font-size:15px;}
+.ts-day-name small{display:block;font-weight:500;font-size:12px;color:var(--text-tertiary);}
+.ts-day-shifts{font-size:16px;font-variant-numeric:tabular-nums;line-height:1.5;}
+.ts-day-shifts em{font-style:normal;font-size:12px;color:var(--text-secondary);margin-left:8px;}
+.ts-day.is-off .ts-day-shifts{color:var(--text-tertiary);}
+.ts-day.is-today{background:var(--cfa-soft);margin:0 -16px;padding:10px 16px;}
+.ts-find-label{display:block;font-weight:700;font-size:16px;margin-bottom:6px;}
+.ts-find input{width:100%;min-height:44px;font-size:16px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--cfa-white);color:var(--text-primary);}
+.ts-hits{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.ts-hits:empty{display:none;}
+.ts-hit{border:1px solid var(--cfa-navy);color:var(--cfa-navy);background:var(--cfa-white);border-radius:999px;padding:8px 14px;font:600 15px var(--font-ui);min-height:44px;cursor:pointer;}
+.ts-hint,.ts-none,.ts-foot{color:var(--text-tertiary);font-size:13px;margin:8px 0 0;}
+.ts-foot{text-align:center;margin-bottom:16px;}
+.ts-chips{display:flex;gap:6px;overflow-x:auto;padding:8px 0 4px;-webkit-overflow-scrolling:touch;}
+.ts-chip{display:flex;flex-direction:column;align-items:center;padding:6px 12px;line-height:1.2;flex:0 0 auto;}
+.ts-chip small{margin:0;font-size:11px;}
+.ts-day-title{margin:8px 0 4px;font-weight:700;color:var(--text-secondary);font-size:14px;}
+.ts-who h4{margin:12px 0 4px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--cfa-navy);}
+.ts-who h4 small{color:var(--text-tertiary);font-weight:500;}
+.ts-who h4 .es{text-transform:none;letter-spacing:0;font-weight:400;color:var(--text-tertiary);margin-left:4px;}
+.ts-list{list-style:none;margin:0;padding:0;}
+.ts-list li{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--border);font-size:15px;}
+.ts-list li:first-child{border-top:none;}
+.ts-list li b{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.ts-list li.is-me{background:#FDF3F5;margin:0 -8px;padding:7px 8px;border-radius:8px;font-weight:700;}

@@ -15,7 +15,7 @@
 // (app.py PRIVATE_SECTIONS), so signing in fetches it right away, and
 // locking reloads the page to clear it from the device.
 
-const LAUNCH_VIEWS = ['home', 'positions', 'wastelog', 'scoreboard', 'zonereset', 'foodsafety', 'safecount', 'prepboard', 'knownumbers', 'calendar', 'forms', 'manage', 'headcount'];
+const LAUNCH_VIEWS = ['home', 'positions', 'schedule', 'wastelog', 'scoreboard', 'zonereset', 'foodsafety', 'safecount', 'prepboard', 'knownumbers', 'calendar', 'forms', 'manage', 'headcount'];
 // Zone Resets and the Leader Transition List share a view; `page` picks
 // which of its cards show (data-launch-page on the cards).
 const LAUNCH_LISTS = [
