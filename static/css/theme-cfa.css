@@ -2633,6 +2633,9 @@ body:not(.hc-allowed) .hc-only{display:none !important;}
 .hc-pin-line{display:flex;align-items:center;gap:10px;margin:0 0 10px;font-size:14px;}
 .hc-pin-line b{color:var(--ok);}
 .hc-pin-line b.is-missing{color:var(--cfa-red);}
+.wi-side-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;font-size:12px;font-weight:600;}
+.wi-side-days{font-weight:400;opacity:.8;}
+.wi-side-pick{margin:0;flex-shrink:0;}
 
 /* Sign in (sign-in.js; TIM-90, Oct 25 2026) */
 .si-sheet{display:none;position:fixed;inset:0;z-index:1200;align-items:flex-end;justify-content:center;}
