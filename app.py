@@ -1151,6 +1151,51 @@ def team_role():
     return resp
 
 
+@app.route('/api/team/pin', methods=['POST'])
+def team_pin():
+    """Put someone's clock-in PIN on file ({name, pin, role?}) from Our Team
+    (Tim, Oct 25 2026): directors and the admin team, for someone on the
+    schedule with no PIN on file, or to change a PIN. It goes on the list as
+    an HMAC like every other, replaces any PIN that person had, and is never
+    sent back: nobody can view a PIN. A PIN someone else has (or the manager
+    or director PIN) is refused without saying whose it is."""
+    if not _turnover_access():
+        return jsonify({'error': 'Directors and the admin team only.'}), 403
+    body = request.get_json(silent=True) or {}
+    name = re.sub(r'\s+', ' ', str(body.get('name') or '')).strip()[:80]
+    pin = str(body.get('pin') or '').strip()
+    role = str(body.get('role') or '').strip().lower()
+    if not name:
+        return jsonify({'error': 'Whose PIN?'}), 400
+    if not TEAM_PIN_RE.match(pin):
+        return jsonify({'error': 'A clock-in PIN is 6 digits.'}), 400
+    if role and role not in TEAM_ROLES:
+        return jsonify({'error': 'Pick Team Member, Trainer, Team Lead or Admin Team.'}), 400
+    salt = _team_pin_salt(create=True)
+    key = _team_pin_key(pin, salt)
+    with _turnover_lock:
+        before = dict(db.reference(TEAM_PINS_PATH).get() or {})
+        theirs = [k for k, v in before.items() if isinstance(v, dict) and _turnover_key(v.get('name')) == _turnover_key(name)]
+        holder = before.get(key)
+        if (isinstance(holder, dict) and _turnover_key(holder.get('name')) != _turnover_key(name)) or (key not in before and _manage_pin_checker()(pin)):
+            return jsonify({'error': 'That PIN can’t be used. Pick another.'}), 400
+        if not role:
+            role = next((before[k].get('role') for k in theirs if before[k].get('role') in TEAM_ROLES), 'member')
+        rec = {'name': name, 'role': role, 'addedAt': int(time.time())}
+        db.reference(f'{TEAM_PINS_PATH}/{key}').set(rec)
+        for k in theirs:
+            if k != key:
+                db.reference(f'{TEAM_PINS_PATH}/{k}').delete()
+    after = {k: v for k, v in before.items() if k not in theirs}
+    after[key] = rec
+    if not theirs:
+        _turnover_after_pins(before, after, source='pin-added')
+    print('[TEAM] PIN put on file' + (' (changed)' if theirs else ''))
+    resp = jsonify(dict(_turnover_out(), success=True))
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
+
+
 @app.route('/api/team/departures', methods=['POST', 'DELETE'])
 def team_departures():
     """Log or update a departure ({id?, name, lastDay, type, reason, rehire}),

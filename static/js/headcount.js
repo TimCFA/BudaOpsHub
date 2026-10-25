@@ -186,7 +186,7 @@ function hcProfileHtml(){
         <span>${escapeHtml([HC_ROLE_LABELS[p.role] || '', age !== null ? `${age} years old` : '', p.hireDate ? `with us ${hcYearsMonths(p.hireDate)}` : ''].filter(Boolean).join(' · '))}</span>
         ${hcMarks(p).map(m => `<span class="hc-mark-line">${hcMarkIcon(m)} ${escapeHtml(m[2])}</span>`).join('')}
       </div>
-      ${p.isNew ? `<div class="field"><label for="hcpName">Name</label><input type="text" id="hcpName" maxlength="80" required></div>` : ''}
+      ${p.isNew ? `<div class="field"><label for="hcpName">Name</label><input type="text" id="hcpName" maxlength="80" required></div>` : `<div class="hc-pin-line">${hcHasPin(p.name) ? '<b>PIN on file</b>' : '<b class="is-missing">No PIN on file</b>'}${hcPinFor === p.name ? '' : `<button type="button" class="ld-link" data-hc-pin-open="${escapeHtml(p.name)}">${hcHasPin(p.name) ? 'Change PIN' : 'Set PIN'}</button>`}</div>`}
       <div class="hc-form-row hc-form-row3">
         <div class="field"><label for="hcpPermit">Food handler permit expires</label><input type="date" id="hcpPermit" value="${escapeHtml(p.permitExpires || '')}"></div>
         <div class="field"><label for="hcpHire">Hire date</label><input type="date" id="hcpHire" value="${escapeHtml(p.hireDate || '')}" max="${today}">${!p.hireDate && hire ? `<small class="hc-hint">New on the PIN list ${escapeHtml(hcDate(hire.date))}</small>` : ''}</div>
@@ -200,6 +200,76 @@ function hcProfileHtml(){
         <button type="button" class="btn btn-ghost" data-hc-profile-close>Close</button>
       </div>
     </form>`;
+}
+
+// ----- PIN on file (Tim, Oct 25 2026) -----
+// Who on the schedule (the last two weeks and the next two) has no clock-in
+// PIN on file, before sign-in is required for every change. A director or
+// someone on the admin team can put one on file, or change one; the server
+// keeps it scrambled and never sends it back, so nobody can view a PIN.
+let hcPinFor = null;      // the name whose PIN form is open
+const HC_PIN_DAYS = 14;
+
+function hcPinGaps(){
+  const team = (hcData && hcData.team) || [];
+  const from = hcAddDays(today, -HC_PIN_DAYS), to = hcAddDays(today, HC_PIN_DAYS);
+  const names = new Map();
+  [fohRoster, bohRoster, truckShifts, adminShifts].forEach(src => Object.entries(src || {}).forEach(([iso, list]) => {
+    if(iso < from || iso > to || !Array.isArray(list)) return;
+    list.forEach(p => { if(p && p.name && !names.has(hcKey(p.name))) names.set(hcKey(p.name), p.name); });
+  }));
+  const isDirector = n => (typeof dirList === 'function' ? dirList() : []).some(d => d && d.name && hcSame(d.name, n));
+  const scheduled = [...names.values()].filter(n => !isDirector(n));
+  const hasPin = n => team.some(t => hcKey(t.name) === hcKey(n) || hcSame(t.name, n));
+  const missing = scheduled.filter(n => !hasPin(n)).sort((a, b) => a.localeCompare(b));
+  return {scheduled: scheduled.length, missing};
+}
+function hcHasPin(name){ return ((hcData && hcData.team) || []).some(t => hcKey(t.name) === hcKey(name) || hcSame(t.name, name)); }
+
+function hcPinFormHtml(name, role){
+  return `<form class="hc-pin-form" data-hc-pin-form="${escapeHtml(name)}">
+      <label class="hc-pin-label" for="hcPinIn">${hcHasPin(name) ? 'New' : ''} 6-digit PIN for ${escapeHtml(name)}</label>
+      <div class="hc-pin-row">
+        <input id="hcPinIn" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="off" required aria-label="PIN">
+        <select id="hcPinRole" aria-label="Role">${['member', 'trainer', 'lead', 'admin'].map(r => `<option value="${r}"${r === (role || 'member') ? ' selected' : ''}>${HC_ROLE_LABELS[r]}</option>`).join('')}</select>
+        <button type="submit" class="btn btn-primary" ${hcBusy ? 'disabled' : ''}>Save PIN</button>
+        <button type="button" class="ld-link" data-hc-pin-cancel>Cancel</button>
+      </div>
+      <p class="hc-hint">Saved scrambled. Nobody can view it afterward, so tell them their PIN in person.</p>
+    </form>`;
+}
+
+function hcPinCardHtml(){
+  const {scheduled, missing} = hcPinGaps();
+  if(!scheduled) return '';
+  const have = scheduled - missing.length;
+  return `<section class="hc-card hc-pins${missing.length ? ' has-gaps' : ''}">
+      <h3 class="hc-h">PIN on file <span>${have} of ${scheduled} on the schedule</span></h3>
+      ${missing.length ? `<p class="hc-note">On the schedule in the last or next two weeks with no clock-in PIN on file. They can’t sign in until one is.</p>
+        <ul class="hc-pin-list">${missing.map(n => `<li>${hcPinFor === n ? hcPinFormHtml(n) : `<span>${escapeHtml(n)}</span><button type="button" class="btn btn-ghost" data-hc-pin-open="${escapeHtml(n)}">Set PIN</button>`}</li>`).join('')}</ul>`
+        : '<p class="hc-note hc-pins-ok">Everyone on the schedule has a PIN on file.</p>'}
+    </section>`;
+}
+
+async function hcSavePin(name){
+  const pin = (document.getElementById('hcPinIn') || {}).value || '';
+  const role = (document.getElementById('hcPinRole') || {}).value || '';
+  if(!/^\d{6}$/.test(pin)){ showToast('A clock-in PIN is 6 digits.'); return; }
+  hcBusy = true;
+  try{
+    const res = await fetch(`${API_BASE}/api/team/pin`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, pin, role})});
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok){ showToast(data.error || 'Couldn’t save the PIN. Try again.'); return; }
+    hcData = data;
+    hcPinFor = null;
+    if(hcProfile && hcKey(hcProfile.name) === hcKey(name)) hcProfile.role = role;
+    showToast(`PIN on file for ${name}`);
+  }catch(err){
+    showToast('Couldn’t reach the server. Try again.');
+  }finally{
+    hcBusy = false;
+    renderHeadcountView();
+  }
 }
 
 // ----- Permit dates from a spreadsheet (Tim, Oct 20 2026) -----
@@ -469,9 +539,11 @@ function renderHeadcountView(){
       ${hcForm ? '' : '<button type="button" class="btn btn-primary" data-hc-new>Log a departure</button>'}
     </div>
     ${empty ? '<p class="hc-note hc-start">The count starts with the store’s PIN report: upload it in Manage → Accounts (Tim). Everyone with a clock-in PIN counts, and each new report shows who left.</p>' : hcSummaryHtml(s)}
+    ${hcPinCardHtml()}
     ${hcForm ? hcFormHtml() : ''}
     ${hcImport ? hcImportHtml() : ''}
     ${hcProfile ? hcProfileHtml() : ''}
+    ${hcProfile && !hcProfile.isNew && hcPinFor === hcProfile.name ? hcPinFormHtml(hcProfile.name, hcProfile.role) : ''}
     ${hcPendingHtml(s)}
     ${hcTeamHtml()}
     ${hcDeparturesHtml(s)}
@@ -501,6 +573,8 @@ document.getElementById('headcountRoot').addEventListener('click', async e => {
   const t = e.target.closest('button');
   if(!t) return;
   if(t.hasAttribute('data-hc-retry')){ hcLoad(true); return; }
+  if(t.dataset.hcPinOpen){ hcPinFor = t.dataset.hcPinOpen; renderHeadcountView(); const box = document.getElementById('hcPinIn'); if(box) box.focus(); return; }
+  if(t.hasAttribute('data-hc-pin-cancel')){ hcPinFor = null; renderHeadcountView(); return; }
   if(t.dataset.hcProfile){
     const team = (hcData.team || []).find(x => hcKey(x.name) === hcKey(t.dataset.hcProfile));
     hcProfile = {name: t.dataset.hcProfile, role: team ? team.role : '', ...(hcProfileFor(t.dataset.hcProfile) || {})};
@@ -574,6 +648,8 @@ document.getElementById('headcountRoot').addEventListener('input', e => {
 });
 
 document.getElementById('headcountRoot').addEventListener('submit', async e => {
+  const pinForm = e.target.closest('[data-hc-pin-form]');
+  if(pinForm){ e.preventDefault(); e.stopPropagation(); if(!hcBusy) hcSavePin(pinForm.dataset.hcPinForm); return; }
   if(e.target.closest('[data-hc-profile-form]')){ e.preventDefault(); if(!hcBusy) hcSaveProfile(); return; }
   if(!e.target.closest('[data-hc-form]')) return;
   e.preventDefault();

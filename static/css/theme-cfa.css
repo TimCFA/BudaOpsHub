@@ -2617,3 +2617,19 @@ body:not(.hc-allowed) .hc-only{display:none !important;}
 .ts-list li:first-child{border-top:none;}
 .ts-list li b{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;}
 .ts-list li.is-me{background:#FDF3F5;margin:0 -8px;padding:7px 8px;border-radius:8px;font-weight:700;}
+
+/* PIN on file (headcount.js; Tim, Oct 25 2026) */
+.hc-pins.has-gaps{border-left:4px solid var(--cfa-red);}
+.hc-pins-ok{margin:0;color:var(--ok);font-weight:600;}
+.hc-pin-list{list-style:none;margin:0;padding:0;}
+.hc-pin-list li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid var(--border);font-size:15px;}
+.hc-pin-list li:first-child{border-top:none;}
+.hc-pin-list .hc-pin-form{flex:1;}
+.hc-pin-form{background:var(--cfa-soft);border-radius:12px;padding:10px 12px;margin:0 0 12px;}
+.hc-pin-label{display:block;font-weight:700;font-size:14px;margin-bottom:6px;}
+.hc-pin-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+.hc-pin-row input{width:9ch;min-height:44px;font-size:20px;letter-spacing:.25em;text-align:center;border:1px solid var(--border);border-radius:10px;background:var(--cfa-white);color:var(--text-primary);}
+.hc-pin-row select{min-height:44px;border:1px solid var(--border);border-radius:10px;background:var(--cfa-white);color:var(--text-primary);padding:0 8px;}
+.hc-pin-line{display:flex;align-items:center;gap:10px;margin:0 0 10px;font-size:14px;}
+.hc-pin-line b{color:var(--ok);}
+.hc-pin-line b.is-missing{color:var(--cfa-red);}
