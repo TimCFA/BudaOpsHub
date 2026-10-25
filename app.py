@@ -528,20 +528,34 @@ else:
 
 # ===== SERVE ROUTES =====
 
-# The page's scripts and stylesheets are stamped with the build (Tim, Oct 23
-# 2026: Home took ten seconds on a phone). Unstamped, each of the 70-odd
-# files was asked about again on every load; stamped, the browser keeps them
-# until the next deploy changes the stamp, so a reload fetches only the page
-# and its data. The page itself is always asked for fresh.
+# The page's scripts and stylesheets are stamped (Tim, Oct 23 2026: Home took
+# ten seconds on a phone). Unstamped, each of the 70-odd files was asked about
+# again on every load; stamped, the browser keeps them, so a reload fetches
+# only the page and its data. The page itself is always asked for fresh.
+# Each file carries a fingerprint of its own contents, not the build (Oct 25
+# 2026): with the build, every deploy sent every phone all 85 files again
+# (9 s on a slow connection) though only a few had changed; now a phone
+# fetches just the ones that did.
 _PAGE_HTML = {}
-_STAMP_RE = re.compile(r'((?:src|href)="/static/[^"?#]+\.(?:js|css))"')
+_STAMP_RE = re.compile(r'((?:src|href)="(/static/[^"?#]+\.(?:js|css)))"')
+_STAMPS = {}
+
+def _file_stamp(path):
+    """A short fingerprint of a /static/... file's contents."""
+    if path not in _STAMPS:
+        try:
+            with open(path.lstrip('/'), 'rb') as f:
+                _STAMPS[path] = hashlib.sha256(f.read()).hexdigest()[:12]
+        except OSError:
+            _STAMPS[path] = None
+    return _STAMPS[path]
 
 def _page_html():
     if BUILD not in _PAGE_HTML:
         with open('cfa-buda-ops-hub-complete.html', encoding='utf-8') as f:
             html = f.read()
         _PAGE_HTML.clear()
-        _PAGE_HTML[BUILD] = _STAMP_RE.sub(lambda m: f'{m.group(1)}?v={BUILD}"', html)
+        _PAGE_HTML[BUILD] = _STAMP_RE.sub(lambda m: f'{m.group(1)}?v={_file_stamp(m.group(2)) or BUILD}"', html)
     return _PAGE_HTML[BUILD]
 
 @app.route('/')
@@ -552,7 +566,9 @@ def serve_html():
 
 @app.after_request
 def _cache_stamped_static(response):
-    if request.path.startswith('/static/') and request.args.get('v') == BUILD and response.status_code == 200:
+    v = request.args.get('v')
+    if (v and request.path.startswith('/static/') and response.status_code == 200
+            and v in (_file_stamp(request.path), BUILD)):
         response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
     return response
 
