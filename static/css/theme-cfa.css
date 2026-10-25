@@ -2727,3 +2727,9 @@ body:not(.hc-allowed) .hc-only{display:none !important;}
 .si-form .btn{min-height:48px;}
 .si-hint{margin:6px 0 0;font-size:12.5px;color:var(--text-tertiary);}
 .si-out{margin-top:8px;}
+
+/* The phone's keyboard (state-and-utils.js kbSync; Tim, Oct 25 2026): while
+   it's up, an open sheet sits in the part of the screen still showing, not
+   under the keyboard, and scrolls inside if it's taller than that. */
+.kb-open .overlay.active,.kb-open .si-sheet.active,.kb-open .rn-evs.is-open{inset:auto 0 auto 0;top:var(--vvt,0);height:var(--vvh,100%);}
+.kb-open .overlay.active > .sheet,.kb-open .si-sheet.active > .si-card,.kb-open .rn-evs.is-open > .rn-evs-card{max-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}

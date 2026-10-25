@@ -108,6 +108,35 @@ if(initialsBadgeEl){
   initialsBadgeEl.addEventListener('click', () => { if(typeof siOpen === 'function') siOpen(); });
 }
 
+// ----- The phone's keyboard (Tim, Oct 25 2026) -----
+// On iOS the keyboard covers the bottom of the screen, and a sheet pinned to
+// the bottom (Add Team Member, Sign in, an event, the spot picker) ended up
+// under it, the box being typed in out of sight. While the keyboard is up,
+// the part of the page still showing (the visual viewport) is kept in --vvt
+// and --vvh, the open sheets sit inside it (theme-cfa.css, .kb-open), and
+// the box being typed in is scrolled into view.
+const KB_SHEETS = '.overlay, .si-sheet, .rn-evs';
+function kbSync(){
+  const vv = window.visualViewport;
+  if(!vv) return;
+  const root = document.documentElement;
+  const hidden = window.innerHeight - vv.height;          // keyboard (and any zoom)
+  root.style.setProperty('--vvt', Math.round(vv.offsetTop) + 'px');
+  root.style.setProperty('--vvh', Math.round(vv.height) + 'px');
+  root.classList.toggle('kb-open', hidden > 120 && vv.scale <= 1.01);
+}
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize', kbSync);
+  window.visualViewport.addEventListener('scroll', kbSync);
+  kbSync();
+}
+document.addEventListener('focusin', e => {
+  const el = e.target;
+  if(!el || !el.matches || !el.matches('input, textarea, select') || !el.closest(KB_SHEETS)) return;
+  // Once the keyboard is up (iOS takes a moment), bring the box into view.
+  setTimeout(() => { kbSync(); el.scrollIntoView({block: 'center'}); }, 350);
+});
+
 function toLocalISODate(d){
   // Avoids the classic toISOString() UTC-shift bug, where a local date can
   // silently become the next/previous calendar day depending on timezone
