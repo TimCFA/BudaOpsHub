@@ -52,8 +52,8 @@ function siOpen(reason){
   siReason = reason || (siIdentity.required && !siSignedIn() && !siIdentity.device ? 'Sign in with your clock-in PIN to make changes.' : '');
   const sheet = document.getElementById('siSheet');
   if(!sheet) return;
-  siDraw();
   sheet.classList.add('active');
+  siDraw();                      // after it shows, so Google's button can draw
   const pin = document.getElementById('siPin');
   if(pin) setTimeout(() => pin.focus(), 50);
 }
@@ -81,9 +81,11 @@ function siDraw(){
       <label for="siPin">${handOver ? 'A Team Lead’s clock-in PIN' : 'Clock-in PIN'}</label>
       <input id="siPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" required>
       <button type="submit" class="btn btn-primary" ${siBusy ? 'disabled' : ''}>Sign in</button>
-      <p class="si-hint">Your 6-digit clock-in PIN. Directors can also sign in with Google in Manage.</p>
+      <p class="si-hint">Your 6-digit clock-in PIN.</p>
       ${siIdentity.required ? '' : '<button type="button" class="ld-link" data-si-initials>Use initials instead</button>'}
-    </form>`}`;
+    </form>${!handOver && typeof acGoogleClientId !== 'undefined' && acGoogleClientId ? `
+    <div class="ac-or"><span>or</span></div><div id="siGoogleBtn" class="ac-google"></div><p class="si-hint">Directors: your store Google account.</p>` : ''}`}`;
+  if(typeof acMountGoogle === 'function') acMountGoogle();
 }
 
 async function siSignIn(pin){

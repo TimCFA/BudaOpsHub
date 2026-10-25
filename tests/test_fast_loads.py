@@ -78,7 +78,8 @@ class Deferred(unittest.TestCase):
         self.assertIn('data-src="https://app.levelset.io/public/positional-excellence/', page)
         self.assertNotIn('src="https://app.levelset.io/public/positional-excellence/TJXV5MLEXJZC" \n', page.replace('data-src', 'x'))
         self.assertIn("panel.querySelectorAll('iframe[data-src]').forEach(f => { if(!f.src) f.src = f.dataset.src; });", read('static', 'js', 'navigation.js'))
-        self.assertIn("if(view && !view.classList.contains('active')) return;", read('static', 'js', 'accounts.js'))
+        # Google's script only once a sign-in screen shows (Manage's PIN screen or the sign-in sheet).
+        self.assertIn("filter(h => h && h.offsetParent !== null && !h.childElementCount);\n  if(!hosts.length) return;", read('static', 'js', 'accounts.js'))
 
 
 if __name__ == '__main__':

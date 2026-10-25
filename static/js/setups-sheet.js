@@ -251,7 +251,7 @@ function suNoteSheetHtml(section, date, dp, m, slot){
     <div class="su-notes-sign">${ini ? `Signed <b>${escapeHtml(ini)}</b> at ${escapeHtml(formatShortTime(Date.now()))}${esHtml('Signed')}` : `Say who you are (top right) to sign a note${esLine('Say who you are (top right) to sign a note')}`}</div>
     <div class="su-person-actions">
       <button type="button" class="su-btn-line" data-su-close-sheet="1">Cancel${esLine('Cancel')}</button>
-      ${ini ? `<button type="button" class="su-btn-dark" data-su-note-save="1">Add note${esLine('Add note')}</button>` : `<button type="button" class="su-btn-dark" data-su-note-initials="1">Set initials${esLine('Set initials')}</button>`}
+      ${ini ? `<button type="button" class="su-btn-dark" data-su-note-save="1">Add note${esLine('Add note')}</button>` : `<button type="button" class="su-btn-dark" data-su-note-initials="1">Sign in${esLine('Sign in')}</button>`}
     </div>`;
   return suSheetFrame(`Note · ${slot}`, body);
 }

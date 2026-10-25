@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 import base64
 import gzip
 import hashlib
+from html import escape as _html_escape
 import hmac
 import json
 import os
@@ -557,8 +558,15 @@ def _page_html():
     if BUILD not in _PAGE_HTML:
         with open('cfa-buda-ops-hub-complete.html', encoding='utf-8') as f:
             html = f.read()
+        html = _STAMP_RE.sub(lambda m: f'{m.group(1)}?v={_file_stamp(m.group(2)) or BUILD}"', html)
+        # The Google button's client ID rides in the page, so the button
+        # never waits on (or goes missing with) the status check (Tim, Oct 25
+        # 2026: "sometimes it's not showing up"). Public by design.
+        if GOOGLE_CLIENT_ID:
+            meta = f'<meta name="google-client-id" content="{_html_escape(GOOGLE_CLIENT_ID)}">'
+            html = html.replace('<meta charset="UTF-8">', '<meta charset="UTF-8">\n' + meta, 1)
         _PAGE_HTML.clear()
-        _PAGE_HTML[BUILD] = _STAMP_RE.sub(lambda m: f'{m.group(1)}?v={_file_stamp(m.group(2)) or BUILD}"', html)
+        _PAGE_HTML[BUILD] = html
     return _PAGE_HTML[BUILD]
 
 @app.route('/')

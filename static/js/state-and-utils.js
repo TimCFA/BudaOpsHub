@@ -94,19 +94,13 @@ function formatShortTime(ts){
 function renderInitialsBadge(){
   const badge = document.getElementById('initialsBadge');
   if(!badge) return;
-  // Signed in (or a shared device): their first name; sign-in required and
-  // nobody signed in: "Sign in" (sign-in.js opens the sheet either way).
-  if(siIdentity.name || siIdentity.device || siIdentity.required){
-    const who = siIdentity.name ? siIdentity.name.split(/\s+/)[0] : siIdentity.device;
-    badge.innerHTML = who ? `${escapeHtml(who)} ▾` : `Sign in ▾${typeof esLine === 'function' ? esLine('Sign in') : ''}`;
-    badge.title = who ? 'Who’s signed in on this device' : 'Sign in with your clock-in PIN';
-    return;
-  }
-  const current = getInitials();
-  // No initials yet: the prompt in Spanish too (spanish.js loads after this
-  // file and draws the badge again).
-  if(current || typeof esLine !== 'function') badge.textContent = (current || 'Set initials') + ' ▾';
-  else badge.innerHTML = `Set initials ▾${esLine('Set initials')}`;
+  // Signed in (or a shared device): their first name. Nobody signed in:
+  // "Sign in", so it's on every page, not only Manage (Tim, Oct 25 2026);
+  // sign-in.js opens the sheet, which still offers typed initials until
+  // sign-in is required.
+  const who = siIdentity.name ? siIdentity.name.split(/\s+/)[0] : siIdentity.device;
+  badge.innerHTML = who ? `${escapeHtml(who)} ▾` : `Sign in ▾${typeof esLine === 'function' ? esLine('Sign in') : ''}`;
+  badge.title = who ? 'Who’s signed in on this device' : 'Sign in with your clock-in PIN or Google';
 }
 
 // The badge opens the sign-in sheet (sign-in.js); typed initials are its

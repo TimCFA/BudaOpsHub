@@ -16,7 +16,9 @@
 
 let acUser = null;          // {name, role, via} from the server, or null
 let acOwner = false;
-let acGoogleClientId = '';
+// Google's client ID comes in the page (app.py _page_html), so the button
+// shows even when the status check is slow or fails.
+let acGoogleClientId = (document.querySelector('meta[name="google-client-id"]') || {}).content || '';
 let acGoogleReady = false;
 let acAccounts = null;      // the owner's lists, once loaded
 let acPinRows = null;       // rows read from the pasted or dropped list, before upload
@@ -32,7 +34,7 @@ const acRoleLabel = r => AC_ROLE_LABELS[r] || r || '';
 function acApplyStatus(d){
   acUser = d && d.user && d.user.name !== undefined ? d.user : null;
   acOwner = !!(d && d.isOwner);
-  acGoogleClientId = (d && d.googleClientId) || '';
+  acGoogleClientId = (d && d.googleClientId) || acGoogleClientId;
   siIdentity = {name: (acUser && acUser.name) || (d && d.isManager ? 'Director' : ''), role: acUser ? acUser.role : '',
                 device: (d && d.device) || '', required: !!(d && d.requireSignIn), known: true};
   acRenderGate();
@@ -97,42 +99,62 @@ function acRenderGate(){
   if(acGoogleClientId) acMountGoogle();
 }
 
-// Google's script, once; then its button in the gate.
+// Google's script, once, and only when a sign-in screen shows (not on every
+// page load); then its button in each one showing: Manage's PIN screen and
+// the sign-in sheet (sign-in.js). A host that isn't on screen is drawn when
+// it is (navigation.js, siOpen). If Google's script doesn't load, "Try
+// again" asks for it once more, no reload needed.
+const AC_GOOGLE_HOSTS = ['acGoogleBtn', 'siGoogleBtn'];
 function acMountGoogle(){
-  const host = document.getElementById('acGoogleBtn');
-  if(!host) return;
-  // Google's script only once the gate shows (Manage open), not on every page load.
-  const view = document.getElementById('manageView');
-  if(view && !view.classList.contains('active')) return;
-  if(host.childElementCount) return;
+  if(!acGoogleClientId) return;
+  const hosts = AC_GOOGLE_HOSTS.map(id => document.getElementById(id)).filter(h => h && h.offsetParent !== null && !h.childElementCount);
+  if(!hosts.length) return;
+  const gsi = () => window.google && google.accounts && google.accounts.id;
   const render = () => {
-    if(!(window.google && google.accounts && google.accounts.id)) return;
+    if(!gsi()) return;
     if(!acGoogleReady){
       google.accounts.id.initialize({client_id: acGoogleClientId, callback: acGoogleCallback, auto_select: false, cancel_on_tap_outside: true});
       acGoogleReady = true;
     }
-    host.innerHTML = '';
-    google.accounts.id.renderButton(host, {type: 'standard', theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill', width: 260});
+    hosts.filter(h => document.body.contains(h)).forEach(h => {
+      h.innerHTML = '';
+      google.accounts.id.renderButton(h, {type: 'standard', theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill', width: 260});
+    });
   };
-  if(window.google && google.accounts && google.accounts.id){ render(); return; }
-  if(document.getElementById('acGsi')){ document.getElementById('acGsi').addEventListener('load', render, {once: true}); return; }
+  if(gsi()){ render(); return; }
+  const old = document.getElementById('acGsi');
+  if(old && !old.dataset.failed){ old.addEventListener('load', render, {once: true}); return; }
+  if(old) old.remove();
   const s = document.createElement('script');
   s.id = 'acGsi'; s.src = 'https://accounts.google.com/gsi/client'; s.async = true; s.defer = true;
   s.onload = render;
-  s.onerror = () => { host.innerHTML = '<p class="ac-hint">Google sign-in didn’t load. Check the connection and reload.</p>'; };
+  s.onerror = () => {
+    s.dataset.failed = '1';
+    hosts.forEach(h => { h.innerHTML = '<p class="ac-hint">Google sign-in didn’t load. <button type="button" class="ld-link" data-ac-google-retry>Try again</button></p>'; });
+  };
   document.head.appendChild(s);
 }
+document.addEventListener('click', e => {
+  if(!e.target.closest('[data-ac-google-retry]')) return;
+  AC_GOOGLE_HOSTS.forEach(id => { const h = document.getElementById(id); if(h) h.innerHTML = ''; });
+  acMountGoogle();
+});
+
 async function acGoogleCallback(resp){
-  const host = document.getElementById('acGoogleBtn');
-  if(host) host.innerHTML = '<p class="ac-hint">Checking with Google…</p>';
+  // From the sign-in sheet: stay on the page they were using.
+  const sheet = document.getElementById('siSheet');
+  const fromSheet = !!(sheet && sheet.classList.contains('active'));
+  AC_GOOGLE_HOSTS.forEach(id => { const h = document.getElementById(id); if(h) h.innerHTML = '<p class="ac-hint">Checking with Google…</p>'; });
   try{
     const res = await fetch(`${API_BASE}/api/auth/google`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({credential: resp && resp.credential})});
     const d = await res.json().catch(() => ({}));
     if(!res.ok || !d.success) throw new Error(d.error || 'Google sign-in didn’t work.');
-    await acSignedIn(Object.assign({via: 'google'}, d));
+    await acSignedIn(Object.assign({via: 'google'}, d), fromSheet);
+    if(fromSheet && typeof siClose === 'function'){ siClose(); showToast(`Signed in as ${d.name || 'Director'}`); }
   }catch(err){
     showToast(err.message);
     acRenderGate();
+    if(fromSheet && typeof siDraw === 'function') siDraw();
   }
 }
 
@@ -326,3 +348,7 @@ document.addEventListener('submit', async e => {
     if(btn && btn.isConnected){ btn.disabled = false; btn.textContent = btn.dataset.label || 'Save PINs'; }
   }
 });
+
+// Manage's PIN screen with Google's button from the start, before (or
+// without) the status check.
+acRenderGate();

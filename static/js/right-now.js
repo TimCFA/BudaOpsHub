@@ -601,6 +601,7 @@ function rnGo(g){
   else if(what === 'roster'){ rnRosterOpen = !rnRosterOpen; renderRightNow(); }
   else if(what === 'foodsafety'){ launchShowTab('foodsafety'); window.scrollTo({top: 0}); }
   else if(what === 'prepboard'){ launchShowTab('prepboard'); window.scrollTo({top: 0}); }
+  else if(what === 'signin' && typeof siOpen === 'function') siOpen();
   else if(what === 'signin'){ launchShowTab('manage'); window.scrollTo({top: 0}); const pin = document.getElementById('pinInput'); if(pin) pin.focus(); }
 }
 

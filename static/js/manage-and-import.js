@@ -56,10 +56,24 @@ document.getElementById('btnLock').addEventListener('click', async ()=>{
   showToast("Couldn't reach the server to sign out. Manage is closed here; tap Lock again once you're back online.");
 });
 
-(async function checkManagerStatus(){
+// Who's signed in, from the server. If it doesn't answer (lost signal, or
+// the minute a deploy restarts the server), ask again, a little later each
+// time and at once when the signal's back; otherwise the page carried on as
+// if nobody were signed in, Google's button and all missing (Tim, Oct 25 2026).
+let mgrStatusKnown = false, mgrStatusTries = 0, mgrStatusTimer = null;
+async function checkManagerStatus(){
+  clearTimeout(mgrStatusTimer);
+  let status;
   try{
     const res = await fetch(`${API_BASE}/api/manager/status`);
-    const status = await res.json();
+    if(!res.ok) throw new Error(`status ${res.status}`);
+    status = await res.json();
+  }catch(err){
+    mgrStatusTimer = setTimeout(checkManagerStatus, Math.min(30000, 2000 * 2 ** mgrStatusTries++));
+    return;
+  }
+  mgrStatusKnown = true;
+  try{
     const {isManager, isDirector, directorPinSet} = status;
     if(isManager){
       await stateLoaded;
@@ -77,8 +91,10 @@ document.getElementById('btnLock').addEventListener('click', async ()=>{
       if(typeof tpSetDirector === 'function') tpSetDirector(isDirector, directorPinSet);
     }
     if(typeof acApplyStatus === 'function') acApplyStatus(status);
-  }catch(err){ /* stay locked if the status check fails */ }
-})();
+  }catch(err){ console.warn('Sign-in status:', err); }
+}
+checkManagerStatus();
+window.addEventListener('online', () => { if(!mgrStatusKnown) checkManagerStatus(); });
 
 // ---- One section at a time (Tim, Oct 2026) ----
 // Manage was nine stacked groups, thirty screens tall on a phone. Now the
