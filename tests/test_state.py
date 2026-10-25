@@ -18,6 +18,15 @@ import app as appmod  # noqa: E402
 store = {}
 
 
+
+def as_lead(c):
+    """Set Ups is a Team Lead's to change (app.py LEAD_ONLY_KEYS); these
+    phones are leads'."""
+    with c.session_transaction() as sess:
+        sess['user'] = {'name': 'Casey Lead', 'role': 'lead'}
+    return c
+
+
 class FakeRef:
     def __init__(self, path):
         self.path = path.strip('/')
@@ -63,7 +72,7 @@ class StateTest(unittest.TestCase):
         appmod._cache_ready = False
         store.clear()
         store['appState'] = json.dumps(LEGACY)
-        self.c = appmod.app.test_client()
+        self.c = as_lead(appmod.app.test_client())
 
     def load_reply(self):
         return self.c.post('/api/state/load', json={}).get_json()
@@ -193,8 +202,8 @@ class PatchTest(unittest.TestCase):
         appmod._cache_ready = False
         store.clear()
         store['appState'] = json.dumps(LEGACY)
-        self.a = appmod.app.test_client()      # two phones
-        self.b = appmod.app.test_client()
+        self.a = as_lead(appmod.app.test_client())      # two phones
+        self.b = as_lead(appmod.app.test_client())
         self.loaded = self.a.post('/api/state/load', json={}).get_json()
 
     def ver(self, name, reply=None):
@@ -439,7 +448,7 @@ class DeployOverlapTest(unittest.TestCase):
         appmod._cache_ready = False
         store.clear()
         store['appState'] = json.dumps(LEGACY)
-        self.phone = appmod.app.test_client()
+        self.phone = as_lead(appmod.app.test_client())
         self.loaded = self.phone.post('/api/state/load', json={}).get_json()
 
     def other_server_saves(self, key, name):
@@ -501,20 +510,27 @@ class LeadCaptainTest(unittest.TestCase):
         return section('setups')['posAssignments']
 
     def test_signed_out_member_and_trainer_cant_change_it(self):
-        for who in (self.client(), self.client('member'), self.client('trainer'), self.client('admin')):
+        # Set Ups is a Team Lead's (Tim, Oct 25 2026): not the Lead Captain,
+        # not any spot, sign-in switch or not.
+        before = dict(self.pa())
+        for who in (self.client(), self.client('member'), self.client('trainer')):
             reply = self.save(who, [{'o': 'set', 'p': ['posAssignments', self.K + 'Lead Captain'], 'v': 'Casey Member'},
                                     {'o': 'set', 'p': ['posAssignments', self.K + 'Drinks 1'], 'v': 'Devon Test'}])
-            self.assertTrue(reply['success'])
-            self.assertEqual(self.pa()[self.K + 'Lead Captain'], 'Avery Lead')     # unchanged
-            self.assertEqual(self.pa()[self.K + 'Drinks 1'], 'Devon Test')         # the rest still saves
-            self.assertIn('setups', reply['sections'])                              # the page hears who leads
+            self.assertTrue(reply['success'])                                       # not refused: an old page settles
+            self.assertEqual(self.pa(), before)                                     # nothing changed
+            self.assertIn('setups', reply['sections'])                              # the page gets Set Ups back
             self.save(who, [{'o': 'del', 'p': ['posAssignments', self.K + 'Lead Captain']}])
-            self.assertEqual(self.pa()[self.K + 'Lead Captain'], 'Avery Lead')     # and can't clear it
+            self.assertEqual(self.pa(), before)
 
-    def test_a_whole_list_save_keeps_the_saved_lead(self):
+    def test_a_whole_list_save_keeps_the_saved_list(self):
+        before = dict(self.pa())
         whole = {self.K + 'iPOS 1': 'Blake Test', self.K + 'Host 1': 'Emery Test', self.K + 'Lead Captain': 'Casey Member'}
         self.save(self.client('member'), [{'o': 'set', 'p': ['posAssignments'], 'v': whole}])
-        self.assertEqual(self.pa(), {self.K + 'iPOS 1': 'Blake Test', self.K + 'Host 1': 'Emery Test', self.K + 'Lead Captain': 'Avery Lead'})
+        self.assertEqual(self.pa(), before)
+
+    def test_breaks_are_not_a_leads_only(self):
+        self.save(self.client('member'), [{'o': 'set', 'p': ['completedBreaks', 'foh||2026-10-26||Blake Test'], 'v': True}])
+        self.assertTrue(section('setups')['completedBreaks']['foh||2026-10-26||Blake Test'])
 
     def test_a_team_lead_and_a_director_can(self):
         self.save(self.client('lead'), [{'o': 'set', 'p': ['posAssignments', self.K + 'Lead Captain'], 'v': 'Finley Lead'}])
@@ -722,7 +738,7 @@ class LoadFromMemoryTest(unittest.TestCase):
         appmod._cache_ready = False
         store.clear()
         store['appState'] = json.dumps(LEGACY)
-        self.c = appmod.app.test_client()
+        self.c = as_lead(appmod.app.test_client())
         self.first = self.c.post('/api/state/load', json={}).get_json()
         self.gets.clear()
 
@@ -750,7 +766,7 @@ class LoadFromMemoryTest(unittest.TestCase):
         self.read_seconds = 0.3      # a slow read, so they all arrive during it
         appmod._cache.clear()
         appmod._cache_ready = False
-        clients = [appmod.app.test_client() for _ in range(6)]
+        clients = [as_lead(appmod.app.test_client()) for _ in range(6)]
         threads = [threading.Thread(target=lambda c=c: c.post('/api/state/sync', json={'versions': {}}), daemon=True) for c in clients]
         for t in threads:
             t.start()
@@ -865,7 +881,7 @@ class ExportTest(unittest.TestCase):
         store['state/setups'] = json.dumps({'posAssignments': {'foh||2026-10-06||Lunch||iPOS 1': 'Maya Torres'}})
         store['state/safe'] = json.dumps({'safeCounts': [{'date': '2026-10-06', 'total': 4500}]})
         store['secure/managerPinHash'] = 'pbkdf2:sha256:secret-hash'
-        self.c = appmod.app.test_client()
+        self.c = as_lead(appmod.app.test_client())
 
     def manager(self):
         with self.c.session_transaction() as sess:
@@ -914,7 +930,7 @@ class EventsGateTest(unittest.TestCase):
         for name in appmod.STATE_SECTIONS:
             store[f'state/{name}'] = json.dumps({})
         store['state/manager'] = json.dumps({'storeEvents': [{'id': 'a', 'title': 'Family Night'}]})
-        self.c = appmod.app.test_client()
+        self.c = as_lead(appmod.app.test_client())
         self.c.post('/api/state/load', json={})
 
     def save(self, sections):

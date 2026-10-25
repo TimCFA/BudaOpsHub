@@ -910,6 +910,7 @@ window.removeFromRoster = async function(name){
 };
 
 document.getElementById('btnAddTeamMember').addEventListener('click', ()=>{
+  if(typeof siMayChange === 'function' && !siMayChange('fohRoster')){ siOpen(siWhy(['fohRoster'])); return; }
   const dayName = document.getElementById('daySelect').value;
   if(!dayName){
     showToast('Select a day first');

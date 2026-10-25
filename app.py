@@ -1871,7 +1871,8 @@ def _state_reply(names):
     to recent entries for team devices."""
     shown = lambda name: session.get('manager') or name not in PRIVATE_SECTIONS
     return {
-        'sections': {name: _dumps(_section_for_session(name, _cache[name]['data'])) for name in names if shown(name)},
+        # A section never saved yet (nothing in the cache) goes back empty.
+        'sections': {name: _dumps(_section_for_session(name, (_cache.get(name) or {}).get('data') or {})) for name in names if shown(name)},
         'versions': {name: entry['ver'] for name, entry in _cache.items() if shown(name)},
         'build': BUILD,
         'now': int(time.time() * 1000),   # the shared clock for timers (serverNow)
@@ -1968,6 +1969,18 @@ def _lead_captain_ops(ops, current):
 MEMBER_SECTIONS = {'waste', 'ops', 'prep', 'prepLive', 'prepTimes', 'history', 'misc'}
 DEVICE_KEYS = set(STATE_SECTIONS['waste']) | {'zoneChecklistState', 'zoneChecklistHistory', 'prepMade', 'prepTimes', 'prepTimers'}
 IDENTITY_FIELDS = ('by', 'initials', 'who', 'flaggedBy', 'noteBy', 'resolvedBy', 'removedBy', 'countedBy')
+
+# Set Ups' positions and its roster are a Team Lead's, a director's or the
+# admin team's to change, with the sign-in switch on or off (Tim, Oct 25 2026:
+# devices nobody signed in on, Team Members and Trainers could still move
+# people). Breaks stay with the switch's rules.
+LEAD_ONLY_KEYS = set(STATE_SECTIONS['rosters']) | (set(STATE_SECTIONS['setups']) - {'breakCountdowns', 'completedBreaks'})
+
+def _lead_or_up():
+    if session.get('manager'):
+        return True
+    user = session.get('user') if isinstance(session.get('user'), dict) else {}
+    return user.get('role') == 'lead'
 
 def _may_change(key):
     if session.get('manager'):
@@ -2095,6 +2108,10 @@ def state_patch():
                 if name == 'setups' and not _can_choose_lead():
                     ops, lead_dropped = _lead_captain_ops(ops, entry['data'])
                     dropped = dropped or lead_dropped
+                if not _lead_or_up():
+                    allowed = [op for op in ops if op['p'][0] not in LEAD_ONLY_KEYS]
+                    if len(allowed) != len(ops):
+                        dropped, ops = True, allowed
                 if require:
                     allowed = [op for op in ops if _may_change(op['p'][0])]
                     if len(allowed) != len(ops):
@@ -2409,6 +2426,8 @@ def state_save():
     incoming = data.get('sections')
     if not isinstance(incoming, dict) or not incoming:
         return jsonify({'error': 'No sections to save'}), 400
+    if not _lead_or_up() and ({'setups', 'rosters'} & set(incoming)):
+        return jsonify({'error': 'Team Leads change Set Ups. Sign in and reload the page.'}), 403
     total = 0
     parsed = {}
     for name, value in incoming.items():
@@ -2484,6 +2503,8 @@ def firebase_write():
     path, error = _state_path_or_error(data)
     if error:
         return error
+    if not _lead_or_up() and str(path).strip('/').split('/')[-1] in ('setups', 'rosters'):
+        return jsonify({'error': 'Team Leads change Set Ups. Sign in and reload the page.'}), 403
     value = data.get('value')
 
     # The app state is saved as one JSON string holding an object.

@@ -21,7 +21,20 @@ let siBusy = false;
 let siDevices = null;     // Manage: the shared devices, once loaded
 
 function siSignedIn(){ return !!(siIdentity.name || (typeof launchManager !== 'undefined' && launchManager)); }
+// Set Ups' positions and its roster: Team Leads, directors and the admin
+// team only, switch on or off (app.py LEAD_ONLY_KEYS). Until the server has
+// said who's signed in here, the page doesn't guess; the server decides.
+const SI_ANY_SIGN_IN_KEYS = ['breakCountdowns', 'completedBreaks'];
+function siLeadKey(key){
+  const section = STATE_SECTION_OF[key];
+  return section === 'rosters' || (section === 'setups' && !SI_ANY_SIGN_IN_KEYS.includes(key));
+}
+function siLeadOrUp(){
+  if(typeof launchManager !== 'undefined' && launchManager) return true;
+  return !!siIdentity.name && ['lead', 'admin', 'director', 'manager'].includes(siIdentity.role);
+}
 function siMayChange(key){
+  if(siIdentity.known && siLeadKey(key) && !siLeadOrUp()) return false;
   if(!siIdentity.required) return true;
   if(typeof launchManager !== 'undefined' && launchManager) return true;
   const role = siIdentity.name ? siIdentity.role : '';
@@ -32,9 +45,9 @@ function siMayChange(key){
 }
 // Why a change was put back, in a line.
 function siWhy(keys){
-  if(!siSignedIn() && !siIdentity.device) return 'Sign in with your clock-in PIN to make changes.';
   const sections = new Set(keys.map(k => STATE_SECTION_OF[k] || 'misc'));
   if(sections.has('setups') || sections.has('rosters')) return 'Team Leads change Set Ups. Sign in with your clock-in PIN.';
+  if(!siSignedIn() && !siIdentity.device) return 'Sign in with your clock-in PIN to make changes.';
   if(sections.has('safe')) return 'Team Leads do the Safe Count. Sign in with your clock-in PIN.';
   return 'That needs your own sign-in. Sign in with your clock-in PIN.';
 }
@@ -93,7 +106,7 @@ function siDraw(){
       <input id="siPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" required>
       <button type="submit" class="btn btn-primary" ${siBusy ? 'disabled' : ''}>Sign in</button>
       <p class="si-hint">Your 6-digit clock-in PIN.</p>
-      ${siIdentity.required ? '' : '<button type="button" class="ld-link" data-si-initials>Use initials instead</button>'}
+      ${siIdentity.required || siReason ? '' : '<button type="button" class="ld-link" data-si-initials>Use initials instead</button>'}
     </form>${!handOver && typeof acGoogleClientId !== 'undefined' && acGoogleClientId ? `
     <div class="ac-or"><span>or</span></div><div id="siGoogleBtn" class="ac-google"></div><p class="si-hint">Directors: your store Google account.</p>` : ''}`}`;
   if(typeof acMountGoogle === 'function') acMountGoogle();
@@ -135,7 +148,7 @@ document.addEventListener('click', e => {
 // counts as sent) never holds a change the server would drop.
 let siQuiet = false;      // the page's own upkeep at load (nobody tapped anything)
 function siGateLocal(){
-  if(!siIdentity.required) return;
+  if(!siIdentity.known) return;
   const current = stateSections(stateSnapshot()), parts = {}, blocked = [];
   Object.keys(current).forEach(name => {
     if(!(name in stateBase) || current[name] === savedSections[name]) return;
@@ -168,7 +181,7 @@ function siRenderSettings(){
   root.innerHTML = `
     <label class="launch-setting">
       <input type="checkbox" data-si-require ${siIdentity.required ? 'checked' : ''}>
-      <span><b>${siIdentity.required ? 'On' : 'Off'}</b> — ${siIdentity.required ? 'every change needs a sign-in: a clock-in PIN, Google, or a shared store device.' : 'devices nobody signed in on can still make changes, signed with typed initials.'}</span>
+      <span><b>${siIdentity.required ? 'On' : 'Off'}</b> — ${siIdentity.required ? 'every change needs a sign-in: a clock-in PIN, Google, or a shared store device.' : 'devices nobody signed in on can still make changes, signed with typed initials. Set Ups is Team Leads and up either way.'}</span>
     </label>
     <p class="dir-note">${gaps ? (gaps.missing.length ? `<b>${gaps.missing.length} on the schedule ${gaps.missing.length === 1 ? 'has' : 'have'} no PIN on file</b> (Our Team → PIN on file): they couldn’t make changes with this on.` : 'Everyone on the schedule has a PIN on file.') : 'Check Our Team → PIN on file before turning this on.'}</p>
     <h4>Shared store devices</h4>
