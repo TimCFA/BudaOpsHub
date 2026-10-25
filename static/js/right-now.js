@@ -39,9 +39,10 @@ function rnFirst(name){ return String(name || '').trim().split(/\s+/)[0] || ''; 
 // Names from the PIN list and the schedule can differ by a middle or second
 // last name ("Ana Ruiz" / "Ana Ruiz Lopez"): same first name, and the
 // shorter one's last name somewhere in the longer.
+// Accents don't count ("José" / "Jose"), as on the Schedule tab (dirKey).
 function rnSame(a, b){
-  const x = String(a || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const y = String(b || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const words = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const x = words(a), y = words(b);
   if(!x.length || !y.length) return false;
   if(x.join(' ') === y.join(' ')) return true;
   if(x[0] !== y[0] || x.length < 2 || y.length < 2) return false;
@@ -88,12 +89,22 @@ function rnRoster(side, date){
   return ((side === 'foh' ? fohRoster : bohRoster)[date]) || [];
 }
 
-// The viewer on the schedule: [{side, entry}] for the day.
+// The viewer on the schedule: [{side, entry}] for the day, from all four
+// schedules the Schedule tab reads. Truck and office shifts count too (Tim,
+// Oct 25 2026: an office shift on Monday, and the card said he wasn't on);
+// only FOH and BOH have Set Ups spots and breaks.
+const RN_FLOOR = ['foh', 'boh'];
+const RN_OFF_FLOOR = {truck: 'Truck', admin: 'Office'};
 function rnOnRoster(name, date){
   if(!name) return [];
   const out = [];
-  ['foh', 'boh'].forEach(side => rnRoster(side, date).forEach(p => { if(rnSame(p.name, name)) out.push({side, entry: p}); }));
-  return out;
+  [...RN_FLOOR, ...Object.keys(RN_OFF_FLOOR)].forEach(side => rnRosterList(side, date).forEach(p => { if(rnSame(p.name, name)) out.push({side, entry: p}); }));
+  const at = o => { const m = rnShiftStart(o.entry); return m === null ? 1440 : m; };
+  return out.sort((a, b) => at(a) - at(b));
+}
+// "11:30a–2:30p (Office)"; FOH and BOH go without a label, as before.
+function rnShiftsText(on){
+  return on.map(o => rnShiftText(o.entry) + (RN_OFF_FLOOR[o.side] ? ` (${RN_OFF_FLOOR[o.side]})` : '')).join(', ');
 }
 
 // Where someone is placed on a day: [{side, dpIndex, dp, slot}] in time order.
@@ -168,7 +179,8 @@ function rnRow(n, text, es, go, tone){ return {n, text, es: es || '', go: go || 
 function rnPersonCard(v, day, trainer){
   const date = day.closed ? day.next : today;
   const on = rnOnRoster(v.name, date);
-  const side = on.length ? on[0].side : 'foh';
+  const floor = on.filter(o => RN_FLOOR.includes(o.side));
+  const side = floor.length ? floor[0].side : 'foh';
   const names = [v.name, ...on.map(o => o.entry.name)];
   const spots = rnSpotsFor(names, date);
   const rows = [];
@@ -183,15 +195,17 @@ function rnPersonCard(v, day, trainer){
       const s = spots[0];
       first = s
         ? {text: `${dayName}: ${s.slot} at ${rnShort(s.dp.name)}.`, es: esText('Next: SPOT at DP', esPlace(s.slot) || s.slot, esDaypart(s.dp.name)), go: `setups:${s.side}|${date}|${s.dp.name}`}
-        : {text: `${dayName}: your shift is ${rnShiftText(on[0].entry)}. No spot yet.`, es: esText('Your shift starts at TIME', rnShiftText(on[0].entry))};
-      rows.push(rnRow('', `Your shift ${dayName}: ${rnShiftText(on[0].entry)}`, esText('Your shift'), ''));
+        : {text: `${dayName}: your shift is ${rnShiftsText(on)}.${floor.length ? ' No spot yet.' : ''}`, es: esText('Your shift starts at TIME', rnShiftText(on[0].entry))};
+      rows.push(rnRow('', `Your shift ${dayName}: ${rnShiftsText(on)}`, esText('Your shift'), ''));
       spots.forEach(x => rows.push(rnRow(rnClock(parseDaypartTimeToMinutes(x.dp.time)), `${x.slot} at ${rnShort(x.dp.name)}`, esPlace(x.slot), `setups:${x.side}|${date}|${x.dp.name}`)));
     }
     return {side, first, rows, kicker: `${dayName}`, title: `Hi, ${first1}`};
   }
 
-  const entry = on.length ? on[0].entry : null;
-  const startsAt = entry ? rnShiftStart(entry) : null;
+  const entry = floor.length ? floor[0].entry : null;   // breaks and spots are the floor's
+  const starts = on.map(o => rnShiftStart(o.entry)).filter(m => m !== null);
+  const startsAt = starts.length ? Math.min(...starts) : null;
+  const offFloor = !floor.length && on.length ? on[0] : null;
   const nowSpot = spots.find(s => s.dpIndex === rnDaypartIndex(s.side, day.now) && parseDaypartTimeToMinutes(s.dp.time) <= day.now);
   const nextSpot = spots.find(s => parseDaypartTimeToMinutes(s.dp.time) > day.now);
   const brk = entry ? breakFor(side, today, entry.name) : null;
@@ -202,7 +216,7 @@ function rnPersonCard(v, day, trainer){
   const myZones = hand ? hand.zones.filter(z => z.owners.some(o => names.some(n => rnSame(o, n)))) : [];
   let nowFirst = false;
 
-  if(!entry && !spots.length){
+  if(!on.length && !spots.length){
     first = {text: 'You’re not on today’s schedule.', es: esText('Not on the schedule')};
   } else if(onBreak){
     first = {text: `On break until ${rnClock(Math.round((breakCountdowns[brkKey] - serverNow()) / 60000) + day.now)}.`, es: esText('On break')};
@@ -215,6 +229,8 @@ function rnPersonCard(v, day, trainer){
     first = {text: `You’re on ${nowSpot.slot} until ${rnClock(end)}.`, es: esText('You are on SPOT until TIME', esPlace(nowSpot.slot) || nowSpot.slot, rnClock(end)), go: `setups:${nowSpot.side}|${today}|${nowSpot.dp.name}`};
   } else if(startsAt !== null && startsAt > day.now){
     first = {text: `Your shift starts at ${rnClock(startsAt)}${nextSpot ? `, on ${nextSpot.slot}` : ''}.`, es: esText('Your shift starts at TIME', rnClock(startsAt))};
+  } else if(offFloor && !spots.length){
+    first = {text: `Your ${RN_OFF_FLOOR[offFloor.side]} shift today: ${rnShiftText(offFloor.entry)}.`};
   } else {
     const dp = suDaypartsFor(side)[rnDaypartIndex(side, day.now)];
     first = {text: `No spot yet for ${rnShort(dp.name)}. Check with your leader.`, es: esText('No spot yet for DP', esDaypart(dp.name)), go: `setups:${side}|${today}|${dp.name}`};
@@ -222,7 +238,7 @@ function rnPersonCard(v, day, trainer){
 
   if(nowSpot && !nowFirst) rows.push(rnRow('', `Now: ${nowSpot.slot} (${rnShort(nowSpot.dp.name)})`, esText('Your spot now') + (esPlace(nowSpot.slot) ? ': ' + esPlace(nowSpot.slot) : ''), `setups:${nowSpot.side}|${today}|${nowSpot.dp.name}`));
   if(nextSpot) rows.push(rnRow(rnClock(parseDaypartTimeToMinutes(nextSpot.dp.time)), `Next: ${nextSpot.slot} (${rnShort(nextSpot.dp.name)})`, esText('Next spot') + (esPlace(nextSpot.slot) ? ': ' + esPlace(nextSpot.slot) : ''), `setups:${nextSpot.side}|${today}|${nextSpot.dp.name}`));
-  if(entry) rows.push(rnRow('', `Your shift: ${rnShiftText(entry)}`, esText('Your shift'), ''));
+  if(on.length) rows.push(rnRow('', `Your shift: ${rnShiftsText(on)}`, esText('Your shift'), ''));
   // A planned break still ahead (or just due); one long past is the leader's to sort out.
   if(brk && brk.start !== null && brk.start >= day.now - 15 && !brkTaken && !onBreak) rows.push(rnRow(rnClock(brk.start), 'your break', esText('Your break'), `setups:${side}|${today}|`, brk.start <= day.now ? 'warn' : ''));
   myZones.forEach(z => rows.push(rnRow(`${z.checked}/${z.total}`, `your zone: ${z.zone} · ${hand.title} at ${rnClock(hand.at)}`, '', `zone:${hand.name}`, z.done ? 'ok' : '')));
@@ -237,7 +253,8 @@ function rnPersonCard(v, day, trainer){
 
 function rnLeadCard(v, day, store){
   const on = v.name ? rnOnRoster(v.name, today) : [];
-  const sides = store || !on.length ? ['foh', 'boh'] : [...new Set(on.map(o => o.side))];
+  const onFloor = on.filter(o => RN_FLOOR.includes(o.side));
+  const sides = store || !onFloor.length ? ['foh', 'boh'] : [...new Set(onFloor.map(o => o.side))];
   const rows = [];
   let first = null;
 
@@ -519,6 +536,151 @@ function rnCardFor(v, day){
   return rnTeamCard(day);
 }
 
+// ----- Today on the calendar (Tim, Oct 25 2026) -----
+// A store event on a Thursday was missed, and it cost us. So the day's
+// events from the Calendar (events.js) open every Right Now card, for every
+// role, signed in or not, in a block nobody scrolls past: what's on, and
+// whether it's on now, coming up or over. The short ones (a week or less:
+// Family Night, Free Breakfast Tuesday, No School) get the block; the
+// month-long ones (the samples) ride along on one quieter "Also running"
+// line, so the block only stands out when something is special. The next
+// open day's events sit under it, a day's warning. Before opening it shows
+// today's; after close and on Sunday, the next open day's. A tap opens that
+// one event on its own, not the whole calendar. Leadership meetings show
+// only to managers, as on the Calendar (eventsList).
+const RN_EV_SPECIAL_DAYS = 7;          // longer than a week: "Also running"
+const RN_EV_SOON = 120;                // "in 45 min" within two hours
+const RN_ICON_CAL = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>';
+const RN_ICON_X = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+
+function rnEvSpecial(ev){ return typeof evSpanDays !== 'function' || evSpanDays(ev) <= RN_EV_SPECIAL_DAYS; }
+
+// Where an event stands at `now` on its day: {state, text, es}. `live` is
+// false when the card looks ahead to a day that hasn't started.
+function rnEvWhen(ev, now, live){
+  const s = evMinutes(ev.from), e = evMinutes(ev.to);
+  if(s === null) return {state: 'allday', text: 'All day', es: esText('All day')};
+  const at = evClock(ev.from), until = e === null ? '' : evClock(ev.to);
+  if(!live || now < s){
+    const soon = live && s - now <= RN_EV_SOON;
+    const left = s - now >= 60 ? `${Math.floor((s - now) / 60)} h${(s - now) % 60 ? ' ' + (s - now) % 60 + ' min' : ''}` : `${s - now} min`;
+    return {state: soon ? 'soon' : 'later', text: `${evTimeText(ev)}${soon ? ` · starts in ${left}` : ''}`, es: esText('Starts at TIME', at)};
+  }
+  if(e === null || now < e) return {state: 'now', text: until ? `Happening now · until ${until}` : 'Happening now', es: esText('Happening now until TIME', until)};
+  return {state: 'done', text: `Ended at ${until}`, es: esText('Ended at TIME', until)};
+}
+
+// The block's model: the day it's for, its special events (now first, then
+// coming up, all day, and over last), the long ones, and the next day's.
+function rnEvents(day){
+  if(typeof eventsOn !== 'function') return null;
+  const live = !day.closed;
+  const date = live ? today : day.next;
+  const all = eventsOn(date);
+  const order = {now: 0, soon: 1, later: 2, allday: 3, done: 4};
+  const special = all.filter(rnEvSpecial).map(ev => ({ev, when: rnEvWhen(ev, day.now, live)}))
+    .sort((a, b) => order[a.when.state] - order[b.when.state]);
+  const ongoing = all.filter(ev => !rnEvSpecial(ev));
+  let next = null;
+  if(live){
+    const ids = new Set(all.map(ev => ev.id));
+    const list = eventsOn(day.next).filter(rnEvSpecial).filter(ev => !ids.has(ev.id));
+    if(list.length) next = {date: day.next, list};
+  }
+  if(!special.length && !ongoing.length && !next) return null;
+  return {date, live, special, ongoing, next};
+}
+
+function rnWeekday(iso){ return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', {weekday: 'long'}); }
+
+function rnEventsHtml(day, boh){
+  const m = rnEvents(day);
+  if(!m) return '';
+  const es = t => boh && t ? esSpan(t, false) : '';
+  const tap = (ev, date) => `data-rn-ev="${escapeHtml(ev.id)}" data-rn-ev-date="${escapeHtml(date)}" role="button" tabindex="0"`;
+  const color = ev => (EVENT_KINDS[ev.kind] || EVENT_KINDS.note).color;
+  const head = m.live ? 'Today on the calendar' : `${rnWeekday(m.date)} on the calendar`;
+  const headEs = m.live ? esText('Today on the calendar') : esText('Next on the calendar');
+  const items = m.special.map(({ev, when}) => `
+      <div class="rn-ev-item is-${when.state}" ${tap(ev, m.date)} style="--ev:${color(ev)}">
+        <span class="rn-ev-main"><b>${escapeHtml(ev.title)}</b>${ev.detail ? `<span class="rn-ev-detail">${escapeHtml(ev.detail)}</span>` : ''}<small>${when.state === 'now' ? '<i class="rn-ev-live" aria-hidden="true"></i>' : ''}${escapeHtml(when.text)}${es(when.es)}</small></span>
+        <span class="rn-go">${RN_ICON_GO}</span>
+      </div>`).join('');
+  const line = (label, labelEs, list, date) => `<div class="rn-ev-line"><b>${escapeHtml(label)}${es(labelEs)}</b>${list.map(ev =>
+    `<span class="rn-ev-chip" ${tap(ev, date)} style="--ev:${color(ev)}">${escapeHtml(ev.title)}${ev.from ? ` · ${escapeHtml(evClock(ev.from))}` : ''}</span>`).join('')}</div>`;
+  const nextLabel = m.next ? (m.next.date === rnAddDays(today, 1) ? 'Tomorrow' : rnWeekday(m.next.date)) : '';
+  return `<section class="rn-ev${m.special.length ? '' : ' is-quiet'}" aria-label="${escapeHtml(head)}">
+      ${m.special.length ? `<div class="rn-ev-head">${RN_ICON_CAL}<span>${escapeHtml(head)}${es(headEs)}</span></div>${items}` : ''}
+      ${m.ongoing.length ? line('Also running', esText('Also running'), m.ongoing, m.date) : ''}
+      ${m.next ? line(nextLabel, nextLabel === 'Tomorrow' ? esText('Tomorrow') : '', m.next.list, m.next.date) : ''}
+    </section>`;
+}
+
+// One event on its own: what it is, when, where it stands, the detail and
+// the notes, with the calendar a tap further for anyone who wants it.
+function rnEventSheetHtml(ev, date, boh){
+  const es = t => boh && t ? esSpan(t, true) : '';
+  const k = EVENT_KINDS[ev.kind] || EVENT_KINDS.note;
+  const live = date === today && !rnDay().closed;
+  const when = rnEvWhen(ev, rnNowMins(), live);
+  const dayText = new Date(date + 'T12:00:00').toLocaleDateString('en-US', {weekday: 'long', month: 'long', day: 'numeric'});
+  const runs = ev.end && ev.end !== ev.date ? evWhenText(ev).split(' · ')[0] : '';
+  const notes = Array.isArray(ev.notes) ? ev.notes : [];
+  return `<div class="rn-evs-card" role="dialog" aria-modal="true" aria-labelledby="rnEvsTitle" style="--ev:${k.color}">
+      <button type="button" class="rn-evs-x" data-rn-evs-close aria-label="Close">${RN_ICON_X}</button>
+      <span class="rn-evs-kind"><i aria-hidden="true"></i>${escapeHtml(k.label)}</span>
+      <h2 id="rnEvsTitle">${escapeHtml(ev.title)}</h2>
+      <p class="rn-evs-when">${escapeHtml(dayText)} · ${escapeHtml(ev.from ? evTimeText(ev) : 'All day')}</p>
+      ${when.state !== 'allday' && when.state !== 'later' ? `<p class="rn-evs-state is-${when.state}">${escapeHtml(when.text)}${es(when.es)}</p>` : ''}
+      ${runs ? `<p class="rn-evs-runs">Runs ${escapeHtml(runs)}</p>` : ''}
+      ${ev.detail ? `<p class="rn-evs-detail">${escapeHtml(ev.detail)}</p>` : ''}
+      ${notes.length ? `<h3>What to know${es(esText('What to know'))}</h3><ul>${notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : ''}
+      <button type="button" class="rn-evs-cal" data-rn-evs-cal>${RN_ICON_CAL}Open the calendar${es(esText('Open the calendar'))}</button>
+    </div>`;
+}
+
+let rnEvsReturn = null;   // the row that opened the sheet: focus goes back to it
+function rnOpenEvent(id, date, from){
+  const ev = typeof eventsList === 'function' ? eventsList().find(x => x.id === id) : null;
+  if(!ev) return;
+  let sheet = document.getElementById('rnEvSheet');
+  if(!sheet){
+    sheet = document.createElement('div');
+    sheet.id = 'rnEvSheet';
+    sheet.className = 'rn-evs';
+    document.body.appendChild(sheet);
+    sheet.addEventListener('click', e => {
+      if(e.target === sheet || e.target.closest('[data-rn-evs-close]')){ rnCloseEvent(); return; }
+      if(e.target.closest('[data-rn-evs-cal]')){
+        const d = sheet.dataset.date;
+        rnCloseEvent();
+        calMonth = evMonthOf(d);
+        calDay = d;
+        launchShowTab('calendar');
+        window.scrollTo({top: 0});
+      }
+    });
+    document.addEventListener('keydown', e => { if(e.key === 'Escape' && sheet.classList.contains('is-open')) rnCloseEvent(); });
+  }
+  const boh = (document.getElementById('rightNow').className || '').includes('rn-boh');
+  sheet.classList.toggle('is-boh', boh);
+  sheet.dataset.date = date;
+  sheet.innerHTML = rnEventSheetHtml(ev, date, boh);
+  sheet.classList.add('is-open');
+  document.body.classList.add('rn-evs-on');
+  rnEvsReturn = from || null;
+  const x = sheet.querySelector('[data-rn-evs-close]');
+  if(x) x.focus();
+}
+function rnCloseEvent(){
+  const sheet = document.getElementById('rnEvSheet');
+  if(!sheet) return;
+  sheet.classList.remove('is-open');
+  document.body.classList.remove('rn-evs-on');
+  if(rnEvsReturn && document.body.contains(rnEvsReturn)) rnEvsReturn.focus();
+  rnEvsReturn = null;
+}
+
 const RN_ROLE_LABELS = {member: 'Team Member', trainer: 'Trainer', lead: 'Team Lead', admin: 'Admin Team', director: 'Director', manager: 'Manager', none: ''};
 
 function renderRightNow(){
@@ -550,6 +712,7 @@ function renderRightNow(){
       ${card.sideSwitch ? rnSideSwitchHtml() : ''}
     </div>
     <h2 class="rn-title">${escapeHtml(title)}${day.closed ? '' : ` <span class="rn-time">${escapeHtml(rnClock(day.now))}</span>`}</h2>
+    ${rnEventsHtml(day, boh)}
     ${card.first ? `<div class="rn-first${card.first.go ? ' is-go' : ''}"${go(card.first.go)}><b>First thing${boh ? `<span class="es" lang="es"> · ${escapeHtml(esText('First thing'))}</span>` : ''}</b><span>${escapeHtml(card.first.text)}</span>${es(card.first.es)}</div>` : ''}
     ${card.roster && card.rosterFirst ? rnRosterHtml(card.roster, card.rosterHead) : ''}
     <div class="rn-list">
@@ -601,16 +764,21 @@ function rnGo(g){
   else if(what === 'roster'){ rnRosterOpen = !rnRosterOpen; renderRightNow(); }
   else if(what === 'foodsafety'){ launchShowTab('foodsafety'); window.scrollTo({top: 0}); }
   else if(what === 'prepboard'){ launchShowTab('prepboard'); window.scrollTo({top: 0}); }
+  else if(what === 'signin' && typeof siOpen === 'function') siOpen();
   else if(what === 'signin'){ launchShowTab('manage'); window.scrollTo({top: 0}); const pin = document.getElementById('pinInput'); if(pin) pin.focus(); }
 }
 
 document.getElementById('rightNow').addEventListener('click', e => {
   const sw = e.target.closest('[data-rn-side]');
   if(sw){ rnSetDeviceSide(sw.dataset.rnSide); return; }
+  const ev = e.target.closest('[data-rn-ev]');
+  if(ev){ rnOpenEvent(ev.dataset.rnEv, ev.dataset.rnEvDate, ev); return; }
   const t = e.target.closest('[data-rn-go]');
   if(t) rnGo(t.dataset.rnGo);
 });
 document.getElementById('rightNow').addEventListener('keydown', e => {
+  const ev = e.target.closest('[data-rn-ev]');
+  if(ev && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); rnOpenEvent(ev.dataset.rnEv, ev.dataset.rnEvDate, ev); return; }
   const t = e.target.closest('[data-rn-go]');
   if(t && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); rnGo(t.dataset.rnGo); }
 });

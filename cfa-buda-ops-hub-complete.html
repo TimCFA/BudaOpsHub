@@ -28,6 +28,13 @@
 <script>try{if(localStorage.getItem('cfaBudaTheme')==='dark'){document.documentElement.dataset.theme='dark';document.querySelector('meta[name="theme-color"]').content='#121418';}}catch(e){}</script>
 </head>
 <body class="launch-mode">
+<!-- Sign in (sign-in.js; TIM-90): opens over the page from the badge top right, or when a change needs a sign-in. -->
+<div class="overlay si-sheet" id="siSheet" role="dialog" aria-modal="true" aria-labelledby="siTitle">
+  <div class="si-card">
+    <div class="si-head"><h3 id="siTitle">Who’s signed in</h3><button type="button" class="dir-x" data-si-close aria-label="Close"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div id="siBody"></div>
+  </div>
+</div>
 <div class="app">
 
   <div class="hdr">
@@ -1158,6 +1165,11 @@
             </label>
             <details class="mv-more"><summary>What this means</summary><p>While the team is getting started, a device without the manager PIN sees Home, Set Ups, Waste and Lists (Zone Resets first, then Leader Transition, Food Safety, Safe Count and the Prep Board as pills). Devices signed in here see every tab. Turn it off and everyone sees everything.</p></details>
           </div>
+<div class="standup-card" id="signInCard" style="display:none;">
+            <h3>Require sign-in</h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Who can change things: with this on, every change needs a clock-in PIN, a director's Google sign-in, or a shared store device, and the hub writes who did it (sign-in.js).</p>
+            <div id="signInRoot"></div>
+          </div>
 <div class="standup-card" id="accountsCard" style="display:none;">
             <h3>Accounts</h3>
             <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Who can sign in and as what: Google accounts for directors, and the team’s clock-in PINs with each person’s role. Only the hub’s owner sees this.</p>
@@ -1228,6 +1240,7 @@
 <script src="/static/js/roster-changes.js"></script>
 <script src="/static/js/manage-and-import.js"></script>
 <script src="/static/js/accounts.js"></script>
+<script src="/static/js/sign-in.js"></script>
 <script src="/static/js/trainer-trial.js"></script>
 <script src="/static/js/team-lead-trial.js"></script>
 <script src="/static/js/prep-board.js"></script>

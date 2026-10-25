@@ -61,13 +61,22 @@ function jsArg(value){
   return escapeHtml(JSON.stringify(value === null || value === undefined ? '' : String(value)));
 }
 
-// ===== TEAM MEMBER INITIALS (attribution) =====
-// Not a login, not verified — just a quick low-friction way to stamp who did
-// what during a shift. Lives in localStorage per-device, switches instantly.
+// ===== WHO'S DOING THIS (attribution) =====
+// Who signed in (accounts.js, from the server) is who the hub writes on what
+// they do, and the server stamps it again so a page can't claim anyone else
+// (TIM-90; Tim, Oct 25 2026). A shared store device signs as itself ("Kitchen
+// iPad"). Typed initials are the old way: unverified, so they're only used
+// on a device nobody signed in on while sign-in isn't required yet; once a
+// director turns "Require sign-in" on, they're gone and the badge says
+// "Sign in" (sign-in.js).
 const INITIALS_STORAGE_KEY = 'cfaBudaInitials';
+let siIdentity = {name: '', device: '', role: '', required: false, known: false};
 
 function getInitials(){
-  return localStorage.getItem(INITIALS_STORAGE_KEY) || '';
+  if(siIdentity.name) return siIdentity.name;
+  if(siIdentity.device) return siIdentity.device;
+  if(siIdentity.required) return '';
+  try{ return localStorage.getItem(INITIALS_STORAGE_KEY) || ''; }catch(e){ return ''; }
 }
 
 function setInitials(value){
@@ -85,14 +94,22 @@ function formatShortTime(ts){
 function renderInitialsBadge(){
   const badge = document.getElementById('initialsBadge');
   if(!badge) return;
-  const current = getInitials();
-  // No initials yet: the prompt in Spanish too (spanish.js loads after this
-  // file and draws the badge again).
-  if(current || typeof esLine !== 'function') badge.textContent = (current || 'Set initials') + ' ▾';
-  else badge.innerHTML = `Set initials ▾${esLine('Set initials')}`;
+  // Signed in (or a shared device): their first name. Nobody signed in:
+  // "Sign in", so it's on every page, not only Manage (Tim, Oct 25 2026);
+  // sign-in.js opens the sheet, which still offers typed initials until
+  // sign-in is required.
+  const who = siIdentity.name ? siIdentity.name.split(/\s+/)[0] : siIdentity.device;
+  badge.innerHTML = who ? `${escapeHtml(who)} ▾` : `Sign in ▾${typeof esLine === 'function' ? esLine('Sign in') : ''}`;
+  badge.title = who ? 'Who’s signed in on this device' : 'Sign in with your clock-in PIN or Google';
 }
 
+// The badge opens the sign-in sheet (sign-in.js); typed initials are its
+// "use initials instead" while sign-in isn't required.
 function beginEditInitials(){
+  if(typeof siOpen === 'function'){ siOpen(); return; }
+  editInitialsBox();
+}
+function editInitialsBox(){
   const badge = document.getElementById('initialsBadge');
   if(!badge || badge.querySelector('input')) return;
   const current = getInitials();
@@ -117,7 +134,8 @@ const initialsBadgeEl = document.getElementById('initialsBadge');
 if(initialsBadgeEl){
   renderInitialsBadge();
   initialsBadgeEl.addEventListener('click', beginEditInitials);
-  if(!getInitials()) beginEditInitials();
+  // The initials box opens by itself only once the server says nobody's
+  // signed in and sign-in isn't required (accounts.js, acApplyStatus).
 }
 
 function toLocalISODate(d){

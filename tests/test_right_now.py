@@ -106,6 +106,26 @@ class TeamMember(unittest.TestCase):
         self.assertEqual(got[0]['first'], 'You’re not on today’s schedule.')
         self.assertEqual(got[1]['first'], 'No spot yet for Dinner. Check with your leader.')
 
+    def test_truck_and_office_shifts_count(self):
+        # Tim, Oct 25 2026: an office shift on Monday, and the card said he wasn't on.
+        office = "adminShifts['2026-10-19'] = [{name: 'Jordan Testcase', start: '11:30a', end: '2:30p'}];"
+        sunday, before, during = run({'op': card('member', 'Jordan Testcase', setup=office), 'at': '2026-10-18T15:00:00-05:00'},
+                                     {'op': card('member', 'Jordan Testcase', setup=office), 'at': '2026-10-19T09:00:00-05:00'},
+                                     {'op': card('member', 'Jordan Testcase', setup=office), 'at': '2026-10-19T12:00:00-05:00'})
+        self.assertEqual(sunday['first'], 'Monday: your shift is 11:30a–2:30p (Office).')
+        self.assertEqual(sunday['rows'][0][1], 'Your shift Monday: 11:30a–2:30p (Office)')
+        self.assertEqual(before['first'], 'Your shift starts at 11:30.')
+        self.assertEqual(during['first'], 'Your Office shift today: 11:30a–2:30p.')
+        self.assertIn('Your shift: 11:30a–2:30p (Office)', [r[1] for r in during['rows']])
+        # A truck shift beside a FOH one: both, in time order; the spot still comes first.
+        both = run({'op': card('member', 'Ana Ruiz', extra="truckShifts[today] = [{name: 'Ana Ruiz Lopez', start: '5:00a', end: '8:00a'}];")})[0]
+        self.assertEqual(both['first'], 'You’re on Drinks 1 until 8:00.')
+        self.assertIn('Your shift: 5:00a–8:00a (Truck), 12:00p–8:30p', [r[1] for r in both['rows']])
+
+    def test_accents_do_not_count(self):
+        got = run({'op': "c => [rnSame('José Ruiz', 'Jose Ruiz'), rnSame('Ana Muñoz', 'Ana Munoz Lopez')]"})[0]
+        self.assertEqual(got, [True, True])
+
     def test_after_close_it_looks_at_the_next_day(self):
         # Saturday night: the next open day is Monday.
         got = run({'op': card('member', 'Ana Ruiz', setup=SETUP.replace('today]', 'mon]').replace("'||Dinner", "'||Dinner").replace("+ today +", "+ mon +"),

@@ -188,6 +188,8 @@ function stateSectionString(name, part){
 }
 
 async function saveOnce(){
+  // With sign-in required, a change this sign-in can't make goes back first (sign-in.js).
+  if(typeof siGateLocal === 'function') siGateLocal();
   const snapshot = stateSnapshot();
   // The phone's own copy (for when the server can't be reached). Browsers
   // cap this at ~5 MB; if it's full, saving to the server still goes ahead.
@@ -476,7 +478,11 @@ async function loadState(){
     const prunedDates = pruneOldDateData();
     const prunedChecklists = pruneZoneChecklistData();
     const prunedFoodSafety = fsPruneOldWalkthroughs();
-    if(migrated || archivedSetups || archivedNumbers || prunedDayTypes || prunedDates || prunedChecklists || prunedFoodSafety) await saveState();
+    if(migrated || archivedSetups || archivedNumbers || prunedDayTypes || prunedDates || prunedChecklists || prunedFoodSafety){
+      // The page's own upkeep: if this sign-in can't save it, it's put back without asking anyone to sign in.
+      if(typeof siQuiet !== 'undefined') siQuiet = true;
+      try{ await saveState(); }finally{ if(typeof siQuiet !== 'undefined') siQuiet = false; }
+    }
     calcStreak();
   }
 }
