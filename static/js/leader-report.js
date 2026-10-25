@@ -28,7 +28,7 @@
 // Only finished days count: "this week" runs through yesterday.
 
 const LR_WEEKS = [{offset: -1, label: 'Last week'}, {offset: 0, label: 'This week so far'}];
-let lrWeekOffset = -1;
+let lrWeekOffset = typeof dirDefaultWeekOffset === 'function' && dirDefaultWeekOffset() ? 0 : -1;   // on a Sunday, the week just finished
 
 const lrMin = hhmm => { const m = String(hhmm || '').match(/(\d{1,2}):(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
 const lrRate = (a, b) => b > 0 ? a / b : null;

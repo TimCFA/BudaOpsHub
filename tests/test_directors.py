@@ -183,8 +183,50 @@ class Brief(unittest.TestCase):
         ])
         page = got['html']
         self.assertLess(page.index('This week needs you'), page.index('<h3>The week</h3>'))
-        self.assertIn('<details class="dir-fold"><summary>PEA cadence</summary>', page)    # the detail is folded
+        self.assertIn('<details class="dir-fold"><summary>PEA cadence <span>2 behind</span></summary>', page)    # the detail is folded, with the count on it
         self.assertNotIn('<section class="dir-card"><h3>PEA cadence', page)
+
+    def test_a_gap_to_close_and_no_closer_are_one_line(self):
+        # Wed: the last leader leaves at 9p and the floor runs to 11p. That's
+        # one fact ("no leader 9p–close"), not a gap line plus a "through
+        # close" line. A short last gap with no closer still says so.
+        got = run("""c => { fohRoster = {'2026-10-14': [{name: 'Maya Torres', start: '5:30a', end: '2:00p', leader: true}, {name: 'Ethan Brooks', start: '2:00p', end: '9:00p', leader: true}, {name: 'Priya Nair', start: '2:00p', end: '11:00p'}],
+                                     '2026-10-15': [{name: 'Maya Torres', start: '5:30a', end: '9:10p', leader: true}, {name: 'Priya Nair', start: '2:00p', end: '9:20p'}]};
+            return [dirDayFlags('2026-10-14').map(f => f.text), dirDayFlags('2026-10-15').map(f => f.text), dirNeeds(getWeekDays(0).map(d => d.date)).map(n => n.text), dirBriefText()]; }""")
+        self.assertEqual(got[0], ['no leader 9p–close'])
+        self.assertEqual(got[1], ['no leader through close'])
+        self.assertEqual(got[2], ['Wed, Oct 14: no leader 9p–close', 'Thu, Oct 15: no leader through close'])
+        self.assertIn('  ! no leader 9p–close', got[3])
+        self.assertNotIn('through close\n', got[3].split('Thu, Oct 15')[0])
+
+    def test_days_already_gone_are_not_to_dos(self):
+        # Today is Mon Oct 12. A gap last Saturday-of-this-week can't be; a
+        # gap on a day already gone (test with today moved to Thursday) is
+        # history: its tile still shows red, faded, but the list looks ahead.
+        got = run("c => { " + WEEK + """ fohRoster['2026-10-15'] = [{name: 'Maya Torres', start: '5:30a', end: '11:00p', leader: true}];
+          today = '2026-10-15';
+          const root = {innerHTML: ''}; document.getElementById = id => id === 'directorsRoot' ? root : null; renderDirectorsView();
+          return {needs: dirNeeds(getWeekDays(0).map(d => d.date)).map(n => n.text), html: root.innerHTML}; }""")
+        self.assertEqual(got['needs'], [])
+        self.assertIn('Nothing left this week needs you', got['html'])
+        self.assertIn('class="dir-tile is-flag is-past" data-dir-day="2026-10-13"', got['html'])
+        self.assertIn('class="dir-tile is-ok is-open is-today" data-dir-day="2026-10-15"', got['html'])
+
+    def test_the_list_folds_past_five_lines(self):
+        # Six days with no leader: five lines and "Show 1 more"; a tap shows all.
+        html = run("""c => { getWeekDays(0).forEach(d => { fohRoster[d.date] = [{name: 'Noah Bennett', start: '6:00a', end: '2:00p'}]; });
+            const root = {innerHTML: ''}; document.getElementById = id => id === 'directorsRoot' ? root : null;
+            renderDirectorsView(); const a = root.innerHTML; dirNeedsAll = true; renderDirectorsView(); return [a, root.innerHTML]; }""")
+        self.assertEqual(html[0].count('class="dir-need"'), 5)
+        self.assertIn('data-dir-needs-all aria-expanded="false">Show 1 more</button>', html[0])
+        self.assertNotIn('the red days below', html[0])
+        self.assertEqual(html[1].count('class="dir-need"'), 6)
+        self.assertIn('>Show fewer</button>', html[1])
+
+    def test_sunday_opens_on_the_week_ahead(self):
+        # The store is closed on Sunday and the week shown would be over.
+        got = run("c => [dirDefaultWeekOffset(), (today = '2026-10-18', dirDefaultWeekOffset()), (today = '2026-10-17', dirDefaultWeekOffset())]")
+        self.assertEqual(got, [0, 1, 0])
 
     def test_all_clear(self):
         html = run("""c => { fohRoster = {'2026-10-13': [{name: 'Maya Torres', start: '5:30a', end: '10:30p', leader: true}]};
