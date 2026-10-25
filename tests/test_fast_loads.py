@@ -27,14 +27,20 @@ class Stamped(unittest.TestCase):
         self.c = appmod.app.test_client()
         self.html = self.c.get('/').get_data(as_text=True)
 
-    def test_every_script_and_stylesheet_carries_the_build(self):
+    def test_every_script_and_stylesheet_carries_its_own_fingerprint(self):
         local = re.findall(r'(?:src|href)="(/static/[^"?]+\.(?:js|css)(?:\?[^"]*)?)"', self.html)
         self.assertGreater(len(local), 50)
-        self.assertEqual([u for u in local if not u.endswith(f'?v={appmod.BUILD}')], [])
+        # Each file's stamp is its contents', so a deploy re-sends only the files it changed (Oct 25 2026).
+        import hashlib
+        def stamp(u):
+            with open(os.path.join(ROOT, u.split('?')[0].lstrip('/')), 'rb') as f:
+                return hashlib.sha256(f.read()).hexdigest()[:12]
+        self.assertEqual([u for u in local if not u.endswith(f'?v={stamp(u)}')], [])
+        self.assertGreater(len({u.split('?v=')[1] for u in local}), 50)
         self.assertEqual(self.c.get('/').headers['Cache-Control'], 'no-cache')       # the page itself is always fresh
 
     def test_a_stamped_file_is_kept_until_the_next_build(self):
-        r = self.c.get(f'/static/js/storage.js?v={appmod.BUILD}')
+        r = self.c.get(f'/static/js/storage.js?v={appmod._file_stamp("/static/js/storage.js")}')
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.headers['Cache-Control'], 'public, max-age=31536000, immutable')
         for url in ('/static/js/storage.js', '/static/js/storage.js?v=old'):
