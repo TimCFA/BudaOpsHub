@@ -47,6 +47,17 @@ function siRender(){
 }
 
 // ----- The sheet -----
+// Asked at load on a phone nobody's signed in on (accounts.js), once a day
+// here, so a shared iPad left signed out isn't asked every reload.
+const SI_ASKED_KEY = 'cfaBudaSignInAsked';
+function siAskToday(){
+  try{
+    if(localStorage.getItem(SI_ASKED_KEY) === today) return false;
+    localStorage.setItem(SI_ASKED_KEY, today);
+  }catch(e){ /* private window: ask */ }
+  return true;
+}
+
 function siOpen(reason){
   // Opened by a change (waste, a zone check) with nobody signed in: say why.
   siReason = reason || (siIdentity.required && !siSignedIn() && !siIdentity.device ? 'Sign in with your clock-in PIN to make changes.' : '');

@@ -564,6 +564,10 @@ def _page_html():
         # 2026: "sometimes it's not showing up"). Public by design.
         if GOOGLE_CLIENT_ID:
             meta = f'<meta name="google-client-id" content="{_html_escape(GOOGLE_CLIENT_ID)}">'
+            # One tap offers only the store's own Google accounts (hd), so a
+            # team member's personal Gmail is never offered. One domain only.
+            if len(DIRECTOR_EMAIL_DOMAINS) == 1:
+                meta += f'\n<meta name="google-hd" content="{_html_escape(next(iter(DIRECTOR_EMAIL_DOMAINS)))}">'
             html = html.replace('<meta charset="UTF-8">', '<meta charset="UTF-8">\n' + meta, 1)
         _PAGE_HTML.clear()
         _PAGE_HTML[BUILD] = html
