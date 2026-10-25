@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>CFA Buda — Ops Hub</title>
+<!-- The saved data is asked for first thing, so it downloads while the page's scripts load (storage.js loadState uses this answer). -->
+<script>window.stateEarlyLoad=(function(){try{var t=Date.now();return fetch('/api/state/load',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}).then(function(r){var g=Date.now();return r.ok?r.json().then(function(j){return {reply:j,sentAt:t,gotAt:g};}):null;}).catch(function(){return null;});}catch(e){return null;}})();</script>
 <!-- Home screen icon and name (Add to Home Screen): the store's logo mark on white; iOS fills see-through corners black, so it's opaque. -->
 <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
@@ -1176,9 +1178,7 @@
       </section>
 
     </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<!-- The spreadsheet reader loads without holding up the page; a file read waits for it (xlsxReady, state-and-utils.js). -->
-<script id="xlsxLib" async src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- The spreadsheet reader and the PDF maker load when a file is read or made (libReady, state-and-utils.js). -->
 <script src="/static/js/theme.js"></script>
 <script src="/static/js/state-and-utils.js"></script>
 <script src="/static/js/waste-catalog.js"></script>

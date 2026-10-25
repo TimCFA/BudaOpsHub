@@ -83,3 +83,7 @@ every phone unable to save for a day (PRs #148, #149).
   change that depends on their absence still needs checking.
 - **A failed save must retry** (storage.js `saveState`), never be dropped;
   keep that when touching the save path.
+- **A change to saving, syncing or Set Ups passes the shift simulator first**:
+  `node tools/shift_sim/sim.js all 5` must print PASS (several phones, a
+  flaky and slow database, lost signal, a deploy overlap, reloads, a restart;
+  tools/shift_sim/README.md).

@@ -112,7 +112,7 @@ class Page(unittest.TestCase):
     def test_wired_after_points_and_shown_on_upload(self):
         self.assertLess(PAGE.index('/static/js/points.js'), PAGE.index('/static/js/points-import.js'))
         self.assertLess(PAGE.index('/static/js/points-import.js'), PAGE.index('/static/js/launch-mode.js'))
-        self.assertLess(PAGE.index('xlsx.full.min.js'), PAGE.index('/static/js/points-import.js'))
+        self.assertIn('xlsxReady()', open(os.path.join(ROOT, 'static', 'js', 'points-import.js')).read())   # the reader loads on a file read
         got = run("c => { ptPane = 'upload'; const a = ptUploadHtml(); piPending = {file: '<b>x.xlsx', plan: piPlan(BOOK())}; const b = ptUploadHtml(); piApply(piPending.plan); piPending = null; return [a, b, ptUploadHtml()]; }")
         self.assertIn('Bring in the old tracker', got[0])
         self.assertIn('data-pi-file', got[0])
