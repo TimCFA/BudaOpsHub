@@ -39,9 +39,10 @@ function rnFirst(name){ return String(name || '').trim().split(/\s+/)[0] || ''; 
 // Names from the PIN list and the schedule can differ by a middle or second
 // last name ("Ana Ruiz" / "Ana Ruiz Lopez"): same first name, and the
 // shorter one's last name somewhere in the longer.
+// Accents don't count ("José" / "Jose"), as on the Schedule tab (dirKey).
 function rnSame(a, b){
-  const x = String(a || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const y = String(b || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const words = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const x = words(a), y = words(b);
   if(!x.length || !y.length) return false;
   if(x.join(' ') === y.join(' ')) return true;
   if(x[0] !== y[0] || x.length < 2 || y.length < 2) return false;
@@ -88,12 +89,22 @@ function rnRoster(side, date){
   return ((side === 'foh' ? fohRoster : bohRoster)[date]) || [];
 }
 
-// The viewer on the schedule: [{side, entry}] for the day.
+// The viewer on the schedule: [{side, entry}] for the day, from all four
+// schedules the Schedule tab reads. Truck and office shifts count too (Tim,
+// Oct 25 2026: an office shift on Monday, and the card said he wasn't on);
+// only FOH and BOH have Set Ups spots and breaks.
+const RN_FLOOR = ['foh', 'boh'];
+const RN_OFF_FLOOR = {truck: 'Truck', admin: 'Office'};
 function rnOnRoster(name, date){
   if(!name) return [];
   const out = [];
-  ['foh', 'boh'].forEach(side => rnRoster(side, date).forEach(p => { if(rnSame(p.name, name)) out.push({side, entry: p}); }));
-  return out;
+  [...RN_FLOOR, ...Object.keys(RN_OFF_FLOOR)].forEach(side => rnRosterList(side, date).forEach(p => { if(rnSame(p.name, name)) out.push({side, entry: p}); }));
+  const at = o => { const m = rnShiftStart(o.entry); return m === null ? 1440 : m; };
+  return out.sort((a, b) => at(a) - at(b));
+}
+// "11:30a–2:30p (Office)"; FOH and BOH go without a label, as before.
+function rnShiftsText(on){
+  return on.map(o => rnShiftText(o.entry) + (RN_OFF_FLOOR[o.side] ? ` (${RN_OFF_FLOOR[o.side]})` : '')).join(', ');
 }
 
 // Where someone is placed on a day: [{side, dpIndex, dp, slot}] in time order.
@@ -168,7 +179,8 @@ function rnRow(n, text, es, go, tone){ return {n, text, es: es || '', go: go || 
 function rnPersonCard(v, day, trainer){
   const date = day.closed ? day.next : today;
   const on = rnOnRoster(v.name, date);
-  const side = on.length ? on[0].side : 'foh';
+  const floor = on.filter(o => RN_FLOOR.includes(o.side));
+  const side = floor.length ? floor[0].side : 'foh';
   const names = [v.name, ...on.map(o => o.entry.name)];
   const spots = rnSpotsFor(names, date);
   const rows = [];
@@ -183,15 +195,17 @@ function rnPersonCard(v, day, trainer){
       const s = spots[0];
       first = s
         ? {text: `${dayName}: ${s.slot} at ${rnShort(s.dp.name)}.`, es: esText('Next: SPOT at DP', esPlace(s.slot) || s.slot, esDaypart(s.dp.name)), go: `setups:${s.side}|${date}|${s.dp.name}`}
-        : {text: `${dayName}: your shift is ${rnShiftText(on[0].entry)}. No spot yet.`, es: esText('Your shift starts at TIME', rnShiftText(on[0].entry))};
-      rows.push(rnRow('', `Your shift ${dayName}: ${rnShiftText(on[0].entry)}`, esText('Your shift'), ''));
+        : {text: `${dayName}: your shift is ${rnShiftsText(on)}.${floor.length ? ' No spot yet.' : ''}`, es: esText('Your shift starts at TIME', rnShiftText(on[0].entry))};
+      rows.push(rnRow('', `Your shift ${dayName}: ${rnShiftsText(on)}`, esText('Your shift'), ''));
       spots.forEach(x => rows.push(rnRow(rnClock(parseDaypartTimeToMinutes(x.dp.time)), `${x.slot} at ${rnShort(x.dp.name)}`, esPlace(x.slot), `setups:${x.side}|${date}|${x.dp.name}`)));
     }
     return {side, first, rows, kicker: `${dayName}`, title: `Hi, ${first1}`};
   }
 
-  const entry = on.length ? on[0].entry : null;
-  const startsAt = entry ? rnShiftStart(entry) : null;
+  const entry = floor.length ? floor[0].entry : null;   // breaks and spots are the floor's
+  const starts = on.map(o => rnShiftStart(o.entry)).filter(m => m !== null);
+  const startsAt = starts.length ? Math.min(...starts) : null;
+  const offFloor = !floor.length && on.length ? on[0] : null;
   const nowSpot = spots.find(s => s.dpIndex === rnDaypartIndex(s.side, day.now) && parseDaypartTimeToMinutes(s.dp.time) <= day.now);
   const nextSpot = spots.find(s => parseDaypartTimeToMinutes(s.dp.time) > day.now);
   const brk = entry ? breakFor(side, today, entry.name) : null;
@@ -202,7 +216,7 @@ function rnPersonCard(v, day, trainer){
   const myZones = hand ? hand.zones.filter(z => z.owners.some(o => names.some(n => rnSame(o, n)))) : [];
   let nowFirst = false;
 
-  if(!entry && !spots.length){
+  if(!on.length && !spots.length){
     first = {text: 'You’re not on today’s schedule.', es: esText('Not on the schedule')};
   } else if(onBreak){
     first = {text: `On break until ${rnClock(Math.round((breakCountdowns[brkKey] - serverNow()) / 60000) + day.now)}.`, es: esText('On break')};
@@ -215,6 +229,8 @@ function rnPersonCard(v, day, trainer){
     first = {text: `You’re on ${nowSpot.slot} until ${rnClock(end)}.`, es: esText('You are on SPOT until TIME', esPlace(nowSpot.slot) || nowSpot.slot, rnClock(end)), go: `setups:${nowSpot.side}|${today}|${nowSpot.dp.name}`};
   } else if(startsAt !== null && startsAt > day.now){
     first = {text: `Your shift starts at ${rnClock(startsAt)}${nextSpot ? `, on ${nextSpot.slot}` : ''}.`, es: esText('Your shift starts at TIME', rnClock(startsAt))};
+  } else if(offFloor && !spots.length){
+    first = {text: `Your ${RN_OFF_FLOOR[offFloor.side]} shift today: ${rnShiftText(offFloor.entry)}.`};
   } else {
     const dp = suDaypartsFor(side)[rnDaypartIndex(side, day.now)];
     first = {text: `No spot yet for ${rnShort(dp.name)}. Check with your leader.`, es: esText('No spot yet for DP', esDaypart(dp.name)), go: `setups:${side}|${today}|${dp.name}`};
@@ -222,7 +238,7 @@ function rnPersonCard(v, day, trainer){
 
   if(nowSpot && !nowFirst) rows.push(rnRow('', `Now: ${nowSpot.slot} (${rnShort(nowSpot.dp.name)})`, esText('Your spot now') + (esPlace(nowSpot.slot) ? ': ' + esPlace(nowSpot.slot) : ''), `setups:${nowSpot.side}|${today}|${nowSpot.dp.name}`));
   if(nextSpot) rows.push(rnRow(rnClock(parseDaypartTimeToMinutes(nextSpot.dp.time)), `Next: ${nextSpot.slot} (${rnShort(nextSpot.dp.name)})`, esText('Next spot') + (esPlace(nextSpot.slot) ? ': ' + esPlace(nextSpot.slot) : ''), `setups:${nextSpot.side}|${today}|${nextSpot.dp.name}`));
-  if(entry) rows.push(rnRow('', `Your shift: ${rnShiftText(entry)}`, esText('Your shift'), ''));
+  if(on.length) rows.push(rnRow('', `Your shift: ${rnShiftsText(on)}`, esText('Your shift'), ''));
   // A planned break still ahead (or just due); one long past is the leader's to sort out.
   if(brk && brk.start !== null && brk.start >= day.now - 15 && !brkTaken && !onBreak) rows.push(rnRow(rnClock(brk.start), 'your break', esText('Your break'), `setups:${side}|${today}|`, brk.start <= day.now ? 'warn' : ''));
   myZones.forEach(z => rows.push(rnRow(`${z.checked}/${z.total}`, `your zone: ${z.zone} · ${hand.title} at ${rnClock(hand.at)}`, '', `zone:${hand.name}`, z.done ? 'ok' : '')));
@@ -237,7 +253,8 @@ function rnPersonCard(v, day, trainer){
 
 function rnLeadCard(v, day, store){
   const on = v.name ? rnOnRoster(v.name, today) : [];
-  const sides = store || !on.length ? ['foh', 'boh'] : [...new Set(on.map(o => o.side))];
+  const onFloor = on.filter(o => RN_FLOOR.includes(o.side));
+  const sides = store || !onFloor.length ? ['foh', 'boh'] : [...new Set(onFloor.map(o => o.side))];
   const rows = [];
   let first = null;
 
