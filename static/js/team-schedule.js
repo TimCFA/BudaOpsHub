@@ -71,23 +71,30 @@ function tsMe(people){
   return hit ? {person: hit, signedIn: false} : null;
 }
 
-function tsMyWeekHtml(days, me){
-  const rows = days.map(d => {
-    const mine = tsShifts(d.iso).filter(s => s.key === me.person.key).sort((a, b) => tsStartOf(a) - tsStartOf(b));
+// A person's week, a day a row: their shifts (and which side), or Off.
+function tsWeekRows(days, key){
+  return days.map(d => {
+    const mine = tsShifts(d.iso).filter(s => s.key === key).sort((a, b) => tsStartOf(a) - tsStartOf(b));
     const isToday = d.iso === today;
     return `<li class="ts-day${mine.length ? '' : ' is-off'}${isToday ? ' is-today' : ''}">
       <span class="ts-day-name">${d.short}<small>${escapeHtml(d.date)}</small></span>
       <span class="ts-day-shifts">${mine.length ? mine.map(s => `<b>${(s.blocks || [s]).map(b => escapeHtml(`${b.start}–${b.end}`)).join('<br>')}</b><em>${TS_SIDE_LABEL[s.side]}</em>`).join('<br>') : `Off${esSpan(esText('Off'))}`}</span>
     </li>`;
   }).join('');
-  const mins = days.reduce((sum, d) => sum + tsShifts(d.iso).filter(s => s.key === me.person.key).reduce((a, s) => a + tsMinutes(s), 0), 0);
-  const count = days.filter(d => tsShifts(d.iso).some(s => s.key === me.person.key)).length;
+}
+function tsWeekTotals(days, key){
+  const mins = days.reduce((sum, d) => sum + tsShifts(d.iso).filter(s => s.key === key).reduce((a, s) => a + tsMinutes(s), 0), 0);
+  const count = days.filter(d => tsShifts(d.iso).some(s => s.key === key)).length;
+  return {mins, count, text: `${count} ${count === 1 ? 'shift' : 'shifts'} · ${Math.round(mins / 6) / 10} hrs`};
+}
+
+function tsMyWeekHtml(days, me){
   return `<section class="ts-card ts-mine">
     <div class="ts-card-head">
-      <div><h3>${escapeHtml(me.person.name)}</h3><p>${count} ${count === 1 ? 'shift' : 'shifts'} · ${Math.round(mins / 6) / 10} hrs</p></div>
+      <div><h3>${escapeHtml(me.person.name)}</h3><p>${tsWeekTotals(days, me.person.key).text}</p></div>
       ${me.signedIn ? '' : `<button type="button" class="ld-link" data-ts-clear>Not you?${esSpan(esText('Not you?'))}</button>`}
     </div>
-    <ul class="ts-days">${rows}</ul>
+    <ul class="ts-days">${tsWeekRows(days, me.person.key)}</ul>
   </section>`;
 }
 
@@ -122,8 +129,116 @@ function tsWhoHtml(days, me){
   return `<section class="ts-card ts-who" id="tsWho">
     <h3>Who's working${esLine("Who's working")}</h3>
     <div class="ts-chips" role="tablist">${days.map(d => `<button type="button" class="ts-chip${d.iso === tsDay ? ' active' : ''}" role="tab" aria-selected="${d.iso === tsDay}" data-ts-day="${d.iso}">${d.short}<small>${escapeHtml(d.date)}</small></button>`).join('')}</div>
-    ${groups.length ? rnRosterHtml(groups, head, me) : '<p class="ts-none">No one is on the schedule this day.</p>'}
+    ${groups.length ? rnRosterHtml(groups, head, me, true) : '<p class="ts-none">No one is on the schedule this day.</p>'}
+    ${tsOffHtml(days, day)}
   </section>`;
+}
+
+// ----- Not working (Tim, Oct 25 2026) -----
+// For a leader looking for someone to call in: everyone on the team with no
+// shift that day, by the side they usually work (the last four weeks and the
+// two on the hub), fewest hours this week first so a call doesn't make
+// overtime. The team is the clock-in PIN list (people who left drop off it);
+// without it, whoever was on the schedule lately. Leads, directors and the
+// admin team only. A name opens that person's week.
+const TS_OFF_LOOKBACK = 28;
+const TS_OFF_NEAR_MINS = 35 * 60;      // "35 h this week": close to overtime
+function tsCanSeeOff(){
+  if(typeof launchManager !== 'undefined' && launchManager) return true;
+  return typeof siLeadOrUp === 'function' && siLeadOrUp();
+}
+function tsUsualSides(){
+  const from = new Date(today + 'T12:00:00'); from.setDate(from.getDate() - TS_OFF_LOOKBACK);
+  const since = toLocalISODate(from), until = tsWeek(1)[5].iso;
+  const out = new Map();
+  [['FOH', fohRoster], ['BOH', bohRoster], ['Truck', truckShifts]].forEach(([side, src]) => Object.entries(src || {}).forEach(([iso, list]) => {
+    if(iso < since || iso > until || !Array.isArray(list)) return;
+    list.forEach(p => {
+      if(!p || !p.name || p.source === 'manual') return;
+      const k = dirKey(p.name);
+      const rec = out.get(k) || {name: p.name, FOH: 0, BOH: 0, Truck: 0};
+      rec[side]++;
+      out.set(k, rec);
+    });
+  }));
+  return out;
+}
+function tsOffPeople(iso, days){
+  const seen = tsUsualSides();
+  const pins = typeof tmPinNames !== 'undefined' && tmPinNames ? tmPinNames.filter(p => p.role !== 'admin') : null;
+  const team = pins ? pins.map(p => ({name: p.name, role: p.role})) : [...seen.values()].map(r => ({name: r.name, role: ''}));
+  const working = tsShifts(iso);
+  const onDay = n => working.some(s => s.key === dirKey(n) || rnSame(s.name, n));
+  return team.filter(t => !onDay(t.name)).map(t => {
+    const rec = seen.get(dirKey(t.name)) || [...seen.values()].find(r => rnSame(r.name, t.name)) || {FOH: 0, BOH: 0, Truck: 0};
+    const side = rec.FOH > rec.BOH ? 'FOH' : rec.BOH > rec.FOH ? 'BOH' : rec.FOH ? 'Both' : '';
+    const key = rec.name ? dirKey(rec.name) : dirKey(t.name);
+    const mins = days.reduce((sum, d) => sum + tsShifts(d.iso).filter(s => s.key === key || rnSame(s.name, t.name)).reduce((a, s) => a + tsMinutes(s), 0), 0);
+    return {name: t.name, scheduleName: rec.name || t.name, role: t.role, side, mins};
+  });
+}
+function tsOffHtml(days, day){
+  if(!tsCanSeeOff()) return '';
+  if(typeof tmPinNames !== 'undefined' && !tmPinNames && typeof teamNamesLoad === 'function'){
+    teamNamesLoad().then(n => { if(n && document.getElementById('tsWho')) renderTeamSchedule(); });
+  }
+  const off = tsOffPeople(day.iso, days);
+  if(!off.length) return '';
+  const groups = [['FOH', 'FOH'], ['BOH', 'BOH'], ['Both', 'FOH and BOH'], ['', 'Not on the schedule lately']]
+    .map(([k, label]) => ({label, people: off.filter(p => p.side === k).sort((a, b) => a.mins - b.mins || a.name.localeCompare(b.name))}))
+    .filter(g => g.people.length);
+  const hrs = m => `${Math.round(m / 6) / 10} h this week`;
+  const roleTag = r => r === 'lead' ? '<span class="rn-rp-tag">Leader</span>' : r === 'trainer' ? '<span class="rn-rp-tag">Trainer</span>' : '';
+  return `<details class="ts-off"${tsOffOpen ? ' open' : ''}>
+      <summary><span class="ts-off-h">Not working ${escapeHtml(day.iso === today ? 'today' : day.long)}</span><span class="ts-off-n">${off.length}</span></summary>
+      <p class="ts-off-note">For a call-in: fewest hours this week first.</p>
+      <div class="rn-roster-grid ts-off-grid">${groups.map(g => `
+        <section class="rn-rg">
+          <h3 class="rn-rg-h">${escapeHtml(g.label)}<span>${g.people.length}</span></h3>
+          <ul class="rn-rg-list">${g.people.map(p => `
+            <li class="rn-rp" data-ts-person="${escapeHtml(p.scheduleName)}" role="button" tabindex="0"><span class="rn-rp-name">${escapeHtml(p.name)}${roleTag(p.role)}</span><span class="ts-off-hrs${p.mins >= TS_OFF_NEAR_MINS ? ' is-near' : ''}">${hrs(p.mins)}</span></li>`).join('')}
+          </ul>
+        </section>`).join('')}</div>
+    </details>`;
+}
+let tsOffOpen = false;
+
+// ----- A person's week, from a tapped name -----
+function tsPersonOpen(name, from){
+  const days = tsWeek(tsOffset);
+  const key = (tsPeople(days).find(p => p.key === dirKey(name) || rnSame(p.name, name)) || {key: dirKey(name)}).key;
+  const t = tsWeekTotals(days, key);
+  let sheet = document.getElementById('tsPersonSheet');
+  if(!sheet){
+    sheet = document.createElement('div');
+    sheet.id = 'tsPersonSheet';
+    sheet.className = 'rn-evs ts-person';
+    document.body.appendChild(sheet);
+    sheet.addEventListener('click', e => { if(e.target === sheet || e.target.closest('[data-ts-person-close]')) tsPersonClose(); });
+    document.addEventListener('keydown', e => { if(e.key === 'Escape' && sheet.classList.contains('is-open')) tsPersonClose(); });
+  }
+  const rows = tsWeekRows(days, key);
+  sheet.innerHTML = `<div class="rn-evs-card" role="dialog" aria-modal="true" aria-labelledby="tsPersonName" style="--ev:var(--cfa-navy)">
+      <button type="button" class="rn-evs-x" data-ts-person-close aria-label="Close">${typeof RN_ICON_X !== 'undefined' ? RN_ICON_X : '×'}</button>
+      <span class="rn-evs-kind"><i aria-hidden="true"></i>${tsOffset ? 'Next week' : 'This week'}</span>
+      <h2 id="tsPersonName">${escapeHtml(name)}</h2>
+      <p class="rn-evs-when">${escapeHtml(t.text)}</p>
+      <ul class="ts-days">${rows}</ul>
+    </div>`;
+  sheet.classList.add('is-open');
+  document.body.classList.add('rn-evs-on');
+  tsPersonFrom = from || null;
+  const x = sheet.querySelector('[data-ts-person-close]');
+  if(x) x.focus();
+}
+let tsPersonFrom = null;
+function tsPersonClose(){
+  const sheet = document.getElementById('tsPersonSheet');
+  if(!sheet) return;
+  sheet.classList.remove('is-open');
+  document.body.classList.remove('rn-evs-on');
+  if(tsPersonFrom && document.body.contains(tsPersonFrom)) tsPersonFrom.focus();
+  tsPersonFrom = null;
 }
 
 // From the Right Now card: open the Schedule tab on a day.
@@ -168,6 +283,8 @@ document.addEventListener('click', e => {
   if(week){ tsOffset = +week.dataset.tsWeek; tsDay = null; renderTeamSchedule(); return; }
   const day = e.target.closest('[data-ts-day]');
   if(day){ tsDay = day.dataset.tsDay; renderTeamSchedule(); return; }
+  const person = e.target.closest('[data-ts-person]');
+  if(person){ tsPersonOpen(person.dataset.tsPerson, person); return; }
   const pick = e.target.closest('[data-ts-pick]');
   if(pick){
     try{ localStorage.setItem(TS_NAME_KEY, pick.dataset.tsPick); }catch(err){}
@@ -189,3 +306,9 @@ document.addEventListener('input', e => {
   const hits = document.getElementById('tsHits');
   if(hits) hits.innerHTML = tsHitsHtml(tsPeople(tsWeek(tsOffset)));
 });
+document.addEventListener('keydown', e => {
+  const person = e.target.closest && e.target.closest('#scheduleView [data-ts-person]');
+  if(person && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); tsPersonOpen(person.dataset.tsPerson, person); }
+});
+// The Not working list stays open or closed as the leader left it.
+document.addEventListener('toggle', e => { if(e.target.classList && e.target.classList.contains('ts-off')) tsOffOpen = e.target.open; }, true);

@@ -197,21 +197,17 @@ DAY = """
 
 
 class AdminTeam(unittest.TestCase):
-    """Ashley on the admin team (Oct 20 2026): a quick look at the day's
-    roster. The Admin Team role's card is that roster."""
+    """Ashley on the admin team (Oct 20 2026): a quick look at the day. The
+    roster itself is a tap away on the Schedule tab (Tim, Oct 25 2026), where
+    it's drawn in the same panel (test_the_schedule_tab_draws_the_same_roster)."""
 
-    def test_the_days_roster_by_group(self):
+    def test_the_day_and_a_link_to_the_roster(self):
         got = run({'op': card('admin', 'Avery Office', extra=DAY)})[0]
         self.assertEqual((got['role'], got['side'], got['title']), ('admin', 'foh', 'Hi, Avery'))
         # Ana, Leo (FOH and BOH: once) and Sam on now; Kim, Tia and Avery done; Max later.
         self.assertEqual(got['first'], '3 on the clock now, 7 on today.')
-        self.assertEqual(got['rows'], [['6:00', 'next in: Max Doe, FOH', '', '']])
-        self.assertEqual(got['roster'], [
-            ['FOH', 2, [['Kim Lee', '6:00a–2:00p', 'done', False], ['Ana Ruiz Lopez', '12:00p–8:30p', 'now', False],
-                        ['Leo Park', '2:00p–10:30p', 'now', True], ['Max Doe', '6:00p–10:00p', 'later', False]]],
-            ['BOH', 2, [['Sam Ortiz', '1:30p–10:30p', 'now', False], ['Leo Park', '5:00p–6:00p', 'now', False]]],
-            ['Truck', 0, [['Tia Wells', '10:00a–3:00p', 'done', False]]],
-            ['Admin', 0, [['Avery Office', '8:00a–4:00p', 'done', False]]]])
+        self.assertEqual(got['rows'], [['6:00', 'next in: Max Doe, FOH', '', ''], ['7', 'on the schedule today · see who’s working', 'schedule:2026-10-19', '']])
+        self.assertIsNone(got['roster'])
 
     def test_before_open_after_close_and_no_schedule(self):
         got = run({'op': card('admin', 'Avery Office', extra=DAY), 'at': '2026-10-19T05:00:00-05:00'},
@@ -219,23 +215,18 @@ class AdminTeam(unittest.TestCase):
                               extra=DAY.replace('today]', 'tue]')).replace('{ ', "{ const tue = '2026-10-20'; ", 1), 'at': '2026-10-19T22:30:00-05:00'},
                   {'op': card('admin', 'Avery Office', setup='')})
         self.assertEqual(got[0]['first'], '7 on today, first in at 6:00.')
-        # After close: tomorrow's roster, no "now".
         self.assertEqual((got[1]['kicker'], got[1]['first']), ('Tuesday', '7 on the schedule Tuesday.'))
-        self.assertEqual({p[2] for g in got[1]['roster'] for p in g[2]}, {''})
+        self.assertIn('schedule:2026-10-20', [r[2] for r in got[1]['rows']])
         self.assertEqual(got[2]['first'], 'No schedule for today yet. It comes in with the HotSchedules roster.')
 
-    def test_on_the_card(self):
-        html = run({'op': f"""c => {{ {SETUP} {DAY} acUser = {{role: 'admin', name: 'Avery Office'}}; renderRightNow(); return document.getElementById('rightNow').innerHTML; }}"""})[0]
-        self.assertIn('<span class="rn-role">Admin Team</span>', html)
+    def test_the_roster_panel(self):
+        # The panel the Schedule tab draws, as the Right Now card did.
+        html = run({'op': f"""c => {{ {SETUP} {DAY} return rnRosterHtml(rnDayRoster(today, rnNowMins()), rnRosterHead(today, rnDay()), '', true); }}"""})[0]
         self.assertIn('<h3 class="rn-rg-h">FOH<span>4 on the day · 2 now</span></h3>', html)
-        # Its own panel, time first, the people on now marked (Tim, Oct 20 2026: easier to notice).
         self.assertIn('<div class="rn-roster-h"><span class="rn-roster-ic">', html)
         self.assertIn('<b>Who’s on today</b><span>Mon, Oct 19</span></div>', html)
-        self.assertIn('<li class="rn-rp is-now"><span class="rn-rp-time">2:00p–10:30p</span><span class="rn-rp-name">Leo Park<span class="rn-rp-tag">Leader</span></span><span class="rn-rp-now">On now</span></li>', html)
-        self.assertIn('<li class="rn-rp is-done"><span class="rn-rp-time">6:00a–2:00p</span><span class="rn-rp-name">Kim Lee</span></li>', html)
+        self.assertIn('<li class="rn-rp is-now" data-ts-person="Leo Park" role="button" tabindex="0"><span class="rn-rp-time">2:00p–10:30p</span><span class="rn-rp-name">Leo Park<span class="rn-rp-tag">Leader</span></span><span class="rn-rp-now">On now</span></li>', html)
         self.assertIn('<span class="rn-rp-tag">Training</span>', html)
-        # Above the rows on the Admin Team's card.
-        self.assertLess(html.index('class="rn-roster"'), html.index('class="rn-list"'))
         css = read('static', 'css', 'theme-cfa.css')
         for rule in ('.rn-roster{', '.rn-roster-h{', '.rn-rp.is-now{', '.rn-rp-now{', '.rn-rp.is-done{'):
             self.assertIn(rule, css)
@@ -255,7 +246,10 @@ class AdminTeam(unittest.TestCase):
         got = run({'op': card('director', '', extra=DAY)},
                   {'op': card('member', 'Ana Ruiz', extra=DAY)},
                   {'op': card('lead', 'Leo Park', extra=DAY)})
-        self.assertIn(['7', 'on the schedule today · see who’s working', 'schedule:2026-10-19', ''], got[0]['rows'])
+        link = ['7', 'on the schedule today · see who’s working', 'schedule:2026-10-19', '']
+        self.assertIn(link, got[0]['rows'])
+        self.assertIn(link, got[2]['rows'])                                     # Team Leads too
+        self.assertNotIn(link, got[1]['rows'])                                  # not Team Members
         self.assertIsNone(got[0]['roster'])
         self.assertIsNone(got[1]['roster'])
         self.assertIsNone(got[2]['roster'])
@@ -265,7 +259,7 @@ class AdminTeam(unittest.TestCase):
 
     def test_the_schedule_tab_draws_the_same_roster(self):
         ts = read('static', 'js', 'team-schedule.js')
-        self.assertIn('rnRosterHtml(groups, head, me)', ts)
+        self.assertIn('rnRosterHtml(groups, head, me, true)', ts)
         self.assertIn("rnDayRoster(tsDay, live ? rnNowMins() : null).filter(g => g.key !== 'admin' || manager)", ts)
         got = run({'op': """c => { fohRoster[today] = [{name: 'Ana Ruiz Lopez', start: '12:00p', end: '8:30p'}, {name: 'Leo Park', start: '2:00p', end: '10:30p', leader: true}];
                     return rnRosterHtml(rnDayRoster(today, null), {title: 'Who’s on today', sub: 'Mon, Oct 19'}, 'Ana Ruiz'); }"""})[0]
