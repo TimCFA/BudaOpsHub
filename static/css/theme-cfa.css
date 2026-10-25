@@ -157,6 +157,8 @@ body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="z
 .su-dp-name{font-family:var(--font-display);font-weight:600;font-size:19px;line-height:1.1;}
 .su-dp-time{font-family:var(--font-ui);font-size:12.5px;font-weight:500;}
 .su-dp .su-dp-fill{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:var(--cfa-soft);color:var(--text-primary);}
+.su-dp .su-dp-fill.is-short{background:#FBE3E4;color:var(--cfa-dark-red);}
+.su-dp .su-dp-fill .es-line{font-size:10px;font-weight:600;}
 .su-dp.is-open .su-dp-banner{border-color:transparent;box-shadow:0 0 0 2px var(--cfa-red),0 8px 20px rgba(28,27,25,0.08);}
 .su-dp.is-open .su-dp-head{background:var(--sky);border-radius:14px 14px 0 0;}
 .su-col-c.is-open .su-dp-head{color:#F6F1E8;}
@@ -2003,6 +2005,7 @@ body.rn-evs-on{overflow:hidden;}
 .su-dp-brief-dot{font-style:normal;color:var(--border);margin:0 6px;}
 .su-dp-brief-lead{display:inline;border:0;background:none;padding:0;margin:0;font:inherit;font-weight:700;color:var(--cfa-navy);cursor:pointer;}
 .su-dp-brief-lead.is-none{color:var(--cfa-red);}
+.su-dp-brief-lead.is-none.is-quiet{color:var(--text-secondary);}
 .su-dp-brief-lead.is-static{cursor:default;}
 .su-dp .su-dp-lead.is-static{display:inline-flex;align-items:center;padding:4px 10px;border:1px solid var(--border);border-radius:999px;background:var(--cfa-white);cursor:default;}
 .su-dp-now{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--cfa-red);color:#fff;font-family:var(--font-ui);font-size:9.5px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;vertical-align:2px;}
@@ -2032,6 +2035,8 @@ body.rn-evs-on{overflow:hidden;}
 #allDayparts .su-sheet-list .su-row-name{justify-content:flex-end;text-align:right;max-width:58vw;}
 #allDayparts .su-sheet-list .su-row-who{color:var(--cfa-navy);}
 #allDayparts .su-sheet-list .su-row-note{flex-basis:100%;text-align:right;}
+.su-row-note.is-break{display:inline-flex;align-items:center;justify-content:flex-end;gap:3px;}
+.su-eval-section-title svg{vertical-align:-2px;margin-right:3px;flex:none;}
 #allDayparts .su-sheet-list .su-row-notebtn{border-color:transparent;background:transparent;color:#B3AC9F;}
 #allDayparts .su-sheet-list .su-row-notebtn:hover{color:var(--cfa-navy);}
 #allDayparts .su-sheet-list .su-row-notebtn.has{border-color:transparent;background:#E3EEF4;color:var(--cfa-navy);}

@@ -131,7 +131,7 @@ class DaypartCards(unittest.TestCase):
         self.assertIn("${!open && !pill ? suDaypartBriefHtml(section, date, dp) : ''}", card)
         brief = block(board, 'function suDaypartBriefHtml(section, date, dp){', '\n}\n')
         self.assertIn("${lead ? `Lead: ${escapeHtml(suDisplayName(lead))}` : 'Lead: choose'}", brief)
-        self.assertIn("""class="su-dp-brief-lead ${lead ? '' : 'is-none'}" data-su-lead-open="1\"""", brief)
+        self.assertIn("""class="su-dp-brief-lead ${lead ? '' : 'is-none'} ${!lead && !suLeadIsPressing(section, date, dp) ? 'is-quiet' : ''}" data-su-lead-open="1\"""", brief)
         self.assertIn("`<span><b>${escapeHtml(sales)}</b> projected${esHtml('projected')}</span>`", brief)
         self.assertIn("`<span><b>${escapeHtml(goal)}</b>/labor hr${esHtml('per labor hour')}</span>`", brief)
         self.assertIn("if(!leadHtml && !nums.length) return '';", brief)
@@ -141,6 +141,73 @@ class DaypartCards(unittest.TestCase):
         self.assertIn('.su-dp-brief-lead{display:inline;border:0;background:none;padding:0;margin:0;font:inherit;font-weight:700;color:var(--cfa-navy);', css)
         self.assertRegex(css, r'\.su-dp-brief\{display:block;[^}]*white-space:nowrap;overflow:hidden;text-overflow:ellipsis;')
         self.assertIn('.su-dp-brief-lead.is-none{color:var(--cfa-red);}', css)
+        self.assertIn('.su-dp-brief-lead.is-none.is-quiet{color:var(--text-secondary);}', css)
+
+    def test_lead_choose_is_red_only_now_and_next(self):
+        """Six red "Lead: choose" labels shouted on every closed card, dayparts
+        already over included (Oct 2026). Red for today's daypart on the clock
+        and the next one; grey anywhere else, still a tap away."""
+        board = read('static', 'js', 'setups-board.js')
+        fn = block(board, 'function suLeadIsPressing(section, date, dp){', '\n}\n')
+        self.assertIn("if(date !== today) return false;", fn)
+        self.assertIn("return i >= nowIdx && i <= nowIdx + 1;", fn)
+
+    def test_banner_count_is_what_is_open(self):
+        """The pill read "8/9" while three spots sat red: a spot filled below
+        the headcount line made up for a skipped one above it (Oct 2026). Now
+        "3 open" (red) while spots up to the headcount are empty, else
+        filled/on shift as before; the Coach chips say the same thing."""
+        board = read('static', 'js', 'setups-board.js')
+        count = block(board, 'function suDaypartOpenCount(section, date, dp, i){', '\n}\n')
+        self.assertIn("const open = slots.slice(0, onShift).filter(s => !posAssignments[key + '||' + s]).length;", count)
+        text = block(board, 'function suDaypartFillText(section, date, dp, i, count){', '\n}\n')
+        self.assertIn("return open ? `${open} open${esLine('N open', open)}` : onShift ? `${filled}/${onShift}` : filled ? `${filled} placed${esLine('N placed', filled)}` : '—';", text)
+        self.assertIn("""`<span class="su-dp-fill ${count.open && !suDaypartIsOver(section, date, dp) ? 'is-short' : ''}">""", board)
+        over = block(board, 'function suDaypartIsOver(section, date, dp){', '\n}\n')
+        self.assertIn("if(date < today) return true;", over)
+        self.assertIn("return date === today && i < nowIdx;", over)
+        chips = block(board, 'function suDaypartChipsHtml(section, date, current){', '\n}\n')
+        self.assertIn('<span class="su-chip-fill">${suDaypartFillText(section, date, dp, i)}</span>', chips)
+        self.assertNotIn('filled}/${onShift}', chips)
+        css = read('static', 'css', 'theme-cfa.css')
+        self.assertIn('.su-dp .su-dp-fill.is-short{background:#FBE3E4;color:var(--cfa-dark-red);}', css)
+
+    def test_arrival_redraw_waits_for_open_sheets(self):
+        """The half-minute arrival check looked for `.modal.active`, a class
+        the page doesn't have, so a note being typed was redrawn under the
+        leader's thumb. It asks the sync's own check now (stateDialogOpen) and
+        waits out a drag."""
+        sheet = read('static', 'js', 'setups-sheet.js')
+        self.assertNotIn(".modal.active", sheet)
+        self.assertIn("|| suDrag || (typeof stateDialogOpen === 'function' && stateDialogOpen())) return;", sheet)
+
+    def test_no_emoji_on_set_ups(self):
+        """Line icons, never emoji (theme-cfa.css). The cup on a planned break,
+        the split and flag buttons and the Develop PEA note were the last ones."""
+        # Pictographs and the dingbat emoji; the text glyphs the board styles itself (★ development, ✓ in toasts) are not these.
+        emoji = re.compile('[\U0001F300-\U0001FAFF☔-☕⚠-⛿✀-✒✔-➿]')
+        for name in ('setups-board.js', 'setups-sheet.js', 'daypicker-and-positions.js', 'setup-develop.js', 'setup-fill.js',
+                     'setup-leaders.js', 'setup-planb.js', 'setup-evaluate.js', 'setup-rules.js'):
+            src = read('static', 'js', name)
+            self.assertIsNone(emoji.search(src), f'{name} still has an emoji')
+        page = read('cfa-buda-ops-hub-complete.html')
+        split = block(page, '<div class="overlay" id="vacancyModal">', '</div>\n  </div>')
+        self.assertIsNone(emoji.search(split), 'the Find Coverage sheet still has an emoji')
+        self.assertIn('const SU_ICON_CUP_SM =', read('static', 'js', 'setups-sheet.js'))
+
+    def test_no_dead_set_ups_helpers(self):
+        """Gone in Oct 2026: the generic renderDayPicker nothing called, the
+        currency helper nothing called, the inline onclick on the coverage
+        list, and the redundant status-row redraws after renderAllDayparts
+        (renderAllDayparts draws the status row itself)."""
+        js = read('static', 'js', 'daypicker-and-positions.js')
+        self.assertNotIn('function renderDayPicker(', js)
+        self.assertNotIn('formatAndUpdateCurrency', js)
+        self.assertNotIn('selectVacancyOption', js)
+        self.assertNotIn('onclick=', js)
+        self.assertIn("data-vacancy-pick=", js)
+        self.assertNotIn("renderAllDayparts();\n  updateSelectedDayInfo('daySelect', 'daySelectedInfo');", js)
+        self.assertIn('function updateSelectedDayInfo(', js)      # the Safe Count and roster import pages still use it
 
     def test_now_daypart_opens_itself_once(self):
         board = read('static', 'js', 'setups-board.js')
