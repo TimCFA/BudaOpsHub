@@ -293,9 +293,9 @@ function suNumbersParts(date, dp){
 function suDaypartBriefHtml(section, date, dp){
   const {sales, goal} = suNumbersParts(date, dp);
   const lead = section === 'foh' ? posAssignments[suEvalKey(section, date, dp.name) + '||' + SU_LEAD_CAPTAIN] : '';
-  const leadHtml = section === 'foh'
-    ? `<button type="button" class="su-dp-brief-lead ${lead ? '' : 'is-none'}" data-su-lead-open="1" data-su-lead-dp="${escapeHtml(dp.name)}">${lead ? `Lead: ${escapeHtml(suDisplayName(lead))}` : 'Lead: choose'}</button>`
-    : '';
+  const leadHtml = section !== 'foh' ? ''
+    : suCanChooseLead() ? `<button type="button" class="su-dp-brief-lead ${lead ? '' : 'is-none'}" data-su-lead-open="1" data-su-lead-dp="${escapeHtml(dp.name)}">${lead ? `Lead: ${escapeHtml(suDisplayName(lead))}` : 'Lead: choose'}</button>`
+    : lead ? `<span class="su-dp-brief-lead is-static">Lead: ${escapeHtml(suDisplayName(lead))}</span>` : '';
   const nums = [sales ? `<span><b>${escapeHtml(sales)}</b> projected${esHtml('projected')}</span>` : '', goal ? `<span><b>${escapeHtml(goal)}</b>/labor hr${esHtml('per labor hour')}</span>` : ''].filter(Boolean);
   if(!leadHtml && !nums.length) return '';
   return `<div class="su-dp-brief" data-su-dp-toggle="${escapeHtml(dp.name)}">${[leadHtml, ...nums].filter(Boolean).join('<i class="su-dp-brief-dot" aria-hidden="true">·</i>')}</div>`;
@@ -395,7 +395,9 @@ function suDaypartCardHtml(section, date, dp, i, open, openHtml, m, pill){
     // Only the Lead Captain's name opens the Lead picker; the rest of the
     // banner opens and closes the card. Just the name: the spot they also
     // work is on its own row below (Tim dropped the "· iPOS 1" label).
-    const leadBtn = section === 'foh' ? `<span class="su-dp-k">Lead</span><button type="button" class="su-dp-lead" data-su-lead-open="1" data-su-lead-dp="${escapeHtml(dp.name)}">${lead ? `<b>${escapeHtml(suDisplayName(lead))}</b>` : '<em>Choose</em>'}</button>` : '';
+    const leadBtn = section !== 'foh' ? ''
+      : suCanChooseLead() ? `<span class="su-dp-k">Lead</span><button type="button" class="su-dp-lead" data-su-lead-open="1" data-su-lead-dp="${escapeHtml(dp.name)}">${lead ? `<b>${escapeHtml(suDisplayName(lead))}</b>` : '<em>Choose</em>'}</button>`
+      : `<span class="su-dp-k">Lead</span><span class="su-dp-lead is-static">${lead ? `<b>${escapeHtml(suDisplayName(lead))}</b>` : '<em>Not set</em>'}</span>`;
     const needed = open && m ? m.tiles.filter(x => x.needed).length : 0;
     const fillBtn = needed && m.unplaced.length && suFillAvailable() ? `<button type="button" class="su-dp-fillbtn" data-su-tool="fill">Fill ${needed} open${esLine('Fill N open', needed)}</button>` : '';
     const sky = suDaypartSky(dp.name);

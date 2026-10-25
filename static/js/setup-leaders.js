@@ -113,7 +113,20 @@ function leadCaptainOptions(date, dp, dpIndex){
   return {options, dayType, historyDays};
 }
 
+// Choosing the Lead Captain is for Team Leads and directors (Tim, Oct 25
+// 2026): a device nobody signed in on, a Team Member or a Trainer sees who
+// leads but can't change it. The server holds to the same rule (app.py,
+// _lead_captain_ops), so this is never only a hidden button.
+function suCanChooseLead(){
+  if(typeof launchManager !== 'undefined' && launchManager) return true;
+  return typeof acUser !== 'undefined' && !!acUser && acUser.role === 'lead';
+}
+
 function suLeadCaptainLineHtml(date, dp){
+  if(!suCanChooseLead()){
+    const name = posAssignments[suEvalKey('foh', date, dp.name) + '||' + SU_LEAD_CAPTAIN];
+    return `<div class="su-plan-line su-plan-lead"><span class="su-plan-tag is-lead">Lead</span><span>${name ? `<b>${escapeHtml(suDisplayName(name))}</b> is Lead Captain` : 'No Lead Captain yet'}</span></div>`;
+  }
   const key = suEvalKey('foh', date, dp.name) + '||' + SU_LEAD_CAPTAIN;
   const current = posAssignments[key];
   if(current){
@@ -278,6 +291,7 @@ document.getElementById('allDayparts').addEventListener('click', async e=>{
   const home = e.target.closest('[data-su-lead-home]');
   if(!open && !set && !clear && !home) return;
   e.stopPropagation();
+  if(!suCanChooseLead()){ showToast('Only Team Leads choose the Lead Captain. Sign in with your clock-in PIN.'); return; }
   // Lead on a daypart card's banner: that daypart becomes the one worked on.
   if(open && open.dataset.suLeadDp){ suSelectedDaypart.foh = open.dataset.suLeadDp; suOpenCards.foh.add(open.dataset.suLeadDp); }
   const date = document.getElementById('daySelect').value;

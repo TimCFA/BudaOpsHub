@@ -1950,6 +1950,8 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .su-dp-brief-dot{font-style:normal;color:var(--border);margin:0 6px;}
 .su-dp-brief-lead{display:inline;border:0;background:none;padding:0;margin:0;font:inherit;font-weight:700;color:var(--cfa-navy);cursor:pointer;}
 .su-dp-brief-lead.is-none{color:var(--cfa-red);}
+.su-dp-brief-lead.is-static{cursor:default;}
+.su-dp .su-dp-lead.is-static{display:inline-flex;align-items:center;padding:4px 10px;border:1px solid var(--border);border-radius:999px;background:var(--cfa-white);cursor:default;}
 .su-dp-now{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--cfa-red);color:#fff;font-family:var(--font-ui);font-size:9.5px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;vertical-align:2px;}
 .su-dp{scroll-margin-top:70px;}
 .su-dp-list + .su-tier-key{margin-top:4px;}

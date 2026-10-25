@@ -1635,6 +1635,43 @@ def state_sync():
         print(f"[STATE SYNC ERROR] {e}")
         return jsonify({'error': 'Sync failed'}), 500
 
+# Choosing the Lead Captain on Set Ups is for Team Leads and directors (Tim,
+# Oct 25 2026). A save from anyone else (a device nobody signed in on, a Team
+# Member, a Trainer) goes through without its Lead Captain changes, and the
+# page gets Set Ups back so it shows who really leads (setup-leaders.js hides
+# the picker too).
+LEAD_CAPTAIN_SUFFIX = '||Lead Captain'
+
+def _can_choose_lead():
+    return bool(session.get('manager')) or (session.get('user') or {}).get('role') == 'lead'
+
+def _lead_captain_ops(ops, current):
+    """ops with every change to a Lead Captain taken out, and whether any was.
+    A change to the whole set up list becomes changes spot by spot, so the
+    Lead Captains in it stay as saved."""
+    saved = current.get('posAssignments') if isinstance(current.get('posAssignments'), dict) else {}
+    out, dropped = [], False
+    for op in ops:
+        path = op['p']
+        if path[0] != 'posAssignments':
+            out.append(op)
+        elif len(path) >= 2:
+            if path[1].endswith(LEAD_CAPTAIN_SUFFIX):
+                dropped = True
+            else:
+                out.append(op)
+        else:
+            whole = op.get('v') if op['o'] == 'set' and isinstance(op.get('v'), dict) else {}
+            for k in sorted(set(saved) | set(whole)):
+                if k.endswith(LEAD_CAPTAIN_SUFFIX):
+                    dropped = dropped or whole.get(k) != saved.get(k)
+                elif k in whole:
+                    if saved.get(k) != whole[k]:
+                        out.append({'o': 'set', 'p': ['posAssignments', k], 'v': whole[k]})
+                elif k in saved:
+                    out.append({'o': 'del', 'p': ['posAssignments', k]})
+    return out, dropped
+
 @app.route('/api/state/patch', methods=['POST'])
 def state_patch():
     """Apply each section's changes to the latest saved data. A section comes
@@ -1701,6 +1738,9 @@ def state_patch():
                     # so it drops the change it couldn't make.
                     ignored.update(op['p'][0] for op in dropped)
                     ops = [op for op in ops if op['p'][0] not in MANAGER_ONLY_KEYS]
+                if name == 'setups' and not _can_choose_lead():
+                    ops, lead_dropped = _lead_captain_ops(ops, entry['data'])
+                    dropped = dropped or lead_dropped
                 if dropped or patch.get('ver') != entry['ver']:
                     returned.append(name)
                 new = apply_ops(entry['data'], ops)
