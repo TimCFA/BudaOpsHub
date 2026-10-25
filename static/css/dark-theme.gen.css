@@ -232,6 +232,11 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .rn-n.is-ok{color:#78D091;}
 :where(html[data-theme="dark"]) .rn-n.is-warn{color:#FFB545;}
 :where(html[data-theme="dark"]) .rn-row.is-go:hover .rn-go,:where(html[data-theme="dark"]) .rn-first.is-go:hover b{color:var(--ink-red);}
+:where(html[data-theme="dark"]) .rn-ev-item{background:rgba(29,29,29,0.1);}
+:where(html[data-theme="dark"]) .rn-ev-item:hover{background:rgba(29,29,29,0.16);}
+:where(html[data-theme="dark"]) .rn-ev-item:focus-visible,:where(html[data-theme="dark"]) .rn-ev-chip:focus-visible{outline:2px solid #292929;}
+:where(html[data-theme="dark"]) .rn-ev-chip{border:1px solid rgba(41,41,41,0.3);}
+:where(html[data-theme="dark"]) .rn-evs-cal{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .rn-roster-ic{background:rgba(29,29,29,0.14);}
 :where(html[data-theme="dark"]) .rn-rg-h{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .su-strip-arrow:hover{color:var(--ink-dark-red);}
