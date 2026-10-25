@@ -106,7 +106,6 @@ function siDraw(){
       <input id="siPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" required>
       <button type="submit" class="btn btn-primary" ${siBusy ? 'disabled' : ''}>Sign in</button>
       <p class="si-hint">Your 6-digit clock-in PIN.</p>
-      ${siIdentity.required || siReason ? '' : '<button type="button" class="ld-link" data-si-initials>Use initials instead</button>'}
     </form>${!handOver && typeof acGoogleClientId !== 'undefined' && acGoogleClientId ? `
     <div class="ac-or"><span>or</span></div><div id="siGoogleBtn" class="ac-google"></div><p class="si-hint">Directors: your store Google account.</p>` : ''}`}`;
   if(typeof acMountGoogle === 'function') acMountGoogle();
@@ -138,7 +137,6 @@ document.addEventListener('submit', e => {
 document.addEventListener('click', e => {
   if(e.target.closest('[data-si-close]') || e.target.id === 'siSheet'){ siClose(); return; }
   if(e.target.closest('[data-si-out]')){ acSignOut(); return; }
-  if(e.target.closest('[data-si-initials]')){ siClose(); if(typeof editInitialsBox === 'function') editInitialsBox(); return; }
   const go = e.target.closest('[data-si-open]');
   if(go){ siOpen(); return; }
 });
@@ -181,7 +179,7 @@ function siRenderSettings(){
   root.innerHTML = `
     <label class="launch-setting">
       <input type="checkbox" data-si-require ${siIdentity.required ? 'checked' : ''}>
-      <span><b>${siIdentity.required ? 'On' : 'Off'}</b> — ${siIdentity.required ? 'every change needs a sign-in: a clock-in PIN, Google, or a shared store device.' : 'devices nobody signed in on can still make changes, signed with typed initials. Set Ups is Team Leads and up either way.'}</span>
+      <span><b>${siIdentity.required ? 'On' : 'Off'}</b> — ${siIdentity.required ? 'every change needs a sign-in: a clock-in PIN, Google, or a shared store device.' : 'logging waste, zone checks and notes asks for a sign-in on the page; the server enforces it once this is on. Set Ups is Team Leads and up either way.'}</span>
     </label>
     <p class="dir-note">${gaps ? (gaps.missing.length ? `<b>${gaps.missing.length} on the schedule ${gaps.missing.length === 1 ? 'has' : 'have'} no PIN on file</b> (Our Team → PIN on file): they couldn’t make changes with this on.` : 'Everyone on the schedule has a PIN on file.') : 'Check Our Team → PIN on file before turning this on.'}</p>
     <h4>Shared store devices</h4>

@@ -238,7 +238,7 @@ document.getElementById('zoneButtonRow').addEventListener('click', async (e)=>{
   } else {
     const initials = getInitials();
     if(!initials){
-      showToast('Say who you are first (top right)');
+      showToast('Sign in first (top right)');
       beginEditInitials();
       renderZoneResetCard();
       return;

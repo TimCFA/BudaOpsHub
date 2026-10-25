@@ -475,7 +475,7 @@ async function fsStartRound(){
 
 function fsRequireInitials(){
   const initials = getInitials();
-  if(!initials){ showToast(`Say who you are first (top right) · ${esText('Say who you are first (top right)')}`); beginEditInitials(); }
+  if(!initials){ showToast(`Sign in first (top right) · ${esText('Sign in first (top right)')}`); beginEditInitials(); }
   return initials;
 }
 

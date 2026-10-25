@@ -667,7 +667,7 @@ document.getElementById('btnConfirmVacancy').addEventListener('click', async ()=
 
 document.getElementById('btnFlagOnly').addEventListener('click', async ()=>{
   const initials = getInitials();
-  if(!initials){ showToast('Say who you are first (top right)'); beginEditInitials(); return; }
+  if(!initials){ showToast('Sign in first (top right)'); beginEditInitials(); return; }
   posVacancyFlags[currentVacancyKey] = {flaggedBy: initials, flaggedAt: Date.now()};
   document.getElementById('vacancyModal').classList.remove('active');
   renderAllDayparts();
@@ -1053,7 +1053,7 @@ document.getElementById('btnConfirmAddTM').addEventListener('click', async ()=>{
 
   const initials = getInitials();
   if(!initials){
-    showToast('Say who you are first (top right)');
+    showToast('Sign in first (top right)');
     beginEditInitials();
     return;
   }

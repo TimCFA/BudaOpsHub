@@ -65,26 +65,21 @@ function jsArg(value){
 // Who signed in (accounts.js, from the server) is who the hub writes on what
 // they do, and the server stamps it again so a page can't claim anyone else
 // (TIM-90; Tim, Oct 25 2026). A shared store device signs as itself ("Kitchen
-// iPad"). Typed initials are the old way: unverified, so they're only used
-// on a device nobody signed in on while sign-in isn't required yet; once a
-// director turns "Require sign-in" on, they're gone and the badge says
-// "Sign in" (sign-in.js).
+// iPad"). Typed initials are gone: nobody signed in means the badge says
+// "Sign in" and anything that needs a name asks for one (sign-in.js).
 const INITIALS_STORAGE_KEY = 'cfaBudaInitials';
 let siIdentity = {name: '', device: '', role: '', required: false, known: false};
 
+// Who's doing this: the person signed in on this device, else the shared
+// store device, else nobody, and the page asks for a sign-in (sign-in.js).
+// Typed initials are gone (Tim, Oct 25 2026: a signed-out iPad still wrote
+// his initials on its waste); any left on a device are cleared.
 function getInitials(){
   if(siIdentity.name) return siIdentity.name;
   if(siIdentity.device) return siIdentity.device;
-  if(siIdentity.required) return '';
-  try{ return localStorage.getItem(INITIALS_STORAGE_KEY) || ''; }catch(e){ return ''; }
+  return '';
 }
-
-function setInitials(value){
-  const cleaned = String(value || '').replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 4);
-  localStorage.setItem(INITIALS_STORAGE_KEY, cleaned);
-  renderInitialsBadge();
-  return cleaned;
-}
+try{ localStorage.removeItem(INITIALS_STORAGE_KEY); }catch(e){ /* nothing kept */ }
 
 function formatShortTime(ts){
   if(!ts) return '';
@@ -95,47 +90,22 @@ function renderInitialsBadge(){
   const badge = document.getElementById('initialsBadge');
   if(!badge) return;
   // Signed in (or a shared device): their first name. Nobody signed in:
-  // "Sign in", so it's on every page, not only Manage (Tim, Oct 25 2026);
-  // sign-in.js opens the sheet, which still offers typed initials until
-  // sign-in is required.
+  // "Sign in", on every page (Tim, Oct 25 2026). A tap opens the sign-in
+  // sheet, not a menu, so no arrow.
   const who = siIdentity.name ? siIdentity.name.split(/\s+/)[0] : siIdentity.device;
-  badge.innerHTML = who ? `${escapeHtml(who)} ▾` : `Sign in ▾${typeof esLine === 'function' ? esLine('Sign in') : ''}`;
+  badge.innerHTML = who ? escapeHtml(who) : `Sign in${typeof esLine === 'function' ? esLine('Sign in') : ''}`;
   badge.title = who ? 'Who’s signed in on this device' : 'Sign in with your clock-in PIN or Google';
 }
 
-// The badge opens the sign-in sheet (sign-in.js); typed initials are its
-// "use initials instead" while sign-in isn't required.
+// A change that needs a name (waste, a zone check, a note) opens the
+// sign-in sheet and says why; the badge opens it plain.
 function beginEditInitials(){
-  if(typeof siOpen === 'function'){ siOpen(); return; }
-  editInitialsBox();
+  if(typeof siOpen === 'function') siOpen('Sign in with your clock-in PIN first. You’ll stay signed in on this phone.');
 }
-function editInitialsBox(){
-  const badge = document.getElementById('initialsBadge');
-  if(!badge || badge.querySelector('input')) return;
-  const current = getInitials();
-  badge.innerHTML = `<input type="text" id="initialsInput" maxlength="4" value="${escapeHtml(current)}" placeholder="JD" style="width:50px;text-transform:uppercase;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;border:1px solid var(--cfa-red);border-radius:4px;padding:2px 4px;background:var(--cfa-white);color:var(--text-primary);">`;
-  const input = document.getElementById('initialsInput');
-  input.focus();
-  input.select();
-  let done = false;
-  const commit = () => { if(!done){ done = true; setInitials(input.value); } };
-  // A tap elsewhere closes the box, and the redrawn badge (the "Set initials"
-  // prompt has a Spanish line) can make the header taller, moving the tabs
-  // out from under the finger so the tap missed (Oct 18 2026). Close it once
-  // that tap is over.
-  input.addEventListener('blur', () => {
-    const fallback = setTimeout(commit, 700);
-    document.addEventListener('click', () => { clearTimeout(fallback); setTimeout(commit, 0); }, {once: true, capture: true});
-  });
-  input.addEventListener('keydown', (e) => { if(e.key === 'Enter') commit(); });
-}
-
 const initialsBadgeEl = document.getElementById('initialsBadge');
 if(initialsBadgeEl){
   renderInitialsBadge();
-  initialsBadgeEl.addEventListener('click', beginEditInitials);
-  // The initials box opens by itself only once the server says nobody's
-  // signed in and sign-in isn't required (accounts.js, acApplyStatus).
+  initialsBadgeEl.addEventListener('click', () => { if(typeof siOpen === 'function') siOpen(); });
 }
 
 function toLocalISODate(d){
