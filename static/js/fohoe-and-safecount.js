@@ -179,7 +179,7 @@ window.toggleWalkthroughItem = async function(cat, i){
     delete bucket[i];
   } else {
     const initials = getInitials();
-    if(!initials){ showToast('Set your initials first (top right)'); beginEditInitials(); renderWalkthroughModal(); return; }
+    if(!initials){ showToast('Say who you are first (top right)'); beginEditInitials(); renderWalkthroughModal(); return; }
     bucket[i] = {initials, ts: Date.now()};
   }
   fohOECheckedDate = today;
@@ -226,7 +226,7 @@ document.getElementById('fohLeaderTransitionChecklist').addEventListener('click'
     delete bucket[idx];
   } else {
     const initials = getInitials();
-    if(!initials){ showToast('Set your initials first (top right)'); beginEditInitials(); renderLeaderTransitionCard(); return; }
+    if(!initials){ showToast('Say who you are first (top right)'); beginEditInitials(); renderLeaderTransitionCard(); return; }
     bucket[idx] = {initials, ts: Date.now()};
   }
   fohLeaderTransitionDate = today;

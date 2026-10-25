@@ -768,7 +768,7 @@ document.getElementById('allDayparts').addEventListener('click', e=>{
     const ta = document.getElementById('suNoteText');
     const text = ta ? ta.value.trim() : '';
     const by = getInitials();
-    if(!by){ showToast('Set your initials first (top right)'); beginEditInitials(); return; }
+    if(!by){ showToast('Say who you are first (top right)'); beginEditInitials(); return; }
     if(!text){ showToast('Write the note first'); if(ta) ta.focus(); return; }
     addPosNote(keyFor(suSheet.slot), text, by);
     suNoteDraft = {key: '', text: ''};
@@ -808,6 +808,8 @@ document.getElementById('allDayparts').addEventListener('click', e=>{
   }
   if(tile){
     const slot = tile.dataset.suTile;
+    // Sign-in required: Team Leads change Set Ups (sign-in.js).
+    if(typeof siMayChange === 'function' && !siMayChange('posAssignments')){ siOpen(siWhy(['posAssignments'])); return; }
     if(posAssignments[keyFor(slot)]){ suSheet = {kind: suMode === 'coach' ? 'person' : 'row', slot}; renderAllDayparts(); }
     else openPosModal(keyFor(slot), slot, dp.name);
     return;

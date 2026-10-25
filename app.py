@@ -28,7 +28,7 @@ from event_fixes import fix_events, add_mens_outerwear
 import forms_api
 from reports_parser import parse_report_file, ReportParseError
 import levelset_sync
-from state_patch import PatchError, apply_ops, canon, check_ops, union_merge
+from state_patch import PatchError, _identity, apply_ops, canon, check_ops, union_merge
 import setup_feed
 import briefing_feed
 
@@ -51,7 +51,10 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
     SESSION_COOKIE_SECURE=True,          # Render serves HTTPS; set False only for local http testing
-    PERMANENT_SESSION_LIFETIME=timedelta(hours=12),
+    # Signed in until signed out (Tim, Oct 25 2026); a removed PIN, a
+    # changed PIN, a removed device or "sign out everywhere" ends a session
+    # (_check_session), and a manager or director PIN still lasts 12 hours.
+    PERMANENT_SESSION_LIFETIME=timedelta(days=400),
 )
 
 # Fields that require an authenticated manager session to change. A
@@ -603,13 +606,72 @@ def manager_login():
         return jsonify(_sign_in({'role': 'director', 'manager': True, 'via': 'pin'}))
     who = _team_pin_lookup(pin)
     if who:
-        return jsonify(_sign_in({'role': who['role'], 'name': who['name'], 'via': 'pin'}))
+        return jsonify(_sign_in({'role': who['role'], 'name': who['name'], 'via': 'pin', 'pinKey': who['pinKey']}))
     _record_failure(ip)
     return jsonify({'error': 'Incorrect PIN'}), 401
 
 @app.route('/api/manager/logout', methods=['POST'])
 def manager_logout():
-    _sign_out()
+    # {device: true} signs a shared device out too (a director's choice in Manage).
+    _sign_out(device_too=bool((request.get_json(silent=True) or {}).get('device')) and bool(session.get('manager')))
+    return jsonify({'success': True, 'device': (session.get('device') or {}).get('name')})
+
+@app.route('/api/settings/sign-in', methods=['GET', 'POST'])
+def settings_sign_in():
+    """Whether every change needs a sign-in (TIM-90): directors turn it on
+    in Manage once everyone on the schedule has a PIN on file."""
+    if not session.get('manager'):
+        return jsonify({'error': 'Directors only.'}), 403
+    if request.method == 'POST':
+        on = bool((request.get_json(silent=True) or {}).get('requireSignIn'))
+        db.reference(SETTINGS_PATH).set(dict(_auth_lists(force=True).get('settings') or {}, requireSignIn=on))
+        _auth_changed()
+        print(f'[AUTH] sign-in required: {on}')
+    return jsonify({'requireSignIn': _require_sign_in()})
+
+@app.route('/api/devices', methods=['GET', 'POST', 'DELETE'])
+def devices():
+    """Shared store devices (TIM-90): a director makes the device in hand one
+    (POST {name}): it stays signed in as that device. GET lists them; DELETE
+    {id} removes one, which signs it out within a minute."""
+    if not session.get('manager'):
+        return jsonify({'error': 'Directors only.'}), 403
+    ref = db.reference(DEVICES_PATH)
+    if request.method == 'POST':
+        name = re.sub(r'\s+', ' ', str((request.get_json(silent=True) or {}).get('name') or '')).strip()[:40]
+        if not name:
+            return jsonify({'error': 'Name the device, e.g. Kitchen iPad.'}), 400
+        did = secrets.token_hex(8)
+        db.reference(f'{DEVICES_PATH}/{did}').set({'name': name, 'addedAt': int(time.time()), 'by': _who_name() or 'Director'})
+        _auth_changed()
+        session.clear()
+        session.permanent = True
+        session['device'] = {'id': did, 'name': name}
+        print('[AUTH] shared device added')
+        return jsonify({'success': True, 'device': name})
+    if request.method == 'DELETE':
+        did = str((request.get_json(silent=True) or {}).get('id') or '')
+        if re.fullmatch(r'[0-9a-f]{16}', did):
+            db.reference(f'{DEVICES_PATH}/{did}').delete()
+            _auth_changed()
+    devs = ref.get() or {}
+    return jsonify({'devices': sorted(({'id': k, 'name': v.get('name'), 'addedAt': v.get('addedAt'), 'by': v.get('by')}
+                                       for k, v in devs.items() if isinstance(v, dict)), key=lambda d: str(d['name']).lower())})
+
+@app.route('/api/team/sign-out-everywhere', methods=['POST'])
+def team_sign_out_everywhere():
+    """Sign someone out on every phone ({name}): a lost phone, or someone
+    who left. Directors and the admin team."""
+    if not _turnover_access():
+        return jsonify({'error': 'Directors and the admin team only.'}), 403
+    name = re.sub(r'\s+', ' ', str((request.get_json(silent=True) or {}).get('name') or '')).strip()
+    if not name:
+        return jsonify({'error': 'Who?'}), 400
+    key = _person_key(name)
+    ref = db.reference(f'{SESSION_GEN_PATH}/{key}')
+    ref.set(int(ref.get() or 0) + 1)
+    _auth_changed()
+    print('[AUTH] signed out everywhere')
     return jsonify({'success': True})
 
 @app.route('/api/manager/status', methods=['GET'])
@@ -619,7 +681,9 @@ def manager_status():
     out = {'isManager': manager, 'isDirector': manager and bool(session.get('director')),
            'isOwner': manager and bool(session.get('owner')),
            'directorPinSet': manager and bool(db.reference(DIRECTOR_PIN_PATH).get()),
-           'user': {k: user.get(k) for k in ('name', 'role', 'via')} if user else None}
+           'user': {k: user.get(k) for k in ('name', 'role', 'via')} if user else None,
+           'device': (session.get('device') or {}).get('name') if isinstance(session.get('device'), dict) else None,
+           'requireSignIn': _require_sign_in()}
     if GOOGLE_CLIENT_ID:
         out['googleClientId'] = GOOGLE_CLIENT_ID   # public by design: the sign-in button needs it
     return jsonify(out)
@@ -660,40 +724,172 @@ _EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
 def _email_key(email):
     return hashlib.sha1(email.strip().lower().encode('utf-8')).hexdigest()[:20]
 
+# ===== SIGNED IN UNTIL SIGNED OUT (TIM-90; Tim, Oct 25 2026) =====
+# A personal phone stays signed in until someone signs out. What ends a
+# session from the server's side, checked on every request (_check_session,
+# from a copy of the lists refreshed every AUTH_CACHE_SECONDS):
+#  - a clock-in PIN taken off the list or changed (the session keeps which
+#    entry it signed in with); a changed role takes effect at once
+#  - "sign out everywhere" for someone (secure/sessionGen counts up)
+#  - a shared device removed in Manage (secure/devices)
+#  - a manager or director PIN after 12 hours (they're shared PINs)
+# A shared store device (the kitchen iPad) is signed in once by a director as
+# the device, for logging waste, zone resets and the Prep Board without a PIN
+# (DEVICE_KEYS). Someone signing in with their own PIN on it gets their own
+# access until MANAGE_PIN_HOURS, or ON_DEVICE_IDLE_SECONDS without a tap, and
+# then the device is the device again.
+SETTINGS_PATH = 'secure/settings'          # {requireSignIn: bool}
+SESSION_GEN_PATH = 'secure/sessionGen'     # {person key: n}
+DEVICES_PATH = 'secure/devices'            # {id: {name, addedAt, by}}
+AUTH_CACHE_SECONDS = 30
+MANAGE_PIN_HOURS = 12
+ON_DEVICE_IDLE_SECONDS = 10 * 60
+_auth_cache = {'at': 0.0}
+_auth_cache_lock = threading.Lock()
+
+def _auth_read():
+    """Read the four lists at once (not one after another)."""
+    paths = {'settings': SETTINGS_PATH, 'pins': TEAM_PINS_PATH, 'gen': SESSION_GEN_PATH, 'devices': DEVICES_PATH}
+    out, threads = {}, []
+    def one(name, path):
+        try:
+            out[name] = db.reference(path).get() or {}
+        except Exception as e:
+            print(f'[AUTH] {name} not read: {type(e).__name__}')
+    for name, path in paths.items():
+        t = threading.Thread(target=one, args=(name, path), daemon=True)
+        t.start()
+        threads.append(t)
+    for t in threads:
+        t.join(20)
+    if len(out) == len(paths):
+        with _auth_cache_lock:
+            _auth_cache.update(out, at=time.monotonic())
+    _auth_cache['busy'] = False
+
+def _auth_lists(force=False):
+    """settings, pins, gen and devices. A request never waits on Firebase for
+    them once they're in memory: an old copy is used while a fresh one is read
+    in the background (every AUTH_CACHE_SECONDS, or at once after a change made
+    here). Only the first request after a start, or force, waits."""
+    if force or 'settings' not in _auth_cache:
+        _auth_read()
+    elif time.monotonic() - _auth_cache['at'] > AUTH_CACHE_SECONDS and not _auth_cache.get('busy'):
+        _auth_cache['busy'] = True
+        threading.Thread(target=_auth_read, daemon=True).start()
+    if 'settings' not in _auth_cache:
+        return {'settings': {}, 'pins': {}, 'gen': {}, 'devices': {}}
+    return _auth_cache
+
+def _auth_changed():
+    """A list changed here: read it again now, so the change counts at once."""
+    _auth_read()
+
+def _require_sign_in():
+    settings = _auth_lists().get('settings')
+    return isinstance(settings, dict) and bool(settings.get('requireSignIn'))
+
+def _person_key(name):
+    return hashlib.sha256(_turnover_key(name).encode()).hexdigest()[:20]
+
 def _sign_in(who):
-    """Sets the session for a signed-in person and returns the reply."""
+    """Sets the session for a signed-in person and returns the reply. On a
+    shared device the device stays signed in underneath."""
     role = who.get('role') if who.get('role') in ROLES + ('manager',) else 'member'
     name = str(who.get('name') or '').strip()
+    device = session.get('device')
     session.clear()
     session.permanent = True
-    # Manage is for directors and up: Google directors and the manager and
-    # director PINs. Never a team role.
-    manager = role in ('director', 'manager') and (role == 'director' or bool(who.get('manager')))
+    if isinstance(device, dict):
+        session['device'] = device
+        session['userUntil'] = int(time.time()) + ON_DEVICE_IDLE_SECONDS
+    # Manage is for directors and up: Google directors, the manager and
+    # director PINs, and the Admin Team (the same as a director; Tim, Oct 25
+    # 2026). Never Team Lead, Trainer or Team Member.
+    manager = role in ('director', 'admin') or (role == 'manager' and bool(who.get('manager')))
     if manager:
         session['manager'] = True
-    if role == 'director':
+    if role in ('director', 'admin'):
         session['director'] = True
     if who.get('owner') and role == 'director':
         session['owner'] = True
-    if not manager:
-        now = datetime.now(levelset_sync.STORE_TZ)
-        ends = now.replace(hour=TEAM_SESSION_ENDS_HOUR, minute=0, second=0, microsecond=0)
-        if ends <= now:
-            ends += timedelta(days=1)
-        session['teamEnds'] = int(ends.timestamp())
+    if who.get('via') == 'pin' and role in ('manager', 'director'):
+        session['manageUntil'] = int(time.time()) + MANAGE_PIN_HOURS * 3600
+    if who.get('pinKey'):
+        session['pinKey'] = who['pinKey']
+    if name:
+        session['gen'] = int((_auth_lists().get('gen') or {}).get(_person_key(name), 0) or 0)
     session['user'] = {'name': name, 'role': role, 'via': who.get('via') or 'pin', 'email': who.get('email') or ''}
-    return {'success': True, 'director': role == 'director', 'manager': manager,
-            'owner': bool(session.get('owner')), 'role': role, 'roleLabel': ROLE_LABELS[role], 'name': name}
+    return {'success': True, 'director': role in ('director', 'admin'), 'manager': manager,
+            'owner': bool(session.get('owner')), 'role': role, 'roleLabel': ROLE_LABELS[role], 'name': name,
+            'device': (device or {}).get('name') if isinstance(device, dict) else None}
 
-def _sign_out():
-    for k in ('manager', 'director', 'owner', 'user', 'teamEnds'):
+def _sign_out(device_too=False):
+    """Signs the person out; a shared device stays the device unless device_too."""
+    for k in ('manager', 'director', 'owner', 'user', 'teamEnds', 'manageUntil', 'pinKey', 'gen', 'userUntil'):
         session.pop(k, None)
+    if device_too:
+        session.pop('device', None)
 
 @app.before_request
-def _end_team_sessions():
+def _check_session():
+    if request.path.startswith('/static/') or not session:
+        return
+    now = time.time()
+    # A sign-in from before Oct 25 2026 still ends at 3 AM, as it was given.
     ends = session.get('teamEnds')
-    if isinstance(ends, int) and time.time() > ends and not session.get('manager'):
+    if isinstance(ends, int) and now > ends and not session.get('manager'):
         _sign_out()
+    until = session.get('manageUntil')
+    if isinstance(until, int) and now > until:
+        _sign_out()
+    if session.get('device') and session.get('user'):
+        if now > int(session.get('userUntil') or 0):
+            _sign_out()                      # back to being the shared device
+        elif int(session['userUntil']) - now < ON_DEVICE_IDLE_SECONDS - 60:
+            session['userUntil'] = int(now) + ON_DEVICE_IDLE_SECONDS
+    lists = _auth_lists()
+    verdict = _session_verdict(lists)
+    if verdict != 'ok':
+        # Before ending anyone's sign-in, make sure the lists aren't just old.
+        verdict = _session_verdict(_auth_lists(force=True))
+    if verdict == 'device':
+        _sign_out(device_too=True)
+    elif verdict == 'out':
+        _sign_out()
+    elif verdict == 'role':
+        user = session['user']
+        _sign_in({'role': lists['pins'][session['pinKey']]['role'], 'name': user.get('name'), 'via': 'pin', 'pinKey': session['pinKey']})
+
+def _session_verdict(lists):
+    """'ok', 'device' (the shared device was removed), 'out' (the PIN went or
+    changed, or "sign out everywhere"), or 'role' (their role changed)."""
+    dev = session.get('device')
+    if isinstance(dev, dict) and dev.get('id') not in (lists.get('devices') or {}):
+        return 'device'
+    user = session.get('user')
+    if not isinstance(user, dict):
+        return 'ok'
+    key = session.get('pinKey')
+    if key:
+        rec = (lists.get('pins') or {}).get(key)
+        if not isinstance(rec, dict) or _turnover_key(rec.get('name')) != _turnover_key(user.get('name')) or rec.get('role') not in TEAM_ROLES:
+            return 'out'
+        if rec['role'] != user.get('role'):
+            return 'role'
+    if user.get('name') and int((lists.get('gen') or {}).get(_person_key(user['name']), 0) or 0) != int(session.get('gen', 0) or 0):
+        return 'out'
+    return 'ok'
+
+def _who_name():
+    """Who a save is from, as the hub writes it on what they did."""
+    user = session.get('user') if isinstance(session.get('user'), dict) else {}
+    if user.get('name'):
+        return user['name']
+    if session.get('manager'):
+        return 'Director'
+    dev = session.get('device')
+    return dev.get('name') if isinstance(dev, dict) else ''
 
 # The PIN list is checked against the manager and director PINs, which
 # would otherwise shadow (or be mistaken for) a team member's (Tim, Oct 20
@@ -750,9 +946,10 @@ def _team_pin_lookup(pin):
     salt = _team_pin_salt()
     if not salt:
         return None
-    rec = db.reference(f'{TEAM_PINS_PATH}/{_team_pin_key(pin, salt)}').get()
+    key = _team_pin_key(pin, salt)
+    rec = db.reference(f'{TEAM_PINS_PATH}/{key}').get()
     if isinstance(rec, dict) and rec.get('name') and rec.get('role') in TEAM_ROLES:
-        return {'name': str(rec['name']), 'role': rec['role']}
+        return {'name': str(rec['name']), 'role': rec['role'], 'pinKey': key}
     return None
 
 def _google_role(email):
@@ -858,6 +1055,7 @@ def accounts_pins():
             db.reference(f'{TEAM_PINS_PATH}/{k}').delete()
         if gone:
             _turnover_after_pins(pins, {k: v for k, v in pins.items() if k not in gone}, source='pin-removed')
+            _auth_changed()
         return jsonify(dict(_accounts_out(), success=True, removed=len(gone)))
     rows = body.get('rows')
     if not isinstance(rows, list) or not rows or len(rows) > 500:
@@ -901,6 +1099,7 @@ def accounts_pins():
     # The whole report replaces the list: whoever dropped off it left.
     _turnover_after_pins(before, after, source='pin-report' if body.get('replace') else '',
                          directors=directors if body.get('replace') else None)
+    _auth_changed()
     return jsonify(dict(_accounts_out(), success=True, added=len(clean), skipped=skipped))
 
 PIN_REPORT_MAX_BYTES = 5 * 1024 * 1024
@@ -1146,6 +1345,7 @@ def team_role():
     for k in keys:
         db.reference(f'{TEAM_PINS_PATH}/{k}').set(dict(pins[k], role=role))
     print(f"[TEAM] role set: {ROLE_LABELS[role]}")
+    _auth_changed()
     resp = jsonify(dict(_turnover_out(), success=True))
     resp.headers['Cache-Control'] = 'no-store'
     return resp
@@ -1191,6 +1391,7 @@ def team_pin():
     if not theirs:
         _turnover_after_pins(before, after, source='pin-added')
     print('[TEAM] PIN put on file' + (' (changed)' if theirs else ''))
+    _auth_changed()
     resp = jsonify(dict(_turnover_out(), success=True))
     resp.headers['Cache-Control'] = 'no-store'
     return resp
@@ -1717,6 +1918,79 @@ def _lead_captain_ops(ops, current):
                     out.append({'o': 'del', 'p': ['posAssignments', k]})
     return out, dropped
 
+# ===== WHO MAY CHANGE WHAT, AND WHO DID IT (TIM-90; Tim, Oct 25 2026) =====
+# With sign-in required (Manage → Settings), a save keeps only what its
+# sign-in may change; the rest is dropped and the page gets those sections
+# back (never a refused save, so an older page settles instead of retrying):
+#  - directors, the manager PIN and the Admin Team: everything
+#  - Team Leads: everything but the manager-only fields
+#  - Team Members and Trainers: waste, zone resets and Food Safety, the
+#    Prep Board, and the history the page keeps
+#  - a shared store device: waste, zone resets and the Prep Board
+#  - nobody signed in: nothing
+# And whoever is signed in, sign-in required or not, is who the hub writes
+# on what they did: every "by" (initials before) on a new or changed record
+# is stamped from the session, so a save can't sign as someone else.
+MEMBER_SECTIONS = {'waste', 'ops', 'prep', 'prepLive', 'prepTimes', 'history', 'misc'}
+DEVICE_KEYS = set(STATE_SECTIONS['waste']) | {'zoneChecklistState', 'zoneChecklistHistory', 'prepMade', 'prepTimes', 'prepTimers'}
+IDENTITY_FIELDS = ('by', 'initials', 'who', 'flaggedBy', 'noteBy', 'resolvedBy', 'removedBy', 'countedBy')
+
+def _may_change(key):
+    if session.get('manager'):
+        return True
+    role = (session.get('user') or {}).get('role') if isinstance(session.get('user'), dict) else None
+    if role == 'lead':
+        return True
+    if role in ('member', 'trainer') and SECTION_OF_KEY.get(key, 'misc') in MEMBER_SECTIONS:
+        return True
+    return bool(session.get('device')) and key in DEVICE_KEYS
+
+def _stamp(new, old, who, depth=0):
+    """new with every identity field that isn't old's own stamped as who."""
+    if depth > 8:
+        return new
+    if isinstance(new, dict):
+        out = {}
+        for k, v in new.items():
+            if k in IDENTITY_FIELDS and isinstance(v, str):
+                out[k] = v if isinstance(old, dict) and old.get(k) == v else who
+            else:
+                out[k] = _stamp(v, old.get(k) if isinstance(old, dict) else None, who, depth + 1)
+        return out
+    if isinstance(new, list):
+        kept = {canon(x) for x in old} if isinstance(old, list) else set()
+        return [x if canon(x) in kept else _stamp(x, None, who, depth + 1) for x in new]
+    return new
+
+def _at_path(data, path):
+    for k in path:
+        if not isinstance(data, dict):
+            return None
+        data = data.get(k)
+    return data
+
+def _stamp_ops(ops, current, who):
+    """ops with who written on what they add or change."""
+    out = []
+    for op in ops:
+        op = dict(op)
+        old = _at_path(current, op['p'])
+        if op['o'] == 'set':
+            if op['p'][-1] in IDENTITY_FIELDS and isinstance(op['v'], str):
+                op['v'] = who                      # a "by" changed on its own
+            else:
+                op['v'] = _stamp(op['v'], old, who)
+            if op['p'][0] == 'prepMade' and isinstance(op['v'], dict) and 'i' in op['v']:
+                op['v'] = dict(op['v'], i=who)     # the Prep Board's made counts sign as i
+        elif op['o'] == 'arr' and op.get('add'):
+            olds = old if isinstance(old, list) else []
+            def was(v):
+                ident = _identity(v)
+                return next((x for x in olds if ident is not None and _identity(x) == ident), None)
+            op['add'] = [dict(a, v=_stamp(a['v'], was(a['v']) if a.get('rep') else None, who)) for a in op['add']]
+        out.append(op)
+    return out
+
 @app.route('/api/state/patch', methods=['POST'])
 def state_patch():
     """Apply each section's changes to the latest saved data. A section comes
@@ -1767,6 +2041,7 @@ def state_patch():
             print('[STATE PATCH] dropped changes to retired keys: ' + ', '.join(sorted({op['p'][0] for op in dropped_ops})))
             patch['ops'] = [op for op in patch['ops'] if op not in dropped_ops]
 
+    require, who = _require_sign_in(), _who_name()
     try:
         _ensure_cache(migrate=True)
         with _state_lock:
@@ -1786,6 +2061,12 @@ def state_patch():
                 if name == 'setups' and not _can_choose_lead():
                     ops, lead_dropped = _lead_captain_ops(ops, entry['data'])
                     dropped = dropped or lead_dropped
+                if require:
+                    allowed = [op for op in ops if _may_change(op['p'][0])]
+                    if len(allowed) != len(ops):
+                        dropped, ops = True, allowed
+                if who:
+                    ops = _stamp_ops(ops, entry['data'], who)
                 if dropped or patch.get('ver') != entry['ver']:
                     returned.append(name)
                 new = apply_ops(entry['data'], ops)
@@ -2088,6 +2369,8 @@ def state_export():
 
 @app.route('/api/state/save', methods=['POST'])
 def state_save():
+    if _require_sign_in() and not session.get('manager'):
+        return jsonify({'error': 'Sign in to save. Reload the page.'}), 403   # an old page (TIM-90)
     data = request.get_json(silent=True) or {}
     incoming = data.get('sections')
     if not isinstance(incoming, dict) or not incoming:
@@ -2161,6 +2444,8 @@ def firebase_read():
 
 @app.route('/api/firebase/write', methods=['POST'])
 def firebase_write():
+    if _require_sign_in() and not session.get('manager'):
+        return jsonify({'error': 'Sign in to save. Reload the page.'}), 403   # an old page (TIM-90)
     data = request.get_json(silent=True) or {}
     path, error = _state_path_or_error(data)
     if error:

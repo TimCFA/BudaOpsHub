@@ -138,7 +138,7 @@ class Notes(unittest.TestCase):
             return [r, n, posNotes];
         }"""}])[0]
         self.assertEqual(got[0], [False, False, True])
-        self.assertEqual(got[1], [['Lemonade fridge runs warm', 'JD', 'number']])
+        self.assertEqual(got[1], [['Lemonade fridge runs warm', 'jd', 'number']])   # signed as written: a name now (TIM-90), not upper-cased initials
         self.assertEqual(got[2], {})
 
     def test_old_owners_and_notes_are_pruned(self):

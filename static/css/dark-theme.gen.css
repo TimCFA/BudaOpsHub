@@ -322,3 +322,4 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .ts-who h4{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .ts-list li.is-me{background:#2F2426;}
 :where(html[data-theme="dark"]) .hc-pin-line b.is-missing{color:var(--ink-red);}
+:where(html[data-theme="dark"]) .si-reason{background:#2F2426;color:var(--ink-dark-red);}

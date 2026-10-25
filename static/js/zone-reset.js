@@ -238,7 +238,7 @@ document.getElementById('zoneButtonRow').addEventListener('click', async (e)=>{
   } else {
     const initials = getInitials();
     if(!initials){
-      showToast('Set your initials first (top right)');
+      showToast('Say who you are first (top right)');
       beginEditInitials();
       renderZoneResetCard();
       return;
@@ -569,7 +569,7 @@ function zrSetupExists(date, handoffName){
 function posNotesFor(key){ return posNotes[key] || []; }
 
 function addPosNote(key, text, by){
-  const t = String(text || '').trim(), b = String(by || '').trim().toUpperCase();
+  const t = String(text || '').trim(), b = String(by || '').trim();
   if(!t || !b) return false;
   (posNotes[key] = posNotes[key] || []).push({text: t.slice(0, 500), by: b, ts: Date.now()});
   return true;

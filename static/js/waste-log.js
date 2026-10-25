@@ -56,7 +56,7 @@ function wasteRemove(item, qty){
 
 function wasteRequireInitials(){
   const who = getInitials();
-  if(!who){ showToast(currentSection === 'boh' ? `Set your initials first (top right) · ${esText('Set your initials first (top right)')}` : 'Set your initials first (top right)'); beginEditInitials(); }
+  if(!who){ showToast(currentSection === 'boh' ? `Say who you are first (top right) · ${esText('Say who you are first (top right)')}` : 'Say who you are first (top right)'); beginEditInitials(); }
   return who;
 }
 

@@ -33,9 +33,13 @@ function acApplyStatus(d){
   acUser = d && d.user && d.user.name !== undefined ? d.user : null;
   acOwner = !!(d && d.isOwner);
   acGoogleClientId = (d && d.googleClientId) || '';
+  siIdentity = {name: (acUser && acUser.name) || (d && d.isManager ? 'Director' : ''), role: acUser ? acUser.role : '',
+                device: (d && d.device) || '', required: !!(d && d.requireSignIn), known: true};
   acRenderGate();
   acRenderSettings();
-  if(acUser && acUser.name && typeof setInitials === 'function' && !getInitials()) setInitials(acInitials(acUser.name));
+  if(typeof siRender === 'function') siRender();
+  // A device nobody signed in on, sign-in not required yet: the initials box, as before.
+  if(!siIdentity.name && !siIdentity.device && !siIdentity.required && !getInitials() && typeof editInitialsBox === 'function') editInitialsBox();
   if(typeof renderRightNow === 'function') renderRightNow();   // the card is the signed-in person's
   if(typeof scSyncVisibility === 'function') scSyncVisibility();   // Safe Count: not for Team Members or Trainers
 }
@@ -45,10 +49,11 @@ function acInitials(name){
 }
 
 // After any sign-in (PIN or Google): the server's reply says who and what.
-async function acSignedIn(result){
+async function acSignedIn(result, stay){
   acUser = {name: result.name || '', role: result.role, via: result.via || 'pin'};
   acOwner = !!result.owner;
-  if(acUser.name && typeof setInitials === 'function') setInitials(acInitials(acUser.name));
+  siIdentity = Object.assign({}, siIdentity, {name: acUser.name || (result.manager ? 'Director' : ''), role: acUser.role, known: true});
+  if(typeof siRender === 'function') siRender();
   if(result.manager){
     await stateLoaded;
     await launchSetManager(true);
@@ -60,15 +65,16 @@ async function acSignedIn(result){
     // A trainer or team member: the team view, signed in by name.
     document.getElementById('pinInput').value = '';
     showToast(`Signed in as ${acUser.name || 'team member'} · ${acRoleLabel(acUser.role)}`);
-    if(typeof launchShowTab === 'function') launchShowTab('home');
+    // From the sign-in sheet (sign-in.js): stay on the page they were using.
+    if(!stay && typeof launchShowTab === 'function') launchShowTab('home');
   }
   acRenderGate();
   acRenderSettings();
   if(typeof scSyncVisibility === 'function') scSyncVisibility();   // Safe Count: not for Team Members or Trainers
 }
 
-async function acSignOut(){
-  try{ await fetch(`${API_BASE}/api/manager/logout`, {method: 'POST'}); }catch(err){ /* offline: the server session ends at close anyway */ }
+async function acSignOut(device){
+  try{ await fetch(`${API_BASE}/api/manager/logout`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({device: !!device})}); }catch(err){ /* offline: signed out here; the server's sign-in ends when it next hears */ }
   acUser = null; acOwner = false;
   location.reload();
 }

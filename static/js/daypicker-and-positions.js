@@ -244,6 +244,8 @@ let suPickWasOpen = false;  // the spot was empty when the picker opened
 let suPickShowOthers = false; // the "also on today's roster" list is open
 let suPickMoveFrom = null;  // {name, key}: picking someone placed elsewhere in this daypart moves them
 window.openPosModal = function(key, pos, daypart, note){
+  // Sign-in required: Team Leads fill Set Ups (sign-in.js).
+  if(typeof siMayChange === 'function' && !siMayChange('posAssignments')){ siOpen(siWhy(['posAssignments'])); return; }
   currentPosKey = key;
   currentPosName = pos;
   const slotRank = (setupsSlotsFor(daypart).indexOf(pos) + 1) || null;
@@ -665,7 +667,7 @@ document.getElementById('btnConfirmVacancy').addEventListener('click', async ()=
 
 document.getElementById('btnFlagOnly').addEventListener('click', async ()=>{
   const initials = getInitials();
-  if(!initials){ showToast('Set your initials first (top right)'); beginEditInitials(); return; }
+  if(!initials){ showToast('Say who you are first (top right)'); beginEditInitials(); return; }
   posVacancyFlags[currentVacancyKey] = {flaggedBy: initials, flaggedAt: Date.now()};
   document.getElementById('vacancyModal').classList.remove('active');
   renderAllDayparts();
@@ -949,7 +951,7 @@ document.getElementById('btnConfirmAddTM').addEventListener('click', async ()=>{
 
   const initials = getInitials();
   if(!initials){
-    showToast('Set your initials first (top right)');
+    showToast('Say who you are first (top right)');
     beginEditInitials();
     return;
   }

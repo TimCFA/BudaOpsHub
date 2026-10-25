@@ -202,15 +202,16 @@ class TeamPinTest(unittest.TestCase):
 
     def test_admin_team_pin(self):
         """The admin team (Ashley, Oct 20 2026) signs in with a clock-in PIN
-        too: their Home card is the day's roster. It never opens Manage."""
+        too. Since Oct 25 2026 (Tim) it has the same permissions as a
+        director, Manage included; only the owner edits the account lists."""
         d = self.upload([{'name': 'Avery Office', 'pin': '567890', 'role': 'Admin Team'}]).get_json()
         self.assertEqual((d['added'], d['pins'][0]['role']), (1, 'admin'))
         c, r = self.login('567890')
-        self.assertEqual((r.get_json()['role'], r.get_json()['manager'], r.get_json()['director']), ('admin', False, False))
+        self.assertEqual((r.get_json()['role'], r.get_json()['manager'], r.get_json()['director']), ('admin', True, True))
         with c.session_transaction() as sess:
-            self.assertNotIn('manager', sess)
+            self.assertTrue(sess.get('manager'))
+            self.assertNotIn('owner', sess)
         self.assertEqual(c.get('/api/accounts').status_code, 403)
-        self.assertEqual(c.post('/api/pea/notes', json={'name': 'x'}).status_code, 403)
 
     def test_a_team_pin_never_opens_manage_or_private_data(self):
         """Whatever the role, a clock-in PIN gets no manager session: no
@@ -305,13 +306,21 @@ class TeamPinTest(unittest.TestCase):
         self.addCleanup(setattr, appmod, '_keep_manage_pin_key', real)
         self.assertEqual(self.login('1111')[1].get_json()['role'], 'manager')
 
-    def test_team_session_ends_at_close(self):
-        self.upload([{'name': 'Jordan Testcase', 'pin': '123456', 'role': 'member'}])
+    def test_team_session_lasts_until_signed_out_or_the_pin_goes(self):
+        # Signed in until signed out (Tim, Oct 25 2026); a removed PIN ends it.
+        self.upload([{'name': 'Jordan Testcase', 'pin': '123456', 'role': 'member'}, {'name': 'Riley Sample', 'pin': '234567', 'role': 'member'}])
         c, r = self.login('123456')
         with c.session_transaction() as sess:
-            self.assertGreater(sess['teamEnds'], time.time())
-            sess['teamEnds'] = int(time.time()) - 5          # the night passed
+            self.assertNotIn('teamEnds', sess)
+            self.assertTrue(sess.permanent)
+        self.assertEqual(c.get('/api/manager/status').get_json()['user']['name'], 'Jordan Testcase')
+        self.owner.delete('/api/accounts/pins', json={'name': 'Jordan Testcase'})
         self.assertIsNone(c.get('/api/manager/status').get_json()['user'])
+        # A sign-in from before still ends at 3 AM, as it was given.
+        c2, r = self.login('234567')
+        with c2.session_transaction() as sess:
+            sess['teamEnds'] = int(time.time()) - 5
+        self.assertIsNone(c2.get('/api/manager/status').get_json()['user'])
 
     def test_only_the_owner_edits_the_lists(self):
         director = appmod.app.test_client()

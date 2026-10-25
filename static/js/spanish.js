@@ -61,10 +61,11 @@ const ES = {
   'No notes on this spot yet.': 'Todavía no hay notas en este lugar.',
   'Something the next person needs to know': 'Algo que la próxima persona necesita saber',
   'Signed': 'Firmado',
-  'Set your initials (top right) to sign a note': 'Pon tus iniciales (arriba a la derecha) para firmar una nota',
+  'Say who you are (top right) to sign a note': 'Di quién eres (arriba a la derecha) para firmar una nota',
   'Cancel': 'Cancelar',
   'Add note': 'Agregar nota',
   'Set initials': 'Poner iniciales',
+  'Sign in': 'Iniciar sesión',
   'Remove': 'Quitar',
   'today': 'hoy',
   'Roster': 'Lista del equipo',
@@ -145,7 +146,7 @@ const ES = {
   'Full name': 'Nombre completo',
 
   // ----- Waste -----
-  'Set your initials first (top right)': 'Primero pon tus iniciales (arriba a la derecha)',
+  'Say who you are first (top right)': 'Primero di quién eres (arriba a la derecha)',
   '✓ Under limit': 'Bajo el límite',
   'Near the limit': 'Cerca del límite',
   '⚠ Over limit': 'Sobre el límite',

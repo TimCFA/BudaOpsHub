@@ -16,7 +16,7 @@ class InitialsBox(unittest.TestCase):
     def test_closes_after_the_tap(self):
         with open(JS, encoding='utf-8') as f:
             src = f.read()
-        body = src.split('function beginEditInitials(){')[1].split('\n}\n')[0]
+        body = src.split('function editInitialsBox(){')[1].split('\n}\n')[0]
         self.assertNotIn("addEventListener('blur', commit)", body)
         self.assertRegex(body, r"document\.addEventListener\('click', \(\) => \{ clearTimeout\(fallback\); setTimeout\(commit, 0\); \}, \{once: true, capture: true\}\)")
         self.assertIn('setTimeout(commit, 700)', body)

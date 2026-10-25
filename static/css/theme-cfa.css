@@ -2633,3 +2633,20 @@ body:not(.hc-allowed) .hc-only{display:none !important;}
 .hc-pin-line{display:flex;align-items:center;gap:10px;margin:0 0 10px;font-size:14px;}
 .hc-pin-line b{color:var(--ok);}
 .hc-pin-line b.is-missing{color:var(--cfa-red);}
+
+/* Sign in (sign-in.js; TIM-90, Oct 25 2026) */
+.si-sheet{display:none;position:fixed;inset:0;z-index:1200;align-items:flex-end;justify-content:center;}
+.si-sheet.active{display:flex;}
+.si-card{width:100%;max-width:440px;background:var(--cfa-white);border-radius:18px 18px 0 0;padding:16px 18px 24px;box-shadow:0 -8px 30px rgba(0,0,0,0.18);}
+@media (min-width:600px){ .si-sheet{align-items:center;} .si-card{border-radius:18px;} }
+.si-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.si-head h3{margin:0;font-family:var(--font-display);font-size:22px;}
+.si-reason{margin:0 0 12px;padding:10px 12px;border-radius:10px;background:#FDF3F5;color:var(--cfa-dark-red);font-weight:600;font-size:14px;}
+.si-device{margin:0 0 12px;font-size:14px;color:var(--text-secondary);}
+.si-who{margin:0 0 6px;font-size:16px;}
+.si-form{display:grid;gap:8px;}
+.si-form label{font-weight:700;font-size:14px;}
+.si-form input{min-height:52px;font-size:24px;letter-spacing:.3em;text-align:center;border:1px solid var(--border);border-radius:12px;background:var(--cfa-white);color:var(--text-primary);}
+.si-form .btn{min-height:48px;}
+.si-hint{margin:6px 0 0;font-size:12.5px;color:var(--text-tertiary);}
+.si-out{margin-top:8px;}

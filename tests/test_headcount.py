@@ -132,9 +132,10 @@ class HeadcountTest(unittest.TestCase):
         # Never a director (a clock-in PIN never opens Manage), never a stranger.
         self.assertEqual(self.owner.post('/api/team/role', json={'name': 'Jordan Testcase', 'role': 'director'}).status_code, 400)
         self.assertEqual(self.owner.post('/api/team/role', json={'name': 'Nobody Here', 'role': 'lead'}).status_code, 404)
-        # Directors and the manager PIN only: not the Admin Team, not a lead.
-        for pin in ('567890', '345678'):
-            self.assertEqual(self.login(pin).post('/api/team/role', json={'name': 'Riley Sample', 'role': 'admin'}).status_code, 403, pin)
+        # Directors, the manager PIN and the Admin Team (the same as a
+        # director since Oct 25 2026); not a lead.
+        self.assertEqual(self.login('345678').post('/api/team/role', json={'name': 'Riley Sample', 'role': 'admin'}).status_code, 403)
+        self.assertEqual(self.login('567890').post('/api/team/role', json={'name': 'Riley Sample', 'role': 'trainer'}).status_code, 200)
         self.assertEqual(self.login('1111').post('/api/team/role', json={'name': 'Riley Sample', 'role': 'member'}).status_code, 200)
 
     def test_the_reads_go_at_once(self):
