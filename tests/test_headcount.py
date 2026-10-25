@@ -319,6 +319,51 @@ class HeadcountTest(unittest.TestCase):
 
 
 
+class PinOnFile(HeadcountTest):
+    """PIN on file (Tim, Oct 25 2026): a director or the admin team can put a
+    clock-in PIN on file for someone, or change one; nobody can view a PIN."""
+
+    def put(self, c, **body):
+        return c.post('/api/team/pin', json=body)
+
+    def test_only_directors_and_the_admin_team(self):
+        self.upload(TEAM)
+        self.assertEqual(self.put(appmod.app.test_client(), name='New Person', pin='111222').status_code, 403)
+        for pin in ('123456', '234567', '345678'):                                             # member, trainer, lead
+            self.assertEqual(self.put(self.login(pin), name='New Person', pin='111222').status_code, 403, pin)
+        admin = self.login('567890')
+        r = self.put(admin, name='New Person', pin='111222', role='member')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('New Person', r.get_json()['names'])
+        self.assertEqual(appmod.app.test_client().post('/api/manager/login', json={'pin': '111222'}).get_json()['name'], 'New Person')
+
+    def test_the_pin_is_never_sent_back_or_kept_plain(self):
+        self.upload(TEAM)
+        r = self.put(self.owner, name='New Person', pin='111222')
+        self.assertNotIn('111222', r.get_data(as_text=True))
+        self.assertNotIn('111222', repr(store))
+        self.assertEqual(r.headers['Cache-Control'], 'no-store')
+
+    def test_a_pin_someone_else_has_or_a_manage_pin_is_refused_without_saying_whose(self):
+        self.upload(TEAM)
+        for pin in ('123456', '111111', '222222'):
+            store['secure/managerPinHash'] = generate_password_hash('111111')
+            store['secure/directorPinHash'] = generate_password_hash('222222')
+            r = self.put(self.owner, name='New Person', pin=pin)
+            self.assertEqual(r.status_code, 400, pin)
+            self.assertNotIn('Jordan', r.get_json()['error'])
+        self.assertEqual(self.put(self.owner, name='New Person', pin='12345').status_code, 400)   # 6 digits
+
+    def test_changing_a_pin_replaces_the_old_one_and_keeps_the_role(self):
+        self.upload(TEAM)
+        r = self.put(self.owner, name='Casey Example', pin='999888')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(appmod.app.test_client().post('/api/manager/login', json={'pin': '345678'}).status_code, 401)   # the old PIN is gone
+        who = appmod.app.test_client().post('/api/manager/login', json={'pin': '999888'}).get_json()
+        self.assertEqual([who['name'], who['role']], ['Casey Example', 'lead'])
+        self.assertEqual(sum(1 for v in store['secure/teamPins'].values() if v['name'] == 'Casey Example'), 1)
+
+
 class RowIcons(unittest.TestCase):
     """Tim, Oct 23 2026: the first glance stays simple: no permit list, just
     an icon on a person's row for a certificate expired or due soon, a
