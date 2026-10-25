@@ -251,16 +251,26 @@ class AdminTeam(unittest.TestCase):
             self.assertFalse(any('on the team' in r[1] or 'permit' in r[1] or 'last to leave' in r[1] for r in g['rows']))
 
     def test_directors_get_it_a_tap_away_and_the_team_does_not(self):
+        # Tim, Oct 25 2026: a link to the Schedule tab (same look), not a roster opened on the card.
         got = run({'op': card('director', '', extra=DAY)},
-                  {'op': card('director', '', extra=DAY + 'rnRosterOpen = true;')},
                   {'op': card('member', 'Ana Ruiz', extra=DAY)},
                   {'op': card('lead', 'Leo Park', extra=DAY)})
-        self.assertIn(['7', 'on the schedule today · see the roster', 'roster', ''], got[0]['rows'])
+        self.assertIn(['7', 'on the schedule today · see who’s working', 'schedule:2026-10-19', ''], got[0]['rows'])
         self.assertIsNone(got[0]['roster'])
-        self.assertIn(['7', 'on the schedule today · hide the roster', 'roster', ''], got[1]['rows'])
-        self.assertEqual([g[0] for g in got[1]['roster']], ['FOH', 'BOH', 'Truck', 'Admin'])
+        self.assertIsNone(got[1]['roster'])
         self.assertIsNone(got[2]['roster'])
-        self.assertIsNone(got[3]['roster'])
+        js = read('static', 'js', 'right-now.js')
+        self.assertIn("else if(what === 'schedule' && typeof tsShowDay === 'function') tsShowDay(rest);", js)
+        self.assertNotIn('rnRosterOpen', js)
+
+    def test_the_schedule_tab_draws_the_same_roster(self):
+        ts = read('static', 'js', 'team-schedule.js')
+        self.assertIn('rnRosterHtml(groups, head, me)', ts)
+        self.assertIn("rnDayRoster(tsDay, live ? rnNowMins() : null).filter(g => g.key !== 'admin' || manager)", ts)
+        got = run({'op': """c => { fohRoster[today] = [{name: 'Ana Ruiz Lopez', start: '12:00p', end: '8:30p'}, {name: 'Leo Park', start: '2:00p', end: '10:30p', leader: true}];
+                    return rnRosterHtml(rnDayRoster(today, null), {title: 'Who’s on today', sub: 'Mon, Oct 19'}, 'Ana Ruiz'); }"""})[0]
+        self.assertIn('<li class="rn-rp is-me"><span class="rn-rp-time">12:00p–8:30p</span><span class="rn-rp-name">Ana Ruiz Lopez</span>', got)
+        self.assertIn('Leo Park<span class="rn-rp-tag">Leader</span>', got)
 
 
 class NobodySignedIn(unittest.TestCase):

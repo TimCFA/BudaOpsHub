@@ -331,7 +331,6 @@ function rnLeadCard(v, day, store){
 // open hours each person reads on now, later or done; a split shift between
 // its blocks reads later.
 const RN_ROSTER_GROUPS = [['foh', 'FOH'], ['boh', 'BOH'], ['truck', 'Truck'], ['admin', 'Admin']];
-let rnRosterOpen = false;   // the director's card: the roster opened with a tap
 
 function rnRosterList(key, date){
   const src = key === 'foh' ? fohRoster : key === 'boh' ? bohRoster
@@ -361,17 +360,19 @@ function rnHeadcount(groups, state){
 }
 
 // The roster in a panel of its own: who's on and when, time first, the
-// people on now marked.
-function rnRosterHtml(groups, head){
+// people on now marked. The Schedule tab draws its "Who's working" with it
+// too (Tim, Oct 25 2026: one look for both), marking the viewer (me).
+function rnRosterHtml(groups, head, me){
   if(!groups.length) return '';
   const tag = t => `<span class="rn-rp-tag">${t}</span>`;
+  const mine = p => me && rnSame(p.name, me) ? ' is-me' : '';
   return `<div class="rn-roster">
-    ${head ? `<div class="rn-roster-h"><span class="rn-roster-ic">${RN_ICON_TEAM}</span><b>${escapeHtml(head.title)}</b><span>${escapeHtml(head.sub || '')}</span></div>` : ''}
+    ${head ? `<div class="rn-roster-h"><span class="rn-roster-ic">${RN_ICON_TEAM}</span><b>${escapeHtml(head.title)}${head.es ? esSpan(head.es, true) : ''}</b><span>${escapeHtml(head.sub || '')}</span></div>` : ''}
     <div class="rn-roster-grid">${groups.map(g => `
     <section class="rn-rg">
       <h3 class="rn-rg-h">${escapeHtml(g.label)}<span>${g.people.length} on the day${g.live ? ` · ${g.onNow} now` : ''}</span></h3>
       <ul class="rn-rg-list">${g.people.map(p => `
-        <li class="rn-rp${p.state ? ' is-' + p.state : ''}"><span class="rn-rp-time">${escapeHtml(p.time)}</span><span class="rn-rp-name">${escapeHtml(p.name)}${p.leader ? tag('Leader') : ''}${p.training ? tag('Training') : ''}</span>${p.state === 'now' ? '<span class="rn-rp-now">On now</span>' : ''}</li>`).join('')}
+        <li class="rn-rp${p.state ? ' is-' + p.state : ''}${mine(p)}"><span class="rn-rp-time">${escapeHtml(p.time)}</span><span class="rn-rp-name">${escapeHtml(p.name)}${p.leader ? tag('Leader') : ''}${p.training ? tag('Training') : ''}</span>${p.state === 'now' ? '<span class="rn-rp-now">On now</span>' : ''}</li>`).join('')}
       </ul>
     </section>`).join('')}</div></div>`;
 }
@@ -405,15 +406,15 @@ function rnAdminCard(v, day){
   return {side: 'foh', first, rows, roster: groups, rosterHead: rnRosterHead(date, day), rosterFirst: true, kicker: day.closed ? dayName : '', title: v.name ? `Hi, ${rnFirst(v.name)}` : 'Today’s roster'};
 }
 
-// The director's card: the roster a tap away.
+// The director's card: the day's roster is a tap away on the Schedule tab,
+// which draws it the same way (Tim, Oct 25 2026: a link, not a roster
+// opened on the card).
 function rnWithRoster(card, day){
   const date = day.closed ? day.next : today;
-  const groups = rnDayRoster(date, day.closed ? null : day.now);
-  const total = rnHeadcount(groups);
+  const total = rnHeadcount(rnDayRoster(date, null));
   if(!total) return card;
   const when = day.closed ? new Date(date + 'T12:00:00').toLocaleDateString('en-US', {weekday: 'long'}) : 'today';
-  card.rows.push(rnRow(String(total), `on the schedule ${when} · ${rnRosterOpen ? 'hide' : 'see'} the roster`, '', 'roster', ''));
-  if(rnRosterOpen){ card.roster = groups; card.rosterHead = rnRosterHead(date, day); }
+  card.rows.push(rnRow(String(total), `on the schedule ${when} · see who’s working`, '', `schedule:${date}`, ''));
   return card;
 }
 
@@ -761,7 +762,7 @@ function rnGo(g){
   }
   else if(what === 'waste'){ launchShowTab('wastelog'); window.scrollTo({top: 0}); }
   else if(what === 'headcount'){ launchShowTab('headcount'); window.scrollTo({top: 0}); }
-  else if(what === 'roster'){ rnRosterOpen = !rnRosterOpen; renderRightNow(); }
+  else if(what === 'schedule' && typeof tsShowDay === 'function') tsShowDay(rest);
   else if(what === 'foodsafety'){ launchShowTab('foodsafety'); window.scrollTo({top: 0}); }
   else if(what === 'prepboard'){ launchShowTab('prepboard'); window.scrollTo({top: 0}); }
   else if(what === 'signin' && typeof siOpen === 'function') siOpen();

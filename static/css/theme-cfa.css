@@ -2638,7 +2638,7 @@ body:not(.hc-allowed) .hc-only{display:none !important;}
 .ts-week.active,.ts-chip.active{background:var(--cfa-navy);border-color:var(--cfa-navy);color:#F6F1E8;}
 .ts-week.active .es,.ts-chip.active small{color:rgba(246,241,232,0.75);}
 .ts-card{background:var(--cfa-white);border:1px solid var(--border);border-radius:14px;padding:14px 16px;}
-.ts-card h3{margin:0;font-family:var(--font-display);font-size:20px;}
+.ts-card > h3,.ts-card-head h3{margin:0;font-family:var(--font-display);font-size:20px;}
 .ts-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;}
 .ts-card-head p{margin:2px 0 0;color:var(--text-secondary);font-size:13px;}
 .ts-mine{border-left:4px solid var(--cfa-red);}
@@ -2661,15 +2661,12 @@ body:not(.hc-allowed) .hc-only{display:none !important;}
 .ts-chips{display:flex;gap:6px;overflow-x:auto;padding:8px 0 4px;-webkit-overflow-scrolling:touch;}
 .ts-chip{display:flex;flex-direction:column;align-items:center;padding:6px 12px;line-height:1.2;flex:0 0 auto;}
 .ts-chip small{margin:0;font-size:11px;}
-.ts-day-title{margin:8px 0 4px;font-weight:700;color:var(--text-secondary);font-size:14px;}
-.ts-who h4{margin:12px 0 4px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--cfa-navy);}
-.ts-who h4 small{color:var(--text-tertiary);font-weight:500;}
-.ts-who h4 .es{text-transform:none;letter-spacing:0;font-weight:400;color:var(--text-tertiary);margin-left:4px;}
-.ts-list{list-style:none;margin:0;padding:0;}
-.ts-list li{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--border);font-size:15px;}
-.ts-list li:first-child{border-top:none;}
-.ts-list li b{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;}
-.ts-list li.is-me{background:#FDF3F5;margin:0 -8px;padding:7px 8px;border-radius:8px;font-weight:700;}
+/* Who's working: the Right Now roster panel (.rn-roster), the viewer's own row marked. */
+.ts-who .rn-roster{margin:12px 0 0;}
+.rn-rp.is-me{background:#FDF3F5;box-shadow:inset 3px 0 0 var(--cfa-red);border-top-color:transparent;}
+.rn-rp.is-me + .rn-rp{border-top-color:transparent;}
+.rn-rp.is-me .rn-rp-name{font-weight:800;}
+.rn-roster-h b .es-line{display:block;font-family:var(--font-display);font-style:italic;font-weight:400;font-size:13px;opacity:.85;}
 
 /* PIN on file (headcount.js; Tim, Oct 25 2026) */
 .hc-pins.has-gaps{border-left:4px solid var(--cfa-red);}

@@ -108,22 +108,33 @@ function tsFindHtml(people){
   </section>`;
 }
 
-function tsWhoHtml(days, meKey){
+// Who's working, a day at a time, in the same panel as the Right Now card's
+// roster (right-now.js rnRosterHtml; Tim, Oct 25 2026): time first, leaders
+// tagged, the viewer marked, and today who's on now. Office shifts only for
+// managers, as before.
+function tsWhoHtml(days, me){
   if(!tsDay || !days.some(d => d.iso === tsDay)) tsDay = (days.find(d => d.iso >= today) || days[0]).iso;
   const day = days.find(d => d.iso === tsDay);
-  const shifts = tsShifts(tsDay).filter(s => s.side !== 'Office');
-  const group = side => {
-    const list = shifts.filter(s => s.side === side).sort((a, b) => tsStartOf(a) - tsStartOf(b) || a.name.localeCompare(b.name));
-    if(!list.length) return '';
-    return `<h4>${TS_SIDE_LABEL[side]}${esSpan(esText(TS_SIDE_LABEL[side]))} <small>${list.length}</small></h4>
-      <ul class="ts-list">${list.map(s => `<li${s.key === meKey ? ' class="is-me"' : ''}><span>${escapeHtml(s.name)}</span><b>${escapeHtml(tsSpan(s))}</b></li>`).join('')}</ul>`;
-  };
-  return `<section class="ts-card ts-who">
+  const manager = typeof launchManager !== 'undefined' && launchManager;
+  const live = tsDay === today && typeof rnDay === 'function' && !rnDay().closed;
+  const groups = rnDayRoster(tsDay, live ? rnNowMins() : null).filter(g => g.key !== 'admin' || manager);
+  const head = {title: `Who’s on ${tsDay === today ? 'today' : day.long}`, sub: `${day.short}, ${day.date}`};
+  return `<section class="ts-card ts-who" id="tsWho">
     <h3>Who's working${esLine("Who's working")}</h3>
     <div class="ts-chips" role="tablist">${days.map(d => `<button type="button" class="ts-chip${d.iso === tsDay ? ' active' : ''}" role="tab" aria-selected="${d.iso === tsDay}" data-ts-day="${d.iso}">${d.short}<small>${escapeHtml(d.date)}</small></button>`).join('')}</div>
-    <p class="ts-day-title">${escapeHtml(day.long)}, ${escapeHtml(day.date)}</p>
-    ${shifts.length ? group('FOH') + group('BOH') + group('Truck') : '<p class="ts-none">No one is on the schedule this day.</p>'}
+    ${groups.length ? rnRosterHtml(groups, head, me) : '<p class="ts-none">No one is on the schedule this day.</p>'}
   </section>`;
+}
+
+// From the Right Now card: open the Schedule tab on a day.
+function tsShowDay(iso){
+  const off = [0, 1].find(o => tsWeek(o).some(d => d.iso === iso));
+  if(off === undefined) return;
+  tsOffset = off;
+  tsDay = iso;
+  launchShowTab('schedule');
+  const who = document.getElementById('tsWho');
+  if(who) who.scrollIntoView({block: 'start'});
 }
 
 function renderTeamSchedule(){
@@ -146,7 +157,7 @@ function renderTeamSchedule(){
   }
   const mineKey = me && people.some(p => p.key === me.person.key) ? me.person.key : null;
   const mine = me && mineKey ? tsMyWeekHtml(days, me) : me ? `<section class="ts-card ts-mine"><div class="ts-card-head"><div><h3>${escapeHtml(me.person.name)}</h3><p>No shifts this week</p></div></div></section>` : tsFindHtml(people);
-  root.innerHTML = head + mine + tsWhoHtml(days, mineKey)
+  root.innerHTML = head + mine + tsWhoHtml(days, mineKey && me ? me.person.name : '')
     + '<p class="ts-foot">From the HotSchedules schedule. If a shift looks wrong, check with a leader.</p>';
 }
 
