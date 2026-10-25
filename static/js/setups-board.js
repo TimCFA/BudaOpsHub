@@ -768,7 +768,7 @@ document.getElementById('allDayparts').addEventListener('click', e=>{
     const ta = document.getElementById('suNoteText');
     const text = ta ? ta.value.trim() : '';
     const by = getInitials();
-    if(!by){ showToast('Say who you are first (top right)'); beginEditInitials(); return; }
+    if(!by){ showToast('Sign in first (top right)'); beginEditInitials(); return; }
     if(!text){ showToast('Write the note first'); if(ta) ta.focus(); return; }
     addPosNote(keyFor(suSheet.slot), text, by);
     suNoteDraft = {key: '', text: ''};

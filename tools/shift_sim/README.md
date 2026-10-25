@@ -1,7 +1,7 @@
 # Shift simulator
 
 The judge for "Set Ups never loses a change" (TIM-103). Several headless
-phones fill a day's Set Ups and run breaks at once against a local copy of
+phones, each signed in as a Team Lead, fill a day's Set Ups and run breaks at once against a local copy of
 the app, while a scenario adds chaos. A run passes only if the server ends
 up with every intended change and every phone agrees with it. Data is
 made up; nothing touches the live site.

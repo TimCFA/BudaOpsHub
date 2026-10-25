@@ -133,10 +133,28 @@ class SignInRequired(unittest.TestCase):
         self.assertTrue(appmod.app.test_client().get('/api/manager/status').get_json()['requireSignIn'])
         self.require(False)
 
-    def test_off_nothing_changes_for_a_device_nobody_signed_in_on(self):
+    def test_off_a_device_nobody_signed_in_on_still_logs_waste(self):
         anon = appmod.app.test_client()
-        self.spot(anon, 'Drinks 1', 'Devon Test')
+        self.waste(anon)
+        self.assertEqual(len(self.section('waste')['entries']), 1)
+
+    def test_set_ups_is_leads_and_up_switch_on_or_off(self):
+        # Tim, Oct 25 2026: positions are a Team Lead's, a director's or the admin team's.
+        for on in (False, True):
+            self.require(on)
+            for c in (appmod.app.test_client(), self.login('123456'), self.login('234567')):
+                self.spot(c, 'Drinks 1', 'Devon Test')
+                self.assertNotIn(DAY + 'Drinks 1', self.section('setups').get('posAssignments', {}))
+                c.post('/api/state/patch', json={'patches': {'rosters': {'ver': appmod._cache['rosters']['ver'] if 'rosters' in appmod._cache else '?',
+                       'ops': [{'o': 'set', 'p': ['fohRoster', '2026-10-26'], 'v': [{'name': 'Zed Nobody', 'start': '9:00a', 'end': '1:00p', 'source': 'manual'}]}]}}})
+                self.assertNotIn('2026-10-26', (json.loads(store['state/rosters']) if 'state/rosters' in store else {}).get('fohRoster', {}))
+                # Old pages' whole-section saves too.
+                self.assertEqual(c.post('/api/state/save', json={'sections': {'setups': '{}'}}).status_code, 403)
+        self.require(False)
+        self.spot(self.login('345678'), 'Drinks 1', 'Devon Test')                 # a Team Lead
         self.assertEqual(self.section('setups')['posAssignments'][DAY + 'Drinks 1'], 'Devon Test')
+        self.spot(self.login('567890'), 'Drinks 2', 'Emery Test')                 # the admin team
+        self.assertEqual(self.section('setups')['posAssignments'][DAY + 'Drinks 2'], 'Emery Test')
 
     # ----- Who may change what -----
 
@@ -257,6 +275,7 @@ class PageMatchesServer(unittest.TestCase):
             return set(re.findall(r"'([^']+)'", body))
         self.assertEqual(js_list('SI_MEMBER_SECTIONS'), appmod.MEMBER_SECTIONS)
         self.assertEqual(js_list('SI_DEVICE_EXTRA_KEYS') | set(appmod.STATE_SECTIONS['waste']), appmod.DEVICE_KEYS)
+        self.assertEqual(set(appmod.STATE_SECTIONS['setups']) - appmod.LEAD_ONLY_KEYS, js_list('SI_ANY_SIGN_IN_KEYS'))
 
 
 if __name__ == '__main__':

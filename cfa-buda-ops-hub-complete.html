@@ -207,7 +207,10 @@
       <div class="sub" id="addTMContext"></div>
       <div class="field">
         <label data-es="Name" data-es-inline>Name</label>
-        <input type="text" id="addTMName" placeholder="Full name" data-es-placeholder="Full name" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+        <input type="text" id="addTMName" placeholder="Start typing a name" data-es-placeholder="Start typing a name" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="addTMPicks" aria-expanded="false" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter';">
+        <!-- The team's names to pick from (daypicker-and-positions.js tmPick*). -->
+        <div class="tm-picks" id="addTMPicks" role="listbox" aria-label="Team members"></div>
+        <p class="tm-pick-note" id="addTMPickNote" aria-live="polite"></p>
       </div>
       <div style="display:flex;gap:12px;">
         <div class="field" style="flex:1;">

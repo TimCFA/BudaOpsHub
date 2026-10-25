@@ -79,6 +79,9 @@ async function acSignedIn(result, stay){
   }
   acRenderGate();
   acRenderSettings();
+  // Again now Manage is open: the sign-in card is a manager's (Tim, Oct 25
+  // 2026: Settings showed only Launch mode and Full Backup until a reload).
+  if(typeof siRender === 'function') siRender();
   if(typeof scSyncVisibility === 'function') scSyncVisibility();   // Safe Count: not for Team Members or Trainers
 }
 

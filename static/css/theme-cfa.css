@@ -2674,6 +2674,22 @@ body:not(.hc-allowed) .hc-only{display:none !important;}
 /* PIN on file (headcount.js; Tim, Oct 25 2026) */
 .hc-pins.has-gaps{border-left:4px solid var(--cfa-red);}
 .hc-pins-ok{margin:0;color:var(--ok);font-weight:600;}
+.hc-pins > summary{cursor:pointer;list-style:none;margin:0;}
+.hc-pins > summary::-webkit-details-marker{display:none;}
+.hc-pins > summary::after{content:"";flex:none;width:9px;height:9px;margin-left:4px;border-right:2px solid var(--text-tertiary);border-bottom:2px solid var(--text-tertiary);transform:translateY(-3px) rotate(45deg);transition:transform .15s;}
+.hc-pins[open] > summary{margin-bottom:8px;}
+.hc-pins[open] > summary::after{transform:translateY(1px) rotate(-135deg);}
+.hc-pins > summary span{margin-left:auto;}
+.hc-pins b.is-missing{color:var(--cfa-red);}
+.hc-pins > summary:focus-visible{outline:2px solid var(--cfa-navy);outline-offset:3px;border-radius:6px;}
+/* Add Team Member (Set Ups): the team to pick from as a name is typed. */
+.tm-picks{display:flex;flex-direction:column;margin-top:6px;border-radius:var(--radius);overflow:hidden;}
+.tm-picks:not(:empty){border:1px solid var(--border);}
+.tm-pick{min-height:44px;padding:10px 12px;border:0;border-top:1px solid var(--border);background:var(--cfa-white);text-align:left;font-family:var(--font-ui);font-size:15px;color:var(--text-primary);cursor:pointer;}
+.tm-pick:first-child{border-top:0;}
+.tm-pick:hover,.tm-pick:focus-visible{background:var(--cfa-soft);outline:none;}
+.tm-pick-note{margin:6px 0 0;font-size:13px;color:var(--text-secondary);}
+.tm-pick-note:empty{display:none;}
 .hc-pin-list{list-style:none;margin:0;padding:0;}
 .hc-pin-list li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid var(--border);font-size:15px;}
 .hc-pin-list li:first-child{border-top:none;}

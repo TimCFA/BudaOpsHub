@@ -62,8 +62,13 @@ async function stopServer(){ if(!server) return; const s = server; server = null
 const chaosSet = c => fetch(BASE + '/__chaos', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(c)}).catch(() => {});
 const serverSetups = async () => JSON.parse(JSON.parse(await (await fetch(BASE + '/__store/state/setups')).text()));
 
-async function openPhone(browser, i){
+// Each phone is a Team Lead's, signed in with their own clock-in PIN: Set Ups
+// is leads' and up to change (app.py LEAD_ONLY_KEYS). `pin` null: nobody
+// signed in on it.
+const leadPin = i => String(700000 + i);
+async function openPhone(browser, i, pin = leadPin(i)){
   const ctx = await browser.newContext({viewport: {width: 390, height: 844}, timezoneId: 'America/Chicago'});
+  if(pin) await ctx.request.post(BASE + '/api/manager/login', {data: {pin}});
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
@@ -93,9 +98,15 @@ async function main(){
   seedStore(); startServer(); await waitServer();
   const browser = await chromium.launch();
   // A manager opens the hub once first, as on a real store: every section saved with its defaults.
-  { const m = await openPhone(browser, 'mgr');
-    await m.page.evaluate(async () => { await fetch('/api/manager/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({pin: '1234'})}); await saveState(); });
+  { const m = await openPhone(browser, 'mgr', null);
+    await m.page.evaluate(async n => {
+      await fetch('/api/manager/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({pin: '1234'})});
+      // The leaders' clock-in PINs.
+      for(let i = 0; i < n; i++) await fetch('/api/team/pin', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name: `Sim Lead ${i}`, pin: String(700000 + i), role: 'lead'})});
+      await saveState();
+    }, PHONES);
     await settle([m], 20000); await m.ctx.close(); }
+  // (opened without a sign-in: the manager signs in on the page above)
   const phones = [];
   for(let i = 0; i < PHONES; i++) phones.push(await openPhone(browser, i));
   const slots = await phones[0].page.evaluate(day => {
@@ -237,6 +248,17 @@ async function main(){
     if(diff.length) problems.push(`phone ${i} disagrees with the server on ${diff.length} spot(s)`);
   });
   phones.forEach(p => p.errors.forEach(e => problems.push(`phone ${p.i} page error: ${e}`)));
+  // A phone nobody signed in on can look but not move anyone, and it settles.
+  { const anon = await openPhone(browser, 'anon', null);
+    const key = slots[0], before = got[key] || '';
+    await assign(anon, key, before === NAMES[0] ? NAMES[1] : NAMES[0]);
+    const anonSettled = await settle([anon], 20000);
+    const after = ((await serverSetups()).posAssignments || {})[key] || '';
+    const shown = await anon.page.evaluate(k => posAssignments[k] || '', key);
+    if(after !== before) problems.push(`a phone nobody signed in on changed ${key.split('||').slice(2).join(' / ')}`);
+    if(!anonSettled || shown !== before) problems.push(`the signed-out phone didn't settle back (shows ${shown || '(empty)'})`);
+    log.push(`a signed-out phone tried a spot: server kept ${before || '(empty)'}, the phone shows ${shown || '(empty)'}`);
+    await anon.ctx.close(); }
   const report = {scenario, phones: PHONES, spotsSet: Object.keys(expected).length, breaksDone: Object.keys(expBreakDone).length, breaksRunning: Object.keys(expBreakRunning).length, settled, events: log, problems};
   console.log(JSON.stringify(report, null, 1));
   console.log(problems.length || !settled ? 'FAIL' : 'PASS');
