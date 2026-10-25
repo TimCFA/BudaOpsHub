@@ -314,6 +314,14 @@ const ES = {
   'Enter the minutes and seconds it took': 'Escribe los minutos y segundos que tomó',
   'Remove this time from the leaderboard?': '¿Quitar este tiempo de la tabla?',
   'N times': (n, last) => `${n} ${n === 1 ? 'vez' : 'veces'}${last ? ` · la más reciente ${last}` : ''}`,
+  // The team's Schedule (team-schedule.js).
+  'Schedule': 'Horario',
+  'Next week': 'La próxima semana',
+  'Find your shifts': 'Busca tus turnos',
+  "Who's working": 'Quién trabaja',
+  'Not you?': '¿No eres tú?',
+  'Off': 'Libre',
+  'Office': 'Oficina',
   // Home: the Right Now card (right-now.js).
   'Right now': 'Ahora mismo',
   'First thing': 'Lo primero',

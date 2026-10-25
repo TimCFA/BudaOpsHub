@@ -389,16 +389,56 @@ def _read_sections():
 def _dumps(value):
     return json.dumps(value, separators=(',', ':'), ensure_ascii=False)
 
-def _write_section(name, section_dict):
+# Firebase's tag for each section as this server last wrote it. A save
+# writes only if the stored section still carries that tag: during a deploy
+# the old and the new server both run for a moment, and the new one, having
+# read the data as it started, used to write its older copy over saves the
+# old one took meanwhile, losing Set Ups changes (shift simulator, Oct 25
+# 2026). Now the losing write applies its changes to the stored copy instead.
+_etags = {}
+
+def _write_if_unchanged(ref, name, section_dict, ops):
+    """Write section_dict unless another server changed the section since
+    this one last wrote it; then apply ops to the stored copy and try again.
+    Returns (what was written, whether it was rebuilt from the stored copy)."""
+    etag = _etags.get(name)
+    rebuilt = False
+    if etag is None:
+        # No tag yet (first save since a start): the stored copy is the base,
+        # since this server's may be older than it.
+        stored, etag = ref.get(etag=True)
+        fresh = apply_ops(_parse_section(stored) or {}, ops)
+        rebuilt = canon(fresh) != canon(section_dict)
+        section_dict = fresh
+    for _ in range(4):
+        ok, stored, new_etag = ref.set_if_unchanged(etag, _dumps(section_dict))
+        _etags[name] = new_etag
+        if ok:
+            return section_dict, rebuilt
+        print(f'[STATE PATCH] {name} was changed by another server; applying this save to its copy')
+        section_dict, etag, rebuilt = apply_ops(_parse_section(stored) or {}, ops), new_etag, True
+    raise RuntimeError(f'Section {name} kept changing under this save')
+
+def _write_section(name, section_dict, ops=None):
+    """Save one section and keep it in memory. With ops (a page's changes),
+    the write is conditional (_write_if_unchanged). Returns True when the
+    section was rebuilt from a stored copy another server wrote."""
     global _write_gen
     with _state_lock:
-        db.reference(f'{STATE_ROOT}/{name}').set(_dumps(section_dict))
+        ref = db.reference(f'{STATE_ROOT}/{name}')
+        rebuilt = False
+        if ops is not None and hasattr(ref, 'set_if_unchanged'):
+            section_dict, rebuilt = _write_if_unchanged(ref, name, section_dict, ops)
+        else:
+            ref.set(_dumps(section_dict))
+            _etags.pop(name, None)
         _write_gen += 1
         _written_gen[name] = _write_gen
         old = _cache.get(name)
         new_canon = canon(section_dict)
         if old is None or old['canon'] != new_canon:
             _cache[name] = {'data': section_dict, 'ver': _new_version(), 'canon': new_canon}
+        return rebuilt
 
 def _gate_section(name, new_section, old_section):
     """A save without a manager session keeps the stored manager-only
@@ -480,26 +520,42 @@ FIREBASE_DB_URL = 'https://cfa-buda-ops-hub-default-rtdb.firebaseio.com'
 _cred_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT_KEY')
 if _cred_json:
     _cred = credentials.Certificate(json.loads(_cred_json))
-    firebase_admin.initialize_app(_cred, {'databaseURL': FIREBASE_DB_URL})
+    # A database call gives up after 15 s (the default is 120 s, retried
+    # once): saves wait in line, so one stuck call held every phone (TIM-94).
+    firebase_admin.initialize_app(_cred, {'databaseURL': FIREBASE_DB_URL, 'httpTimeout': 15})
 else:
     print('[STARTUP WARNING] FIREBASE_SERVICE_ACCOUNT_KEY is not set — Firebase reads/writes will fail.')
 
 # ===== SERVE ROUTES =====
 
-# The page's scripts and stylesheets are stamped with the build (Tim, Oct 23
-# 2026: Home took ten seconds on a phone). Unstamped, each of the 70-odd
-# files was asked about again on every load; stamped, the browser keeps them
-# until the next deploy changes the stamp, so a reload fetches only the page
-# and its data. The page itself is always asked for fresh.
+# The page's scripts and stylesheets are stamped (Tim, Oct 23 2026: Home took
+# ten seconds on a phone). Unstamped, each of the 70-odd files was asked about
+# again on every load; stamped, the browser keeps them, so a reload fetches
+# only the page and its data. The page itself is always asked for fresh.
+# Each file carries a fingerprint of its own contents, not the build (Oct 25
+# 2026): with the build, every deploy sent every phone all 85 files again
+# (9 s on a slow connection) though only a few had changed; now a phone
+# fetches just the ones that did.
 _PAGE_HTML = {}
-_STAMP_RE = re.compile(r'((?:src|href)="/static/[^"?#]+\.(?:js|css))"')
+_STAMP_RE = re.compile(r'((?:src|href)="(/static/[^"?#]+\.(?:js|css)))"')
+_STAMPS = {}
+
+def _file_stamp(path):
+    """A short fingerprint of a /static/... file's contents."""
+    if path not in _STAMPS:
+        try:
+            with open(path.lstrip('/'), 'rb') as f:
+                _STAMPS[path] = hashlib.sha256(f.read()).hexdigest()[:12]
+        except OSError:
+            _STAMPS[path] = None
+    return _STAMPS[path]
 
 def _page_html():
     if BUILD not in _PAGE_HTML:
         with open('cfa-buda-ops-hub-complete.html', encoding='utf-8') as f:
             html = f.read()
         _PAGE_HTML.clear()
-        _PAGE_HTML[BUILD] = _STAMP_RE.sub(lambda m: f'{m.group(1)}?v={BUILD}"', html)
+        _PAGE_HTML[BUILD] = _STAMP_RE.sub(lambda m: f'{m.group(1)}?v={_file_stamp(m.group(2)) or BUILD}"', html)
     return _PAGE_HTML[BUILD]
 
 @app.route('/')
@@ -510,7 +566,9 @@ def serve_html():
 
 @app.after_request
 def _cache_stamped_static(response):
-    if request.path.startswith('/static/') and request.args.get('v') == BUILD and response.status_code == 200:
+    v = request.args.get('v')
+    if (v and request.path.startswith('/static/') and response.status_code == 200
+            and v in (_file_stamp(request.path), BUILD)):
         response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
     return response
 
@@ -1649,7 +1707,8 @@ def state_patch():
                 if canon(new) != canon(entry['data']):
                     if len(_dumps(new).encode('utf-8')) > MAX_STATE_BYTES:
                         return jsonify({'error': f'Section {name} would be too large'}), 413
-                    _write_section(name, new)
+                    if _write_section(name, new, ops) and name not in returned:
+                        returned.append(name)   # it holds another server's saves too
             print('[STATE PATCH] ' + ', '.join(f"{n}:{len(p['ops'])}" for n, p in patches.items()))
             reply = _state_reply(returned)
             reply['success'] = True

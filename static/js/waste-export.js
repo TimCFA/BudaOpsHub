@@ -94,7 +94,7 @@ async function wxExport(kind){
   const label = wxLabel(range) + (wxLoc === 'all' ? '' : ` · ${wxLoc.toUpperCase()} only`);
   const name = `cfa-buda-waste_${range[0] === range[1] ? range[0] : range[0] + '_to_' + range[1]}${wxLoc === 'all' ? '' : '_' + wxLoc}`;
   if(kind === 'pdf'){
-    if(!window.jspdf){ showToast('The PDF maker didn’t load; try the CSV, or reload the page'); return; }
+    try{ await pdfReady(); }catch(e){ showToast(e.message + ' Or try the CSV.'); return; }
     generateWastePdf(list, label, name + '.pdf');
   } else {
     wxDownload(wdCsv(list), name + '.csv', 'text/csv');

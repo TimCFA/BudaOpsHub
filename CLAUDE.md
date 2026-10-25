@@ -59,8 +59,9 @@ deploy stops service. These rules come from Oct 12, 2026, when four
 mid-shift merges and a retired setting still stored on the server left
 every phone unable to save for a day (PRs #148, #149).
 
-- **Never merge during service hours** (Mon–Sat, roughly 6am–10pm Central).
-  Default to after close. If something can't wait, say so and let Tim
+- **Never merge during service hours**: roughly 6am–10pm Central Mon–Thu, and
+  6am–11pm Fri and Sat (the store closes at 11pm on Friday and Saturday; Tim,
+  Oct 23, 2026). Default to after close. If something can't wait, say so and let Tim
   decide; never assume.
 - **One merge a day, Mon–Sat.** Batch ready PRs into a single merge window so the
   server restarts once, and tell Tim the time it went live so everyone can
@@ -83,3 +84,7 @@ every phone unable to save for a day (PRs #148, #149).
   change that depends on their absence still needs checking.
 - **A failed save must retry** (storage.js `saveState`), never be dropped;
   keep that when touching the save path.
+- **A change to saving, syncing or Set Ups passes the shift simulator first**:
+  `node tools/shift_sim/sim.js all 5` must print PASS (several phones, a
+  flaky and slow database, lost signal, a deploy overlap, reloads, a restart;
+  tools/shift_sim/README.md).
