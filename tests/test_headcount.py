@@ -320,6 +320,37 @@ class HeadcountTest(unittest.TestCase):
 
 
 
+class TeamNames(HeadcountTest):
+    """Set Ups picks who to add from the team (Tim, Oct 25 2026): the PIN
+    list's names and roles for anyone signed in, never a PIN."""
+
+    def test_names_for_anyone_signed_in_never_a_pin(self):
+        self.upload(TEAM)
+        appmod._auth_lists(force=True)
+        self.assertEqual(appmod.app.test_client().get('/api/team/names').get_json(), {'names': []})   # nobody signed in
+        r = self.login('123456').get('/api/team/names')                                              # a team member
+        names = r.get_json()['names']
+        self.assertIn({'name': 'Casey Example', 'role': 'lead'}, names)
+        self.assertEqual([n['name'] for n in names], sorted((n['name'] for n in names), key=str.lower))
+        body = r.get_data(as_text=True)
+        for pin in ('123456', '234567', '345678', '567890'):
+            self.assertNotIn(pin, body)
+        self.assertEqual(r.headers['Cache-Control'], 'no-store')
+
+    def test_the_page(self):
+        js = read('static', 'js', 'daypicker-and-positions.js')
+        self.assertIn("fetch(`${API_BASE}/api/team/names`)", js)
+        self.assertIn("if(!p || !p.name || p.source === 'manual') return;", js)             # hand-added names aren't a source
+        self.assertIn("if(!known && tmPickPeople().length && !tmPickAllowNew){", js)
+        self.assertIn("if(!known) entry.offList = true;", js)
+        hc = read('static', 'js', 'headcount.js')
+        self.assertIn("p.source !== 'manual' && !names.has(hcKey(p.name))", hc)                # Our Team skips them
+        # PIN on file: folded, under the profiles, not first.
+        order = hc[hc.index('function renderHeadcountView'):]
+        self.assertLess(order.index('${hcTeamHtml()}'), order.index('${hcPinCardHtml()}'))
+        self.assertIn('<details class="hc-card hc-pins', hc)
+
+
 class PinOnFile(HeadcountTest):
     """PIN on file (Tim, Oct 25 2026): a director or the admin team can put a
     clock-in PIN on file for someone, or change one; nobody can view a PIN."""

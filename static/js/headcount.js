@@ -216,7 +216,9 @@ function hcPinGaps(){
   const names = new Map();
   [fohRoster, bohRoster, truckShifts, adminShifts].forEach(src => Object.entries(src || {}).forEach(([iso, list]) => {
     if(iso < from || iso > to || !Array.isArray(list)) return;
-    list.forEach(p => { if(p && p.name && !names.has(hcKey(p.name))) names.set(hcKey(p.name), p.name); });
+    // The imported schedules only: a name added by hand in Set Ups isn't
+    // someone new (Tim, Oct 25 2026), and Set Ups now picks those from the team.
+    list.forEach(p => { if(p && p.name && p.source !== 'manual' && !names.has(hcKey(p.name))) names.set(hcKey(p.name), p.name); });
   }));
   const isDirector = n => (typeof dirList === 'function' ? dirList() : []).some(d => d && d.name && hcSame(d.name, n));
   const scheduled = [...names.values()].filter(n => !isDirector(n));
@@ -243,12 +245,15 @@ function hcPinCardHtml(){
   const {scheduled, missing} = hcPinGaps();
   if(!scheduled) return '';
   const have = scheduled - missing.length;
-  return `<section class="hc-card hc-pins${missing.length ? ' has-gaps' : ''}">
-      <h3 class="hc-h">PIN on file <span>${have} of ${scheduled} on the schedule</span></h3>
+  // Folded under the profiles, not the first thing on the page (Tim, Oct 25
+  // 2026); the line itself says how many are missing. Open while a PIN form is.
+  const open = missing.includes(hcPinFor);
+  return `<details class="hc-card hc-pins${missing.length ? ' has-gaps' : ''}"${open ? ' open' : ''}>
+      <summary class="hc-h">PIN on file <span>${have} of ${scheduled} on the schedule${missing.length ? ` · <b class="is-missing">${missing.length} missing</b>` : ''}</span></summary>
       ${missing.length ? `<p class="hc-note">On the schedule in the last or next two weeks with no clock-in PIN on file. They can’t sign in until one is.</p>
         <ul class="hc-pin-list">${missing.map(n => `<li>${hcPinFor === n ? hcPinFormHtml(n) : `<span>${escapeHtml(n)}</span><button type="button" class="btn btn-ghost" data-hc-pin-open="${escapeHtml(n)}">Set PIN</button>`}</li>`).join('')}</ul>`
         : '<p class="hc-note hc-pins-ok">Everyone on the schedule has a PIN on file.</p>'}
-    </section>`;
+    </details>`;
 }
 
 async function hcSavePin(name){
@@ -539,13 +544,13 @@ function renderHeadcountView(){
       ${hcForm ? '' : '<button type="button" class="btn btn-primary" data-hc-new>Log a departure</button>'}
     </div>
     ${empty ? '<p class="hc-note hc-start">The count starts with the store’s PIN report: upload it in Manage → Accounts (Tim). Everyone with a clock-in PIN counts, and each new report shows who left.</p>' : hcSummaryHtml(s)}
-    ${hcPinCardHtml()}
     ${hcForm ? hcFormHtml() : ''}
     ${hcImport ? hcImportHtml() : ''}
     ${hcProfile ? hcProfileHtml() : ''}
     ${hcProfile && !hcProfile.isNew && hcPinFor === hcProfile.name ? hcPinFormHtml(hcProfile.name, hcProfile.role) : ''}
     ${hcPendingHtml(s)}
     ${hcTeamHtml()}
+    ${hcPinCardHtml()}
     ${hcDeparturesHtml(s)}
     ${hcWhyHtml(s)}
     ${hcHistoryHtml()}`;

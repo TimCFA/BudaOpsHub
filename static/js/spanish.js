@@ -144,6 +144,8 @@ const ES = {
   'No breaks owed': 'Nadie trabaja 6 horas o más hoy, así que no hay descansos pendientes.',
   'Search team members': 'Buscar miembros del equipo',
   'Full name': 'Nombre completo',
+  'Start typing a name': 'Empieza a escribir un nombre',
+  'Pick them from the list': 'Elígelo de la lista',
 
   // ----- Waste -----
   'Say who you are first (top right)': 'Primero di quién eres (arriba a la derecha)',

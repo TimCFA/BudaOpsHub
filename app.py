@@ -1335,6 +1335,28 @@ def team_headcount():
     return resp
 
 
+@app.route('/api/team/names', methods=['GET'])
+def team_names():
+    """The PIN list's names and roles, never a PIN: who Set Ups picks from
+    when a leader adds someone to a day by hand (Tim, Oct 25 2026: typed
+    names turned up on Our Team as people with no PIN). Anyone signed in on
+    this device, a person or a shared device; nobody signed in gets nothing,
+    and the page falls back on the names on the schedule."""
+    if not (session.get('manager') or _who_name()):
+        return jsonify({'names': []})
+    pins = _auth_lists().get('pins') or {}
+    seen, out = set(), []
+    for rec in pins.values():
+        name = str((rec or {}).get('name') or '').strip() if isinstance(rec, dict) else ''
+        if name and name.lower() not in seen:
+            seen.add(name.lower())
+            out.append({'name': name, 'role': rec.get('role') or ''})
+    out.sort(key=lambda r: r['name'].lower())
+    resp = jsonify({'names': out})
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
+
+
 @app.route('/api/team/role', methods=['POST'])
 def team_role():
     """Set someone's role on the clock-in PIN list ({name, role}) from the

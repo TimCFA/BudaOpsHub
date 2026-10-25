@@ -920,7 +920,100 @@ document.getElementById('btnAddTeamMember').addEventListener('click', ()=>{
   document.getElementById('addTMStart').value = '';
   document.getElementById('addTMEnd').value = '';
   if(typeof shiftFormHint === 'function') shiftFormHint();
+  tmPickReset();
+  tmPickLoad();
   document.getElementById('addTMModal').classList.add('active');
+});
+
+// ----- Who to add: picked from the team, not typed (Tim, Oct 25 2026) -----
+// A name typed by hand ("Ana", "ana r") matched nobody, so it turned up on
+// Our Team as someone with no PIN and on no one's Right Now card. The name
+// box now lists the team as you type: the clock-in PIN list (any signed-in
+// device; app.py /api/team/names) and everyone on the imported schedules
+// (every device has those). Pick one. Someone on neither (a new hire whose
+// PIN and schedule haven't come through yet) takes a second tap, "Not on
+// the list? Add anyway", and is marked as added by hand off the list.
+let tmPinNames = null;          // [{name, role}] from the PIN list, once fetched
+let tmPickAllowNew = false;     // "Add anyway" tapped for the name typed
+const TM_PICK_MAX = 8;
+const tmFold = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+async function tmPickLoad(){
+  if(tmPinNames) return;
+  try{
+    const res = await fetch(`${API_BASE}/api/team/names`);
+    const d = res.ok ? await res.json() : null;
+    if(d && Array.isArray(d.names)) tmPinNames = d.names;
+  }catch(e){ /* offline: the schedule's names still list */ }
+  tmPickDraw();
+}
+
+// Everyone to pick from: the PIN list, then anyone else on an imported
+// schedule (hand-added names aren't a source; that's the point).
+function tmPickPeople(){
+  const out = new Map();
+  (tmPinNames || []).forEach(p => out.set(tmFold(p.name), {name: p.name, why: 'PIN list'}));
+  [fohRoster, bohRoster, truckShifts, adminShifts].forEach(src => Object.values(src || {}).forEach(list => (Array.isArray(list) ? list : []).forEach(p => {
+    if(!p || !p.name || p.source === 'manual') return;
+    const k = tmFold(p.name);
+    if(!out.has(k) && ![...out.values()].some(x => typeof rnSame === 'function' && rnSame(x.name, p.name))) out.set(k, {name: p.name, why: 'schedule'});
+  })));
+  return [...out.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Matches for what's typed: any word starting with it, best first.
+function tmPickMatches(typed){
+  const q = tmFold(typed);
+  if(!q) return [];
+  const starts = [], inside = [];
+  tmPickPeople().forEach(p => {
+    const n = tmFold(p.name);
+    if(n.startsWith(q)) starts.push(p);
+    else if(n.split(' ').some(w => w.startsWith(q)) || n.includes(q)) inside.push(p);
+  });
+  return [...starts, ...inside].slice(0, TM_PICK_MAX);
+}
+function tmPickExact(typed){
+  const q = tmFold(typed);
+  return q ? tmPickPeople().find(p => tmFold(p.name) === q) || null : null;
+}
+
+function tmPickReset(){
+  tmPickAllowNew = false;
+  tmPickDraw();
+}
+function tmPickDraw(){
+  const input = document.getElementById('addTMName'), box = document.getElementById('addTMPicks'), note = document.getElementById('addTMPickNote');
+  if(!input || !box) return;
+  const typed = input.value;
+  const exact = tmPickExact(typed);
+  const list = exact ? [] : tmPickMatches(typed);
+  box.innerHTML = list.map((p, i) => `<button type="button" class="tm-pick" role="option" data-tm-pick="${escapeHtml(p.name)}" id="tmPick${i}">${escapeHtml(p.name)}</button>`).join('');
+  input.setAttribute('aria-expanded', list.length ? 'true' : 'false');
+  const people = tmPickPeople().length;
+  if(note){
+    note.innerHTML = !typed.trim() || exact || !people ? ''
+      : tmPickAllowNew ? `Adding <b>${escapeHtml(typed.trim())}</b>, who isn’t on the PIN list or the schedule.`
+      : `${list.length ? 'Pick them from the list.' : 'Nobody on the team by that name.'} <button type="button" class="ld-link" data-tm-pick-new>Not on the list? Add anyway</button>${esLine('Pick them from the list')}`;
+  }
+}
+
+document.getElementById('addTMName').addEventListener('input', () => { tmPickAllowNew = false; tmPickDraw(); });
+document.getElementById('addTMName').addEventListener('keydown', e => {
+  if(e.key !== 'Enter') return;
+  const first = document.querySelector('#addTMPicks [data-tm-pick]');
+  if(first){ e.preventDefault(); first.click(); }
+});
+document.getElementById('addTMModal').addEventListener('click', e => {
+  const pick = e.target.closest('[data-tm-pick]');
+  if(pick){
+    document.getElementById('addTMName').value = pick.dataset.tmPick;
+    tmPickAllowNew = false;
+    tmPickDraw();
+    document.getElementById('addTMStart').focus();
+    return;
+  }
+  if(e.target.closest('[data-tm-pick-new]')){ tmPickAllowNew = true; tmPickDraw(); }
 });
 
 document.getElementById('btnCancelAddTM').addEventListener('click', ()=>{
@@ -933,7 +1026,7 @@ document.getElementById('addTMModal').addEventListener('click', (e)=>{
 
 document.getElementById('btnConfirmAddTM').addEventListener('click', async ()=>{
   const dayName = document.getElementById('daySelect').value;
-  const name = document.getElementById('addTMName').value.trim();
+  let name = document.getElementById('addTMName').value.trim();
   // Times typed any reasonable way (shift-time.js): "530", "5:30 am",
   // "1:30", "17:30", or the whole shift in the start box.
   const times = shiftTimesRead(document.getElementById('addTMStart').value, document.getElementById('addTMEnd').value);
@@ -945,6 +1038,14 @@ document.getElementById('btnConfirmAddTM').addEventListener('click', async ()=>{
     showToast(times.error);
     return;
   }
+  // Someone from the team, by the name the team list has (see tmPick*).
+  const known = tmPickExact(name);
+  if(!known && tmPickPeople().length && !tmPickAllowNew){
+    tmPickDraw();
+    showToast('Pick them from the list, or tap “Not on the list? Add anyway”');
+    return;
+  }
+  if(known) name = known.name;
   const {start, end} = times;
   document.getElementById('addTMStart').value = start;
   document.getElementById('addTMEnd').value = end;
@@ -960,6 +1061,7 @@ document.getElementById('btnConfirmAddTM').addEventListener('click', async ()=>{
   if(!roster[dayName]) roster[dayName] = [];
   
   const entry = {name, start, end, source: 'manual', addedBy: initials, addedAt: Date.now()};
+  if(!known) entry.offList = true;     // not on the PIN list or a schedule (Our Team leaves it out)
   const existingIndex = roster[dayName].findIndex(p => p.name.toLowerCase() === name.toLowerCase());
   if(existingIndex !== -1){
     roster[dayName][existingIndex] = entry;
