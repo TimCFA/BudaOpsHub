@@ -1872,6 +1872,59 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .rn-row.is-go:focus-visible,.rn-first.is-go:focus-visible{outline:2px solid var(--cfa-navy);outline-offset:2px;border-radius:10px;}
 .rn:not(.rn-boh) .es{display:none;}
 @media (max-width:600px){ .rn{padding:14px 16px 6px;} .rn-title{font-size:24px;} }
+/* Today on the calendar (Tim, Oct 25 2026: an event was missed). A navy
+   block at the top of the card, for every role: each event a row with its
+   kind's color as the stripe, "Happening now" with a live dot, the ones
+   that are over faded. The month-long ones and the next day's ride on quiet
+   lines under it; with nothing special today only those lines show, on the
+   card's own ground. A tap opens the event on its own (.rn-evs). */
+.rn-ev{position:relative;margin:0 0 12px;padding:12px 12px 6px;border-radius:16px;background:var(--cfa-navy);color:#FFFFFF;}
+.rn-ev-head{display:flex;align-items:center;gap:8px;margin:0 2px 8px;font-family:var(--font-ui);font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#FFFFFF;}
+.rn-ev-head .es{letter-spacing:0;text-transform:none;font-family:var(--font-display);font-style:italic;font-weight:400;opacity:.8;}
+.rn-ev-item{display:flex;align-items:center;gap:10px;min-height:56px;margin-bottom:6px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.1);border-left:4px solid var(--ev);cursor:pointer;}
+.rn-ev-item:hover{background:rgba(255,255,255,.16);}
+.rn-ev-item:focus-visible,.rn-ev-chip:focus-visible{outline:2px solid #FFFFFF;outline-offset:2px;}
+.rn-ev-item.is-done{opacity:.6;}
+.rn-ev-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.rn-ev-main b{font-family:var(--font-display);font-size:19px;font-weight:700;line-height:1.15;color:#FFFFFF;}
+.rn-ev-detail{font-family:var(--font-ui);font-size:13.5px;line-height:1.3;color:rgba(255,255,255,.85);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+.rn-ev-main small{display:flex;flex-wrap:wrap;align-items:center;gap:0 6px;font-family:var(--font-ui);font-size:12.5px;font-weight:700;color:rgba(255,255,255,.75);}
+.rn-ev-item.is-now small,.rn-ev-item.is-soon small{color:#FFFFFF;}
+.rn-ev-main small .es{font-family:var(--font-display);font-style:italic;font-weight:400;}
+.rn-ev-live{width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px rgba(255,255,255,.25);}
+.rn-ev .rn-go{color:rgba(255,255,255,.7);}
+.rn-ev-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 2px;font-family:var(--font-ui);font-size:12.5px;}
+.rn-ev-line b{font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11px;color:rgba(255,255,255,.75);}
+.rn-ev-line b .es{letter-spacing:0;text-transform:none;font-family:var(--font-display);font-style:italic;font-weight:400;}
+.rn-ev-chip{display:inline-flex;align-items:center;min-height:30px;padding:4px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.3);border-left:3px solid var(--ev);font-weight:600;color:#FFFFFF;cursor:pointer;}
+.rn-ev.is-quiet{background:transparent;color:var(--text-primary);padding:0 0 4px;}
+.rn-ev.is-quiet .rn-ev-line b{color:var(--text-tertiary);}
+.rn-ev.is-quiet .rn-ev-chip{border-color:var(--border);color:var(--text-primary);background:var(--cfa-white);}
+.rn-ev.is-quiet .rn-ev-chip:focus-visible{outline-color:var(--cfa-navy);}
+/* The one event, on its own: a sheet from the bottom on a phone, a card in
+   the middle on a computer. */
+.rn-evs{position:fixed;inset:0;z-index:1200;display:none;align-items:flex-end;justify-content:center;background:rgba(20,18,15,.5);}
+.rn-evs.is-open{display:flex;}
+body.rn-evs-on{overflow:hidden;}
+.rn-evs-card{position:relative;width:100%;max-width:520px;max-height:88vh;overflow-y:auto;background:var(--cfa-white);border-radius:22px 22px 0 0;border-top:6px solid var(--ev);padding:20px 20px 24px;box-shadow:0 -10px 40px rgba(0,0,0,.2);}
+@media (min-width:700px){ .rn-evs{align-items:center;} .rn-evs-card{border-radius:22px;} }
+.rn-evs-x{position:absolute;top:10px;right:10px;width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:50%;background:var(--cfa-soft);color:var(--text-primary);cursor:pointer;}
+.rn-evs-kind{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-ui);font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-tertiary);}
+.rn-evs-kind i{width:10px;height:10px;border-radius:50%;background:var(--ev);}
+.rn-evs-card h2{margin:6px 48px 6px 0;font-family:var(--font-display);font-size:26px;font-weight:700;line-height:1.15;color:var(--text-primary);}
+.rn-evs-when{margin:0 0 6px;font-family:var(--font-ui);font-size:15px;font-weight:600;color:var(--text-primary);}
+.rn-evs-state{display:inline-block;margin:0 0 8px;padding:4px 10px;border-radius:999px;background:var(--cfa-navy);font-family:var(--font-ui);font-size:12.5px;font-weight:700;color:#FFFFFF;}
+.rn-evs-state.is-done{background:var(--cfa-soft);color:var(--text-secondary);}
+.rn-evs-state .es-line{display:block;font-family:var(--font-display);font-style:italic;font-weight:400;}
+.rn-evs-runs{margin:0 0 8px;font-family:var(--font-ui);font-size:13.5px;color:var(--text-secondary);}
+.rn-evs-detail{margin:8px 0 4px;font-family:var(--font-ui);font-size:16px;line-height:1.45;color:var(--text-primary);}
+.rn-evs-card h3{margin:16px 0 6px;font-family:var(--font-ui);font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-tertiary);}
+.rn-evs-card h3 .es-line{display:block;letter-spacing:0;text-transform:none;font-family:var(--font-display);font-style:italic;font-weight:400;}
+.rn-evs-card ul{margin:0;padding-left:20px;font-family:var(--font-ui);font-size:15px;line-height:1.5;color:var(--text-primary);}
+.rn-evs-card li + li{margin-top:4px;}
+.rn-evs-cal{display:inline-flex;align-items:center;gap:8px;min-height:44px;margin-top:18px;padding:8px 14px;border:1px solid var(--border);border-radius:12px;background:transparent;font-family:var(--font-ui);font-size:14px;font-weight:600;color:var(--cfa-navy);cursor:pointer;flex-wrap:wrap;}
+.rn-evs-cal .es-line{flex-basis:100%;font-family:var(--font-display);font-style:italic;font-weight:400;font-size:12.5px;color:var(--text-tertiary);}
+.rn-evs:not(.is-boh) .es{display:none;}
 /* The day's roster (Admin Team's card; a tap away on the director's), in a
    panel of its own so it reads apart from the rows (Tim, Oct 20 2026): a
    navy band "Who's on today", then each group as its own card, time first,
