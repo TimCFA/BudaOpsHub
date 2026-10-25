@@ -135,7 +135,8 @@ class DaypartCards(unittest.TestCase):
         self.assertIn("`<span><b>${escapeHtml(sales)}</b> projected${esHtml('projected')}</span>`", brief)
         self.assertIn("`<span><b>${escapeHtml(goal)}</b>/labor hr${esHtml('per labor hour')}</span>`", brief)
         self.assertIn("if(!leadHtml && !nums.length) return '';", brief)
-        self.assertIn("const leadHtml = section === 'foh'", brief)     # BOH has no Lead Captain
+        self.assertIn("const leadHtml = section !== 'foh' ? ''", brief)     # BOH has no Lead Captain
+        self.assertIn('suCanChooseLead() ?', brief)                         # only Team Leads and directors pick one (Oct 25 2026)
         css = read('static', 'css', 'theme-cfa.css')
         self.assertIn('.su-dp-brief-lead{display:inline;border:0;background:none;padding:0;margin:0;font:inherit;font-weight:700;color:var(--cfa-navy);', css)
         self.assertRegex(css, r'\.su-dp-brief\{display:block;[^}]*white-space:nowrap;overflow:hidden;text-overflow:ellipsis;')

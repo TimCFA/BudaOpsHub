@@ -167,7 +167,10 @@ function fillEmptySlots(section, date, dp, dpIndex){
   // 1. Lead Captain
   let leadWho = null;
   if(section === 'foh'){
-    if(!currentLead){
+    // Fill picks a Lead Captain only for someone allowed to choose one (setup-leaders.js).
+    if(!currentLead && !suCanChooseLead()){
+      notes.push('A Team Lead chooses the Lead Captain.');
+    } else if(!currentLead){
       const options = leadCaptainOptions(date, dp, dpIndex).options.filter(o => pool.some(p => p.name === o.name));
       const whole = options.filter(o => { const who = pool.find(p => p.name === o.name); return who.t.arrives === null && who.t.leaves === null; });
       const top = (whole.length ? whole : options)[0];

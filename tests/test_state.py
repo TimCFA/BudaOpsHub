@@ -470,6 +470,59 @@ class DeployOverlapTest(unittest.TestCase):
         self.assertEqual(appmod._cache['setups']['data']['posAssignments'].get(self.K + 'Host 1'), 'Casey Test')
 
 
+class LeadCaptainTest(unittest.TestCase):
+    """Only Team Leads and directors choose the Lead Captain (Tim, Oct 25
+    2026). Anyone else's save goes through without it."""
+
+    K = 'foh||2026-10-26||Lunch (10:30-1:00)||'
+
+    def setUp(self):
+        appmod.db.reference = lambda path: FakeRef(path)
+        appmod._cache.clear()
+        appmod._cache_ready = False
+        store.clear()
+        store['appState'] = json.dumps(dict(LEGACY, posAssignments={self.K + 'Lead Captain': 'Avery Lead', self.K + 'iPOS 1': 'Blake Test'}))
+        appmod.app.test_client().post('/api/state/load', json={})
+
+    def client(self, role=None, manager=False):
+        c = appmod.app.test_client()
+        with c.session_transaction() as sess:
+            if manager:
+                sess['manager'] = True
+            if role:
+                sess['user'] = {'name': 'Someone Test', 'role': role, 'via': 'pin', 'email': ''}
+        return c
+
+    def save(self, c, ops):
+        ver = appmod._cache['setups']['ver']
+        return c.post('/api/state/patch', json={'patches': {'setups': {'ver': ver, 'ops': ops}}}).get_json()
+
+    def pa(self):
+        return section('setups')['posAssignments']
+
+    def test_signed_out_member_and_trainer_cant_change_it(self):
+        for who in (self.client(), self.client('member'), self.client('trainer'), self.client('admin')):
+            reply = self.save(who, [{'o': 'set', 'p': ['posAssignments', self.K + 'Lead Captain'], 'v': 'Casey Member'},
+                                    {'o': 'set', 'p': ['posAssignments', self.K + 'Drinks 1'], 'v': 'Devon Test'}])
+            self.assertTrue(reply['success'])
+            self.assertEqual(self.pa()[self.K + 'Lead Captain'], 'Avery Lead')     # unchanged
+            self.assertEqual(self.pa()[self.K + 'Drinks 1'], 'Devon Test')         # the rest still saves
+            self.assertIn('setups', reply['sections'])                              # the page hears who leads
+            self.save(who, [{'o': 'del', 'p': ['posAssignments', self.K + 'Lead Captain']}])
+            self.assertEqual(self.pa()[self.K + 'Lead Captain'], 'Avery Lead')     # and can't clear it
+
+    def test_a_whole_list_save_keeps_the_saved_lead(self):
+        whole = {self.K + 'iPOS 1': 'Blake Test', self.K + 'Host 1': 'Emery Test', self.K + 'Lead Captain': 'Casey Member'}
+        self.save(self.client('member'), [{'o': 'set', 'p': ['posAssignments'], 'v': whole}])
+        self.assertEqual(self.pa(), {self.K + 'iPOS 1': 'Blake Test', self.K + 'Host 1': 'Emery Test', self.K + 'Lead Captain': 'Avery Lead'})
+
+    def test_a_team_lead_and_a_director_can(self):
+        self.save(self.client('lead'), [{'o': 'set', 'p': ['posAssignments', self.K + 'Lead Captain'], 'v': 'Finley Lead'}])
+        self.assertEqual(self.pa()[self.K + 'Lead Captain'], 'Finley Lead')
+        self.save(self.client('director', manager=True), [{'o': 'del', 'p': ['posAssignments', self.K + 'Lead Captain']}])
+        self.assertNotIn(self.K + 'Lead Captain', self.pa())
+
+
 class SafeCountTest(unittest.TestCase):
     """TIM-48: safe counts are private, team devices can only add to them,
     and the stored list moves out of 'ops' on its own."""
