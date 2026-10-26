@@ -104,6 +104,23 @@ class SmartShopTest(unittest.TestCase):
         with self.assertRaises(rp.ReportParseError):
             rp.parse_smart_shop(FakePdf([FakePage('Smart Shop\nCategory Breakdown\nnothing here')]))
 
+    def test_newer_layout(self):
+        # Ops Hub's assessments-reports zip (Oct 2026): the breakdown says
+        # "NON-COMPLIANT (SCORED)" and "Non-Compliant" wraps onto two lines.
+        first = SS_FIRST.replace('NONCOMPLIANT (SCORED)', 'NON-COMPLIANT (SCORED)')
+        self.assertEqual(rp.detect_kind(first), 'smartShop')
+        words = [word('Drive', 26, 49), word('Thru', 61, 49)] + ss_row(93, HEADER)
+        words += ss_row(129, [('2.010.3', 38), ('Order', 96), ('taker', 125), ('shared', 150), ('a', 180), ('smile', 188),
+                              ('Yes', 455), ('Scored', 814), ('Compliant', 911)])
+        words += ss_row(172, [('2.010.35', 38), ('Uses', 96), ('name', 125), ('No', 455), ('-', 470), ('Did', 476), ('not', 495), ('Scored', 814), ('Non-', 911)])
+        words += ss_row(184, [('Compliant', 911)])
+        words += ss_row(230, [('2.010.43', 38), ('Surprise', 96), ('and', 140), ('Delight', 160), ('No', 455), ('Unscored', 814), ('Non-', 911)])
+        words += ss_row(242, [('Compliant', 911)])
+        rects = [{'top': t, 'height': 1, 'width': 400} for t in (160, 215, 260)]
+        r = rp.parse_smart_shop(FakePdf([FakePage(first), FakePage('', words, rects)]))
+        self.assertEqual((r['compliant'], r['scored'], r['rowsRead']), (7, 8, 3))
+        self.assertEqual([(m['id'], m['scored'], m['response']) for m in r['misses']], [('2.010.35', True, 'No - Did not'), ('2.010.43', False, 'No')])
+
 
 FS_TEXT = """Dashboard Findings Appeals
 All Findings
@@ -243,6 +260,21 @@ class QivTest(unittest.TestCase):
     def test_no_overall_is_an_error(self):
         with self.assertRaises(rp.ReportParseError):
             rp.parse_qiv(FakePdf([FakePage(QIV_FIRST)]))
+
+    def test_table_over_two_pages_and_overall_with_colon(self):
+        # The touchpoints run onto a second page; the overall is printed
+        # "Overall Score: 97 %" (and the first page says only Visit Date).
+        first = QIV_FIRST.replace('Current Quarter : 2026.Q3 ', '')
+        self.assertEqual(rp.detect_kind(first), 'qiv')
+        page1 = 'Icon Touchpoint Score\nCooking Test Fries 90%\nData Collection N/A'
+        page2 = 'Finished Product: Test Sandwich 100 %\nOverall Score: 97 %'
+        r = rp.parse_qiv(FakePdf([FakePage(first), FakePage(page1), FakePage(page2)]))
+        self.assertEqual((r['quarter'], r['date'], r['overall']), ('Q3-2026', '2026-08-12', 97))   # the quarter from the visit date
+        self.assertEqual([(t['name'], t['score']) for t in r['touchpoints']], [('Cooking Test Fries', 90), ('Finished Product: Test Sandwich', 100)])
+
+    def test_overall_outside_the_table(self):
+        r = rp.parse_qiv(FakePdf([FakePage(QIV_FIRST + '\nOverall Score 88%'), FakePage('Icon Touchpoint Score\nCooking Test Fries 90%')]))
+        self.assertEqual((r['overall'], len(r['touchpoints'])), (88, 1))
 
 
 class FileTest(unittest.TestCase):
