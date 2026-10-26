@@ -70,7 +70,8 @@ def _ss_header_fields(text):
 def _ss_breakdown(text):
     lines = text.splitlines()
     try:
-        start = next(i for i, l in enumerate(lines) if l.startswith('CATEGORY') and 'NONCOMPLIANT' in l)
+        # "NONCOMPLIANT", or "NON-COMPLIANT (SCORED)" in the newer layout.
+        start = next(i for i, l in enumerate(lines) if l.startswith('CATEGORY') and 'NONCOMPLIANT' in l.replace('-', ''))
     except StopIteration:
         raise ReportParseError('This Smart Shop has no Category Breakdown.')
     out = []
@@ -143,6 +144,8 @@ def _ss_rows(pdf, sections):
                     i = 0 if SS_ID_RE.match(w['text']) and not cells['id'] else 1
                 cells[SS_COLUMNS[i]].append(w['text'])
             row = {c: ' '.join(v).strip() for c, v in cells.items()}
+            # The newer layout wraps "Non-Compliant" onto two lines.
+            row['compliance'] = {'compliant': 'Compliant', 'noncompliant': 'Noncompliant', 'informational': 'Informational'}.get(re.sub(r'[\s-]', '', row['compliance']).lower(), row['compliance'])
             if row['compliance'] in ('Compliant', 'Noncompliant', 'Informational') and row['scoring'].startswith(('Scored', 'Unscored')):
                 row['section'] = section
                 rows.append(row)
