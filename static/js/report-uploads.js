@@ -718,10 +718,16 @@ function rpSourceState(src, now, freq, logAt){
     return {status: duStatusFromTime(logAt, freq, now), freq, cover: m ? `${m.label} · ${m.visits.length} visit${m.visits.length === 1 ? '' : 's'} · ${m.score}% met` : 'No Smart Shops yet', note: '', last: logAt};
   }
   if(src.key === 'qiv'){
-    // One scored visit a quarter: current when the latest is this quarter's.
+    // One scored visit a quarter, landing any time in it: the latest report
+    // is current while it's this quarter's or last quarter's (this
+    // quarter's visit may not have happened yet); two quarters back, a
+    // visit's report is missing.
     const q = rpLatestQiv();
-    const thisQ = `Q${Math.floor(now.getMonth() / 3) + 1}-${now.getFullYear()}`;
-    return {status: !q ? 'due' : q.quarter === thisQ ? 'fresh' : 'due', freq, cover: q ? `${q.quarter}${q.date ? ` · visit ${duShort(q.date)}` : ''} · ${q.overall}%` : 'No QIV yet', note: '', last: logAt};
+    const qLabel = d => `Q${Math.floor(d.getMonth() / 3) + 1}-${d.getFullYear()}`;
+    const thisQ = qLabel(now), lastQ = qLabel(new Date(now.getFullYear(), now.getMonth() - 3, 1));
+    const status = !q ? 'due' : q.quarter === thisQ || q.quarter === lastQ ? 'fresh' : 'due';
+    const note = q && status === 'due' ? `Latest is ${q.quarter} — upload the Icon Report from the last scored visit.` : '';
+    return {status, freq, cover: q ? `${q.quarter}${q.date ? ` · visit ${duShort(q.date)}` : ''} · ${q.overall}%` : 'No QIV yet', note, last: logAt};
   }
   if(src.key === 'foodSafety'){
     // Assessments come per visit, not on a schedule: never "overdue".
