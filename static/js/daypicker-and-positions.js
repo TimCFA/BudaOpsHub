@@ -916,13 +916,19 @@ let tmPickAllowNew = false;     // "Add anyway" tapped for the name typed
 const TM_PICK_MAX = 8;
 const tmFold = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/\s+/g, ' ');
 
+// The PIN list's names, once (the Schedule tab's "Not working" uses them too).
+let tmPinNamesAsk = null;
+function teamNamesLoad(){
+  if(tmPinNames) return Promise.resolve(tmPinNames);
+  if(!tmPinNamesAsk) tmPinNamesAsk = fetch(`${API_BASE}/api/team/names`)
+    .then(res => res.ok ? res.json() : null)
+    .then(d => { if(d && Array.isArray(d.names) && d.names.length) tmPinNames = d.names; return tmPinNames; })
+    .catch(() => null)                                      // offline: the schedule's names still list
+    .finally(() => { tmPinNamesAsk = null; });
+  return tmPinNamesAsk;
+}
 async function tmPickLoad(){
-  if(tmPinNames) return;
-  try{
-    const res = await fetch(`${API_BASE}/api/team/names`);
-    const d = res.ok ? await res.json() : null;
-    if(d && Array.isArray(d.names)) tmPinNames = d.names;
-  }catch(e){ /* offline: the schedule's names still list */ }
+  await teamNamesLoad();
   tmPickDraw();
 }
 
