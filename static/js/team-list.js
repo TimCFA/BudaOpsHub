@@ -3,7 +3,9 @@
 // separate Directors and Leaders lists:
 //  - The directors and the Managing Partner (`directors`, names as
 //    HotSchedules has them, for their Administrative shifts). They sign in
-//    with Google or the director PIN, never a clock-in PIN.
+//    with Google, the director PIN, or their own clock-in PIN: a name on this
+//    list makes that PIN a director's sign-in (app.py _pin_role; Tim, Oct 25
+//    2026).
 //  - Everyone on the clock-in PIN list (the store's PIN report, read through
 //    /api/team/headcount; the PINs never leave the server), with their role:
 //    Admin Team, Team Lead, Trainer or Team Member. Changing it here changes
@@ -109,7 +111,7 @@ function renderTeamList(){
     </div>
     <ul class="tl-list">${shown.map(({r, n}) => tlRowHtml(r, n)).join('') || '<li class="dir-empty">Nobody matches.</li>'}</ul>
     <button type="button" class="btn btn-ghost dir-btn" data-tl-add-director>+ Add a director</button>
-    <p class="tl-hint">New team members come from the PIN report (Settings → Accounts). Directors sign in with Google or the director PIN.</p>
+    <p class="tl-hint">New team members come from the PIN report (Settings → Accounts). Directors sign in with Google, the director PIN, or their own clock-in PIN once their name is here.</p>
     <p class="mv-saved" data-mv-saved>Saves as you go</p>`;
 }
 function tlRowFor(key){

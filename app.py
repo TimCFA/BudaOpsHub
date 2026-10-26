@@ -12,6 +12,7 @@ import re
 import secrets
 import threading
 import time
+import unicodedata
 
 from flask import Flask, Response, request, jsonify, send_file, session
 from flask_cors import CORS
@@ -720,6 +721,12 @@ def manager_status():
 # Their session ends at 3 AM so a shared phone doesn't carry it into the
 # next day. The page is told name and role; the server decides what each
 # role may read and change.
+# A director's own clock-in PIN (Tim, Oct 25 2026: his signed him in as a
+# Team Member): a PIN whose name is on the Directors list (Manage →
+# Directors, the `directors` setting; the hub's seed until it's edited)
+# signs in as a director, Manage included, whatever role the PIN list
+# carries. The list is read on every request, so a name taken off it
+# changes that person's sign-in at once (_pin_role).
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '').strip()
 ACCOUNT_OWNER_EMAILS = {e.strip().lower() for e in os.environ.get('ACCOUNT_OWNER_EMAILS', '').split(',') if e.strip()}
 DIRECTOR_EMAIL_DOMAINS = {d.strip().lower().lstrip('@') for d in os.environ.get('DIRECTOR_EMAIL_DOMAINS', 'cfabuda.com').split(',') if d.strip()}
@@ -825,8 +832,8 @@ def _sign_in(who):
         session['director'] = True
     if who.get('owner') and role == 'director':
         session['owner'] = True
-    if who.get('via') == 'pin' and role in ('manager', 'director'):
-        session['manageUntil'] = int(time.time()) + MANAGE_PIN_HOURS * 3600
+    if who.get('via') == 'pin' and role in ('manager', 'director') and not who.get('pinKey'):
+        session['manageUntil'] = int(time.time()) + MANAGE_PIN_HOURS * 3600   # the shared PINs only
     if who.get('pinKey'):
         session['pinKey'] = who['pinKey']
     if name:
@@ -871,7 +878,7 @@ def _check_session():
         _sign_out()
     elif verdict == 'role':
         user = session['user']
-        _sign_in({'role': lists['pins'][session['pinKey']]['role'], 'name': user.get('name'), 'via': 'pin', 'pinKey': session['pinKey']})
+        _sign_in({'role': _pin_role(lists['pins'][session['pinKey']]), 'name': user.get('name'), 'via': 'pin', 'pinKey': session['pinKey']})
 
 def _session_verdict(lists):
     """'ok', 'device' (the shared device was removed), 'out' (the PIN went or
@@ -887,7 +894,7 @@ def _session_verdict(lists):
         rec = (lists.get('pins') or {}).get(key)
         if not isinstance(rec, dict) or _turnover_key(rec.get('name')) != _turnover_key(user.get('name')) or rec.get('role') not in TEAM_ROLES:
             return 'out'
-        if rec['role'] != user.get('role'):
+        if _pin_role(rec) != user.get('role'):
             return 'role'
     if user.get('name') and int((lists.get('gen') or {}).get(_person_key(user['name']), 0) or 0) != int(session.get('gen', 0) or 0):
         return 'out'
@@ -952,6 +959,35 @@ def _team_pin_salt(create=False):
 def _team_pin_key(pin, salt):
     return hmac.new(salt.encode('ascii'), str(pin).encode('utf-8'), 'sha256').hexdigest()
 
+# The hub's director team until the list is first edited (DIRECTORS_SEED in
+# static/js/directors.js; tests/test_directors.py keeps the two the same).
+DIRECTORS_SEED = ('Timothy Lane', 'Kianna Ramos', 'Casey Howard')
+
+def _name_key(name):
+    """A name for matching across lists: spacing and case folded, accents
+    dropped (Levelset and HotSchedules spell some names differently)."""
+    flat = ''.join(ch for ch in unicodedata.normalize('NFD', str(name or '')) if not unicodedata.combining(ch))
+    return _turnover_key(flat)
+
+def _director_names():
+    """The Directors list's names, as keys. The seed when the list was never
+    edited (or isn't a list), and when the saved data can't be read."""
+    names = None
+    try:
+        sections = _read_sections()
+        if sections:
+            names = (sections.get('manager') or {}).get('directors')
+    except Exception as e:
+        print(f'[AUTH] directors list not read: {type(e).__name__}')
+    if not isinstance(names, list):
+        names = [{'name': n} for n in DIRECTORS_SEED]
+    return {_name_key(d.get('name')) for d in names if isinstance(d, dict) and str(d.get('name') or '').strip()}
+
+def _pin_role(rec):
+    """What a PIN list record signs in as: a director when the name is on
+    the Directors list, else the role the list carries."""
+    return 'director' if _name_key(rec.get('name')) in _director_names() else rec.get('role')
+
 def _team_pin_lookup(pin):
     if not TEAM_PIN_RE.match(str(pin)):
         return None
@@ -961,7 +997,7 @@ def _team_pin_lookup(pin):
     key = _team_pin_key(pin, salt)
     rec = db.reference(f'{TEAM_PINS_PATH}/{key}').get()
     if isinstance(rec, dict) and rec.get('name') and rec.get('role') in TEAM_ROLES:
-        return {'name': str(rec['name']), 'role': rec['role'], 'pinKey': key}
+        return {'name': str(rec['name']), 'role': _pin_role(rec), 'pinKey': key}
     return None
 
 def _google_role(email):
@@ -1091,7 +1127,7 @@ def accounts_pins():
             skipped.append(f'{name}: the PIN isn’t 6 digits')
         elif role == 'director':
             directors += 1
-            skipped.append(f'{name}: directors sign in with Google or the director PIN; a clock-in PIN never opens Manage')
+            skipped.append(f'{name}: directors sign in with Google or the director PIN; a clock-in PIN signs in as a director only once the name is on the Directors list in Manage, with the PIN on file from Our Team')
         elif role not in TEAM_ROLES:
             skipped.append(f'{name}: role “{r.get("role")}” isn’t one of Team Member, Trainer, Team Lead, Admin Team')
         elif pin in seen:

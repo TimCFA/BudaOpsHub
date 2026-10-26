@@ -6,6 +6,7 @@ Run: python3 -m unittest discover tests
 Google is never called: the token check is replaced with made-up claims.
 Firebase is a dict. Names and emails are made up.
 """
+import json
 import os
 import sys
 import time
@@ -212,6 +213,58 @@ class TeamPinTest(unittest.TestCase):
             self.assertTrue(sess.get('manager'))
             self.assertNotIn('owner', sess)
         self.assertEqual(c.get('/api/accounts').status_code, 403)
+
+    def directors(self, names):
+        """The Directors list as Manage saves it (None: never edited, the seed)."""
+        store['state'] = {'manager': json.dumps({'directors': [{'name': n, 'title': 'Director'} for n in names]}) if names is not None else '{}'}
+        appmod._cache.clear()
+        appmod._cache_ready = False
+
+    def test_a_directors_own_pin_signs_in_as_a_director(self):
+        """Tim, Oct 25 2026: his clock-in PIN signed him in as a Team Member.
+        A PIN whose name is on the Directors list (Manage → Directors) is a
+        director's sign-in, Manage included, whatever role the PIN list
+        carries; taken off the list, the same PIN is a team sign-in again."""
+        self.upload([{'name': 'Dee Rector', 'pin': '456789', 'role': 'Team Member'}, {'name': 'Jordan Testcase', 'pin': '123456', 'role': 'Team Member'}])
+        self.directors(['Dee  Rector', 'Other Person'])
+        c, r = self.login('456789')
+        d = r.get_json()
+        self.assertEqual((d['role'], d['roleLabel'], d['manager'], d['director'], d['name']), ('director', 'Director', True, True, 'Dee Rector'))
+        st = c.get('/api/manager/status').get_json()
+        self.assertEqual((st['isManager'], st['isDirector'], st['user']['name'], st['user']['role'], st['user']['via']), (True, True, 'Dee Rector', 'director', 'pin'))
+        with c.session_transaction() as sess:
+            self.assertTrue(sess.get('manager') and sess.get('director'))
+            self.assertNotIn('owner', sess)
+            self.assertNotIn('manageUntil', sess)     # personal, checked on every request: not the shared PINs' 12 hours
+            self.assertTrue(sess.get('pinKey'))
+        self.assertEqual(c.get('/api/accounts').status_code, 403)   # only the owner edits the lists
+        # The role on the PIN list itself didn't change.
+        self.assertEqual({v['role'] for v in store['secure/teamPins'].values()}, {'member'})
+        # Everyone else is what the list says.
+        c2, r2 = self.login('123456')
+        self.assertEqual((r2.get_json()['role'], r2.get_json()['manager']), ('member', False))
+        # Taken off the Directors list: a team sign-in again on the next request.
+        self.directors(['Other Person'])
+        st = c.get('/api/manager/status').get_json()
+        self.assertEqual((st['isManager'], st['user']['role']), (False, 'member'))
+        # Put back: a director again, without signing in again.
+        self.directors(['Dee Rector'])
+        st = c.get('/api/manager/status').get_json()
+        self.assertEqual((st['isManager'], st['isDirector'], st['user']['role']), (True, True, 'director'))
+        # The PIN taken off the list ends the sign-in.
+        self.owner.delete('/api/accounts/pins', json={'name': 'Dee Rector'})
+        self.assertIsNone(c.get('/api/manager/status').get_json()['user'])
+
+    def test_the_seed_directors_and_accents_count(self):
+        # Never edited: the hub's seed names are the directors. Accents fold.
+        self.upload([{'name': 'Timothy Lane', 'pin': '111222', 'role': 'Team Lead'}, {'name': 'Aurora Méndez', 'pin': '333444', 'role': 'Team Member'}])
+        self.directors(None)
+        self.assertEqual(appmod._director_names(), {'timothy lane', 'kianna ramos', 'casey howard'})
+        self.assertEqual(self.login('111222')[1].get_json()['role'], 'director')
+        self.assertEqual(self.login('333444')[1].get_json()['role'], 'member')
+        self.directors(['Aurora Mendez'])
+        self.assertEqual(self.login('333444')[1].get_json()['role'], 'director')
+        self.assertEqual(self.login('111222')[1].get_json()['role'], 'lead')
 
     def test_a_team_pin_never_opens_manage_or_private_data(self):
         """Whatever the role, a clock-in PIN gets no manager session: no
