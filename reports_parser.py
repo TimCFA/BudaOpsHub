@@ -53,7 +53,7 @@ def detect_kind(first_page_text):
         return 'smartShop'
     if re.search(r'\d+\s+Total Findings', first_page_text):
         return 'foodSafety'
-    if 'Icon Report' in first_page_text and 'Current Quarter' in first_page_text:
+    if 'Icon Report' in first_page_text and ('Current Quarter' in first_page_text or 'Visit Date' in first_page_text):
         return 'qiv'
     return None
 
@@ -345,7 +345,8 @@ def parse_food_safety(pdf):
 # ----- QIV -----
 
 QIV_ID_RE = re.compile(r'^[A-Z]*\d+(?:\.+\d+)+[a-z0-9-]*$')
-QIV_SCORE_RE = re.compile(r'^(.+?)\s+(\d{1,3})%$')
+QIV_SCORE_RE = re.compile(r'^(.+?)\s*:?\s+(\d{1,3})\s*%$')
+QIV_OVERALL_RE = re.compile(r'Overall Score\s*:?\s*(\d{1,3})\s*%')
 
 
 def _qiv_misses(pdf):
@@ -387,28 +388,43 @@ def _qiv_misses(pdf):
 def parse_qiv(pdf):
     first = _page_text(pdf.pages[0])
     quarter = re.search(r'Current Quarter\s*:\s*(\d{4})\.(Q\d)', first)
-    visit = re.search(r'Visit Date:\s*(\d{1,2})/(\d{1,2})/(\d{4})', first)
-    vtype = re.search(r'Visit Type:\s*(.+)', first)
-    touchpoints, overall = [], None
+    visit = re.search(r'Visit Date\s*:\s*(\d{1,2})/(\d{1,2})/(\d{4})', first)
+    vtype = re.search(r'Visit Type\s*:\s*(.+)', first)
+    # The touchpoint scores follow the "Touchpoint Score" header and end at
+    # the overall score; the table can run onto the next page, and the
+    # overall may be printed with a colon or a space before the %.
+    touchpoints, overall, started = [], None, False
     for page in pdf.pages:
-        lines = _page_text(page).splitlines()
-        if not any('Touchpoint Score' in l for l in lines):
-            continue
-        start = next(i for i, l in enumerate(lines) if 'Touchpoint Score' in l)
-        for line in lines[start + 1:]:
-            m = QIV_SCORE_RE.match(line.strip())
+        for line in _page_text(page).splitlines():
+            line = line.strip()
+            if not started:
+                started = 'Touchpoint Score' in line
+                continue
+            m = QIV_SCORE_RE.match(line)
             if not m:
                 continue
-            if m.group(1) == 'Overall Score':
+            if m.group(1).rstrip(': ') == 'Overall Score':
                 overall = int(m.group(2))
                 break
             touchpoints.append({'name': m.group(1), 'score': int(m.group(2))})
-        break
+        if overall is not None:
+            break
+    if overall is None:
+        # Printed somewhere the table walk didn't reach (a summary line).
+        m = QIV_OVERALL_RE.search('\n'.join(_page_text(p) for p in pdf.pages))
+        overall = int(m.group(1)) if m else None
     if overall is None:
         raise ReportParseError('No overall score in this QIV report.')
+    if quarter:
+        quarter_text = f'{quarter.group(2)}-{quarter.group(1)}'
+    elif visit:
+        # No "Current Quarter" line: the visit's own quarter.
+        quarter_text = f'Q{(int(visit.group(1)) - 1) // 3 + 1}-{visit.group(3)}'
+    else:
+        quarter_text = None
     return {
         'kind': 'qiv',
-        'quarter': f'{quarter.group(2)}-{quarter.group(1)}' if quarter else None,
+        'quarter': quarter_text,
         'date': f'{visit.group(3)}-{int(visit.group(1)):02d}-{int(visit.group(2)):02d}' if visit else None,
         'visitType': vtype.group(1).strip() if vtype else '',
         'overall': overall,

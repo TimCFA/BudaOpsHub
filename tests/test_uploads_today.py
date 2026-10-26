@@ -44,6 +44,28 @@ class Today(unittest.TestCase):
         self.assertIn('Speed of service</span>\n          <small>Behind</small>', html)
         self.assertIn('Roster</span>\n          <small>Due this week</small>', html)
         self.assertRegex(html, r'class="is-done">[\s\S]*Punch report</span>\s*<small>Done 9:14')
+        # Each line goes to its report's card; the done ones fold away.
+        self.assertIn('<button type="button" class="du-today-item" data-du-goto="sos"', html)
+        self.assertIn('<details class="du-today-fold" ><summary>1 done today</summary>', html)
+        self.assertLess(html.index('data-du-goto="sos"'), html.index('<details class="du-today-fold"'))
+
+    def test_done_ones_newest_first(self):
+        html = run("() => { " + ROWS + """
+          dataUploadLog.sos = [{at: new Date('2026-10-23T11:02:00').toISOString()}];
+          dataUploadLog.cem = [{at: new Date('2026-10-23T07:40:00').toISOString()}];
+          return duTodayHtml([row('punch', 'Punch report', 'fresh', 'daily'), row('cem', 'CEM guest scores', 'fresh', 'weekly'),
+            row('sos', 'Speed of service', 'fresh', 'monthly'), row('qiv', 'QIV visit', 'due', 'quarterly')], {overdue: 0, due: 1, fresh: 3}, ''); }""")
+        self.assertIn('QIV visit</span>\n          <small>Due this quarter</small>', html)
+        self.assertIn('<summary>3 done today</summary>', html)
+        names = [m for m in ('Speed of service', 'Punch report', 'CEM guest scores')]
+        self.assertEqual(sorted(names, key=html.index), ['Speed of service', 'Punch report', 'CEM guest scores'])   # 11:02, 9:14, 7:40
+
+    def test_up_to_date_by_last_upload(self):
+        got = run("""() => {
+          const r = (key, last) => ({src: {key}, st: {last: last ? new Date(last) : null}});
+          const rank = k => ['a', 'b', 'c', 'd'].indexOf(k);
+          return duByLastUpload([r('a', '2026-10-20T09:00:00'), r('b', null), r('c', '2026-10-23T09:00:00'), r('d', null)], rank).map(x => x.src.key); }""")
+        self.assertEqual(got, ['c', 'a', 'b', 'd'])
 
     def test_all_caught_up(self):
         got = run("() => { " + ROWS + """
