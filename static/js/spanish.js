@@ -322,6 +322,7 @@ const ES = {
   'Schedule': 'Horario',
   'Next week': 'La próxima semana',
   'Find your shifts': 'Busca tus turnos',
+  'Find someone’s shifts': 'Busca los turnos de alguien',
   "Who's working": 'Quién trabaja',
   'Not you?': '¿No eres tú?',
   'Off': 'Libre',
