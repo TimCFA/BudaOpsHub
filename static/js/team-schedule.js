@@ -177,26 +177,78 @@ function tsOffPeople(iso, days){
     return {name: t.name, scheduleName: rec.name || t.name, role: t.role, side, mins};
   });
 }
+// Who a leader has called for a day, so two leaders don't call the same
+// person (Tim, Oct 25 2026): Called, Coming in, or Can't, signed by whoever
+// tapped it (the server writes the signed-in name). Saved with Set Ups, so
+// it's Team Leads' and up to change, and kept a week.
+const TS_CALL_LABELS = {called: 'Called', yes: 'Coming in', no: 'Can’t'};
+const TS_CALL_KEEP_DAYS = 7;
+function tsCallFor(iso, name){ return ((callIns || {})[iso] || {})[dirKey(name)] || null; }
+async function tsCallSet(iso, name, status){
+  const key = dirKey(name);
+  const cur = tsCallFor(iso, name);
+  const day = Object.assign({}, (callIns || {})[iso]);
+  if(cur && cur.status === status) delete day[key];        // tap it again to clear
+  else day[key] = {name, status, by: getInitials() || '', at: Date.now()};
+  const next = {};
+  const keepFrom = toLocalISODate(new Date(Date.now() - TS_CALL_KEEP_DAYS * 86400000));
+  Object.entries(callIns || {}).forEach(([d, v]) => { if(d >= keepFrom && d !== iso) next[d] = v; });
+  if(Object.keys(day).length) next[iso] = day;
+  callIns = next;
+  renderTeamSchedule();
+  await saveState();
+}
+// From "Coming in": Set Ups on that day and side, Add Team Member open with their name.
+function tsAddToSetUps(name, side, iso){
+  if(typeof rnOpenSetups !== 'function') return;
+  rnOpenSetups(side === 'BOH' ? 'boh' : 'foh', iso, '');
+  setTimeout(() => {
+    const btn = document.getElementById('btnAddTeamMember');
+    if(!btn) return;
+    btn.click();
+    const box = document.getElementById('addTMName');
+    if(box && document.getElementById('addTMModal').classList.contains('active')){
+      box.value = name;
+      if(typeof tmPickDraw === 'function') tmPickDraw();
+      document.getElementById('addTMStart').focus();
+    }
+  }, 150);
+}
+function tsClock(ms){ return new Date(ms).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'}).replace(' AM', 'a').replace(' PM', 'p'); }
+
 function tsOffHtml(days, day){
   if(!tsCanSeeOff()) return '';
   if(typeof tmPinNames !== 'undefined' && !tmPinNames && typeof teamNamesLoad === 'function'){
     teamNamesLoad().then(n => { if(n && document.getElementById('tsWho')) renderTeamSchedule(); });
   }
-  const off = tsOffPeople(day.iso, days);
+  const off = tsOffPeople(day.iso, days).map(p => Object.assign(p, {call: tsCallFor(day.iso, p.name)}));
   if(!off.length) return '';
+  // Coming in first, then those not called yet (fewest hours first), then
+  // called, then those who can't.
+  const rank = p => !p.call ? 1 : p.call.status === 'yes' ? 0 : p.call.status === 'called' ? 2 : 3;
   const groups = [['FOH', 'FOH'], ['BOH', 'BOH'], ['Both', 'FOH and BOH'], ['', 'Not on the schedule lately']]
-    .map(([k, label]) => ({label, people: off.filter(p => p.side === k).sort((a, b) => a.mins - b.mins || a.name.localeCompare(b.name))}))
+    .map(([k, label]) => ({label, people: off.filter(p => p.side === k).sort((a, b) => rank(a) - rank(b) || a.mins - b.mins || a.name.localeCompare(b.name))}))
     .filter(g => g.people.length);
   const hrs = m => `${Math.round(m / 6) / 10} h this week`;
   const roleTag = r => r === 'lead' ? '<span class="rn-rp-tag">Leader</span>' : r === 'trainer' ? '<span class="rn-rp-tag">Trainer</span>' : '';
-  return `<details class="ts-off"${tsOffOpen ? ' open' : ''}>
-      <summary><span class="ts-off-h">Not working ${escapeHtml(day.iso === today ? 'today' : day.long)}</span><span class="ts-off-n">${off.length}</span></summary>
-      <p class="ts-off-note">For a call-in: fewest hours this week first.</p>
+  const count = st => off.filter(p => p.call && p.call.status === st).length;
+  const tally = [['yes', 'coming in'], ['called', 'called'], ['no', 'can’t']].filter(([st]) => count(st)).map(([st, w]) => `${count(st)} ${w}`).join(' · ');
+  const row = p => {
+    const c = p.call;
+    const btn = st => `<button type="button" class="ts-call-btn is-${st}${c && c.status === st ? ' is-on' : ''}" data-ts-call="${st}" data-ts-call-name="${escapeHtml(p.name)}" aria-pressed="${!!(c && c.status === st)}">${TS_CALL_LABELS[st]}</button>`;
+    return `<li class="rn-rp ts-off-row${c ? ' is-' + c.status : ''}">
+      <span class="ts-off-top"><button type="button" class="ts-off-name" data-ts-person="${escapeHtml(p.scheduleName)}">${escapeHtml(p.name)}</button>${roleTag(p.role)}<span class="ts-off-hrs${p.mins >= TS_OFF_NEAR_MINS ? ' is-near' : ''}">${hrs(p.mins)}</span></span>
+      ${c ? `<span class="ts-call-who">${escapeHtml(TS_CALL_LABELS[c.status])}${c.by ? ` · ${escapeHtml(c.by)}` : ''}${c.at ? ` · ${escapeHtml(tsClock(c.at))}` : ''}${c.status === 'yes' ? ` <button type="button" class="ld-link" data-ts-call-add="${escapeHtml(p.name)}" data-ts-call-side="${escapeHtml(p.side)}">Add to Set Ups</button>` : ''}</span>` : ''}
+      <span class="ts-call-btns" role="group" aria-label="Call-in for ${escapeHtml(p.name)}">${btn('called')}${btn('yes')}${btn('no')}</span>
+    </li>`;
+  };
+  return `<details class="ts-off"${tsOffOpen ? ' open' : ''} data-ts-off-day="${escapeHtml(day.iso)}">
+      <summary><span class="ts-off-h">Not working ${escapeHtml(day.iso === today ? 'today' : day.long)}</span><span class="ts-off-n">${off.length}</span>${tally ? `<span class="ts-off-tally">${escapeHtml(tally)}</span>` : ''}</summary>
+      <p class="ts-off-note">For a call-in: fewest hours this week first. Tap Called, Coming in or Can’t so other leaders don’t call the same person.</p>
       <div class="rn-roster-grid ts-off-grid">${groups.map(g => `
         <section class="rn-rg">
           <h3 class="rn-rg-h">${escapeHtml(g.label)}<span>${g.people.length}</span></h3>
-          <ul class="rn-rg-list">${g.people.map(p => `
-            <li class="rn-rp" data-ts-person="${escapeHtml(p.scheduleName)}" role="button" tabindex="0"><span class="rn-rp-name">${escapeHtml(p.name)}${roleTag(p.role)}</span><span class="ts-off-hrs${p.mins >= TS_OFF_NEAR_MINS ? ' is-near' : ''}">${hrs(p.mins)}</span></li>`).join('')}
+          <ul class="rn-rg-list">${g.people.map(row).join('')}
           </ul>
         </section>`).join('')}</div>
     </details>`;
@@ -283,6 +335,10 @@ document.addEventListener('click', e => {
   if(week){ tsOffset = +week.dataset.tsWeek; tsDay = null; renderTeamSchedule(); return; }
   const day = e.target.closest('[data-ts-day]');
   if(day){ tsDay = day.dataset.tsDay; renderTeamSchedule(); return; }
+  const call = e.target.closest('[data-ts-call]');
+  if(call){ const box = call.closest('[data-ts-off-day]'); tsCallSet(box.dataset.tsOffDay, call.dataset.tsCallName, call.dataset.tsCall); return; }
+  const add = e.target.closest('[data-ts-call-add]');
+  if(add){ tsAddToSetUps(add.dataset.tsCallAdd, add.dataset.tsCallSide, add.closest('[data-ts-off-day]').dataset.tsOffDay); return; }
   const person = e.target.closest('[data-ts-person]');
   if(person){ tsPersonOpen(person.dataset.tsPerson, person); return; }
   const pick = e.target.closest('[data-ts-pick]');

@@ -234,6 +234,17 @@ class SignInRequired(unittest.TestCase):
         self.owner.delete('/api/devices', json={'id': did})
         self.assertIsNone(ipad.get('/api/manager/status').get_json()['device'])
 
+    def test_call_ins_are_leads_and_signed_by_the_server(self):
+        # Not working's Called / Coming in / Can't (Tim, Oct 25 2026): saved with Set Ups.
+        self.assertIn('callIns', appmod.LEAD_ONLY_KEYS)
+        call = {'name': 'Riley Sample', 'status': 'yes', 'by': 'XX', 'at': 1}
+        ops = [{'o': 'set', 'p': ['callIns', '2026-10-26'], 'v': {'riley sample': call}}]
+        self.save(self.login('123456'), 'setups', ops)                        # a Team Member: no
+        self.assertNotIn('callIns', self.section('setups'))
+        self.save(self.login('345678'), 'setups', ops)                        # a Team Lead
+        got = self.section('setups')['callIns']['2026-10-26']['riley sample']
+        self.assertEqual([got['status'], got['by']], ['yes', 'Casey Example'])   # signed as who's signed in
+
     def test_only_directors_make_a_device(self):
         for c in (appmod.app.test_client(), self.login('345678')):
             self.assertEqual(c.post('/api/devices', json={'name': 'Kitchen iPad'}).status_code, 403)
