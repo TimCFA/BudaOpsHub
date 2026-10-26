@@ -51,6 +51,16 @@ vm.runInContext(`
 `, ctx);
 vm.runInContext(js('events.js'), ctx);
 vm.runInContext(js('right-now.js'), ctx);
+// The Schedule tab (team-schedule.js) on the same stubs.
+vm.runInContext(`
+  const dirKey = s => String(s || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').trim().toLowerCase().replace(/\\s+/g, ' ');
+  let callIns = {}, tmPinNames = null;
+  function siLeadOrUp(){ return false; }
+  function getInitials(){ return 'TL'; }
+  function saveState(){}
+  function launchShowTab(){}
+`, ctx);
+vm.runInContext(js('team-schedule.js'), ctx);
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 process.stdout.write(JSON.stringify(input.cases.map(c => {
   ctx.Date = fixedDate(c.at || '2026-10-19T17:10:00-05:00');

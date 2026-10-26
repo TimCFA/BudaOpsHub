@@ -98,20 +98,28 @@ function tsMyWeekHtml(days, me){
   </section>`;
 }
 
+// The find box has two jobs (Tim, Oct 26 2026: signed in, there was no way
+// to look someone up). Nobody signed in and no name picked: it picks whose
+// week the page shows. Otherwise it finds anyone on the week's schedule and
+// a tap opens their week in the sheet, as a name on the roster does.
+let tsFindMode = 'me';   // 'me' | 'look'
 function tsHitsHtml(people){
   const q = tsSearch.trim().toLowerCase();
   if(!q) return '';
   const hits = people.filter(p => p.name.toLowerCase().includes(q)).slice(0, 8);
-  return hits.length ? hits.map(p => `<button type="button" class="ts-hit" data-ts-pick="${escapeHtml(p.key)}">${escapeHtml(p.name)}</button>`).join('')
-    : '<p class="ts-none">No one by that name on this week’s schedule.</p>';
+  const hit = p => tsFindMode === 'look'
+    ? `<button type="button" class="ts-hit" data-ts-person="${escapeHtml(p.name)}">${escapeHtml(p.name)}</button>`
+    : `<button type="button" class="ts-hit" data-ts-pick="${escapeHtml(p.key)}">${escapeHtml(p.name)}</button>`;
+  return hits.length ? hits.map(hit).join('') : '<p class="ts-none">No one by that name on this week’s schedule.</p>';
 }
 
-function tsFindHtml(people){
-  return `<section class="ts-card ts-find">
-    <label class="ts-find-label" for="tsSearch">Find your shifts${esLine('Find your shifts')}</label>
-    <input id="tsSearch" type="search" autocomplete="off" placeholder="Type your name" value="${escapeHtml(tsSearch)}">
+function tsFindHtml(people, look){
+  tsFindMode = look ? 'look' : 'me';
+  return `<section class="ts-card ts-find${look ? ' is-look' : ''}">
+    <label class="ts-find-label" for="tsSearch">${look ? `Find someone’s shifts${esLine('Find someone’s shifts')}` : `Find your shifts${esLine('Find your shifts')}`}</label>
+    <input id="tsSearch" type="search" autocomplete="off" placeholder="${look ? 'Type a name' : 'Type your name'}" value="${escapeHtml(tsSearch)}">
     <div class="ts-hits" id="tsHits">${tsHitsHtml(people)}</div>
-    <p class="ts-hint">Or sign in with your clock-in PIN to see your week right away.</p>
+    ${look ? '' : '<p class="ts-hint">Or sign in with your clock-in PIN to see your week right away.</p>'}
   </section>`;
 }
 
@@ -323,8 +331,11 @@ function renderTeamSchedule(){
     return;
   }
   const mineKey = me && people.some(p => p.key === me.person.key) ? me.person.key : null;
-  const mine = me && mineKey ? tsMyWeekHtml(days, me) : me ? `<section class="ts-card ts-mine"><div class="ts-card-head"><div><h3>${escapeHtml(me.person.name)}</h3><p>No shifts this week</p></div></div></section>` : tsFindHtml(people);
-  root.innerHTML = head + mine + tsWhoHtml(days, mineKey && me ? me.person.name : '')
+  // Signed in without a name on the schedule (the manager PIN, a director
+  // with no office shift): no week of their own, and the box looks people up.
+  const signedIn = typeof rnViewer === 'function' && rnViewer().role !== 'none';
+  const mine = me && mineKey ? tsMyWeekHtml(days, me) : me ? `<section class="ts-card ts-mine"><div class="ts-card-head"><div><h3>${escapeHtml(me.person.name)}</h3><p>No shifts this week</p></div></div></section>` : signedIn ? '' : tsFindHtml(people);
+  root.innerHTML = head + mine + (me || signedIn ? tsFindHtml(people, true) : '') + tsWhoHtml(days, mineKey && me ? me.person.name : '')
     + '<p class="ts-foot">From the HotSchedules schedule. If a shift looks wrong, check with a leader.</p>';
 }
 

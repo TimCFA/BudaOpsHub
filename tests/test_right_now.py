@@ -267,6 +267,42 @@ class AdminTeam(unittest.TestCase):
         self.assertIn('Leo Park<span class="rn-rp-tag">Leader</span>', got)
 
 
+class ScheduleFind(unittest.TestCase):
+    """The Schedule tab's find box (Tim, Oct 26 2026): signed out it picks
+    whose week the page shows; signed in it looks anyone up and a tap opens
+    their week, as a name on the roster does."""
+    WEEK = "fohRoster[today] = [{name: 'Ana Ruiz Lopez', start: '12:00p', end: '8:30p'}, {name: 'Leo Park', start: '2:00p', end: '10:30p', leader: true}]; bohRoster[today] = [{name: 'Mateo Cruz', start: '5:00a', end: '1:00p'}];"
+    RENDER = "const root = {innerHTML: ''}; document.getElementById = id => id === 'scheduleRoot' ? root : el; renderTeamSchedule();"
+
+    def test_signed_out_the_box_picks_whose_week(self):
+        got = run({'op': "c => { " + self.WEEK + " tsSearch = 'le'; " + self.RENDER + " return root.innerHTML; }"})[0]
+        self.assertIn('Find your shifts', got)
+        self.assertIn('placeholder="Type your name"', got)
+        self.assertIn('data-ts-pick="leo park">Leo Park</button>', got)
+        self.assertNotIn('class="ts-hit" data-ts-person=', got)                       # the roster's own name buttons stay
+        self.assertEqual(got.count('id="tsSearch"'), 1)
+
+    def test_signed_in_the_box_finds_anyone(self):
+        got = run({'op': "c => { " + self.WEEK + " acUser = {name: 'Ana Ruiz Lopez', role: 'member'}; tsSearch = 'le'; " + self.RENDER + " return root.innerHTML; }"})[0]
+        self.assertIn('<h3>Ana Ruiz Lopez</h3>', got)                                   # her own week first
+        self.assertIn('Find someone’s shifts', got)
+        self.assertIn('placeholder="Type a name"', got)
+        self.assertIn('class="ts-hit" data-ts-person="Leo Park">Leo Park</button>', got)   # opens his week in the sheet
+        self.assertNotIn('data-ts-pick=', got)
+        self.assertNotIn('Or sign in with your clock-in PIN', got)
+        self.assertLess(got.index('class="ts-card ts-mine"'), got.index('class="ts-card ts-find is-look"'))
+        self.assertLess(got.index('class="ts-card ts-find is-look"'), got.index('id="tsWho"'))
+        # A director too.
+        got = run({'op': "c => { " + self.WEEK + " launchManager = true; acUser = {name: '', role: 'manager'}; tsSearch = 'mateo'; " + self.RENDER + " return root.innerHTML; }"})[0]
+        self.assertIn('class="ts-hit" data-ts-person="Mateo Cruz">Mateo Cruz</button>', got)
+        self.assertNotIn('Type your name', got)                                       # not asked to pick a week as if it were theirs
+        self.assertNotIn('class="ts-card ts-mine"', got)
+
+    def test_no_match_says_so(self):
+        got = run({'op': "c => { " + self.WEEK + " acUser = {name: 'Ana Ruiz Lopez', role: 'member'}; tsSearch = 'zzz'; " + self.RENDER + " return root.innerHTML; }"})[0]
+        self.assertIn('No one by that name on this week’s schedule.', got)
+
+
 class NobodySignedIn(unittest.TestCase):
     def test_the_shift_and_a_way_to_sign_in(self):
         got = run({'op': card('', '', extra="gaps['foh|Dinner'] = {open: ['Host 2'], unplaced: [], filled: 9};")})[0]
