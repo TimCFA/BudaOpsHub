@@ -13,7 +13,8 @@ const DU_FREQUENCIES = {
   daily: 'Daily',
   weekly: 'Weekly',
   biweekly: 'Every 2 weeks',
-  monthly: 'Monthly'
+  monthly: 'Monthly',
+  quarterly: 'Quarterly'
 };
 
 const DU_SOURCES = [
@@ -88,7 +89,7 @@ const DU_SOURCES = [
     feeds: 'Food Safety Walkthrough — the findings to check first'
   },
   {
-    key: 'qiv', short: 'QIV PDF', icon: '', name: 'QIV visit (Ops Hub)', freq: 'monthly', fixedFreq: true, accept: '.pdf',
+    key: 'qiv', short: 'QIV PDF', icon: '', name: 'QIV visit (Ops Hub)', freq: 'quarterly', fixedFreq: true, accept: '.pdf',
     how: 'Ops Hub → QIV → the quarter’s Icon Report (QIV_QTR_…pdf), after each scored visit.',
     feeds: 'Guest Obsession Most Recent QIV · QIV panel under Operational Excellence'
   }
@@ -130,6 +131,7 @@ function duPeriods(freq, now){
   const day = duStartOfDay(now);
   if(freq === 'daily') return {start: day, prev: duAddDays(day, -1)};
   if(freq === 'monthly') return {start: new Date(now.getFullYear(), now.getMonth(), 1), prev: new Date(now.getFullYear(), now.getMonth() - 1, 1)};
+  if(freq === 'quarterly'){ const q = Math.floor(now.getMonth() / 3) * 3; return {start: new Date(now.getFullYear(), q, 1), prev: new Date(now.getFullYear(), q - 3, 1)}; }
   const mon = duMonday(now);
   if(freq === 'biweekly') return {start: duAddDays(mon, -7), prev: duAddDays(mon, -21)};
   return {start: mon, prev: duAddDays(mon, -7)};
@@ -634,7 +636,9 @@ async function duHandleFiles(fileList, hint){
         else {
         const report = await rpImportOpsPdf(job.file);
         if(report === null){
-          if(/\.zip$/i.test(job.file.name)) throw new Error('No Smart Shop or food safety report in this zip.');
+          if(/\.zip$/i.test(job.file.name)) throw new Error('No Smart Shop, food safety or QIV report in this zip.');
+          const asked = ['smartShop', 'foodSafety', 'qiv'].includes(hint) ? DU_SOURCES.find(s => s.key === hint) : null;
+          if(asked) throw new Error(`Couldn’t read this as ${asked.name.replace(/ \(Ops Hub\)$/, '')} — it isn’t the report Ops Hub gives for it. ${asked.how}`);
           job.kind = 'pea';
           text = await duImportPea(job.file);
         } else {
@@ -647,7 +651,7 @@ async function duHandleFiles(fileList, hint){
         if(!duProductivityDay(job.text)){ duWait(job, 'weekday'); continue; }
         text = await duImportProductivity(job.file, job.text);
       }
-      else throw new Error('Didn’t recognize this file. Expected a CEM Comparison Report, HotSchedules roster CSV, Levelset PEA PDF, Sales Mix report, productivity report, projected sales & productivity goals, an Analytics Hub sales, labor, rankings or speed of service export, or an Ops Hub Smart Shop / food safety report.');
+      else throw new Error('Didn’t recognize this file. Expected a CEM Comparison Report, HotSchedules roster CSV, Levelset PEA PDF, Sales Mix report, productivity report, projected sales & productivity goals, an Analytics Hub sales, labor, rankings or speed of service export, or an Ops Hub Smart Shop, food safety or QIV report.');
       const filed = DU_SOURCES.find(s => s.key === job.kind) || (job.kind === 'opsPdf' ? {name: 'Ops Hub report'} : job.kind === 'salesQuarter' ? {name: '15-minute sales (Analytics Hub)'} : null);
       duResults[job.i] = {file: job.file.name, state: 'ok', kind: filed ? filed.name : job.kind, text};
     }catch(err){
@@ -1171,6 +1175,7 @@ function duLevelsetHtml(){
 // first), what the uploads say, then each report that needs an upload with
 // what it feeds; the ones up to date fold into a short list.
 let duShowAll = false;
+let duDoneOpen = false;            // the up-to-date list, unfolded
 const duOpenRows = new Set();      // up-to-date rows opened in full
 // Most-used first when several are due together.
 const DU_PRIORITY = ['roster', 'punch', 'labor', 'salesMix', 'cem', 'dayparts', 'productivity', 'sales', 'numbers', 'pea', 'sos', 'dtRank', 'smartShop', 'foodSafety', 'qiv'];
@@ -1340,34 +1345,42 @@ function duUploadedToday(key){
   return toLocalISODate(d) === today ? d : null;
 }
 const DU_ICON_CHEER = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4.5a2.5 2.5 0 0 0 2.6 4M17 6h2.5a2.5 2.5 0 0 1-2.6 4"/></svg>';
+let duTodayDoneOpen = false;   // the day's done list, unfolded
+// Up-to-date reports, the one uploaded most recently first (then the usual order).
+function duByLastUpload(rows, rank){
+  const at = r => r.st.last ? new Date(r.st.last).getTime() : 0;
+  return rows.slice().sort((a, b) => (at(b) - at(a)) || rank(a.src.key) - rank(b.src.key));
+}
 function duTodayHtml(rows, counts, lastText){
   const items = rows.map(r => ({...r, at: duUploadedToday(r.src.key)}))
     .filter(r => r.pending || r.st.status !== 'fresh' || r.at)
     .map(r => ({...r, done: !r.pending && r.st.status === 'fresh' && !!r.at}));
   const left = items.filter(r => !r.done).length, total = items.length;
   const clock = d => d.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'});
-  const note = r => r.done ? `Done ${clock(r.at)}` : r.pending ? 'Waiting on a tap below' : r.st.status === 'overdue' ? 'Behind' : `Due ${r.st.freq === 'daily' ? 'today' : r.st.freq === 'monthly' ? 'this month' : 'this week'}`;
+  const note = r => r.done ? `Done ${clock(r.at)}` : r.pending ? 'Waiting on a tap below' : r.st.status === 'overdue' ? 'Behind' : `Due ${r.st.freq === 'daily' ? 'today' : r.st.freq === 'monthly' ? 'this month' : r.st.freq === 'quarterly' ? 'this quarter' : 'this week'}`;
   const pct = total ? Math.round((total - left) / total * 100) : 100;
+  // Each line is a button: tap it to go to that report's card below.
+  const item = r => `
+        <li class="${r.done ? 'is-done' : `is-${r.st.status}`}"><button type="button" class="du-today-item" data-du-goto="${escapeHtml(r.src.key)}" title="Go to ${escapeHtml(r.src.name)}">
+          <span class="du-today-box" aria-hidden="true">${r.done ? DU_ICON.check : ''}</span>
+          <span class="du-today-name">${escapeHtml(r.src.name)}</span>
+          <small>${escapeHtml(note(r))}</small>
+        </button></li>`;
+  const todo = items.filter(r => !r.done).sort((a, b) => (a.st.status === 'overdue' ? 0 : 1) - (b.st.status === 'overdue' ? 0 : 1));
+  // Done ones fold away under a toggle, the most recent upload first.
+  const done = items.filter(r => r.done).sort((a, b) => b.at - a.at);
+  const doneList = done.length ? `<details class="du-today-fold" ${duTodayDoneOpen ? 'open' : ''}><summary>${left ? `${done.length} done today` : `${total} uploaded today`}</summary><ul class="du-today-list">${done.map(item).join('')}</ul></details>` : '';
   return `
     <section class="du-today ${left ? '' : 'is-done'}" aria-live="polite">
       <div class="du-today-head">
         <span class="du-today-ring" style="--p:${pct}" aria-hidden="true">${left ? `<b>${total - left}/${total}</b>` : DU_ICON_CHEER}</span>
         <div class="du-today-t">
           <h3>${left ? 'Today’s uploads' : 'All caught up!'}</h3>
-          <p>${left ? `${left} to go${total - left ? `, ${total - left} done` : ''}. Drop them below and each one ticks off.` : escapeHtml(duCaughtUpLine(today))}</p>
+          <p>${left ? `${left} to go${total - left ? `, ${total - left} done` : ''}. Drop them below and each one ticks off. Tap a report to go to its card.` : escapeHtml(duCaughtUpLine(today))}</p>
         </div>
       </div>
-      ${(() => {
-        if(!items.length) return '';
-        const list = `<ul class="du-today-list">${items.sort((a, b) => (a.done - b.done) || ((a.st.status === 'overdue' ? 0 : 1) - (b.st.status === 'overdue' ? 0 : 1))).map(r => `
-        <li class="${r.done ? 'is-done' : `is-${r.st.status}`}">
-          <span class="du-today-box" aria-hidden="true">${r.done ? DU_ICON.check : ''}</span>
-          <span class="du-today-name">${escapeHtml(r.src.name)}</span>
-          <small>${escapeHtml(note(r))}</small>
-        </li>`).join('')}</ul>`;
-        // All in: the ticked list folds, so the thanks is what shows.
-        return left ? list : `<details class="du-today-fold"><summary>${total} uploaded today</summary>${list}</details>`;
-      })()}
+      ${todo.length ? `<ul class="du-today-list">${todo.map(item).join('')}</ul>` : ''}
+      ${doneList}
       <div class="du-today-foot">
         ${counts.overdue ? `<span class="du-pill is-overdue">${counts.overdue} overdue</span>` : ''}${counts.due ? `<span class="du-pill is-due">${counts.due} due</span>` : ''}<span class="du-pill is-fresh">${counts.fresh} current</span>
         <span class="du-head-last">${escapeHtml(lastText)}</span>
@@ -1386,7 +1399,7 @@ function renderDataUploads(){
   // A report waiting on a tap is shown first whatever its status.
   const needs = rows.filter(r => r.pending || r.st.status !== 'fresh')
     .sort((a, b) => (b.pending - a.pending) || ((a.st.status === 'overdue' ? 0 : 1) - (b.st.status === 'overdue' ? 0 : 1)) || rank(a.src.key) - rank(b.src.key));
-  const current = rows.filter(r => !r.pending && r.st.status === 'fresh').sort((a, b) => rank(a.src.key) - rank(b.src.key));
+  const current = duByLastUpload(rows.filter(r => !r.pending && r.st.status === 'fresh'), rank);
   const lastAt = Object.entries(dataUploadLog || {}).map(([k, list]) => ({k, e: (list || [])[list.length - 1]})).filter(x => x.e && x.e.at).sort((a, b) => String(b.e.at).localeCompare(String(a.e.at)))[0];
   const lastText = lastAt ? `Last upload ${new Date(lastAt.e.at).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})} · ${(DU_SOURCES.find(s => s.key === lastAt.k) || {name: lastAt.k}).name}` : 'Nothing uploaded yet';
   const zipNeeds = Object.keys(DU_ZIP_COVERS).filter(k => needs.some(r => r.src.key === k));
@@ -1403,15 +1416,38 @@ function renderDataUploads(){
     ${duResultsHtml()}
     ${duInsightsHtml(now)}
     ${needs.length ? `<h4 class="du-section-h">Needs an upload</h4><ul class="du-list">${needs.map(r => duRowHtml(r.src, r.st)).join('')}</ul>` : ''}
-    ${current.length ? `<h4 class="du-section-h">Up to date</h4>
+    ${current.length ? `<details class="du-done" ${duDoneOpen ? 'open' : ''}>
+      <summary class="du-section-h">${current.length} up to date <span>· most recent upload first</span></summary>
       <ul class="du-list is-current">${current.map(r => duShowAll || duOpenRows.has(r.src.key) ? duRowHtml(r.src, r.st) : duMiniHtml(r.src, r.st)).join('')}</ul>
-      <button type="button" class="du-showall" data-du-showall="${duShowAll ? 0 : 1}">${duShowAll ? 'Fold the up-to-date reports' : `Open all ${current.length} up to date`}</button>` : ''}`;
+      <button type="button" class="du-showall" data-du-showall="${duShowAll ? 0 : 1}">${duShowAll ? 'Fold the up-to-date reports' : `Open all ${current.length} in full`}</button>
+    </details>` : ''}`;
 }
+// A tap on the day's list: that report's card, opened in full and scrolled to.
+function duGoToRow(key){
+  if(!document.getElementById(`du-row-${key}`)){
+    // Folded away in the up-to-date list: unfold it and open the row.
+    duDoneOpen = true;
+    duOpenRows.add(key);
+    renderDataUploads();
+  }
+  const row = document.getElementById(`du-row-${key}`);
+  if(!row) return;
+  row.scrollIntoView({behavior: 'smooth', block: 'start'});
+  row.classList.add('is-found');
+  setTimeout(() => row.classList.remove('is-found'), 1800);
+}
+// The two folds keep their state across re-renders (toggle doesn't bubble).
+document.getElementById('dataUploadsRoot').addEventListener('toggle', e=>{
+  if(e.target.matches('details.du-done')) duDoneOpen = e.target.open;
+  else if(e.target.matches('details.du-today-fold')) duTodayDoneOpen = e.target.open;
+}, true);
 document.getElementById('dataUploadsRoot').addEventListener('click', e=>{
   const sa = e.target.closest('[data-du-showall]');
   if(sa){ duShowAll = sa.dataset.duShowall === '1'; if(!duShowAll) duOpenRows.clear(); renderDataUploads(); return; }
   const open = e.target.closest('[data-du-open]');
   if(open){ duOpenRows.add(open.dataset.duOpen); renderDataUploads(); return; }
+  const goto = e.target.closest('[data-du-goto]');
+  if(goto){ duGoToRow(goto.dataset.duGoto); return; }
   if(e.target.closest('[data-du-clear]')){ duResults = []; renderDataUploads(); return; }
   const go = e.target.closest('[data-du-go]');
   if(go){ launchShowTab(go.dataset.duGo); window.scrollTo(0, 0); return; }

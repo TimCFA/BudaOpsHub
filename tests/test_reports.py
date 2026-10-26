@@ -244,6 +244,21 @@ class QivTest(unittest.TestCase):
         with self.assertRaises(rp.ReportParseError):
             rp.parse_qiv(FakePdf([FakePage(QIV_FIRST)]))
 
+    def test_table_over_two_pages_and_overall_with_colon(self):
+        # The touchpoints run onto a second page; the overall is printed
+        # "Overall Score: 97 %" (and the first page says only Visit Date).
+        first = QIV_FIRST.replace('Current Quarter : 2026.Q3 ', '')
+        self.assertEqual(rp.detect_kind(first), 'qiv')
+        page1 = 'Icon Touchpoint Score\nCooking Test Fries 90%\nData Collection N/A'
+        page2 = 'Finished Product: Test Sandwich 100 %\nOverall Score: 97 %'
+        r = rp.parse_qiv(FakePdf([FakePage(first), FakePage(page1), FakePage(page2)]))
+        self.assertEqual((r['quarter'], r['date'], r['overall']), ('Q3-2026', '2026-08-12', 97))   # the quarter from the visit date
+        self.assertEqual([(t['name'], t['score']) for t in r['touchpoints']], [('Cooking Test Fries', 90), ('Finished Product: Test Sandwich', 100)])
+
+    def test_overall_outside_the_table(self):
+        r = rp.parse_qiv(FakePdf([FakePage(QIV_FIRST + '\nOverall Score 88%'), FakePage('Icon Touchpoint Score\nCooking Test Fries 90%')]))
+        self.assertEqual((r['overall'], len(r['touchpoints'])), (88, 1))
+
 
 class FileTest(unittest.TestCase):
     def test_zip_without_pdf(self):
