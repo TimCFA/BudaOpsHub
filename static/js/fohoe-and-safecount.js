@@ -474,8 +474,11 @@ function renderSafeCountLog(){
 }
 
 // POSITIONS & BREAKS
-document.querySelectorAll('#posToggle .toggle-btn').forEach(t=>{
-  t.addEventListener('click',()=>{
+// A switch, not two buttons to aim for (Tim, Oct 26 2026): tapping the side
+// already showing flips to the other one.
+document.querySelectorAll('#posToggle .toggle-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const t = btn.classList.contains('active') ? document.querySelector(`#posToggle .toggle-btn:not([data-section="${btn.dataset.section}"])`) : btn;
     document.querySelectorAll('#posToggle .toggle-btn').forEach(x=>{x.classList.remove('active'); x.setAttribute('aria-pressed', 'false');});
     t.classList.add('active');
     t.setAttribute('aria-pressed', 'true');
