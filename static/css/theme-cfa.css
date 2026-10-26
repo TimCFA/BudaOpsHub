@@ -2724,6 +2724,7 @@ body:not(.hc-allowed) .hc-only{display:none !important;}
 .tm-picks:not(:empty){border:1px solid var(--border);}
 .tm-pick{min-height:44px;padding:10px 12px;border:0;border-top:1px solid var(--border);background:var(--cfa-white);text-align:left;font-family:var(--font-ui);font-size:15px;color:var(--text-primary);cursor:pointer;}
 .tm-pick:first-child{border-top:0;}
+.tm-pick small{font-size:13px;color:var(--text-tertiary);}
 .tm-pick:hover,.tm-pick:focus-visible{background:var(--cfa-soft);outline:none;}
 .tm-pick-note{margin:6px 0 0;font-size:13px;color:var(--text-secondary);}
 .tm-pick-note:empty{display:none;}

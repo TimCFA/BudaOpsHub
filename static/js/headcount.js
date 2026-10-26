@@ -448,11 +448,11 @@ function hcFormHtml(){
     <form class="hc-form" data-hc-form>
       <h3 class="hc-h">${f.id && f.status === 'logged' ? 'Edit departure' : f.id ? `Why did ${escapeHtml(f.name)} leave?` : 'Log a departure'}</h3>
       <div class="hc-form-row">
-        <div class="field"><label for="hcName">Name</label><input type="text" id="hcName" maxlength="80" list="hcNames" value="${escapeHtml(f.name || '')}" ${f.id ? 'readonly' : ''} required></div>
+        <div class="field hc-name-field"><label for="hcName">Name</label><input type="text" id="hcName" maxlength="80" value="${escapeHtml(f.name || '')}" ${f.id ? 'readonly' : 'placeholder="Start typing a name" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="hcNamePicks" aria-expanded="false"'} required>
+          ${f.id ? '' : '<div class="tm-picks" id="hcNamePicks" role="listbox" aria-label="Team members"></div><p class="tm-pick-note" id="hcNameNote" aria-live="polite"></p>'}</div>
         <div class="field"><label for="hcRole">Role</label><select id="hcRole">${roles.map(([id, l]) => `<option value="${id}"${id === (f.role || 'member') ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
         <div class="field"><label for="hcLastDay">Last day</label><input type="date" id="hcLastDay" value="${escapeHtml(f.lastDay || f.noticed || today)}" max="${today}" required></div>
       </div>
-      <datalist id="hcNames">${(hcData.names || []).map(n => `<option value="${escapeHtml(n)}">`).join('')}</datalist>
       <div class="uo-q"><span class="uo-q-label">What happened</span><div class="uo-choices">${(hcData.types || []).map(t => hcChoice('type', t.id, f.type, t.label)).join('')}</div></div>
       <div class="field"><label for="hcReason">Why, in a sentence or two</label><textarea id="hcReason" rows="3" maxlength="600" placeholder="What they said, or what led to it">${escapeHtml(f.reason || '')}</textarea></div>
       <div class="uo-q"><span class="uo-q-label">Eligible for rehire</span><div class="uo-choices">${HC_REHIRE.map(([id, l]) => hcChoice('rehire', id, f.rehire || 'unsure', l)).join('')}</div></div>
@@ -463,6 +463,67 @@ function hcFormHtml(){
       </div>
     </form>`;
 }
+
+// ----- Who left: picked from the team, not typed (Tim, Oct 25 2026) -----
+// The name box lists the team as it's typed: the clock-in PIN list (with
+// each person's role, which fills in the Role box), anyone with a profile,
+// and anyone on the imported schedules in the last eight weeks (someone whose
+// PIN is already gone). Someone on none of them takes a second tap, "Not on
+// the list? Use this name".
+const HC_PICK_MAX = 8;
+const HC_PICK_WEEKS = 8;
+function hcPickPeople(){
+  const out = new Map();
+  const add = (name, role) => { const k = hcKey(name); if(name && !out.has(k)) out.set(k, {name, role: role || ''}); };
+  ((hcData && hcData.team) || []).forEach(t => add(t.name, t.role));
+  ((hcData && hcData.profiles) || []).forEach(p => add(p.name, ''));
+  const since = hcAddDays(today, -HC_PICK_WEEKS * 7);
+  [fohRoster, bohRoster, truckShifts].forEach(src => Object.entries(src || {}).forEach(([iso, list]) => {
+    if(iso < since || !Array.isArray(list)) return;
+    list.forEach(p => { if(p && p.name && p.source !== 'manual' && ![...out.values()].some(x => hcSame(x.name, p.name))) add(p.name, ''); });
+  }));
+  return [...out.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+function hcPickMatches(typed){
+  const q = hcKey(typed).normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if(!q) return [];
+  const fold = n => hcKey(n).normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const people = hcPickPeople();
+  const starts = people.filter(p => fold(p.name).startsWith(q));
+  const inside = people.filter(p => !fold(p.name).startsWith(q) && fold(p.name).includes(q));
+  return [...starts, ...inside].slice(0, HC_PICK_MAX);
+}
+function hcPickExact(typed){ const k = hcKey(typed); return k ? hcPickPeople().find(p => hcKey(p.name) === k) || null : null; }
+function hcPickDraw(){
+  const input = document.getElementById('hcName'), box = document.getElementById('hcNamePicks'), note = document.getElementById('hcNameNote');
+  if(!input || !box || !hcForm) return;
+  const typed = input.value;
+  const exact = hcPickExact(typed);
+  const list = exact ? [] : hcPickMatches(typed);
+  box.innerHTML = list.map(p => `<button type="button" class="tm-pick" role="option" data-hc-pick="${escapeHtml(p.name)}">${escapeHtml(p.name)}${p.role && HC_ROLE_LABELS[p.role] ? `<small> · ${escapeHtml(HC_ROLE_LABELS[p.role])}</small>` : ''}</button>`).join('');
+  input.setAttribute('aria-expanded', list.length ? 'true' : 'false');
+  if(note) note.innerHTML = !typed.trim() || exact ? ''
+    : hcForm.allowOff ? `Logging <b>${escapeHtml(typed.trim())}</b>, who isn’t on the PIN list, a profile or a recent schedule.`
+    : `${list.length ? 'Pick them from the list.' : 'Nobody on the team by that name.'} <button type="button" class="ld-link" data-hc-pick-off>Not on the list? Use this name</button>`;
+}
+document.getElementById('headcountRoot').addEventListener('input', e => {
+  if(e.target.id !== 'hcName' || !hcForm) return;
+  hcForm.allowOff = false;
+  hcPickDraw();
+});
+document.getElementById('headcountRoot').addEventListener('click', e => {
+  const pick = e.target.closest('[data-hc-pick]');
+  if(pick && hcForm){
+    const who = hcPickExact(pick.dataset.hcPick);
+    document.getElementById('hcName').value = pick.dataset.hcPick;
+    const role = document.getElementById('hcRole');
+    if(who && who.role && role && [...role.options].some(o => o.value === who.role)) role.value = who.role;
+    hcForm.allowOff = false;
+    hcPickDraw();
+    return;
+  }
+  if(e.target.closest('[data-hc-pick-off]') && hcForm){ hcForm.allowOff = true; hcPickDraw(); }
+});
 
 function hcPendingHtml(s){
   if(!s.pending.length) return '';
@@ -554,6 +615,7 @@ function renderHeadcountView(){
     ${hcDeparturesHtml(s)}
     ${hcWhyHtml(s)}
     ${hcHistoryHtml()}`;
+  if(hcForm && !hcForm.id) hcPickDraw();
 }
 
 async function hcSend(method, body){
@@ -661,6 +723,12 @@ document.getElementById('headcountRoot').addEventListener('submit', async e => {
   if(hcBusy) return;
   hcFormRead();
   if(!hcForm.type){ showToast('Pick what happened: quit, let go, …'); return; }
+  // Someone from the team, by the name the team list has (hcPick*).
+  if(!hcForm.id){
+    const known = hcPickExact(hcForm.name);
+    if(!known && !hcForm.allowOff){ hcPickDraw(); showToast('Pick them from the list, or tap “Not on the list? Use this name”'); return; }
+    if(known) hcForm.name = known.name;
+  }
   const f = hcForm;
   const ok = await hcSend('POST', {id: f.id || '', name: f.name, role: f.role, lastDay: f.lastDay, type: f.type, reason: f.reason, rehire: f.rehire});
   if(ok){

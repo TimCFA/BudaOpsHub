@@ -351,6 +351,18 @@ class TeamNames(HeadcountTest):
         self.assertIn('<details class="hc-card hc-pins', hc)
 
 
+class DeparturePick(unittest.TestCase):
+    """Log a departure picks who left from the team (Tim, Oct 25 2026), not a typed name."""
+
+    def test_wiring(self):
+        js = read('static', 'js', 'headcount.js')
+        self.assertNotIn('list="hcNames"', js)                                  # the iPhone barely shows a datalist
+        self.assertIn('<div class="tm-picks" id="hcNamePicks" role="listbox"', js)
+        self.assertIn("((hcData && hcData.team) || []).forEach(t => add(t.name, t.role));", js)
+        self.assertIn("if(!known && !hcForm.allowOff){ hcPickDraw();", js)
+        self.assertIn("if(who && who.role && role && [...role.options].some(o => o.value === who.role)) role.value = who.role;", js)
+
+
 class PinOnFile(HeadcountTest):
     """PIN on file (Tim, Oct 25 2026): a director or the admin team can put a
     clock-in PIN on file for someone, or change one; nobody can view a PIN."""
