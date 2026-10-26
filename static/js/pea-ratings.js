@@ -456,7 +456,7 @@ function peaRenderPersonList(people){
   const q = peaPersonFilter.trim().toLowerCase();
   const order = PEA_POSITION_GROUPS.flatMap(g => g.positions);
   const rank = pos => { const i = order.indexOf(pos); return i === -1 ? order.length : i; };
-  const names = Object.keys(people).filter(n => !q || n.toLowerCase().includes(q)).sort((a, b) => a.localeCompare(b));
+  const names = Object.keys(people).filter(n => (!q || n.toLowerCase().includes(q)) && !(typeof teamHasLeft === 'function' && teamHasLeft(n))).sort((a, b) => a.localeCompare(b));
   if(!names.length) return `<p class="pea-muted">No one matches "${escapeHtml(peaPersonFilter)}".</p>`;
   // Each team member's side (from the rosters), so the card can say whether
   // they're all green there (every rated position green) and which of the

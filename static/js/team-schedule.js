@@ -169,7 +169,7 @@ function tsOffPeople(iso, days){
   const team = pins ? pins.map(p => ({name: p.name, role: p.role})) : [...seen.values()].map(r => ({name: r.name, role: ''}));
   const working = tsShifts(iso);
   const onDay = n => working.some(s => s.key === dirKey(n) || rnSame(s.name, n));
-  return team.filter(t => !onDay(t.name)).map(t => {
+  return team.filter(t => !onDay(t.name) && !(typeof teamHasLeft === 'function' && teamHasLeft(t.name))).map(t => {
     const rec = seen.get(dirKey(t.name)) || [...seen.values()].find(r => rnSame(r.name, t.name)) || {FOH: 0, BOH: 0, Truck: 0};
     const side = rec.FOH > rec.BOH ? 'FOH' : rec.BOH > rec.FOH ? 'BOH' : rec.FOH ? 'Both' : '';
     const key = rec.name ? dirKey(rec.name) : dirKey(t.name);

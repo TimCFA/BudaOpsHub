@@ -351,6 +351,62 @@ class TeamNames(HeadcountTest):
         self.assertIn('<details class="hc-card hc-pins', hc)
 
 
+class DepartedEverywhere(HeadcountTest):
+    """Someone logged as left is gone from the hub (Tim, Oct 25 2026): off the
+    clock-in PIN list (signed out), out of the names every list offers, kept
+    off by a later PIN report; their role is the list's; a departure logged by
+    mistake puts their PIN back."""
+
+    def log(self, body, c=None):
+        return (c or self.owner).post('/api/team/departures', json=dict({'lastDay': '2026-10-25', 'type': 'quit', 'rehire': 'unsure'}, **body))
+
+    def test_off_the_pin_list_signed_out_and_out_of_the_names(self):
+        self.upload(TEAM)
+        phone = self.login('123456')                                             # Jordan, a Team Member
+        self.assertEqual(phone.get('/api/manager/status').get_json()['user']['name'], 'Jordan Testcase')
+        r = self.log({'name': 'Jordan Testcase', 'role': 'lead'})               # the page's role is ignored
+        d = next(x for x in r.get_json()['departures'] if x['name'] == 'Jordan Testcase')
+        self.assertEqual(d['role'], 'member')
+        self.assertNotIn('pin', d)                                               # the stashed PIN never leaves the server
+        self.assertIsNone(phone.get('/api/manager/status').get_json()['user'])    # signed out
+        self.assertEqual(appmod.app.test_client().post('/api/manager/login', json={'pin': '123456'}).status_code, 401)
+        lead = self.login('345678')
+        names = lead.get('/api/team/names').get_json()
+        self.assertNotIn('Jordan Testcase', [n['name'] for n in names['names']])
+        self.assertEqual(names['departed'], [{'name': 'Jordan Testcase', 'lastDay': '2026-10-25'}])
+        self.assertEqual(r.get_json()['departed'], [{'name': 'Jordan Testcase', 'lastDay': '2026-10-25'}])
+
+    def test_a_pin_report_doesnt_bring_them_back_but_set_pin_does(self):
+        self.upload(TEAM)
+        self.log({'name': 'Jordan Testcase'})
+        r = self.upload(TEAM)                                                    # the store's report still has them
+        self.assertTrue(any(x.startswith('Jordan Testcase: logged as left') for x in r.get_json()['skipped']))
+        self.assertEqual(appmod.app.test_client().post('/api/manager/login', json={'pin': '123456'}).status_code, 401)
+        self.owner.post('/api/team/pin', json={'name': 'Jordan Testcase', 'pin': '121212', 'role': 'member'})   # rehired
+        self.assertEqual(self.get().get_json()['departed'], [])
+
+    def test_logged_by_mistake_puts_the_pin_back(self):
+        self.upload(TEAM)
+        did = next(x['id'] for x in self.log({'name': 'Jordan Testcase'}).get_json()['departures'] if x['name'] == 'Jordan Testcase')
+        self.owner.delete('/api/team/departures', json={'id': did})
+        self.assertEqual(appmod.app.test_client().post('/api/manager/login', json={'pin': '123456'}).get_json()['name'], 'Jordan Testcase')
+
+    def test_every_list_leaves_them_out(self):
+        for f, line in [('daypicker-and-positions.js', ".filter(p => !(typeof teamHasLeft === 'function' && teamHasLeft(p.name)))"),
+                        ('team-schedule.js', "!onDay(t.name) && !(typeof teamHasLeft === 'function' && teamHasLeft(t.name))"),
+                        ('team-pea.js', "Object.keys(now).filter(name => !(typeof teamHasLeft === 'function' && teamHasLeft(name)))"),
+                        ('all-green.js', "if(typeof teamHasLeft === 'function' && teamHasLeft(p.name)) return;"),
+                        ('pea-ratings.js', "!(typeof teamHasLeft === 'function' && teamHasLeft(n))"),
+                        ('leaders.js', "!(typeof teamHasLeft === 'function' && teamHasLeft(n))"),
+                        ('points.js', "!(typeof teamHasLeft === 'function' && teamHasLeft(n))"),
+                        ('forms.js', "!(typeof teamHasLeft === 'function' && teamHasLeft(n))"),
+                        ('uniform-orders.js', "!(typeof teamHasLeft === 'function' && teamHasLeft(n))"),
+                        ('weekly-roster-import.js', "teamHasLeft(p.name, dateISO)"),
+                        ('headcount.js', "const off = typeof launchManager !== 'undefined' && launchManager ? hcTakeOffSchedule(f.name, f.lastDay)"),
+                        ('headcount.js', "teamLeftSet(data.departed);")]:
+            self.assertIn(line, read('static', 'js', f), f)
+
+
 class DeparturePick(unittest.TestCase):
     """Log a departure picks who left from the team (Tim, Oct 25 2026), not a typed name."""
 
@@ -360,7 +416,9 @@ class DeparturePick(unittest.TestCase):
         self.assertIn('<div class="tm-picks" id="hcNamePicks" role="listbox"', js)
         self.assertIn("((hcData && hcData.team) || []).forEach(t => add(t.name, t.role));", js)
         self.assertIn("if(!known && !hcForm.allowOff){ hcPickDraw();", js)
-        self.assertIn("if(who && who.role && role && [...role.options].some(o => o.value === who.role)) role.value = who.role;", js)
+        # The role is the PIN list's: no Role box for someone the hub knows (Tim, Oct 25 2026).
+        self.assertIn("if(who && who.role && HC_ROLE_LABELS[who.role]){ hcForm.role = who.role; hcForm.roleKnown = true; }", js)
+        self.assertIn("${hcRoleKnown(f) ? `<div class=\"field\"><span class=\"hc-role-label\">Role</span>", js)
 
 
 class PinOnFile(HeadcountTest):

@@ -922,7 +922,7 @@ function teamNamesLoad(){
   if(tmPinNames) return Promise.resolve(tmPinNames);
   if(!tmPinNamesAsk) tmPinNamesAsk = fetch(`${API_BASE}/api/team/names`)
     .then(res => res.ok ? res.json() : null)
-    .then(d => { if(d && Array.isArray(d.names) && d.names.length) tmPinNames = d.names; return tmPinNames; })
+    .then(d => { if(d && Array.isArray(d.departed)) teamLeftSet(d.departed); if(d && Array.isArray(d.names) && d.names.length) tmPinNames = d.names; return tmPinNames; })
     .catch(() => null)                                      // offline: the schedule's names still list
     .finally(() => { tmPinNamesAsk = null; });
   return tmPinNamesAsk;
@@ -942,7 +942,7 @@ function tmPickPeople(){
     const k = tmFold(p.name);
     if(!out.has(k) && ![...out.values()].some(x => typeof rnSame === 'function' && rnSame(x.name, p.name))) out.set(k, {name: p.name, why: 'schedule'});
   })));
-  return [...out.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return [...out.values()].filter(p => !(typeof teamHasLeft === 'function' && teamHasLeft(p.name))).sort((a, b) => a.name.localeCompare(b.name));   // not who has left
 }
 
 // Matches for what's typed: any word starting with it, best first.

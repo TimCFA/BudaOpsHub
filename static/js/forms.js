@@ -64,7 +64,7 @@ function fmRoster(){
   [fohRoster, bohRoster].forEach(r => Object.keys(r || {}).forEach(iso => {
     if(iso >= fcAddDaysSafe(today, -14) && iso <= fcAddDaysSafe(today, 7)) (r[iso] || []).forEach(p => { if(p && p.name) names.add(p.name); });
   }));
-  return [...names].sort();
+  return [...names].filter(n => !(typeof teamHasLeft === 'function' && teamHasLeft(n))).sort();   // not who has left
 }
 
 async function fmLoadCustom(){

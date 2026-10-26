@@ -55,6 +55,7 @@ async function hcLoad(force){
     if(!res.ok) throw new Error(String(res.status));
     const data = await res.json();
     hcData = hcAllowed() ? data : null;     // signed out while it loaded
+    if(hcData && Array.isArray(hcData.departed)) teamLeftSet(hcData.departed);
     hcFailedAt = 0;
   }catch(err){
     hcFailedAt = Date.now();
@@ -152,7 +153,7 @@ function hcMarkIcon([kind, cls, words]){
 function hcTeamHtml(){
   const team = (hcData && hcData.team) || [];
   if(!team.length) return '';
-  const others = (hcData.profiles || []).filter(p => !team.some(t => hcKey(t.name) === hcKey(p.name)));
+  const others = (hcData.profiles || []).filter(p => !team.some(t => hcKey(t.name) === hcKey(p.name)) && !(typeof teamHasLeft === 'function' && teamHasLeft(p.name)));
   const row = (name, role, p) => {
     const age = hcAge(p && p.birthday);
     return `<button type="button" class="hc-prow" data-hc-profile="${escapeHtml(name)}" data-hc-find="${escapeHtml(hcKey(name))}">
@@ -218,7 +219,7 @@ function hcPinGaps(){
     if(iso < from || iso > to || !Array.isArray(list)) return;
     // The imported schedules only: a name added by hand in Set Ups isn't
     // someone new (Tim, Oct 25 2026), and Set Ups now picks those from the team.
-    list.forEach(p => { if(p && p.name && p.source !== 'manual' && !names.has(hcKey(p.name))) names.set(hcKey(p.name), p.name); });
+    list.forEach(p => { if(p && p.name && p.source !== 'manual' && !names.has(hcKey(p.name)) && !(typeof teamHasLeft === 'function' && teamHasLeft(p.name, iso))) names.set(hcKey(p.name), p.name); });
   }));
   const isDirector = n => (typeof dirList === 'function' ? dirList() : []).some(d => d && d.name && hcSame(d.name, n));
   const scheduled = [...names.values()].filter(n => !isDirector(n));
@@ -450,12 +451,14 @@ function hcFormHtml(){
       <div class="hc-form-row">
         <div class="field hc-name-field"><label for="hcName">Name</label><input type="text" id="hcName" maxlength="80" value="${escapeHtml(f.name || '')}" ${f.id ? 'readonly' : 'placeholder="Start typing a name" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="hcNamePicks" aria-expanded="false"'} required>
           ${f.id ? '' : '<div class="tm-picks" id="hcNamePicks" role="listbox" aria-label="Team members"></div><p class="tm-pick-note" id="hcNameNote" aria-live="polite"></p>'}</div>
-        <div class="field"><label for="hcRole">Role</label><select id="hcRole">${roles.map(([id, l]) => `<option value="${id}"${id === (f.role || 'member') ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
+        ${hcRoleKnown(f) ? `<div class="field"><span class="hc-role-label">Role</span><p class="hc-role-known">${escapeHtml(HC_ROLE_LABELS[f.role] || f.role)}<small>${f.id ? '' : 'from the PIN list'}</small></p></div>`
+          : `<div class="field"><label for="hcRole">Role</label><select id="hcRole">${roles.map(([id, l]) => `<option value="${id}"${id === (f.role || 'member') ? ' selected' : ''}>${l}</option>`).join('')}</select></div>`}
         <div class="field"><label for="hcLastDay">Last day</label><input type="date" id="hcLastDay" value="${escapeHtml(f.lastDay || f.noticed || today)}" max="${today}" required></div>
       </div>
       <div class="uo-q"><span class="uo-q-label">What happened</span><div class="uo-choices">${(hcData.types || []).map(t => hcChoice('type', t.id, f.type, t.label)).join('')}</div></div>
       <div class="field"><label for="hcReason">Why, in a sentence or two</label><textarea id="hcReason" rows="3" maxlength="600" placeholder="What they said, or what led to it">${escapeHtml(f.reason || '')}</textarea></div>
       <div class="uo-q"><span class="uo-q-label">Eligible for rehire</span><div class="uo-choices">${HC_REHIRE.map(([id, l]) => hcChoice('rehire', id, f.rehire || 'unsure', l)).join('')}</div></div>
+      ${f.id && f.status === 'logged' ? '' : '<p class="hc-note">Saving takes them off the clock-in PIN list (they’re signed out), off the schedule after their last day, and out of every list that offers people.</p>'}
       <div class="hc-form-go">
         <button type="submit" class="btn btn-primary" ${hcBusy ? 'disabled' : ''}>Save</button>
         <button type="button" class="btn btn-ghost" data-hc-cancel>Cancel</button>
@@ -472,6 +475,9 @@ function hcFormHtml(){
 // the list? Use this name".
 const HC_PICK_MAX = 8;
 const HC_PICK_WEEKS = 8;
+// The role is the PIN list's (Tim, Oct 25 2026: "the system should already
+// know their role"): asked only for someone the hub has no role for.
+function hcRoleKnown(f){ return !!(f && f.role && HC_ROLE_LABELS[f.role] && (f.id || f.roleKnown)); }
 function hcPickPeople(){
   const out = new Map();
   const add = (name, role) => { const k = hcKey(name); if(name && !out.has(k)) out.set(k, {name, role: role || ''}); };
@@ -482,7 +488,7 @@ function hcPickPeople(){
     if(iso < since || !Array.isArray(list)) return;
     list.forEach(p => { if(p && p.name && p.source !== 'manual' && ![...out.values()].some(x => hcSame(x.name, p.name))) add(p.name, ''); });
   }));
-  return [...out.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return [...out.values()].filter(p => !(typeof teamHasLeft === 'function' && teamHasLeft(p.name))).sort((a, b) => a.name.localeCompare(b.name));   // not who has left
 }
 function hcPickMatches(typed){
   const q = hcKey(typed).normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -509,21 +515,53 @@ function hcPickDraw(){
 document.getElementById('headcountRoot').addEventListener('input', e => {
   if(e.target.id !== 'hcName' || !hcForm) return;
   hcForm.allowOff = false;
+  if(hcForm.roleKnown){                      // a different name now: its role is asked again
+    hcForm.name = e.target.value; hcForm.roleKnown = false;
+    const pos = e.target.selectionStart;
+    renderHeadcountView();
+    const box = document.getElementById('hcName');
+    if(box){ box.focus(); try{ box.setSelectionRange(pos, pos); }catch(err){} }
+  }
   hcPickDraw();
 });
 document.getElementById('headcountRoot').addEventListener('click', e => {
   const pick = e.target.closest('[data-hc-pick]');
   if(pick && hcForm){
     const who = hcPickExact(pick.dataset.hcPick);
-    document.getElementById('hcName').value = pick.dataset.hcPick;
-    const role = document.getElementById('hcRole');
-    if(who && who.role && role && [...role.options].some(o => o.value === who.role)) role.value = who.role;
+    hcFormRead();
+    hcForm.name = pick.dataset.hcPick;
     hcForm.allowOff = false;
-    hcPickDraw();
+    if(who && who.role && HC_ROLE_LABELS[who.role]){ hcForm.role = who.role; hcForm.roleKnown = true; }
+    else hcForm.roleKnown = false;
+    renderHeadcountView();
     return;
   }
   if(e.target.closest('[data-hc-pick-off]') && hcForm){ hcForm.allowOff = true; hcPickDraw(); }
 });
+
+// After a departure is logged: off the schedule after their last day, and
+// any Set Ups spot they held from then on is open again (Tim, Oct 25 2026:
+// "no longer available for scheduling"). Returns what changed, for the toast.
+function hcTakeOffSchedule(name, lastDay){
+  const same = n => typeof rnSame === 'function' ? rnSame(n, name) : hcKey(n) === hcKey(name);
+  let shifts = 0, spots = 0;
+  [fohRoster, bohRoster, truckShifts, adminShifts].forEach(src => Object.keys(src || {}).forEach(iso => {
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(iso) || iso <= lastDay || !Array.isArray(src[iso])) return;
+    const kept = src[iso].filter(p => !(p && p.name && same(p.name)));
+    shifts += src[iso].length - kept.length;
+    if(kept.length) src[iso] = kept; else delete src[iso];
+  }));
+  Object.keys(posAssignments || {}).forEach(k => {
+    const iso = k.split('||')[1] || '';
+    if(iso <= lastDay) return;
+    const names = suSplitNames(posAssignments[k]);
+    const kept = names.filter(n => !same(n));
+    if(kept.length === names.length) return;
+    spots += names.length - kept.length;
+    if(kept.length) posAssignments[k] = kept.join('/'); else delete posAssignments[k];
+  });
+  return {shifts, spots};
+}
 
 function hcPendingHtml(s){
   if(!s.pending.length) return '';
@@ -625,6 +663,9 @@ async function hcSend(method, body){
     const data = await res.json().catch(() => ({}));
     if(!res.ok){ showToast(data.error || 'Couldn’t save. Try again.'); return false; }
     hcData = data;
+    // Every list that offers people drops (or gets back) them now, not on the next load.
+    teamLeftSet(data.departed);
+    if(typeof tmPinNames !== 'undefined'){ tmPinNames = null; teamNamesLoad(); }
     return true;
   }catch(err){
     showToast('Couldn’t reach the server. Try again.');
@@ -732,7 +773,14 @@ document.getElementById('headcountRoot').addEventListener('submit', async e => {
   const f = hcForm;
   const ok = await hcSend('POST', {id: f.id || '', name: f.name, role: f.role, lastDay: f.lastDay, type: f.type, reason: f.reason, rehire: f.rehire});
   if(ok){
-    showToast(`Logged: ${f.name}`);
+    // Off the schedule and Set Ups after their last day (directors save both).
+    const off = typeof launchManager !== 'undefined' && launchManager ? hcTakeOffSchedule(f.name, f.lastDay) : {shifts: 0, spots: 0};
+    if(off.shifts || off.spots){
+      if(typeof renderAllDayparts === 'function') renderAllDayparts();
+      saveState();
+    }
+    const more = [off.shifts ? `${off.shifts} shift${off.shifts === 1 ? '' : 's'} off the schedule` : '', off.spots ? `${off.spots} Set Ups spot${off.spots === 1 ? '' : 's'} open` : ''].filter(Boolean).join(' · ');
+    showToast(`Logged: ${f.name}${more ? ' · ' + more : ''}`);
     hcForm = null;
     renderHeadcountView();
     if(typeof renderRightNow === 'function') renderRightNow();
