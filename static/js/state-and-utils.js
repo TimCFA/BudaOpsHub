@@ -114,7 +114,8 @@ if(initialsBadgeEl){
 // Levelset / PEA lists, leaders, points, forms. The server's list
 // (/api/team/names `departed`, or Our Team's own data) reaches signed-in
 // devices only. teamHasLeft(name, iso): left by that day (after their last
-// day); without a day, left at all.
+// day); without a day, by today. Someone who gave notice, with a last day
+// still to come, is on the team until then (Tim, Oct 26 2026).
 let teamLeftList = [];     // [{name, lastDay}]
 function teamLeftSet(list){
   teamLeftList = (Array.isArray(list) ? list : []).map(x => typeof x === 'string' ? {name: x, lastDay: ''} : x).filter(x => x && x.name);
@@ -126,7 +127,7 @@ function teamHasLeft(name, iso){
     const xk = String(x.name).normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase().replace(/\s+/g, ' ');
     return xk === k || (typeof rnSame === 'function' && rnSame(x.name, name));
   });
-  return !!hit && (!iso || !hit.lastDay || iso > hit.lastDay);
+  return !!hit && (!hit.lastDay || (iso || today) > hit.lastDay);
 }
 
 // ----- The phone's keyboard (Tim, Oct 25 2026) -----

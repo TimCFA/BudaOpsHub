@@ -265,6 +265,7 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .hc-mark.is-soon{background:#3D3220;color:#FFBD59;}
 :where(html[data-theme="dark"]) .hc-mark.is-bday{background:rgba(255,255,255,0.12);color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .hc-mark.is-anniv{background:rgba(255,255,255,0.12);color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .hc-mark.is-leaving{background:#3D3220;color:#FFBD59;}
 :where(html[data-theme="dark"]) .hc-chip.is-minor{background:rgba(255,255,255,0.12);color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .hc-bad{color:var(--ink-red);}
 :where(html[data-theme="dark"]) .hc-hint.is-minor{color:var(--ink-navy);}

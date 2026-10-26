@@ -89,9 +89,10 @@ function hcSummary(){
   if(!hcData){ hcLoad(); return null; }
   const deps = (hcData.departures || []).filter(d => d.status !== 'dismissed');
   const pending = deps.filter(d => d.status === 'pending');
-  const logged = deps.filter(d => d.status === 'logged');
+  const leaving = deps.filter(hcIsLeaving).sort((a, b) => a.lastDay.localeCompare(b.lastDay));
+  const logged = deps.filter(d => d.status === 'logged' && !hcIsLeaving(d));
   const since = hcAddDays(today, -HC_WINDOW_DAYS);
-  const recent = deps.filter(d => hcWhen(d) >= since);
+  const recent = deps.filter(d => hcWhen(d) >= since && !hcIsLeaving(d));
   const joined = (hcData.hires || []).filter(h => (h.date || '') >= since).length;
   // Turnover at the current pace: departures ÷ the average headcount over
   // the window, scaled to a year. Needs two weeks of counts to mean much.
@@ -102,7 +103,7 @@ function hcSummary(){
   const counted = first ? recent.filter(d => hcWhen(d) >= first.date).length : 0;   // only since the counts began
   const pace = days >= 14 && avg > 0 ? Math.round(counted / avg * 365 / days * 100) : null;
   const last = logged.slice().sort((a, b) => hcWhen(b).localeCompare(hcWhen(a)))[0] || null;
-  return {now: hcData.now, pending, logged, recent, joined, pace, days, last,
+  return {now: hcData.now, pending, leaving, logged, recent, joined, pace, days, last,
     quit: recent.filter(d => d.type === 'quit').length, letGo: recent.filter(d => d.type === 'let-go').length};
 }
 
@@ -132,11 +133,18 @@ function hcYearsMonths(from){
 const HC_ICONS = {
   cert: '<path d="M4 4h16v11H4z"/><path d="M8 8h8M8 11h4"/><circle cx="16.5" cy="15.5" r="2.5"/><path d="M15.3 17.7L14.5 21l2-1 2 1-.8-3.3"/>',
   bday: '<path d="M4 21h16v-6.5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2z"/><path d="M4 16.5c1.3.9 2.7.9 4 0s2.7-.9 4 0 2.7.9 4 0 2.7-.9 4 0"/><path d="M12 12.5V9"/><path d="M12 6.5c.8-.6 1-1.5 0-2.5-1 1-.8 1.9 0 2.5z"/>',
-  anniv: '<circle cx="12" cy="9" r="5.5"/><path d="M8.6 13.4L7 21l5-2.5 5 2.5-1.6-7.6"/><path d="M12 6.5v5M9.5 9h5"/>'
+  anniv: '<circle cx="12" cy="9" r="5.5"/><path d="M8.6 13.4L7 21l5-2.5 5 2.5-1.6-7.6"/><path d="M12 6.5v5M9.5 9h5"/>',
+  leave: '<path d="M10 20H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"/><path d="M15 16l4-4-4-4"/><path d="M19 12H9"/>'
 };
+// Gave notice (Tim, Oct 26 2026): a departure logged with a last day still
+// to come. They're on the team, and sign in, through that day.
+const hcIsLeaving = d => !!(d && d.status === 'logged' && d.lastDay && d.lastDay >= today);
+const hcLeavingFor = name => ((hcData && hcData.departures) || []).find(d => hcIsLeaving(d) && hcKey(d.name) === hcKey(name)) || null;
 function hcMarks(p){
   if(!p) return [];
   const marks = [], month = today.slice(5, 7), st = hcPermitState(p);
+  const going = hcLeavingFor(p.name);
+  if(going) marks.push(['leave', 'is-leaving', `Leaving · last day ${hcDate(going.lastDay)}`]);
   if(st === 'expired') marks.push(['cert', 'is-expired', `Food handler certificate expired ${hcDate(p.permitExpires)}`]);
   if(st === 'soon') marks.push(['cert', 'is-soon', `Food handler certificate due ${hcDate(p.permitExpires)}`]);
   if(p.birthday && p.birthday.slice(5, 7) === month) marks.push(['bday', 'is-bday', `Birthday ${hcDate(today.slice(0, 5) + p.birthday.slice(5))}`]);
@@ -158,13 +166,13 @@ function hcTeamHtml(){
     const age = hcAge(p && p.birthday);
     return `<button type="button" class="hc-prow" data-hc-profile="${escapeHtml(name)}" data-hc-find="${escapeHtml(hcKey(name))}">
       <span class="hc-prow-name"><b>${escapeHtml(name)}</b><small>${escapeHtml([HC_ROLE_LABELS[role] || '', p && p.hireDate ? hcYearsMonths(p.hireDate) : ''].filter(Boolean).join(' · '))}</small></span>
-      ${age !== null && age < 18 ? '<span class="hc-chip is-minor">Under 18</span>' : ''}${hcMarks(p).map(hcMarkIcon).join('')}</button>`;
+      ${age !== null && age < 18 ? '<span class="hc-chip is-minor">Under 18</span>' : ''}${hcMarks(p || {name}).map(hcMarkIcon).join('')}</button>`;
   };
   return `
     <section class="hc-card">
       <h3 class="hc-h">Profiles <span>${team.length} on the PIN list</span></h3>
       <input type="search" class="hc-find" id="hcFind" placeholder="Find someone" aria-label="Find someone" autocomplete="off">
-      <p class="hc-legend"><span>${hcMarkIcon(['cert', 'is-expired', 'Certificate'])} Food handler certificate expired or due</span><span>${hcMarkIcon(['bday', 'is-bday', 'Birthday'])} Birthday this month</span><span>${hcMarkIcon(['anniv', 'is-anniv', 'Anniversary'])} Work anniversary this month</span></p>
+      <p class="hc-legend"><span>${hcMarkIcon(['cert', 'is-expired', 'Certificate'])} Food handler certificate expired or due</span><span>${hcMarkIcon(['bday', 'is-bday', 'Birthday'])} Birthday this month</span><span>${hcMarkIcon(['anniv', 'is-anniv', 'Anniversary'])} Work anniversary this month</span>${(hcData.departures || []).some(hcIsLeaving) ? `<span>${hcMarkIcon(['leave', 'is-leaving', 'Leaving'])} Gave notice</span>` : ''}</p>
       <div class="hc-plist">${team.map(t => row(t.name, t.role, hcProfileFor(t.name))).join('')}</div>
       ${others.length ? `<details class="hc-others"><summary>Not on the PIN list (${others.length})</summary><div class="hc-plist">${others.map(p => row(p.name, '', p)).join('')}</div></details>` : ''}
       <div class="hc-team-go">
@@ -453,12 +461,12 @@ function hcFormHtml(){
           ${f.id ? '' : '<div class="tm-picks" id="hcNamePicks" role="listbox" aria-label="Team members"></div><p class="tm-pick-note" id="hcNameNote" aria-live="polite"></p>'}</div>
         ${hcRoleKnown(f) ? `<div class="field"><span class="hc-role-label">Role</span><p class="hc-role-known">${escapeHtml(HC_ROLE_LABELS[f.role] || f.role)}<small>${f.id ? '' : 'from the PIN list'}</small></p></div>`
           : `<div class="field"><label for="hcRole">Role</label><select id="hcRole">${roles.map(([id, l]) => `<option value="${id}"${id === (f.role || 'member') ? ' selected' : ''}>${l}</option>`).join('')}</select></div>`}
-        <div class="field"><label for="hcLastDay">Last day</label><input type="date" id="hcLastDay" value="${escapeHtml(f.lastDay || f.noticed || today)}" max="${today}" required></div>
+        <div class="field"><label for="hcLastDay">Last day</label><input type="date" id="hcLastDay" value="${escapeHtml(f.lastDay || f.noticed || today)}" required></div>
       </div>
       <div class="uo-q"><span class="uo-q-label">What happened</span><div class="uo-choices">${(hcData.types || []).map(t => hcChoice('type', t.id, f.type, t.label)).join('')}</div></div>
       <div class="field"><label for="hcReason">Why, in a sentence or two</label><textarea id="hcReason" rows="3" maxlength="600" placeholder="What they said, or what led to it">${escapeHtml(f.reason || '')}</textarea></div>
       <div class="uo-q"><span class="uo-q-label">Eligible for rehire</span><div class="uo-choices">${HC_REHIRE.map(([id, l]) => hcChoice('rehire', id, f.rehire || 'unsure', l)).join('')}</div></div>
-      ${f.id && f.status === 'logged' ? '' : '<p class="hc-note">Saving takes them off the clock-in PIN list (they’re signed out), off the schedule after their last day, and out of every list that offers people.</p>'}
+      ${f.id && f.status === 'logged' ? '' : '<p class="hc-note">Gave notice? Put their last day ahead: they stay on the team and can sign in through it. Saving takes them off the schedule after their last day; the day after it, they come off the clock-in PIN list (signed out) and out of every list that offers people.</p>'}
       <div class="hc-form-go">
         <button type="submit" class="btn btn-primary" ${hcBusy ? 'disabled' : ''}>Save</button>
         <button type="button" class="btn btn-ghost" data-hc-cancel>Cancel</button>
@@ -577,20 +585,35 @@ function hcPendingHtml(s){
     </section>`;
 }
 
+const HC_REHIRE_NOTE = {yes: 'Rehire: yes', no: 'Rehire: no', unsure: ''};
+function hcDepHtml(d, leaving){
+  return `
+        <div class="hc-dep">
+          <div class="hc-dep-top"><b>${escapeHtml(d.name)}</b><span class="hc-chip is-${escapeHtml(d.type)}">${escapeHtml(hcTypeLabel(d.type))}</span><span class="hc-dep-date">${leaving ? 'Last day ' : ''}${escapeHtml(hcDate(d.lastDay))}</span></div>
+          ${d.reason ? `<p class="hc-dep-why">${escapeHtml(d.reason)}</p>` : ''}
+          <div class="hc-dep-foot"><span>${escapeHtml([HC_ROLE_LABELS[d.role] || '', leaving && d.noticed ? `gave notice ${hcDate(d.noticed)}` : '', HC_REHIRE_NOTE[d.rehire] || '', d.by ? `logged by ${d.by}` : ''].filter(Boolean).join(' · '))}</span><button type="button" class="ld-link" data-hc-edit="${escapeHtml(d.id)}">Edit</button></div>
+        </div>`;
+}
+
+// Gave notice: still on the team, soonest last day first.
+function hcLeavingHtml(s){
+  if(!s.leaving.length) return '';
+  return `
+    <section class="hc-card">
+      <h3 class="hc-h">Leaving <span class="hc-count">${s.leaving.length}</span></h3>
+      <p class="hc-note">Gave notice. On the team and signing in through their last day; off the schedule after it.</p>
+      ${s.leaving.map(d => hcDepHtml(d, true)).join('')}
+    </section>`;
+}
+
 function hcDeparturesHtml(s){
   const list = s.logged.slice().sort((a, b) => hcWhen(b).localeCompare(hcWhen(a)) || (b.at || 0) - (a.at || 0));
   if(!list.length) return `<section class="hc-card"><h3 class="hc-h">Recent departures</h3><p class="hc-note">None logged yet.</p></section>`;
   const shown = hcShowAll ? list : list.slice(0, 12);
-  const rehire = {yes: 'Rehire: yes', no: 'Rehire: no', unsure: ''};
   return `
     <section class="hc-card">
       <h3 class="hc-h">Recent departures</h3>
-      ${shown.map(d => `
-        <div class="hc-dep">
-          <div class="hc-dep-top"><b>${escapeHtml(d.name)}</b><span class="hc-chip is-${escapeHtml(d.type)}">${escapeHtml(hcTypeLabel(d.type))}</span><span class="hc-dep-date">${escapeHtml(hcDate(d.lastDay))}</span></div>
-          ${d.reason ? `<p class="hc-dep-why">${escapeHtml(d.reason)}</p>` : ''}
-          <div class="hc-dep-foot"><span>${escapeHtml([HC_ROLE_LABELS[d.role] || '', rehire[d.rehire] || '', d.by ? `logged by ${d.by}` : ''].filter(Boolean).join(' · '))}</span><button type="button" class="ld-link" data-hc-edit="${escapeHtml(d.id)}">Edit</button></div>
-        </div>`).join('')}
+      ${shown.map(d => hcDepHtml(d, false)).join('')}
       ${list.length > shown.length ? `<button type="button" class="ld-link hc-more" data-hc-all>Show all ${list.length}</button>` : ''}
     </section>`;
 }
@@ -648,6 +671,7 @@ function renderHeadcountView(){
     ${hcProfile ? hcProfileHtml() : ''}
     ${hcProfile && !hcProfile.isNew && hcPinFor === hcProfile.name ? hcPinFormHtml(hcProfile.name, hcProfile.role) : ''}
     ${hcPendingHtml(s)}
+    ${hcLeavingHtml(s)}
     ${hcTeamHtml()}
     ${hcPinCardHtml()}
     ${hcDeparturesHtml(s)}
@@ -780,7 +804,7 @@ document.getElementById('headcountRoot').addEventListener('submit', async e => {
       saveState();
     }
     const more = [off.shifts ? `${off.shifts} shift${off.shifts === 1 ? '' : 's'} off the schedule` : '', off.spots ? `${off.spots} Set Ups spot${off.spots === 1 ? '' : 's'} open` : ''].filter(Boolean).join(' · ');
-    showToast(`Logged: ${f.name}${more ? ' · ' + more : ''}`);
+    showToast(`${f.lastDay >= today ? `Logged: ${f.name} leaves after ${hcDate(f.lastDay)}` : `Logged: ${f.name}`}${more ? ' · ' + more : ''}`);
     hcForm = null;
     renderHeadcountView();
     if(typeof renderRightNow === 'function') renderRightNow();
