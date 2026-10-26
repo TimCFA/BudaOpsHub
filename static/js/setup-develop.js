@@ -265,7 +265,7 @@ function suPickHtml(pick, i){
     <li class="su-pick">
       <div class="su-pick-head"><span class="su-pick-n">${i + 1}</span><b>${escapeHtml(pick.name)}</b><span class="su-muted">${suCertText(pick.cert)}${pick.placed ? ` · in ${escapeHtml(pick.placed)}` : ' · not placed yet'}</span></div>
       <div class="su-pick-why">${pick.reasons.map(r => `<span>${escapeHtml(r)}</span>`).join('')}</div>
-      <div class="su-pick-plan">${where}${pick.pair ? ` · pair with <b>${escapeHtml(pick.pair.name)}</b> <span class="su-muted">(${escapeHtml(pick.pair.kind)})</span>` : ''}${pick.peaDue && t ? ` · 📝 complete a ${escapeHtml(t.pos)} PEA` : ''}</div>
+      <div class="su-pick-plan">${where}${pick.pair ? ` · pair with <b>${escapeHtml(pick.pair.name)}</b> <span class="su-muted">(${escapeHtml(pick.pair.kind)})</span>` : ''}${pick.peaDue && t ? ` · complete a ${escapeHtml(t.pos)} PEA` : ''}</div>
     </li>`;
 }
 

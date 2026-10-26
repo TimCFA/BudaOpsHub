@@ -224,6 +224,16 @@ function evaluateSetup(section, date, dpName){
 
 // Top three per section; the rest behind "more" so a result stays short.
 const SU_EVAL_SHOWN = 3;
+// The section icons: line icons (theme-cfa.css), never emoji.
+const SU_EVAL_ICONS = {
+  risk: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3L2.5 20h19z"/><path d="M12 9v5M12 17.5v.5"/></svg>',
+  clock: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  sprout: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21v-8"/><path d="M12 13c0-4 3-7 8-7-0 4-3 7-8 7z"/><path d="M12 13c0-3-2.5-5.5-6.5-5.5C5.5 11 8 13 12 13z"/></svg>',
+  rotate: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 21v-5h-5"/></svg>',
+  compass: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>',
+  note: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>'
+};
+
 function suEvalListHtml(title, icon, cls, items){
   if(!items.length) return '';
   const li = i => `<li><b>${escapeHtml(i.name)}</b> ${escapeHtml(i.text)}</li>`;
@@ -269,12 +279,12 @@ function renderSetupEvaluation(section, date, dp){
       </div>
       ${stale ? '<div class="su-eval-stale">Set up changed since this evaluation — press Re-evaluate.</div>' : ''}
       ${chips ? `<div class="su-eval-chips">${chips}</div>` : ''}
-      ${suEvalListHtml('Risk', '⚠️', 'is-risk', r.risks)}
-      ${suEvalListHtml('Shift changes', '🕒', 'is-due', r.coverage || [])}
-      ${suEvalListHtml('Development', '🌱', 'is-dev', r.development)}
-      ${suEvalListHtml('Rotation', '🔄', 'is-rot', r.rotation)}
-      ${suEvalListHtml('Leadership', '🧭', 'is-lead', r.leadership || [])}
-      ${suEvalListHtml('PEA rating due', '📝', 'is-due', r.ratingDue)}
+      ${suEvalListHtml('Risk', SU_EVAL_ICONS.risk, 'is-risk', r.risks)}
+      ${suEvalListHtml('Shift changes', SU_EVAL_ICONS.clock, 'is-due', r.coverage || [])}
+      ${suEvalListHtml('Development', SU_EVAL_ICONS.sprout, 'is-dev', r.development)}
+      ${suEvalListHtml('Rotation', SU_EVAL_ICONS.rotate, 'is-rot', r.rotation)}
+      ${suEvalListHtml('Leadership', SU_EVAL_ICONS.compass, 'is-lead', r.leadership || [])}
+      ${suEvalListHtml('PEA rating due', SU_EVAL_ICONS.note, 'is-due', r.ratingDue)}
       ${nothing ? '<div class="su-eval-clear">✓ No risks, development placements or rotation flags.</div>' : ''}
       ${notes.map(n => `<div class="su-eval-note">${n}</div>`).join('')}
     </div>`;

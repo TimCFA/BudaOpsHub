@@ -35,6 +35,8 @@ const ES = {
   'Change time': (who, was, now) => `${who} · antes ${was} · ahora ${now}`,
   'N SIDE changes': (n, side) => `${n} ${n === 1 ? 'cambio' : 'cambios'} en ${side === 'BOH' ? 'cocina' : 'el frente'}`,
   'Fill N open': n => `Llenar ${n}`,
+  'N open': n => `${n} por cubrir`,
+  'N placed': n => `${n} ${n === 1 ? 'asignado' : 'asignados'}`,
   'Lead': 'Líder',
   'Choose': 'Elegir',
   'projected': 'proyectado',
