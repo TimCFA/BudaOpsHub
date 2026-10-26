@@ -185,6 +185,7 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .dir-tile.is-flag{background:#2F2426;}
 :where(html[data-theme="dark"]) .dir-tile.is-flag .dir-tile-mark{color:var(--ink-red);}
 :where(html[data-theme="dark"]) .dir-tile.is-today .dir-tile-wd{color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .dir-more{color:var(--ink-red);}
 :where(html[data-theme="dark"]) .dir-strip-key svg{color:var(--ink-red);}
 :where(html[data-theme="dark"]) .ld-status.is-behind{background:#3B2023;color:var(--ink-dark-red);}
 :where(html[data-theme="dark"]) .ld-ring-fill{stroke:var(--ink-navy);}
