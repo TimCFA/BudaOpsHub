@@ -44,6 +44,7 @@ class Data(unittest.TestCase):
     def test_seed_is_tims_director_team(self):
         seed = run('c => DIRECTORS_SEED')
         self.assertEqual([d['name'] for d in seed], ['Timothy Lane', 'Kianna Ramos', 'Casey Howard'])
+        self.assertEqual(tuple(d['name'] for d in seed), appmod.DIRECTORS_SEED)      # the server signs their PINs in as directors
         self.assertEqual(seed[2]['title'], 'Managing Partner')
 
     def test_a_director_is_matched_by_name_loosely(self):
