@@ -490,6 +490,7 @@ const ZONE_OWNER_RULES = {
   'Final Check': null   // the Lead Captain
 };
 let zoneOwners = {};   // date -> handoff name -> zone -> [names handed the zone]
+let callIns = {};      // "YYYY-MM-DD" -> {name key: {name, status: called|yes|no, by, at}} (team-schedule.js)
 let posNotes = {};     // "section||date||daypart||slot" -> [{text, by, ts}], newest last
 
 // The FOH daypart whose set up does a handoff's resets: the one it names

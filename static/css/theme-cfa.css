@@ -2685,6 +2685,24 @@ body:not(.hc-allowed) .hc-only{display:none !important;}
 .ts-off-hrs{flex:none;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text-tertiary);}
 .ts-off-hrs.is-near{color:#B26B00;}
 .ts-person .ts-days{margin-top:8px;}
+/* Call-ins on Not working: who a leader called, so nobody calls twice. */
+.ts-off-row{flex-direction:column;align-items:stretch;gap:6px;padding:9px 6px;}
+.ts-off-top{display:flex;align-items:center;gap:6px;}
+.ts-off-name{flex:0 1 auto;min-width:0;padding:0;border:0;background:none;text-align:left;font:inherit;font-weight:600;color:var(--text-primary);cursor:pointer;}
+.ts-off-name:hover{color:var(--cfa-navy);text-decoration:underline;text-underline-offset:3px;}
+.ts-off-top .rn-rp-tag{margin-left:0;}
+.ts-off-top .ts-off-hrs{margin-left:auto;}
+.ts-call-btns{display:flex;gap:6px;}
+.ts-call-btn{flex:1;min-height:36px;padding:4px 8px;border:1px solid var(--border);border-radius:999px;background:var(--cfa-white);font-family:var(--font-ui);font-size:13px;font-weight:600;color:var(--text-secondary);cursor:pointer;}
+.ts-call-btn.is-on.is-called{background:#FFF4E0;border-color:#B26B00;color:#8A5300;}
+.ts-call-btn.is-on.is-yes{background:var(--ok-soft);border-color:var(--ok);color:var(--ok);}
+.ts-call-btn.is-on.is-no{background:var(--cfa-soft);border-color:var(--text-tertiary);color:var(--text-secondary);}
+.ts-call-btn:focus-visible{outline:2px solid var(--cfa-navy);outline-offset:2px;}
+.ts-call-who{font-size:12.5px;font-weight:600;color:var(--text-secondary);}
+.ts-call-who .ld-link{margin-left:6px;font-size:12.5px;}
+.ts-off-row.is-yes{background:var(--ok-soft);border-top-color:transparent;}
+.ts-off-row.is-no .ts-off-top{opacity:.55;}
+.ts-off-tally{font-size:12.5px;font-weight:600;color:var(--text-secondary);}
 .rn-rp.is-me{background:#FDF3F5;box-shadow:inset 3px 0 0 var(--cfa-red);border-top-color:transparent;}
 .rn-rp.is-me + .rn-rp{border-top-color:transparent;}
 .rn-rp.is-me .rn-rp-name{font-weight:800;}

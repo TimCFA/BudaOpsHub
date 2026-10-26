@@ -16,7 +16,7 @@ const STATE_SECTIONS = {
   pea: ['peaRatings', 'peaNameAliases'],
   rosters: ['fohRoster', 'bohRoster', 'rosterPosted', 'truckShifts', 'adminShifts'],
   setups: ['posAssignments', 'posVacancyFlags', 'setupDayTypes', 'lastUpdated',
-           'breakCountdowns', 'completedBreaks', 'zoneOwners', 'posNotes'],
+           'breakCountdowns', 'completedBreaks', 'zoneOwners', 'posNotes', 'callIns'],
   history: ['setupHistory', 'numbersHistory', 'wasteMonthlyHistory', 'zoneChecklistHistory', 'leaderTransitionHistory'],
   waste: ['entries', 'wasteDays', 'formDone', 'formDoneDate', 'wasteLogLastClosedOut'],
   ops: ['foodSafetyDays', 'foodSafetyWalkthroughs', 'fohOEDays', 'fohOEChecked', 'fohOECheckedDate',
@@ -160,7 +160,7 @@ function stateSnapshot(){
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
     prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, prepMade, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, launchMode, prepTimes, prepTimers,
-    salesHistory, forecastSettings, forecastLog, daypartWeeks, zoneOwners, posNotes, storeEvents, truckShifts,
+    salesHistory, forecastSettings, forecastLog, daypartWeeks, zoneOwners, posNotes, callIns, storeEvents, truckShifts,
     uniformOrders, uniformCatalog, directors, adminShifts, leaderNotes, leaderRoster, peaGoals, leaderFocus, teamNotes, safeOrderSettings,
     pointsRecords, pointsUploads, pointsSettings, pointsTeam, pointsMemos, lxQuarters, safeOrders
   };
@@ -168,11 +168,21 @@ function stateSnapshot(){
 
 // {section: JSON string}, keys in a fixed order so an unchanged section
 // always serializes the same way.
+// A key the server has never had, still empty here ({} or []), isn't a
+// change: a new saved setting starts that way on every phone, and a phone
+// that may not save it (callIns, Set Ups' section, on a Team Member's) would
+// otherwise hold it as unsent forever (Oct 25 2026, #248).
+const stateEmpty = v => (Array.isArray(v) && !v.length) || (v && typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length);
 function stateSections(snapshot){
   const out = {};
   Object.entries(STATE_SECTIONS).forEach(([name, keys])=>{
     const part = {};
-    keys.forEach(k => { if(k in snapshot) part[k] = snapshot[k] === undefined ? null : snapshot[k]; });
+    const base = stateBase[name];
+    keys.forEach(k => {
+      if(!(k in snapshot)) return;
+      if(base && !stateHas(base, k) && stateEmpty(snapshot[k])) return;
+      part[k] = snapshot[k] === undefined ? null : snapshot[k];
+    });
     if(name === 'misc') Object.keys(snapshot).forEach(k => { if(!STATE_SECTION_OF[k]) part[k] = snapshot[k] === undefined ? null : snapshot[k]; });
     out[name] = JSON.stringify(part);
   });
@@ -622,6 +632,8 @@ function applyStateData(data){
   // Zone resets handed to extra people, and signed position notes (zone-reset.js).
   zoneOwners = (data.zoneOwners && typeof data.zoneOwners === 'object' && !Array.isArray(data.zoneOwners)) ? data.zoneOwners : {};
   posNotes = (data.posNotes && typeof data.posNotes === 'object' && !Array.isArray(data.posNotes)) ? data.posNotes : {};
+  // Who a leader called in, by day (team-schedule.js, Not working).
+  callIns = (data.callIns && typeof data.callIns === 'object' && !Array.isArray(data.callIns)) ? data.callIns : {};
   setupHistory = normalizeSetupHistory(data.setupHistory);
   peaRatings = normalizePeaRatings(data.peaRatings);
   peaNameAliases = (data.peaNameAliases && typeof data.peaNameAliases === 'object') ? data.peaNameAliases : {};
