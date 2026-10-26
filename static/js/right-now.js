@@ -331,7 +331,6 @@ function rnLeadCard(v, day, store){
 // open hours each person reads on now, later or done; a split shift between
 // its blocks reads later.
 const RN_ROSTER_GROUPS = [['foh', 'FOH'], ['boh', 'BOH'], ['truck', 'Truck'], ['admin', 'Admin']];
-let rnRosterOpen = false;   // the director's card: the roster opened with a tap
 
 function rnRosterList(key, date){
   const src = key === 'foh' ? fohRoster : key === 'boh' ? bohRoster
@@ -361,17 +360,21 @@ function rnHeadcount(groups, state){
 }
 
 // The roster in a panel of its own: who's on and when, time first, the
-// people on now marked.
-function rnRosterHtml(groups, head){
+// people on now marked. The Schedule tab draws its "Who's working" with it
+// too (Tim, Oct 25 2026: one look for both), marking the viewer (me).
+function rnRosterHtml(groups, head, me, tap){
   if(!groups.length) return '';
   const tag = t => `<span class="rn-rp-tag">${t}</span>`;
+  const mine = p => me && rnSame(p.name, me) ? ' is-me' : '';
+  // On the Schedule tab a name opens that person's week (team-schedule.js).
+  const open = p => tap ? ` data-ts-person="${escapeHtml(p.name)}" role="button" tabindex="0"` : '';
   return `<div class="rn-roster">
-    ${head ? `<div class="rn-roster-h"><span class="rn-roster-ic">${RN_ICON_TEAM}</span><b>${escapeHtml(head.title)}</b><span>${escapeHtml(head.sub || '')}</span></div>` : ''}
+    ${head ? `<div class="rn-roster-h"><span class="rn-roster-ic">${RN_ICON_TEAM}</span><b>${escapeHtml(head.title)}${head.es ? esSpan(head.es, true) : ''}</b><span>${escapeHtml(head.sub || '')}</span></div>` : ''}
     <div class="rn-roster-grid">${groups.map(g => `
     <section class="rn-rg">
       <h3 class="rn-rg-h">${escapeHtml(g.label)}<span>${g.people.length} on the day${g.live ? ` · ${g.onNow} now` : ''}</span></h3>
       <ul class="rn-rg-list">${g.people.map(p => `
-        <li class="rn-rp${p.state ? ' is-' + p.state : ''}"><span class="rn-rp-time">${escapeHtml(p.time)}</span><span class="rn-rp-name">${escapeHtml(p.name)}${p.leader ? tag('Leader') : ''}${p.training ? tag('Training') : ''}</span>${p.state === 'now' ? '<span class="rn-rp-now">On now</span>' : ''}</li>`).join('')}
+        <li class="rn-rp${p.state ? ' is-' + p.state : ''}${mine(p)}"${open(p)}><span class="rn-rp-time">${escapeHtml(p.time)}</span><span class="rn-rp-name">${escapeHtml(p.name)}${p.leader ? tag('Leader') : ''}${p.training ? tag('Training') : ''}</span>${p.state === 'now' ? '<span class="rn-rp-now">On now</span>' : ''}</li>`).join('')}
       </ul>
     </section>`).join('')}</div></div>`;
 }
@@ -382,7 +385,8 @@ function rnRosterHead(date, day){
           sub: d.toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric'})};
 }
 
-// Admin Team: the day's roster is the card.
+// Admin Team: the day at a glance, the roster a tap away on the Schedule tab
+// (Tim, Oct 25 2026; it was the card).
 function rnAdminCard(v, day){
   const date = day.closed ? day.next : today;
   const dayName = new Date(date + 'T12:00:00').toLocaleDateString('en-US', {weekday: 'long'});
@@ -402,18 +406,18 @@ function rnAdminCard(v, day){
       : `${onNow} on the clock now, ${total} on today.`};
     if(next) rows.push(rnRow(rnClock(next.start), `next in: ${next.name}, ${next.label}`, '', '', ''));
   }
-  return {side: 'foh', first, rows, roster: groups, rosterHead: rnRosterHead(date, day), rosterFirst: true, kicker: day.closed ? dayName : '', title: v.name ? `Hi, ${rnFirst(v.name)}` : 'Today’s roster'};
+  return {side: 'foh', first, rows, kicker: day.closed ? dayName : '', title: v.name ? `Hi, ${rnFirst(v.name)}` : 'Today’s roster'};
 }
 
-// The director's card: the roster a tap away.
+// Directors', the Admin Team's and Team Leads' cards: the day's roster is a
+// tap away on the Schedule tab, which draws it the same way, with who's not
+// working for a call-in (Tim, Oct 25 2026: a link, not a roster on the card).
 function rnWithRoster(card, day){
   const date = day.closed ? day.next : today;
-  const groups = rnDayRoster(date, day.closed ? null : day.now);
-  const total = rnHeadcount(groups);
+  const total = rnHeadcount(rnDayRoster(date, null));
   if(!total) return card;
   const when = day.closed ? new Date(date + 'T12:00:00').toLocaleDateString('en-US', {weekday: 'long'}) : 'today';
-  card.rows.push(rnRow(String(total), `on the schedule ${when} · ${rnRosterOpen ? 'hide' : 'see'} the roster`, '', 'roster', ''));
-  if(rnRosterOpen){ card.roster = groups; card.rosterHead = rnRosterHead(date, day); }
+  card.rows.push(rnRow(String(total), `on the schedule ${when} · see who’s working`, '', `schedule:${date}`, ''));
   return card;
 }
 
@@ -530,8 +534,8 @@ function rnSideSwitchHtml(){
 function rnCardFor(v, day){
   if(v.role === 'member') return rnPersonCard(v, day, false);
   if(v.role === 'trainer') return rnPersonCard(v, day, true);
-  if(v.role === 'lead') return rnLeadCard(v, day, false);
-  if(v.role === 'admin') return rnAdminCard(v, day);
+  if(v.role === 'lead') return rnWithRoster(rnLeadCard(v, day, false), day);
+  if(v.role === 'admin') return rnWithRoster(rnAdminCard(v, day), day);
   if(v.role === 'director' || v.role === 'manager') return rnWithRoster(rnLeadCard(v, day, true), day);
   return rnTeamCard(day);
 }
@@ -761,7 +765,7 @@ function rnGo(g){
   }
   else if(what === 'waste'){ launchShowTab('wastelog'); window.scrollTo({top: 0}); }
   else if(what === 'headcount'){ launchShowTab('headcount'); window.scrollTo({top: 0}); }
-  else if(what === 'roster'){ rnRosterOpen = !rnRosterOpen; renderRightNow(); }
+  else if(what === 'schedule' && typeof tsShowDay === 'function') tsShowDay(rest);
   else if(what === 'foodsafety'){ launchShowTab('foodsafety'); window.scrollTo({top: 0}); }
   else if(what === 'prepboard'){ launchShowTab('prepboard'); window.scrollTo({top: 0}); }
   else if(what === 'signin' && typeof siOpen === 'function') siOpen();
