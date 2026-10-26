@@ -1176,6 +1176,7 @@ function duLevelsetHtml(){
 // what it feeds; the ones up to date fold into a short list.
 let duShowAll = false;
 let duDoneOpen = false;            // the up-to-date list, unfolded
+let duCurrentKeys = [];            // the up-to-date reports, as last rendered
 const duOpenRows = new Set();      // up-to-date rows opened in full
 // Most-used first when several are due together.
 const DU_PRIORITY = ['roster', 'punch', 'labor', 'salesMix', 'cem', 'dayparts', 'productivity', 'sales', 'numbers', 'pea', 'sos', 'dtRank', 'smartShop', 'foodSafety', 'qiv'];
@@ -1188,6 +1189,7 @@ const DU_ICON = {
   alert: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v5m0 3.5v.01M10.3 3.9 2.6 17.3A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.7L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>',
   clock: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
   arrow: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>',
+  up: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>',
   spark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19 9.5 12l4 3.5L20 6"/><path d="M15 6h5v5"/></svg>'
 };
 
@@ -1274,7 +1276,8 @@ function duInsightsHtml(now){
   </section>`;
 }
 
-function duRowHtml(src, st){
+// foldable: an up-to-date row opened from its one-line form; a Fold button folds it back.
+function duRowHtml(src, st, foldable){
   const s = DU_STATUS[st.status];
   const log = duLastLog(src.key);
   const lastText = st.last ? `Last upload ${st.last.toLocaleDateString('en-US', {month: 'short', day: 'numeric'})}${log && log.file ? ` · ${log.file}` : ''}` : 'No upload logged here yet';
@@ -1286,6 +1289,7 @@ function duRowHtml(src, st){
         <span class="du-row-name">${escapeHtml(src.name)}</span>
         <span class="du-cadence">${escapeHtml(DU_FREQUENCIES[st.freq])}</span>
         <span class="du-status ${s.cls}">${icon} ${s.label}</span>
+        ${foldable ? `<button type="button" class="du-row-fold" data-du-close="${escapeHtml(src.key)}" aria-expanded="true" title="Fold ${escapeHtml(src.name)}">${DU_ICON.up}<span>Fold</span></button>` : ''}
       </div>
       <div class="du-cover">${escapeHtml(st.cover)}</div>
       ${st.note ? `<div class="du-note">${escapeHtml(st.note)}</div>` : ''}
@@ -1400,6 +1404,7 @@ function renderDataUploads(){
   const needs = rows.filter(r => r.pending || r.st.status !== 'fresh')
     .sort((a, b) => (b.pending - a.pending) || ((a.st.status === 'overdue' ? 0 : 1) - (b.st.status === 'overdue' ? 0 : 1)) || rank(a.src.key) - rank(b.src.key));
   const current = duByLastUpload(rows.filter(r => !r.pending && r.st.status === 'fresh'), rank);
+  duCurrentKeys = current.map(r => r.src.key);
   const lastAt = Object.entries(dataUploadLog || {}).map(([k, list]) => ({k, e: (list || [])[list.length - 1]})).filter(x => x.e && x.e.at).sort((a, b) => String(b.e.at).localeCompare(String(a.e.at)))[0];
   const lastText = lastAt ? `Last upload ${new Date(lastAt.e.at).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})} · ${(DU_SOURCES.find(s => s.key === lastAt.k) || {name: lastAt.k}).name}` : 'Nothing uploaded yet';
   const zipNeeds = Object.keys(DU_ZIP_COVERS).filter(k => needs.some(r => r.src.key === k));
@@ -1418,7 +1423,7 @@ function renderDataUploads(){
     ${needs.length ? `<h4 class="du-section-h">Needs an upload</h4><ul class="du-list">${needs.map(r => duRowHtml(r.src, r.st)).join('')}</ul>` : ''}
     ${current.length ? `<details class="du-done" ${duDoneOpen ? 'open' : ''}>
       <summary class="du-section-h">${current.length} up to date <span>· most recent upload first</span></summary>
-      <ul class="du-list is-current">${current.map(r => duShowAll || duOpenRows.has(r.src.key) ? duRowHtml(r.src, r.st) : duMiniHtml(r.src, r.st)).join('')}</ul>
+      <ul class="du-list is-current">${current.map(r => duShowAll || duOpenRows.has(r.src.key) ? duRowHtml(r.src, r.st, true) : duMiniHtml(r.src, r.st)).join('')}</ul>
       <button type="button" class="du-showall" data-du-showall="${duShowAll ? 0 : 1}">${duShowAll ? 'Fold the up-to-date reports' : `Open all ${current.length} in full`}</button>
     </details>` : ''}`;
 }
@@ -1446,6 +1451,16 @@ document.getElementById('dataUploadsRoot').addEventListener('click', e=>{
   if(sa){ duShowAll = sa.dataset.duShowall === '1'; if(!duShowAll) duOpenRows.clear(); renderDataUploads(); return; }
   const open = e.target.closest('[data-du-open]');
   if(open){ duOpenRows.add(open.dataset.duOpen); renderDataUploads(); return; }
+  const close = e.target.closest('[data-du-close]');
+  if(close){
+    // Folding one row while "all open": the others stay open on their own.
+    if(duShowAll){ duShowAll = false; duCurrentKeys.forEach(k => duOpenRows.add(k)); }
+    duOpenRows.delete(close.dataset.duClose);
+    renderDataUploads();
+    const mini = document.querySelector(`[data-du-open="${close.dataset.duClose}"]`);
+    if(mini && mini.scrollIntoView) mini.scrollIntoView({block: 'nearest'});
+    return;
+  }
   const goto = e.target.closest('[data-du-goto]');
   if(goto){ duGoToRow(goto.dataset.duGoto); return; }
   if(e.target.closest('[data-du-clear]')){ duResults = []; renderDataUploads(); return; }

@@ -2495,6 +2495,10 @@ body:not(.hc-allowed) .hc-only{display:none !important;}
 .du-row-name{font-family:var(--font-display);font-size:16px;font-weight:600;min-width:0;}
 .du-cadence{flex:0 0 auto;margin-left:auto;font-size:11px;font-weight:600;color:var(--text-tertiary);white-space:nowrap;}
 .du-status{display:inline-flex;align-items:center;gap:4px;}
+.du-row-fold{display:inline-flex;align-items:center;gap:3px;min-height:32px;margin:-6px -6px -6px 2px;padding:4px 8px;border:0;border-radius:8px;background:none;font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--cfa-navy);cursor:pointer;}
+.du-row-fold svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
+.du-row-fold:hover{background:var(--cfa-soft);}
+.du-row-fold:focus-visible{outline:2px solid var(--cfa-navy);outline-offset:2px;}
 .du-status svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;}
 .du-feeds-line{display:flex;align-items:flex-start;gap:6px;margin-top:6px;font-size:12px;color:var(--cfa-navy);}
 .du-feeds-line svg{flex:0 0 auto;width:14px;height:14px;margin-top:1px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}

@@ -307,6 +307,7 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .du-insight-go{border:1px solid rgba(41,41,41,0.4);}
 :where(html[data-theme="dark"]) .du-insight-go:hover{background:rgba(29,29,29,0.12);}
 :where(html[data-theme="dark"]) .du-done > summary:hover{color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .du-row-fold{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .du-feeds-line{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .du-mini-dot{color:#87D99E;}
 :where(html[data-theme="dark"]) .tl-tag{color:#FFC361;}
