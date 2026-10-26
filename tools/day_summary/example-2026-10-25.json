@@ -1,0 +1,314 @@
+{
+ "dayLong": "Sunday, October 25",
+ "lede": "A big Sunday: sign-in with real names, Set Ups locked to Team Leads, a Schedule tab that helps with call-ins, and today's events front and center on Home. Every deploy was checked live.",
+ "stats": [
+  {
+   "n": "14",
+   "label": "merges, all live"
+  },
+  {
+   "n": "5",
+   "label": "bugs found and fixed"
+  },
+  {
+   "n": "98",
+   "label": "Monday spots filled tonight"
+  },
+  {
+   "n": "0",
+   "label": "saves lost"
+  }
+ ],
+ "tomorrow": [
+  {
+   "title": "Make the kitchen iPad a shared device",
+   "how": "Sign in on it with the Manage PIN, reload, then Manage → Settings → Require sign-in → Make this a shared device. Same for any front iPad. Until then, logging waste on it asks for a PIN."
+  },
+  {
+   "title": "Check every Team Lead has the Team Lead role",
+   "how": "Our Team → Profiles. Anyone listed as a Team Member gets asked for a lead's PIN on Set Ups."
+  },
+  {
+   "title": "Leads sign in once",
+   "how": "Sign in, top right, with their clock-in PIN. Their phone stays signed in after that."
+  }
+ ],
+ "areas": [
+  {
+   "name": "Sign-in and accounts",
+   "items": [
+    {
+     "when": "3:17 PM",
+     "pr": 235,
+     "title": "Only leads choose the Lead Captain",
+     "what": "Team Members and Trainers can't pick who leads a shift."
+    },
+    {
+     "when": "3:41 PM",
+     "pr": 236,
+     "title": "PIN on file",
+     "what": "Our Team shows who has a clock-in PIN; directors and the Admin Team can set one. Nobody can see a PIN."
+    },
+    {
+     "when": "4:54 PM",
+     "pr": 241,
+     "title": "Real names, not initials",
+     "what": "The hub writes the signed-in person's name on what they log. The Require sign-in switch is in Manage, still off."
+    },
+    {
+     "when": "5:01 PM",
+     "pr": 242,
+     "title": "Sign in from any page",
+     "what": "A Sign in sheet replaced the initials box, with Google one tap for @cfabuda.com."
+    },
+    {
+     "when": "6:06 PM",
+     "pr": 243,
+     "title": "Initials are gone",
+     "what": "Anyone not signed in is asked to sign in before logging waste, a zone check or a note."
+    }
+   ]
+  },
+  {
+   "name": "Set Ups",
+   "items": [
+    {
+     "when": "2:54 PM",
+     "pr": 234,
+     "title": "Set Ups safety, faster loads, 11 PM rule",
+     "what": "A batch: saves that can't be lost, quicker page loads, and the Fri/Sat 11 PM close in the deploy rules."
+    },
+    {
+     "when": "4:23 PM",
+     "pr": 238,
+     "by": "other session",
+     "title": "Place trainees the schedule doesn't",
+     "what": "The roster import lets a leader put a new hire on FOH or BOH."
+    },
+    {
+     "when": "6:06 PM",
+     "pr": 243,
+     "title": "Team Leads and up only",
+     "what": "Only leads, directors and the Admin Team move people. Add Team Member picks from the team instead of a typed name."
+    },
+    {
+     "when": "6:53 PM",
+     "pr": 247,
+     "by": "other session",
+     "title": "The banner says what's open",
+     "what": "Lead: choose only stands out when it matters; line icons."
+    }
+   ]
+  },
+  {
+   "name": "Home and Right Now",
+   "items": [
+    {
+     "when": "4:54 PM",
+     "pr": 241,
+     "title": "Today's events at the top",
+     "what": "Today on the calendar, with what's happening now. Tap one to see just that event."
+    },
+    {
+     "when": "4:54 PM",
+     "pr": 241,
+     "title": "Office and truck shifts count",
+     "what": "Right Now and the Schedule tab agree on who's working."
+    },
+    {
+     "when": "7:22 PM",
+     "pr": 245,
+     "title": "See who's working",
+     "what": "Directors, leads and the Admin Team get a link to the day's roster on the Schedule tab."
+    }
+   ]
+  },
+  {
+   "name": "Schedule",
+   "items": [
+    {
+     "when": "2:54 PM",
+     "pr": 234,
+     "title": "The Schedule tab",
+     "what": "Each person's week while HotSchedules is down."
+    },
+    {
+     "when": "7:22 PM",
+     "pr": 245,
+     "title": "Roster in the Right Now look",
+     "what": "Tap a name to see that person's week."
+    },
+    {
+     "when": "7:22 PM",
+     "pr": 245,
+     "title": "Not working",
+     "what": "Who's off that day, fewest hours first, for a call-in."
+    },
+    {
+     "when": "7:58 PM",
+     "pr": 248,
+     "title": "Called · Coming in · Can't",
+     "what": "So two leaders don't call the same person. Coming in adds them to Set Ups in one tap."
+    }
+   ]
+  },
+  {
+   "name": "Our Team",
+   "items": [
+    {
+     "when": "6:06 PM",
+     "pr": 243,
+     "title": "PIN on file folded under Profiles",
+     "what": "Names added by hand in Set Ups no longer show up as new people."
+    },
+    {
+     "when": "9:26 PM",
+     "pr": 251,
+     "title": "Log a departure picks from the team",
+     "what": "Picking a name fills in their role."
+    }
+   ]
+  },
+  {
+   "name": "Phones and behind the scenes",
+   "items": [
+    {
+     "when": "6:22 PM",
+     "pr": 244,
+     "title": "Boxes stay above the keyboard",
+     "what": "Add Team Member, Sign in and the spot picker move up when an iPhone keyboard opens."
+    },
+    {
+     "when": "9:45 PM",
+     "pr": 252,
+     "title": "/day-summary",
+     "what": "This recap, on demand."
+    }
+   ]
+  }
+ ],
+ "bugs": [
+  {
+   "title": "The Google button sometimes didn't show",
+   "pr": 241,
+   "was": "The page asked the server once who was signed in; if that request failed, the button never appeared.",
+   "fix": "The button no longer waits on that answer, and the page asks again."
+  },
+  {
+   "title": "Right Now said you weren't working Monday",
+   "pr": 241,
+   "was": "It only read FOH and BOH schedules; the shift was an office shift.",
+   "fix": "It reads all four schedules, like the Schedule tab."
+  },
+  {
+   "title": "iPad Settings was missing the sign-in card",
+   "pr": 243,
+   "was": "After a Manage PIN sign-in, Settings drew before Manage opened.",
+   "fix": "It draws again once Manage is open."
+  },
+  {
+   "title": "A signed-out iPad wrote saved initials on waste",
+   "pr": 243,
+   "was": "The hub fell back on initials typed on that iPad long ago.",
+   "fix": "Initials are gone; it asks for a sign-in."
+  },
+  {
+   "title": "Phones held a change they couldn't save",
+   "pr": 250,
+   "was": "After #248, phones that can't change Set Ups kept an empty call-in list as unsent. Caught by the live check.",
+   "fix": "A new, empty setting no longer counts as a change."
+  }
+ ],
+ "waiting": [
+  "Turn on Require sign-in once the PIN list is complete.",
+  "Fri/Sat: are the doors open until 11, or only the team?",
+  "Retire or keep the Schedule tab once HotSchedules works.",
+  "Phone numbers in the hub for call-ins, or not?"
+ ],
+ "later": [
+  "“Need someone” note",
+  "Call-in counts in Our Team",
+  "“Free during” time filter",
+  "Fade old “Called” marks",
+  "Under-18 flag on Not working",
+  "View-only Set Ups for the team"
+ ],
+ "deployNote": "each checked live",
+ "deploys": [
+  {
+   "when": "2:55 PM",
+   "pr": 234,
+   "title": "Schedule tab, Set Ups safety, faster loads"
+  },
+  {
+   "when": "3:18 PM",
+   "pr": 235,
+   "title": "Lead Captain for leads only"
+  },
+  {
+   "when": "3:42 PM",
+   "pr": 236,
+   "title": "PIN on file"
+  },
+  {
+   "when": "4:23 PM",
+   "pr": 238,
+   "title": "Roster import: trainees",
+   "note": "Other session; covered by the next checks"
+  },
+  {
+   "when": "4:55 PM",
+   "pr": 241,
+   "title": "Sign-in with names, today's events, office shifts"
+  },
+  {
+   "when": "5:03 PM",
+   "pr": 242,
+   "title": "Sign-in sheet, Google one tap"
+  },
+  {
+   "when": "6:08 PM",
+   "pr": 243,
+   "title": "Set Ups for leads, no initials"
+  },
+  {
+   "when": "6:24 PM",
+   "pr": 244,
+   "title": "Keyboard fix"
+  },
+  {
+   "when": "6:53 PM",
+   "pr": 247,
+   "title": "Set Ups banner",
+   "note": "Other session"
+  },
+  {
+   "when": "7:23 PM",
+   "pr": 245,
+   "title": "Schedule roster, Not working"
+  },
+  {
+   "when": "7:59 PM",
+   "pr": 248,
+   "title": "Call-ins",
+   "note": "The check caught phones holding an unsent change"
+  },
+  {
+   "when": "8:09 PM",
+   "pr": 250,
+   "title": "Fix for the unsent change",
+   "note": "Cleared on the live site"
+  },
+  {
+   "when": "9:27 PM",
+   "pr": 251,
+   "title": "Departure picker"
+  },
+  {
+   "when": "9:46 PM",
+   "pr": 252,
+   "title": "/day-summary"
+  }
+ ],
+ "foot": "From the day's merges to main, their PRs, the live checks and this session. No team names."
+}

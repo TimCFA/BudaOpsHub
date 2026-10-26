@@ -1,0 +1,167 @@
+<title>Ops Hub Day Recap</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* The hub's own look (static/css/theme-cfa.css): navy band up top with the
+   day's numbers, then what to do first, then what went live by area of the
+   hub, bugs, decisions, and the day's deploys in order. One column on a phone. */
+:root{
+  --ground:#F6F2EA; --card:#FFFDF9; --ink:#1C1B19; --ink-2:#55514A; --ink-3:#8A857C; --line:#E4DDD0;
+  --navy:#004F71; --navy-ink:#FFFFFF; --navy-soft:rgba(255,255,255,.14); --red:#DD0031; --red-soft:#FDECEF;
+  --ok:#2E7D45; --ok-soft:#E7F3EA; --amber:#B26B00; --amber-soft:#FFF4E0; --chip:#EBE4D8;
+  --display:"Zilla Slab", Rockwell, "Roboto Slab", Georgia, serif;
+  --ui:"Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --ground:#16181A; --card:#1F2225; --ink:#F1EEE8; --ink-2:#C2BDB4; --ink-3:#8F8A82; --line:#33373B;
+  --navy:#0B4A66; --navy-soft:rgba(255,255,255,.12); --red:#FF4D6D; --red-soft:#3A1E25;
+  --ok:#6CC28A; --ok-soft:#1E3326; --amber:#E5A54B; --amber-soft:#3A2E1B; --chip:#2C3034; color-scheme:dark; } }
+:root[data-theme="dark"]{
+  --ground:#16181A; --card:#1F2225; --ink:#F1EEE8; --ink-2:#C2BDB4; --ink-3:#8F8A82; --line:#33373B;
+  --navy:#0B4A66; --navy-soft:rgba(255,255,255,.12); --red:#FF4D6D; --red-soft:#3A1E25;
+  --ok:#6CC28A; --ok-soft:#1E3326; --amber:#E5A54B; --amber-soft:#3A2E1B; --chip:#2C3034; color-scheme:dark; }
+*{box-sizing:border-box;}
+body{background:var(--ground);color:var(--ink);font-family:var(--ui);font-size:15.5px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:860px;margin:0 auto;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;}
+svg{flex:none;}
+
+/* Band */
+.band{background:var(--navy);color:var(--navy-ink);}
+.band .wrap{padding-block:28px 24px;display:grid;gap:18px;}
+.band .eyebrow{opacity:.8;display:flex;align-items:center;gap:8px;}
+.band h1{font-size:clamp(30px,6vw,44px);font-weight:700;line-height:1.05;}
+.band p{margin:0;max-width:62ch;opacity:.9;}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
+.stat{background:var(--navy-soft);border-radius:14px;padding:12px 14px;}
+.stat b{display:block;font-family:var(--display);font-size:30px;line-height:1;font-variant-numeric:tabular-nums;}
+.stat span{font-size:12.5px;opacity:.85;}
+@media (max-width:620px){ .stats{grid-template-columns:repeat(2,minmax(0,1fr));} }
+
+main.wrap{padding-block:22px 40px;display:grid;gap:22px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px 18px 8px;}
+.card h2{font-size:22px;font-weight:700;display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.card h2 small{margin-left:auto;font-family:var(--ui);font-size:12.5px;font-weight:600;color:var(--ink-3);}
+.ic{display:inline-flex;width:34px;height:34px;border-radius:50%;align-items:center;justify-content:center;background:var(--chip);color:var(--navy);}
+:root[data-theme="dark"] .ic{color:var(--ink);}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .ic{color:var(--ink);} }
+
+/* First things: what to do before the next shift */
+.first{background:var(--red-soft);border-color:transparent;}
+.first .ic{background:var(--red);color:#fff;}
+.todo{list-style:none;margin:0;padding:0;display:grid;}
+.todo li{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line);}
+.todo li:first-child{border-top:0;}
+.box{width:20px;height:20px;border:2px solid var(--ink-3);border-radius:6px;margin-top:2px;flex:none;}
+.todo b{display:block;}
+.todo span{color:var(--ink-2);font-size:14.5px;}
+
+/* What went live, by area */
+.areas{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:14px;}
+.area h3{font-size:19px;font-weight:700;display:flex;align-items:center;gap:8px;padding:2px 0 6px;}
+.item{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;padding:10px 0;border-top:1px solid var(--line);}
+.item:first-of-type{border-top:0;}
+.when{font-size:12.5px;font-weight:700;color:var(--ink-3);font-variant-numeric:tabular-nums;white-space:nowrap;padding-top:2px;}
+.what{min-width:0;}
+.what b{font-weight:600;}
+.what p{margin:2px 0 0;color:var(--ink-2);font-size:14.5px;}
+.pr{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:var(--chip);font-size:11.5px;font-weight:700;color:var(--ink-2);vertical-align:2px;}
+.by{display:inline-block;margin-left:4px;padding:1px 8px;border-radius:999px;border:1px solid var(--line);font-size:11.5px;color:var(--ink-3);vertical-align:2px;}
+
+/* Bugs */
+.bugs{display:grid;gap:10px;}
+.bug{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;padding:12px 0;border-top:1px solid var(--line);}
+.bug:first-of-type{border-top:0;}
+.bug .lbl{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);}
+.bug .was{color:var(--ink);}
+.bug .fix{color:var(--ink);}
+.bug .fix .lbl{color:var(--ok);}
+.bug h3{grid-column:1/-1;font-family:var(--ui);font-size:15.5px;font-weight:700;}
+@media (max-width:620px){ .bug{grid-template-columns:1fr;} }
+
+/* Decisions and ideas */
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px;}
+.ask{list-style:none;margin:0;padding:0;}
+.ask li{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--line);}
+.ask li:first-child{border-top:0;}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--amber);margin-top:8px;flex:none;}
+.chips{display:flex;flex-wrap:wrap;gap:8px;padding:6px 0 12px;}
+.chip{padding:6px 12px;border-radius:999px;background:var(--chip);font-size:14px;font-weight:500;}
+
+/* Deploys in order */
+.deploys{list-style:none;margin:0;padding:4px 0 10px;display:grid;}
+.deploys li{display:grid;grid-template-columns:76px 14px 1fr;gap:0 10px;align-items:start;}
+.deploys .t{font-size:13px;font-weight:700;color:var(--ink-2);font-variant-numeric:tabular-nums;text-align:right;padding-top:9px;}
+.deploys .rail{position:relative;height:100%;}
+.deploys .rail::before{content:"";position:absolute;left:6px;top:0;bottom:0;width:2px;background:var(--line);}
+.deploys li:first-child .rail::before{top:14px;}
+.deploys li:last-child .rail::before{bottom:calc(100% - 14px);}
+.deploys .rail::after{content:"";position:absolute;left:2px;top:10px;width:10px;height:10px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px var(--card);}
+.deploys .d{padding:6px 0 8px;min-width:0;font-size:14.5px;}
+.deploys .d small{display:block;color:var(--ink-3);font-size:12.5px;}
+.foot{color:var(--ink-3);font-size:13px;text-align:center;}
+</style>
+
+<header class="band">
+  <div class="wrap" id="head"></div>
+</header>
+<main class="wrap" id="main"></main>
+
+<!-- The day's facts: /day-summary fills this in (tools/day_summary/README.md). -->
+<script type="application/json" id="day">__DAY_JSON__</script>
+<script>
+(function(){
+  var D = JSON.parse(document.getElementById('day').textContent);
+  var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
+  var I = {
+    hub: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18M8 4v5"/></svg>',
+    first: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M4.2 7.5l2.6 1.5M17.2 15l2.6 1.5M4.2 16.5l2.6-1.5M17.2 9l2.6-1.5"/><circle cx="12" cy="12" r="3.5"/></svg>',
+    live: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4 10-10"/></svg>',
+    bug: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="8" width="10" height="12" rx="5"/><path d="M9 8a3 3 0 0 1 6 0M3 13h4M17 13h4M4 7l3 2M20 7l-3 2M4 19l3-2M20 19l-3-2"/></svg>',
+    ask: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.01"/></svg>',
+    later: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4z"/></svg>',
+    deploy: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'
+  };
+  var pr = function(n){ return n ? '<span class="pr">#' + esc(n) + '</span>' : ''; };
+
+  document.getElementById('head').innerHTML =
+    '<div class="eyebrow">' + I.hub + 'CFA Buda Ops Hub · Day recap</div>' +
+    '<h1>' + esc(D.dayLong) + '</h1>' +
+    (D.lede ? '<p>' + esc(D.lede) + '</p>' : '') +
+    '<div class="stats">' + (D.stats || []).map(function(s){ return '<div class="stat"><b>' + esc(s.n) + '</b><span>' + esc(s.label) + '</span></div>'; }).join('') + '</div>';
+
+  var html = '';
+  if((D.tomorrow || []).length){
+    html += '<section class="card first"><h2><span class="ic">' + I.first + '</span>Before the next shift</h2><ul class="todo">' +
+      D.tomorrow.map(function(t){ return '<li><span class="box" aria-hidden="true"></span><div><b>' + esc(t.title) + '</b>' + (t.how ? '<span>' + esc(t.how) + '</span>' : '') + '</div></li>'; }).join('') + '</ul></section>';
+  }
+  if((D.areas || []).length){
+    html += '<section><h2 class="sr" style="font-size:24px;margin:0 2px 10px;display:flex;align-items:center;gap:10px;"><span class="ic">' + I.live + '</span>What went live</h2><div class="areas">' +
+      D.areas.map(function(a){ return '<article class="card area"><h3>' + esc(a.name) + '</h3>' +
+        a.items.map(function(it){ return '<div class="item"><span class="when">' + esc(it.when || '') + '</span><div class="what"><b>' + esc(it.title) + '</b>' + pr(it.pr) + (it.by ? '<span class="by">' + esc(it.by) + '</span>' : '') + (it.what ? '<p>' + esc(it.what) + '</p>' : '') + '</div></div>'; }).join('') +
+        '</article>'; }).join('') + '</div></section>';
+  }
+  if((D.bugs || []).length){
+    html += '<section class="card"><h2><span class="ic">' + I.bug + '</span>Bugs found and fixed<small>' + D.bugs.length + '</small></h2><div class="bugs">' +
+      D.bugs.map(function(b){ return '<div class="bug"><h3>' + esc(b.title) + pr(b.pr) + '</h3><div class="was"><div class="lbl">What happened</div>' + esc(b.was) + '</div><div class="fix"><div class="lbl">Fix</div>' + esc(b.fix) + '</div></div>'; }).join('') + '</div></section>';
+  }
+  html += '<div class="two">';
+  if((D.waiting || []).length){
+    html += '<section class="card"><h2><span class="ic">' + I.ask + '</span>Waiting on you</h2><ul class="ask">' +
+      D.waiting.map(function(w){ return '<li><span class="dot" aria-hidden="true"></span><span>' + esc(w) + '</span></li>'; }).join('') + '</ul></section>';
+  }
+  if((D.later || []).length){
+    html += '<section class="card"><h2><span class="ic">' + I.later + '</span>Saved for later</h2><div class="chips">' +
+      D.later.map(function(l){ return '<span class="chip">' + esc(l) + '</span>'; }).join('') + '</div></section>';
+  }
+  html += '</div>';
+  if((D.deploys || []).length){
+    html += '<section class="card"><h2><span class="ic">' + I.deploy + '</span>Deploys in order<small>' + esc(D.deployNote || '') + '</small></h2><ol class="deploys">' +
+      D.deploys.map(function(d){ return '<li><span class="t">' + esc(d.when) + '</span><span class="rail" aria-hidden="true"></span><div class="d">' + esc(d.title) + pr(d.pr) + (d.note ? '<small>' + esc(d.note) + '</small>' : '') + '</div></li>'; }).join('') + '</ol></section>';
+  }
+  if(D.foot) html += '<p class="foot">' + esc(D.foot) + '</p>';
+  document.getElementById('main').innerHTML = html;
+})();
+</script>
