@@ -168,11 +168,21 @@ function stateSnapshot(){
 
 // {section: JSON string}, keys in a fixed order so an unchanged section
 // always serializes the same way.
+// A key the server has never had, still empty here ({} or []), isn't a
+// change: a new saved setting starts that way on every phone, and a phone
+// that may not save it (callIns, Set Ups' section, on a Team Member's) would
+// otherwise hold it as unsent forever (Oct 25 2026, #248).
+const stateEmpty = v => (Array.isArray(v) && !v.length) || (v && typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length);
 function stateSections(snapshot){
   const out = {};
   Object.entries(STATE_SECTIONS).forEach(([name, keys])=>{
     const part = {};
-    keys.forEach(k => { if(k in snapshot) part[k] = snapshot[k] === undefined ? null : snapshot[k]; });
+    const base = stateBase[name];
+    keys.forEach(k => {
+      if(!(k in snapshot)) return;
+      if(base && !stateHas(base, k) && stateEmpty(snapshot[k])) return;
+      part[k] = snapshot[k] === undefined ? null : snapshot[k];
+    });
     if(name === 'misc') Object.keys(snapshot).forEach(k => { if(!STATE_SECTION_OF[k]) part[k] = snapshot[k] === undefined ? null : snapshot[k]; });
     out[name] = JSON.stringify(part);
   });
