@@ -51,6 +51,10 @@ function acApplyStatus(d){
   }
   if(typeof renderRightNow === 'function') renderRightNow();   // the card is the signed-in person's
   if(typeof scSyncVisibility === 'function') scSyncVisibility();   // Safe Count: not for Team Members or Trainers
+  // Who has left, for every list that offers people (state-and-utils.js teamHasLeft).
+  if((siIdentity.name || siIdentity.device) && typeof teamNamesLoad === 'function'){
+    afterIdle(() => teamNamesLoad().then(() => { if(teamLeftList.length && typeof stateRerender === 'function') stateRerender(); }));
+  }
 }
 function acInitials(name){
   const parts = String(name || '').trim().split(/\s+/).filter(Boolean);

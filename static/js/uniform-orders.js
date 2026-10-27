@@ -124,7 +124,7 @@ function uoId(){ return 'uo-' + Date.now().toString(36) + Math.random().toString
 function uoRosterNames(){
   const names = new Set();
   [fohRoster, bohRoster].forEach(r => Object.values(r || {}).forEach(day => (Array.isArray(day) ? day : []).forEach(p => { if(p && p.name) names.add(String(p.name).trim()); })));
-  return [...names].filter(Boolean).sort((a, b) => a.localeCompare(b));
+  return [...names].filter(n => n && !(typeof teamHasLeft === 'function' && teamHasLeft(n))).sort((a, b) => a.localeCompare(b));   // not who has left
 }
 
 // ----- The page (in Forms) -----

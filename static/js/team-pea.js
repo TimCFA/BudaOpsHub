@@ -111,7 +111,7 @@ function tpRaters(q){
   const strength = tpStrength();
   const rows = ldRatings().filter(r => r.date >= b.from && r.date <= b.to && r.leader && dirKey(r.leader) !== dirKey(r.employee));
   const names = new Map();
-  const add = n => { const k = dirKey(n); if(k && !names.has(k)) names.set(k, n); };
+  const add = n => { const k = dirKey(n); if(k && !names.has(k) && !(typeof teamHasLeft === 'function' && teamHasLeft(n))) names.set(k, n); };   // not who has left
   rows.forEach(r => add(r.leader));
   if(typeof ldLeaderNames === 'function') ldLeaderNames(q).forEach(add);
   Object.keys(strength).forEach(n => { if(/^(Team Lead|Trainer)$/i.test(strength[n].role || '')) add(n); });
@@ -161,7 +161,7 @@ function tpTeam(q){
   const now = tpStrength(b.to), start = tpStrength(tpDayBefore(b.from));
   const rows = ldRatings().filter(r => r.date >= b.from && r.date <= b.to);
   const leaderKeys = new Set(typeof ldLeaderNames === 'function' ? ldLeaderNames(q).map(dirKey) : []);
-  const people = Object.keys(now).map(name => {
+  const people = Object.keys(now).filter(name => !(typeof teamHasLeft === 'function' && teamHasLeft(name))).map(name => {   // not who has left
     const p = now[name], s = start[name];
     const k = dirKey(name);
     const mine = rows.filter(r => dirKey(r.employee) === k);

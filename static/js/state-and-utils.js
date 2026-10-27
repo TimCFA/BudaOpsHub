@@ -108,6 +108,28 @@ if(initialsBadgeEl){
   initialsBadgeEl.addEventListener('click', () => { if(typeof siOpen === 'function') siOpen(); });
 }
 
+// ----- Who has left (Tim, Oct 25 2026) -----
+// Someone logged as a departure in Our Team is off the clock-in PIN list,
+// and every list that offers people leaves them out: Set Ups, call-ins,
+// Levelset / PEA lists, leaders, points, forms. The server's list
+// (/api/team/names `departed`, or Our Team's own data) reaches signed-in
+// devices only. teamHasLeft(name, iso): left by that day (after their last
+// day); without a day, by today. Someone who gave notice, with a last day
+// still to come, is on the team until then (Tim, Oct 26 2026).
+let teamLeftList = [];     // [{name, lastDay}]
+function teamLeftSet(list){
+  teamLeftList = (Array.isArray(list) ? list : []).map(x => typeof x === 'string' ? {name: x, lastDay: ''} : x).filter(x => x && x.name);
+}
+function teamHasLeft(name, iso){
+  if(!name || !teamLeftList.length) return false;
+  const k = String(name).normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const hit = teamLeftList.find(x => {
+    const xk = String(x.name).normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase().replace(/\s+/g, ' ');
+    return xk === k || (typeof rnSame === 'function' && rnSame(x.name, name));
+  });
+  return !!hit && (!hit.lastDay || (iso || today) > hit.lastDay);
+}
+
 // ----- The phone's keyboard (Tim, Oct 25 2026) -----
 // On iOS the keyboard covers the bottom of the screen, and a sheet pinned to
 // the bottom (Add Team Member, Sign in, an event, the spot picker) ended up

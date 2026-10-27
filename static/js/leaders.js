@@ -214,9 +214,9 @@ function ldFocusFor(name, q){ const f = leaderFocus[`${dirKey(name)}__${q || ldQ
 function ldListDecides(){ return ldRoster().some(r => r && dirKey(r.name)); }
 
 function ldLeaderNames(q){
-  if(!ldListDecides()) return ldInferredLeaderNames(q);
+  if(!ldListDecides()) return ldInferredLeaderNames(q).filter(n => !(typeof teamHasLeft === 'function' && teamHasLeft(n)));
   const names = new Map();
-  const add = n => { const k = dirKey(n); if(k && !names.has(k)) names.set(k, n); };
+  const add = n => { const k = dirKey(n); if(k && !names.has(k) && !(typeof teamHasLeft === 'function' && teamHasLeft(n))) names.set(k, n); };   // not who has left
   ldRoster().forEach(r => add(r.name));
   [fohRoster, bohRoster].forEach(rost => Object.values(rost).forEach(list => (Array.isArray(list) ? list : []).forEach(p => { if(p.leader) add(p.name); })));
   return [...names.values()];
