@@ -54,6 +54,7 @@ function siWhy(keys){
 
 function siRender(){
   if(typeof renderInitialsBadge === 'function') renderInitialsBadge();
+  if(typeof rlSyncTab === 'function') rlSyncTab();     // Roles: Team Leads and up
   const sheet = document.getElementById('siSheet');
   if(sheet && sheet.classList.contains('active')) siDraw();
   siRenderSettings();
