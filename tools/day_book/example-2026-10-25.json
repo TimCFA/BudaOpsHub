@@ -1,0 +1,363 @@
+{
+ "day": {
+  "id": "2026-10-25",
+  "date": "2026-10-25",
+  "headline": "14 merges, the biggest day yet",
+  "merges": 14,
+  "build": "fa6ebbf4d71a",
+  "buildMatches": true,
+  "liveCheck": "Live site checked at 10:15 PM Central: the server's build matches the last merge of the day (#252). Each of the 14 deploys landed after close on a Sunday, and the live check after #248 caught one bug (fixed in #250)."
+ },
+ "items": [
+  {
+   "kind": "shipped",
+   "area": "Home / Right Now",
+   "title": "Today's events at the top of Right Now",
+   "body": "A navy 'Today on the calendar' block on every Right Now card shows what's on, with its status: starts in an hour, happening now, all day, ended. Tomorrow's events show too, and one tap opens the event. Built after an event on a Thursday was missed. In Spanish on the kitchen card.",
+   "pr": "#239 #241",
+   "time": "4:54 PM"
+  },
+  {
+   "kind": "shipped",
+   "area": "Home / Right Now",
+   "title": "Right Now points leaders to the Schedule tab",
+   "body": "Directors, Team Leads and the admin team see 'N on the schedule · see who's working' and tap through. The roster no longer expands inside the card.",
+   "pr": "#245",
+   "time": "7:22 PM"
+  },
+  {
+   "kind": "shipped",
+   "area": "Set Ups",
+   "title": "Set Ups is bulletproof against lost changes",
+   "body": "A new shift simulator runs several phones through a flaky database, lost signal, reloads and a deploy overlap. It found four ways changes were lost and all four are fixed: a deploy can't overwrite a save, unsent changes survive a reload, the 'all saved' check is honest, and a stuck save gives up and retries. Set Ups also opens faster: 1.3 s down to 0.8 s on a slow phone.",
+   "pr": "#231 #234",
+   "time": "2:54 PM"
+  },
+  {
+   "kind": "shipped",
+   "area": "Set Ups",
+   "title": "Only Team Leads and up change Set Ups",
+   "body": "Positions, Lead Captain, position notes, zone owners and the roster are Team Leads', directors' and the admin team's to change, whether 'Require sign-in' is on or off. Everyone else sees the board and who leads. The server drops anyone else's changes and sends the board back. Breaks still follow the main switch.",
+   "pr": "#235 #243",
+   "time": "6:06 PM"
+  },
+  {
+   "kind": "shipped",
+   "area": "Set Ups",
+   "title": "Add Team Member picks from the team",
+   "body": "Names come from the PIN list and imported schedules as you type, and typed initials are gone everywhere. An off-list name needs 'Not on the list? Add anyway'.",
+   "pr": "#243",
+   "time": "6:06 PM"
+  },
+  {
+   "kind": "shipped",
+   "area": "Set Ups",
+   "title": "The daypart banner says what's actually open",
+   "body": "It counted every filled spot and read 8/9 while three spots sat red. Now it says '3 open' in red while spots are empty and goes grey once the daypart is over. 'Lead: choose' only shouts for the current and next daypart. Line icons replace the emoji.",
+   "pr": "#247",
+   "time": "6:53 PM"
+  },
+  {
+   "kind": "shipped",
+   "area": "Schedule",
+   "title": "A Schedule tab, while HotSchedules is down",
+   "body": "A team member signed in with their clock-in PIN sees their shifts this week and next. Anyone can pick a day to see who's working Front, Back and Truck. A stopgap built because HotSchedules stopped showing people their shifts. In Spanish too.",
+   "pr": "#233 #234",
+   "time": "2:54 PM"
+  },
+  {
+   "kind": "shipped",
+   "area": "Schedule",
+   "title": "Who's working, and tap a name for their week",
+   "body": "Schedule's roster now looks like Right Now's. Tap a name to see their shifts, days off, shift count and hours.",
+   "pr": "#245",
+   "time": "7:22 PM"
+  },
+  {
+   "kind": "shipped",
+   "area": "Schedule",
+   "title": "Not working today: a call-in list with Called / Coming in / Can't",
+   "body": "Leaders, directors and the admin team see everyone on the PIN list with no shift that day, fewest hours first, 35 h+ marked. Three buttons per name mark who you called, who's coming in and who can't, saved for every device so two leaders don't call the same person. 'Coming in' opens Set Ups with Add Team Member prefilled.",
+   "pr": "#245 #248",
+   "time": "7:58 PM"
+  },
+  {
+   "kind": "shipped",
+   "area": "Our Team",
+   "title": "PIN on file: see who's missing one, set it without seeing it",
+   "body": "Directors and the admin team see how many people on the schedule have a clock-in PIN and who doesn't, with a Set PIN button on each profile. The PIN is never shown or sent back, and one already in use is refused without saying whose.",
+   "pr": "#236",
+   "time": "3:41 PM"
+  },
+  {
+   "kind": "shipped",
+   "area": "Our Team",
+   "title": "Log a departure picks who left from the team",
+   "body": "A type-ahead from the PIN list, profiles and the last eight weeks of schedules replaces free typing, which barely worked on iPhones. It sets the role too.",
+   "pr": "#251",
+   "time": "9:26 PM"
+  },
+  {
+   "kind": "shipped",
+   "area": "Sign-in",
+   "title": "Sign in with your name, not initials",
+   "body": "Anyone signed in gets their real name on what they log: waste, zone checks, notes, prep. The badge becomes a sign-in sheet that takes a clock-in PIN, and sign-ins on personal phones last until signed out. Manage has a 'Require sign-in' switch, shipped off, with a who-still-needs-a-PIN list and shared-device controls.",
+   "pr": "#237 #241",
+   "time": "4:54 PM"
+  },
+  {
+   "kind": "shipped",
+   "area": "Sign-in",
+   "title": "The sign-in sheet opens itself; Google one tap for the store domain",
+   "body": "A phone nobody is signed in on sees the sign-in sheet (PIN or Google) at most once a day. Accounts on the store's Google Workspace get 'Continue as…'. A personal Gmail is never offered, and nothing is offered on shared devices.",
+   "pr": "#242",
+   "time": "5:01 PM"
+  },
+  {
+   "kind": "shipped",
+   "area": "Behind the scenes",
+   "title": "Deploys re-send only what changed",
+   "body": "Home took 9 seconds after every deploy because phones downloaded all 85 files again. Each file now carries its own fingerprint, so a one-script deploy costs under a second on a slow phone.",
+   "pr": "#232 #234",
+   "time": "2:54 PM"
+  },
+  {
+   "kind": "shipped",
+   "area": "Behind the scenes",
+   "title": "/day-summary: a plain-words recap of a day",
+   "body": "A command that gathers the day's merges, open PRs and whether the live build matches, and writes What we did today / Waiting on you / Saved for later / For tomorrow. This page grew out of it.",
+   "pr": "#252",
+   "time": "9:44 PM"
+  },
+  {
+   "kind": "shipped",
+   "area": "Behind the scenes",
+   "title": "Friday and Saturday service runs to 11 PM in the deploy rules",
+   "body": "The no-merge window in the project's rules now covers Friday and Saturday to 11 PM, as you said on Oct 23.",
+   "pr": "#230 #234",
+   "time": "2:54 PM"
+  },
+  {
+   "kind": "fixed",
+   "area": "Set Ups",
+   "title": "A deploy could erase saves taken during the restart",
+   "body": "For about a minute the old and new servers overlap, and the new one's startup copy wrote over saves the old one took. The simulator lost dozens of spots in one run. Anyone saving Set Ups mid-deploy was exposed. Saves are now conditional, and a losing write re-applies its changes.",
+   "pr": "#231 #234",
+   "time": "2:54 PM"
+  },
+  {
+   "kind": "fixed",
+   "area": "Set Ups",
+   "title": "Signed-out devices could pick the shift leader",
+   "body": "A device nobody signed in on, a Team Member or a Trainer could pick or clear the Lead Captain. Now Team Leads and directors only, enforced on the server, and Fill no longer picks a lead for anyone else.",
+   "pr": "#235",
+   "time": "3:17 PM"
+  },
+  {
+   "kind": "fixed",
+   "area": "Manage",
+   "title": "Trainees' shifts were skipped on roster import",
+   "body": "A new hire's 'In Training' shift says neither Front nor Back, so with no history every shift was skipped as unrecognized. The review window now lists those trainees with FOH / BOH buttons; one tap places all their shifts, tagged In training.",
+   "pr": "#238",
+   "time": "4:23 PM"
+  },
+  {
+   "kind": "fixed",
+   "area": "Home / Right Now",
+   "title": "Right Now said a director wasn't working",
+   "body": "It read only the Front and Back schedules, so an office shift didn't count. It now reads all four schedules, lists several shifts in time order and matches names with or without accents.",
+   "pr": "#240 #241",
+   "time": "4:54 PM"
+  },
+  {
+   "kind": "fixed",
+   "area": "Sign-in",
+   "title": "The Google sign-in button sometimes never appeared",
+   "body": "When the one-time status request failed (lost signal, a deploy restart) neither the button nor the 'or' line drew. The client ID now ships in the page, the check retries and runs again on reconnect, and a 'Try again' link appears if Google's script fails.",
+   "pr": "#237 #241",
+   "time": "4:54 PM"
+  },
+  {
+   "kind": "fixed",
+   "area": "Manage",
+   "title": "'Require sign-in' hid in Settings after a Manage PIN sign-in",
+   "body": "Settings drawn before the sign-in didn't show the switch until a reload. Fixed in the same push that removed typed initials.",
+   "pr": "#243",
+   "time": "6:06 PM"
+  },
+  {
+   "kind": "fixed",
+   "area": "Behind the scenes",
+   "title": "A dropped change on a never-saved section crashed the save",
+   "body": "When the server dropped a lead-only change from a section it had never stored, the reply failed with a server error. Fixed before it reached anyone.",
+   "pr": "#243",
+   "time": "6:06 PM"
+  },
+  {
+   "kind": "fixed",
+   "area": "Set Ups",
+   "title": "A note being typed could be redrawn mid-typing",
+   "body": "The half-minute arrival redraw looked for a dialog class the page doesn't have, so it could redraw while someone typed a note. It now checks the real dialog state and waits out a drag.",
+   "pr": "#247",
+   "time": "6:53 PM"
+  },
+  {
+   "kind": "fixed",
+   "area": "Behind the scenes",
+   "title": "Sheets hid behind the iPhone keyboard",
+   "body": "The keyboard covered bottom-pinned sheets, including the Add Team Member name box. Sheets now sit in the visible area above the keyboard and the box being typed in scrolls into view. Checked in a headless browser only, not yet on a real iPhone.",
+   "pr": "#244",
+   "time": "6:22 PM"
+  },
+  {
+   "kind": "fixed",
+   "area": "Behind the scenes",
+   "title": "Phones that can't save Set Ups retried an empty setting forever",
+   "body": "Caught by the live check after the call-in list shipped: the new setting started empty on every phone, the server dropped it from phones that may not change Set Ups, and the page kept it as unsent and kept retrying. No data was at risk. A key the server has never had now stays home while it's empty, which covers every future setting.",
+   "pr": "#250",
+   "time": "8:08 PM"
+  },
+  {
+   "kind": "waiting",
+   "area": "Behind the scenes",
+   "title": "Merge #253: /day-summary makes a recap page in the hub's look",
+   "body": "Tooling only (a template and an example for Oct 25), but any merge restarts the server. Your call on the window.",
+   "pr": "#253"
+  },
+  {
+   "kind": "waiting",
+   "area": "Sign-in",
+   "title": "Merge #249: a director's own clock-in PIN signs in as a director",
+   "body": "Fixes your own PIN signing you in as a Team Member. One trade-off to accept: anyone who can edit the Directors list can turn a name's 6-digit PIN into a director sign-in. Can ride the same window as #246. After merging, sign in on a phone with a director PIN and check the Director chip.",
+   "pr": "#249"
+  },
+  {
+   "kind": "waiting",
+   "area": "Manage",
+   "title": "Merge #246: the Directors brief looks ahead and says each gap once",
+   "body": "Directors page only. Sunday opens on the week ahead, past days aren't to-dos, one line per evening gap, 'Show N more', tiles two across. After-close window.",
+   "pr": "#246"
+  },
+  {
+   "kind": "waiting",
+   "area": "Sign-in",
+   "title": "Flip 'Require sign-in' on, once the PIN-on-file list is complete",
+   "body": "The switch shipped off. Before flipping: every Team Lead needs the Team Lead role on the PIN list (Our Team → Profiles), and every shared iPad needs 'Make this a shared device' in Manage → Settings, or logging waste on it will ask for a PIN.",
+   "ref": "TIM-90"
+  },
+  {
+   "kind": "waiting",
+   "area": "Set Ups",
+   "title": "Try the sheets above the keyboard on a real iPhone",
+   "body": "The fix was checked in a headless browser only. Open Add Team Member on your phone and type a name.",
+   "pr": "#244"
+  },
+  {
+   "kind": "waiting",
+   "area": "Behind the scenes",
+   "title": "Confirm the launch core list",
+   "body": "Proposed: Set Ups, saving and sync, sign-in, Home / Right Now, waste log entry. These get the lightning-fast, flawless bar before launch. Everything else stays good and grows long term.",
+   "ref": "TIM-102"
+  },
+  {
+   "kind": "waiting",
+   "area": "Schedule",
+   "title": "Decide what happens to the Schedule tab when HotSchedules recovers",
+   "body": "Remove it, or move it behind a setting in Manage so it can come back if HotSchedules breaks again.",
+   "ref": "TIM-106"
+  },
+  {
+   "kind": "todo",
+   "area": "Behind the scenes",
+   "title": "Core-first loading: Home, Set Ups, Lists and Waste first",
+   "body": "Your words: make the core feel like an immediate load and load the rest in secret. Today the core is about 215 KB and the leader tools about 375 KB, all loaded together.",
+   "ref": "TIM-104"
+  },
+  {
+   "kind": "todo",
+   "area": "Set Ups",
+   "title": "A cleaner view-only Set Ups board for team members and trainers",
+   "body": "The permission half shipped today. The clean read-only design that 'looks cleaner because it requires less customization' has not.",
+   "ref": "TIM-105"
+  },
+  {
+   "kind": "todo",
+   "area": "Sign-in",
+   "title": "Finish 'Require sign-in for every save'",
+   "body": "Step 1 (PIN on file) and the switch shipped. Still in progress: the rollout plan and the day the switch flips.",
+   "ref": "TIM-90"
+  },
+  {
+   "kind": "todo",
+   "area": "Behind the scenes",
+   "title": "Save outside the shared lock, one lock per section",
+   "body": "The 15-second database timeout shipped. The second half, moving the network write out of the one shared lock so a slow write can't stall every phone, is still to do. About half a day.",
+   "ref": "TIM-94"
+  },
+  {
+   "kind": "todo",
+   "area": "Behind the scenes",
+   "title": "Close out TIM-95: conditional saves shipped",
+   "body": "Conditional writes went live today, but the Linear issue still sits in Backlog. Mark it done or note what's left.",
+   "ref": "TIM-95"
+  },
+  {
+   "kind": "todo",
+   "area": "Behind the scenes",
+   "title": "Tests on every change: a required check before merge",
+   "body": "There's no CI. Every merge deploys and the house rules live in memory. A GitHub Action running the test suite as a required check, and deploys from an after-close workflow instead of auto-deploy.",
+   "ref": "TIM-96"
+  },
+  {
+   "kind": "todo",
+   "area": "Behind the scenes",
+   "title": "Security headers will need the early data request's hash",
+   "body": "The Set Ups speed-up put one small inline script in the page head. The Content Security Policy planned under TIM-99 has to allow it.",
+   "ref": "TIM-99"
+  },
+  {
+   "kind": "idea",
+   "area": "Schedule",
+   "title": "Phone numbers on the call-in list",
+   "body": "The Not-working list can't call anyone: the hub keeps no phone numbers, and the product brief forbids reading them from the HotSchedules export. If numbers are wanted, they'd be a new data source people enter on purpose, with care about who sees them."
+  },
+  {
+   "kind": "idea",
+   "area": "Set Ups",
+   "title": "Breaks as a lead action",
+   "body": "Everything else on Set Ups is lead-only now, but breaks still follow the main switch. Whether a team member may start and finish their own break is undecided."
+  },
+  {
+   "kind": "idea",
+   "area": "Set Ups",
+   "title": "Truck and Office on the Set Ups board",
+   "body": "Right Now now reads all four schedules, but Set Ups spots, breaks and zones still come from Front and Back only. Worth deciding whether truck shifts ever belong on the board."
+  },
+  {
+   "kind": "idea",
+   "area": "Set Ups",
+   "title": "Bring the pills layout back",
+   "body": "The old pills layout stayed in the code because the brief says it may come back. Decide whether it does, or let it go."
+  },
+  {
+   "kind": "idea",
+   "area": "Other",
+   "title": "A bilingual leader reads over the Spanish",
+   "body": "From the product brief's open items: the kitchen station words need a native check ('Zona de Pantillas' likely should be 'Zona de Tablas'), and Zone Resets, Safe Count, Home and Manage aren't translated yet."
+  },
+  {
+   "kind": "idea",
+   "area": "Our Team",
+   "title": "A tab for each Team Leader role",
+   "body": "An action item from a conversation with one of the directors, still unstarted in Linear: each Team Leader role gets its own tab with what that role owns.",
+   "ref": "TIM-74"
+  },
+  {
+   "kind": "idea",
+   "area": "Manage",
+   "title": "Analytics Hub exports could cut the uploads",
+   "body": "Check what Analytics Hub already exports. Some of today's manual report uploads might go away.",
+   "ref": "TIM-73"
+  }
+ ]
+}
