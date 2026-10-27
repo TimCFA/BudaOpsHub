@@ -6,7 +6,7 @@ import os
 from . import create_app
 
 parser = argparse.ArgumentParser(description="TaskHub standalone server")
-parser.add_argument("--db", default=os.environ.get("TASKHUB_DB", "taskhub.db"))
+parser.add_argument("--db", default=os.environ.get("TASKHUB_DB", "taskhub.json"))
 parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "5055")))
 parser.add_argument("--no-seed", action="store_true", help="start with an empty database")
 args = parser.parse_args()

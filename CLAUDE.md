@@ -51,6 +51,16 @@ grotesque body (Figtree); both fonts stand in for Caecilia and Apercu until the
 brand fonts are licensed (swap `--font-display` / `--font-ui`). Line icons (inline
 SVG), never emoji. New components go in the theme's conventions.
 
+## Tasks
+
+The Tasks tab (`taskhub/`, `static/js/taskhub.js`, `static/css/taskhub.css`;
+`taskhub/README.md`) is delegation for the leadership team: boards, tasks with
+a person and a due date, assign → accept → blocked / done with a note to the
+other side. Its data is its own Firebase tree (`taskhub/<table>/<id>`), not a
+saved-state section, so it never touches `/api/state/sync` or Set Ups; who
+someone is comes from the hub's session (app.py `_taskhub_me`). Tests:
+`tests/test_taskhub.py` (rules and API) and `tests/test_tasks_tab.py` (wiring).
+
 ## Deploying
 
 Merging to `main` deploys to Render and restarts the server for about a

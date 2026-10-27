@@ -4,76 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TaskHub</title>
-<link rel="stylesheet" href="{{ url_for('taskhub.static', filename='taskhub.css') }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/taskhub.css">
+<style>body{margin:0;background:#F6F1E8;} .th-standalone{max-width:1100px;margin:0 auto;padding:16px 20px 60px;}</style>
 </head>
-<body data-api="{{ api_base }}">
-
-<header class="th-top">
-  <div class="th-brand">
-    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="m16 16 2 2 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <span>TaskHub</span>
-  </div>
-
-  <nav class="th-tabs" role="tablist" aria-label="Views">
-    <button data-view="board" role="tab" class="is-active">Board</button>
-    <button data-view="list" role="tab">List</button>
-    <button data-view="mine" role="tab">My Tasks <span class="th-count" id="mineCount" hidden></span></button>
-  </nav>
-
-  <div class="th-tools">
-    <label class="th-field th-board-pick">
-      <span class="sr-only">Board</span>
-      <select id="boardSelect" aria-label="Board"></select>
-    </label>
-    <label class="th-field th-search">
-      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      <input id="search" type="search" placeholder="Search tasks" autocomplete="off">
-    </label>
-    <button class="th-icon-btn" id="bellBtn" aria-label="Notifications" aria-haspopup="true">
-      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M10 20a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-      <span class="th-badge" id="bellBadge" hidden></span>
-    </button>
-    <label class="th-field th-me">
-      <span class="th-me-label">I am</span>
-      <select id="meSelect" aria-label="Who am I"></select>
-    </label>
-    <button class="th-btn th-btn-primary" id="newTaskBtn">
-      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
-      New task
-    </button>
-  </div>
-</header>
-
-<div class="th-filters" id="filters">
-  <select id="fAssignee" aria-label="Filter by person"><option value="">Everyone</option></select>
-  <select id="fStatus" aria-label="Filter by status">
-    <option value="">Any status</option>
-    <option value="open">Open</option>
-    <option value="accepted">Accepted</option>
-    <option value="blocked">Blocked</option>
-    <option value="done">Done</option>
-  </select>
-  <select id="fPriority" aria-label="Filter by priority">
-    <option value="">Any priority</option>
-    <option value="urgent">Urgent</option>
-    <option value="high">High</option>
-    <option value="normal">Normal</option>
-    <option value="low">Low</option>
-  </select>
-  <select id="fLabel" aria-label="Filter by label"><option value="">Any label</option></select>
-  <button class="th-link" id="clearFilters" hidden>Clear</button>
-  <span class="th-spacer"></span>
-  <button class="th-link" id="boardSettingsBtn">Board settings</button>
+<body>
+<div class="th-standalone">
+  <div id="tasksView" data-taskhub-api="{{ api_base }}"></div>
 </div>
-
-<main id="view" class="th-view" aria-live="polite"></main>
-
-<aside id="drawer" class="th-drawer" hidden aria-label="Task details"></aside>
-<div id="notifPanel" class="th-popover" hidden aria-label="Notifications"></div>
-<div id="modal" class="th-modal" hidden></div>
-<div id="scrim" class="th-scrim" hidden></div>
-<div id="toast" class="th-toast" role="status" aria-live="polite" hidden></div>
-
-<script src="{{ url_for('taskhub.static', filename='taskhub.js') }}"></script>
+<script src="/static/js/taskhub.js"></script>
+<script>TaskHub.mount(document.getElementById('tasksView'));</script>
 </body>
 </html>

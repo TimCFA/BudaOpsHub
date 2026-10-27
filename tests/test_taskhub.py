@@ -5,12 +5,12 @@ from datetime import date
 
 from taskhub import create_app
 from taskhub.service import Conflict, Forbidden, NotFound, TaskHub, TaskHubError, due_bucket
-from taskhub.store import Store
+from taskhub.store import FirebaseBackend, JsonFileBackend, MemoryBackend, Store, StoreUnavailable
 
 
 class HubBase(unittest.TestCase):
     def setUp(self):
-        self.hub = TaskHub(Store(":memory:"))
+        self.hub = TaskHub(Store(MemoryBackend()))
         self.lead = self.hub.add_member("Lead", "leader", "lead")
         self.ana = self.hub.add_member("Ana", "member", "ana")
         self.ben = self.hub.add_member("Ben", "member", "ben")
@@ -239,7 +239,7 @@ class Views(HubBase):
 
 class HttpApi(unittest.TestCase):
     def setUp(self):
-        self.app = create_app(":memory:")
+        self.app = create_app()
         self.app.testing = True
         self.c = self.app.test_client()
         self.hub = self.app.extensions["taskhub"]
@@ -256,9 +256,9 @@ class HttpApi(unittest.TestCase):
     def test_page_and_static_serve(self):
         r = self.c.get("/taskhub/")
         self.assertEqual(r.status_code, 200)
-        self.assertIn(b'data-api="/taskhub/api"', r.data)
-        self.assertEqual(self.c.get("/taskhub/static/taskhub.js").status_code, 200)
-        self.assertEqual(self.c.get("/taskhub/static/taskhub.css").status_code, 200)
+        self.assertIn(b'data-taskhub-api="/taskhub/api"', r.data)
+        self.assertEqual(self.c.get("/static/js/taskhub.js").status_code, 200)
+        self.assertEqual(self.c.get("/static/css/taskhub.css").status_code, 200)
         self.assertEqual(self.c.get("/").status_code, 302)
 
     def test_bootstrap_identifies_me(self):
@@ -295,7 +295,7 @@ class HttpApi(unittest.TestCase):
         r = self.req("post", "/tasks", json={"board_id": self.board["id"], "title": ""})
         self.assertEqual((r.status_code, r.get_json()["error"]), (400, "title is required"))
         self.assertEqual(self.req("get", "/tasks/nope").status_code, 404)
-        self.assertEqual(self.c.get("/taskhub/api/my-tasks").status_code, 400)
+        self.assertEqual(self.c.get("/taskhub/api/my-tasks").status_code, 401)
         r = self.req("post", "/tasks/x/move", json={})
         self.assertEqual(r.status_code, 400)
 
@@ -332,7 +332,7 @@ class HttpApi(unittest.TestCase):
         self.assertEqual(len(self.req("get", "/members?all=1").get_json()), 3)
 
     def test_seeded_demo_is_consistent(self):
-        app = create_app(":memory:", seed=True)
+        app = create_app(seed=True)
         hub = app.extensions["taskhub"]
         self.assertEqual(len(hub.boards()), 2)
         self.assertTrue(all(hub.board(t["board_id"]) for t in hub.tasks()))
@@ -341,19 +341,153 @@ class HttpApi(unittest.TestCase):
         hub.store.close()
 
 
-class FileStore(unittest.TestCase):
-    def test_file_backed_store_persists(self):
+class Backends(unittest.TestCase):
+    def test_json_file_backend_persists(self):
         import os, tempfile
         with tempfile.TemporaryDirectory() as d:
-            path = os.path.join(d, "t.db")
-            hub = TaskHub(Store(path))
+            path = os.path.join(d, "t.json")
+            hub = TaskHub(Store(JsonFileBackend(path)))
             hub.add_member("A", "admin", "a")
             b = hub.add_board("B")
             t = hub.create_task("a", {"board_id": b["id"], "title": "persist me", "labels": ["x"]})
-            hub2 = TaskHub(Store(path))
+            hub2 = TaskHub(Store(JsonFileBackend(path)))
             again = hub2.task(t["id"])
             self.assertEqual((again["title"], again["labels"]), ("persist me", ["x"]))
             self.assertEqual(hub2.member("a")["name"], "A")
+
+    def test_firebase_backend_writes_one_record_per_change(self):
+        """Each record under taskhub/<table>/<id>; a change touches only its
+        own path, and a cold start reads the tree once."""
+        tree, log = {}, []
+
+        class Ref:
+            def __init__(self, path): self.parts = path.strip("/").split("/")
+            def get(self):
+                node = tree
+                for p in self.parts:
+                    node = node.get(p) if isinstance(node, dict) else None
+                    if node is None: return None
+                return node
+            def set(self, value):
+                log.append(("set", "/".join(self.parts)))
+                node = tree
+                for p in self.parts[:-1]: node = node.setdefault(p, {})
+                node[self.parts[-1]] = value
+            def delete(self):
+                log.append(("delete", "/".join(self.parts)))
+                node = tree
+                for p in self.parts[:-1]: node = node.get(p, {})
+                node.pop(self.parts[-1], None)
+
+        hub = TaskHub(Store(FirebaseBackend(Ref)))
+        hub.add_member("A", "admin", "a")
+        b = hub.add_board("B")
+        t = hub.create_task("a", {"board_id": b["id"], "title": "cloud", "labels": [], "checklist": []})
+        self.assertIn(("set", f"taskhub/tasks/{t['id']}"), log)
+        self.assertIn(("set", f"taskhub/activity/{hub.activity(t['id'])[0]['id']}"), log)
+        log.clear()
+        hub.update_task("a", t["id"], {"title": "cloud 2"})
+        self.assertEqual([p for k, p in log if k == "set" and p.startswith("taskhub/tasks/")], [f"taskhub/tasks/{t['id']}"])
+        # Firebase keeps no empty lists: a fresh server fills them back in.
+        tree["taskhub"]["tasks"][t["id"]].pop("labels", None)
+        tree["taskhub"]["tasks"][t["id"]].pop("checklist", None)
+        hub2 = TaskHub(Store(FirebaseBackend(Ref)))
+        again = hub2.task(t["id"])
+        self.assertEqual((again["title"], again["labels"], again["checklist"]), ("cloud 2", [], []))
+        self.assertEqual(hub2.boards()[0]["name"], "B")
+        hub2.delete_task("a", t["id"])
+        self.assertIn(("delete", f"taskhub/tasks/{t['id']}"), log)
+        self.assertNotIn(t["id"], tree["taskhub"]["tasks"])
+
+    def test_unreadable_backend_serves_nothing_until_it_reads(self):
+        class Flaky:
+            calls = 0
+            def load(self):
+                Flaky.calls += 1
+                if Flaky.calls == 1: raise ConnectionError("down")
+                return {"boards": {"b1": {"id": "b1", "name": "Back", "columns": [{"id": "c", "name": "To Do", "kind": "todo"}], "archived": False, "created_at": "2026-01-01T00:00:00+00:00"}}}
+            def put(self, *a): pass
+            def delete(self, *a): pass
+        hub = TaskHub(Store(Flaky()))
+        with self.assertRaises(StoreUnavailable):
+            hub.boards()
+        self.assertEqual([b["name"] for b in hub.boards()], ["Back"])   # the next call reads again
+        app = create_app()
+        app.testing = True
+        Flaky.calls = 0
+        app.extensions["taskhub"].store = Store(Flaky())
+        app.extensions["taskhub"].store.backend = Flaky()
+        r = app.test_client().get("/taskhub/api/boards")
+        self.assertEqual(r.status_code, 503)
+        self.assertIn("Try again", r.get_json()["error"])
+
+
+class HostIdentity(unittest.TestCase):
+    """Inside the hub the server says who someone is and who can be given work."""
+
+    def setUp(self):
+        from flask import Flask
+        from taskhub import create_blueprint
+        self.people = [{"id": "p_tim", "name": "Tim Lane", "role": "director"},
+                       {"id": "p_ana", "name": "Ana Ruiz", "role": "lead"},
+                       {"id": "p_ben", "name": "Ben Cole", "role": "member"}]
+        self.who = None
+        self.hub = TaskHub(Store(MemoryBackend()), people=lambda: self.people)
+        app = Flask(__name__)
+        app.testing = True
+        app.register_blueprint(create_blueprint(hub=self.hub, resolve_member=lambda: self.who))
+        self.c = app.test_client()
+        self.board = self.hub.add_board("Ops")
+
+    def test_nobody_signed_in_can_look_but_not_act(self):
+        r = self.c.get("/taskhub/api/bootstrap")
+        self.assertEqual((r.get_json()["me"], r.get_json()["host"]), (None, True))
+        self.assertEqual([m["name"] for m in r.get_json()["members"]], ["Ana Ruiz", "Ben Cole", "Tim Lane"])
+        self.assertEqual(self.c.get(f"/taskhub/api/boards/{self.board['id']}").status_code, 200)
+        r = self.c.post("/taskhub/api/tasks", json={"board_id": self.board["id"], "title": "x"})
+        self.assertEqual((r.status_code, r.get_json()["error"]), (401, "Sign in to use Tasks."))
+        self.assertEqual(self.c.get("/taskhub/api/my-tasks").status_code, 401)
+        self.assertEqual(self.c.get("/taskhub/api/notifications").get_json(), {"items": [], "unread": 0})
+
+    def test_signed_in_person_is_remembered_with_the_hubs_role(self):
+        self.who = {"id": "p_ana", "name": "Ana Ruiz", "role": "lead"}
+        r = self.c.get("/taskhub/api/bootstrap")
+        self.assertEqual(r.get_json()["me"]["role"], "admin" if False else "leader")
+        self.assertEqual(self.hub.store.get_member("p_ana")["role"], "leader")
+        r = self.c.post("/taskhub/api/tasks", json={"board_id": self.board["id"], "title": "Count the safe", "assignee_id": "p_ben"})
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.get_json()["created_by"], "p_ana")
+        self.assertEqual(self.hub.notifications("p_ben")[0]["message"], "Ana Ruiz assigned you: Count the safe")
+        # A director (the hub's word) is an admin here: may accept for someone and delete anything.
+        self.who = {"id": "p_tim", "name": "Tim Lane", "role": "director"}
+        tid = r.get_json()["id"]
+        self.assertEqual(self.c.post(f"/taskhub/api/tasks/{tid}/accept").status_code, 200)
+        self.assertEqual(self.c.delete(f"/taskhub/api/tasks/{tid}").status_code, 204)
+
+    def test_someone_off_the_list_keeps_their_name(self):
+        self.who = {"id": "p_ben", "name": "Ben Cole", "role": "member"}
+        t = self.c.post("/taskhub/api/tasks", json={"board_id": self.board["id"], "title": "Mop", "assignee_id": "p_ben"}).get_json()
+        self.people = [p for p in self.people if p["id"] != "p_ben"]      # Ben's PIN came off the list
+        self.who = {"id": "p_tim", "name": "Tim Lane", "role": "director"}
+        members = self.c.get("/taskhub/api/bootstrap").get_json()["members"]
+        ben = next(m for m in members if m["id"] == "p_ben")
+        self.assertEqual((ben["name"], ben["active"]), ("Ben Cole", False))   # still named, no longer offered
+        self.assertEqual(self.c.get(f"/taskhub/api/tasks/{t['id']}").get_json()["assignee_id"], "p_ben")
+        self.assertEqual([m["id"] for m in self.c.get("/taskhub/api/members").get_json()], ["p_ana", "p_tim"])
+
+    def test_a_renamed_or_promoted_person_updates_on_their_next_request(self):
+        self.who = {"id": "p_ben", "name": "Ben Cole", "role": "member"}
+        self.c.get("/taskhub/api/bootstrap")
+        self.who = {"id": "p_ben", "name": "Benjamin Cole", "role": "lead"}
+        self.c.get("/taskhub/api/bootstrap")
+        self.assertEqual((self.hub.store.get_member("p_ben")["name"], self.hub.store.get_member("p_ben")["role"]), ("Benjamin Cole", "leader"))
+
+    def test_today_is_the_phones_day_not_the_servers(self):
+        self.who = {"id": "p_ana", "name": "Ana Ruiz", "role": "lead"}
+        self.c.post("/taskhub/api/tasks", json={"board_id": self.board["id"], "title": "Tonight", "assignee_id": "p_ana", "due_at": "2026-10-27"})
+        late = self.c.get("/taskhub/api/my-tasks?today=2026-10-27").get_json()["assigned"]
+        self.assertEqual([t["title"] for t in late["today"]], ["Tonight"])
+        self.assertEqual(self.c.get("/taskhub/api/my-tasks?today=yesterday").status_code, 400)
 
 
 if __name__ == "__main__":

@@ -1,99 +1,97 @@
-# TaskHub
+# TaskHub: the Tasks tab
 
-A self-contained task delegation module: boards with columns, tasks with
-assignees, due dates, priorities, labels and checklists, a delegation flow
-(assign → accept → blocked / done), comments, an activity log, per-person
-notifications, and a "My Tasks" view. Flask + SQLite on the back, vanilla JS
-on the front. No build step, no external services.
+Delegation for the leadership team: boards with columns, tasks with a
+person, a due date, a priority, labels and a checklist, a delegation flow
+(assign → accept → blocked / done) that tells the other side at each step,
+comments, an activity log, per-person notifications, and a My Tasks view.
 
-## Run it standalone
+Flask blueprint under `/taskhub/api` (this folder); the screen is
+`static/js/taskhub.js` with `static/css/taskhub.css`, mounted into the hub's
+`#tasksView` when the Tasks tab opens (`navigation.js` → `thActivate`).
 
-    python3 -m taskhub                 # http://localhost:5055/taskhub/  (seeded demo data)
-    python3 -m taskhub --no-seed       # empty database
-    python3 -m taskhub --db ops.db --port 8000
+## How it sits in the hub
 
-Pick who you are in the top bar ("I am"). That stands in for a login until the
-module is wired to real authentication.
+- **Data** lives in Firebase under `taskhub/<table>/<id>` (tasks, boards,
+  comments, activity, notifications, members), read once on a cold start
+  and kept in memory like the saved state in app.py. A change writes only
+  its own record, so two servers overlapping during a deploy can't wipe
+  each other's tasks. It is not part of `STATE_SECTIONS` and never goes
+  through `/api/state/sync`; the page polls `/taskhub/api` every 15 seconds
+  while the tab is open.
+- **Who you are** is the hub's session (app.py `_taskhub_me`): a clock-in
+  PIN or Google director by name, the shared manager PIN as "Director".
+  Nobody signed in can look at a board but not act; My Tasks asks them to
+  sign in. Hub roles map to three here: director / manager / Admin Team →
+  admin, Team Lead → leader, Trainer / Team Member → member. Admins and
+  leaders may accept on someone's behalf and delete any task; members
+  delete only what they created.
+- **Who can be given work** (app.py `_taskhub_people`): the PIN list plus
+  the Directors list, keyed by `_taskhub_key(name)` (a hash of the name as
+  the hub matches names). Someone whose PIN comes off the list keeps their
+  name on old tasks but is no longer offered.
+- **Look**: the theme's tokens (`--cfa-*`, `--font-display`, `--font-ui`),
+  so dark mode follows; the few status tints are set for both modes in
+  `taskhub.css`. Line icons only.
+- **The tab's count** is what's overdue or due today for whoever is signed
+  in, loaded after idle on every page load.
+- **Spanish**: English only for now (it's a leadership tool, not a BOH
+  screen); the tab carries "Tareas" like every other tab.
+
+## Standalone (no hub, no Firebase)
+
+    python3 -m taskhub                 # http://localhost:5055/taskhub/ with demo people and work
+    python3 -m taskhub --no-seed       # empty
+    python3 -m taskhub --db ops.json   # data in a JSON file
+
+The demo page has an "I am" picker in place of the hub's sign-in.
 
 ## Tests
 
-    python3 -m unittest tests.test_taskhub
+    python3 -m unittest tests.test_taskhub tests.test_tasks_tab
 
-## How it fits into a host app
+`test_taskhub.py` covers the rules and the API; `test_tasks_tab.py` the hub
+wiring (tab, view, scripts, session → identity, people, Firebase records).
 
-The module exposes one Flask blueprint. The host provides one function that
-returns the current member's id:
-
-```python
-from taskhub import create_blueprint
-
-app.register_blueprint(create_blueprint(
-    db_path="taskhub.db",
-    resolve_member=lambda: session.get("member_id"),  # whatever the host's auth is
-))
-```
-
-Everything is then served under `/taskhub/` (page) and `/taskhub/api/...`
-(JSON). Members are created through the API (`POST /taskhub/api/members`)
-or by the host at login, using the host's own user ids as member ids so
-assignments line up with real accounts.
-
-Styling is namespaced (`th-*`) and driven by CSS variables on `:root`
-(`--th-accent`, `--th-bg`, `--th-font`, …), so the host can re-skin it by
-overriding those variables after `taskhub.css` loads.
-
-## Layout
+## Files
 
 | File | Role |
 | --- | --- |
-| `store.py` | SQLite persistence. The only file with SQL in it. |
-| `service.py` | Business rules: delegation flow, activity, notifications, views. |
-| `api.py` | HTTP routes. Thin: parse, call the service, return JSON. |
+| `store.py` | Records in memory, written through to a backend: `MemoryBackend`, `JsonFileBackend`, `FirebaseBackend`. |
+| `service.py` | The rules: delegation flow, activity, notifications, views, host people and roles. |
+| `api.py` | HTTP routes. Thin: parse, call the service, return JSON. 401 without a person, 503 while Firebase can't be read. |
 | `seed.py` | Demo data for the standalone app. |
-| `static/taskhub.js` | The UI: board (drag and drop), list, My Tasks, task drawer, notifications. |
-| `static/taskhub.css` | Styles, light and dark, phone layout. |
-| `templates/taskhub.html` | The single page. |
+| `templates/taskhub.html` | The standalone page only. |
 
 ## The delegation flow
 
-| Action | Who | Status after | Who gets notified |
+| Action | Who | Status after | Who hears |
 | --- | --- | --- | --- |
-| Create with assignee | anyone | open | assignee |
-| Accept | assignee (or a leader) | accepted | creator |
-| Pick up (unassigned task) | anyone | accepted, assigned to them | creator |
-| Blocked… (with a reason) | assignee | blocked | creator |
-| Unblock | assignee | accepted | creator and assignee |
-| Complete, or drag to a Done column | assignee | done | creator |
-| Reopen, or drag out of Done | anyone | open | creator and assignee |
-| Reassign | anyone | open | new assignee, previous assignee |
-| Comment | anyone | unchanged | everyone on the task except the author |
-| Edit title / due / priority / labels / checklist | anyone | unchanged | assignee |
+| Create with a person | anyone signed in | open | the person |
+| Accept | the person (or a leader) | accepted | whoever assigned it |
+| Pick up (unassigned) | anyone | accepted, theirs | whoever created it |
+| Blocked… (with a reason) | the person | blocked | whoever assigned it |
+| Unblock | the person | accepted | both |
+| Complete, or drag to a Done column | the person | done | whoever assigned it |
+| Reopen, or drag out of Done | anyone | open | both |
+| Reassign | anyone | open | new and previous person |
+| Comment | anyone | unchanged | everyone on the task but the author |
+| Edit title / due / priority / labels / checklist | anyone | unchanged | the person |
 
-Roles: `admin` and `leader` can accept on someone's behalf and delete any
-task; `member` can delete only tasks they created.
+## API
 
-## API summary
+Under `/taskhub/api`; the session says who you are.
 
-All under `/taskhub/api`. Identify yourself with the `X-Taskhub-Member`
-header (or `?me=` for GET) until real auth is wired in.
-
-- `GET  /bootstrap` → me, members, boards, unread count
-- `GET|POST /members`, `PATCH /members/<id>`
-- `GET|POST /boards`, `GET|PATCH /boards/<id>`, `POST /boards/<id>/columns`,
-  `PATCH|DELETE /boards/<id>/columns/<col>`
-- `GET  /boards/<id>/tasks`
-- `POST /tasks`, `GET|PATCH|DELETE /tasks/<id>` (PATCH accepts `version` and
-  returns 409 if the task changed underneath you)
+- `GET /bootstrap` → me, host, members, boards, unread
+- `GET|POST /boards`, `GET|PATCH /boards/<id>`, `POST /boards/<id>/columns`, `PATCH|DELETE /boards/<id>/columns/<col>`
+- `GET /boards/<id>/tasks`, `POST /tasks`, `GET|PATCH|DELETE /tasks/<id>` (PATCH takes `version`; 409 if it changed underneath you)
 - `POST /tasks/<id>/move` `{column_id, before_id?, after_id?}`
 - `POST /tasks/<id>/assign|accept|block|unblock|complete|reopen`
 - `GET|POST /tasks/<id>/comments`, `GET /tasks/<id>/activity`
-- `GET  /my-tasks` → `{assigned: {overdue, today, week, later, none, done}, delegated}`
-- `GET  /search?q=&assignee=&status=&label=&board=&priority=`
-- `GET  /notifications`, `POST /notifications/read` `{ids?}`
+- `GET /my-tasks?today=YYYY-MM-DD` (the phone's day) → `{assigned: {overdue, today, week, later, none, done}, delegated}`
+- `GET /search?q=&assignee=&status=&label=&board=&priority=`
+- `GET /notifications`, `POST /notifications/read` `{ids?}`
 
-## Not in phase one
+## Not yet
 
-Recurring tasks, templates, attachments, email or push notifications,
-real-time sync (the page polls every 15 seconds), reporting. Each has a
-clean place to land: the service layer for rules, the notification table
-for delivery channels.
+Recurring tasks, templates, attachments, push or email, a row on Home's
+Right Now card, Spanish inside the tab, reporting.

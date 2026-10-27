@@ -11,6 +11,10 @@ from datetime import date, datetime, timedelta, timezone
 
 from .store import Store, new_id, now_iso
 
+# How the hub's roles map onto TaskHub's three (app.py ROLES).
+HOST_ROLE = {"director": "admin", "manager": "admin", "admin": "admin", "owner": "admin",
+             "lead": "leader", "leader": "leader", "trainer": "member", "member": "member"}
+
 PRIORITIES = ("low", "normal", "high", "urgent")
 STATUSES = ("open", "accepted", "blocked", "done")
 ROLES = ("admin", "leader", "member")
@@ -76,18 +80,52 @@ def due_bucket(due_at: str | None, today: date | None = None) -> str:
 
 
 class TaskHub:
-    def __init__(self, store: Store):
+    def __init__(self, store: Store, people=None):
+        """`people`, when the host gives one, is a function returning the
+        people who can be assigned work: [{id, name, role}], with the host's
+        roles. The members table then only remembers names for people who
+        have since left the list, so their old tasks still read right."""
         self.store = store
+        self.people = people
 
     # -- members -----------------------------------------------------------
 
+    def _host_people(self) -> dict[str, dict]:
+        if not self.people:
+            return {}
+        out = {}
+        for p in self.people() or []:
+            if not p.get("id") or not p.get("name"):
+                continue
+            out[p["id"]] = {"id": p["id"], "name": p["name"], "role": HOST_ROLE.get(p.get("role"), "member"),
+                            "active": True, "created_at": p.get("created_at") or ""}
+        return out
+
     def members(self, include_inactive: bool = False) -> list[dict]:
-        return self.store.list_members(include_inactive)
+        if not self.people:
+            return self.store.list_members(include_inactive)
+        people = self._host_people()
+        out = list(people.values())
+        if include_inactive:
+            out += [dict(m, active=False) for m in self.store.list_members(True) if m["id"] not in people]
+        return sorted(out, key=lambda m: m["name"].lower())
 
     def member(self, member_id: str) -> dict:
-        m = self.store.get_member(member_id)
+        m = self._host_people().get(member_id) if self.people else None
+        m = m or self.store.get_member(member_id)
         if not m:
             raise NotFound(f"no member {member_id}")
+        return m
+
+    def ensure_member(self, member_id: str, name: str, role: str) -> dict:
+        """Remember who someone is (the host told us), so names outlive the
+        host's own lists. Writes only when something changed."""
+        role = HOST_ROLE.get(role, role if role in ROLES else "member")
+        m = self.store.get_member(member_id)
+        if m is None:
+            return self.store.add_member(name, role, member_id)
+        if m["name"] != name or m["role"] != role or not m.get("active", True):
+            return self.store.update_member(member_id, {"name": name, "role": role, "active": True})
         return m
 
     def add_member(self, name: str, role: str = "member", id_: str | None = None) -> dict:
@@ -116,14 +154,18 @@ class TaskHub:
     def _name(self, member_id: str | None) -> str:
         if not member_id:
             return "Someone"
-        m = self.store.get_member(member_id)
-        return m["name"] if m else "Someone"
+        try:
+            return self.member(member_id)["name"]
+        except NotFound:
+            return "Someone"
 
     def can_manage(self, actor_id: str | None) -> bool:
         if not actor_id:
             return False
-        m = self.store.get_member(actor_id)
-        return bool(m and m["role"] in ("admin", "leader"))
+        try:
+            return self.member(actor_id)["role"] in ("admin", "leader")
+        except NotFound:
+            return False
 
     # -- boards ------------------------------------------------------------
 
@@ -517,9 +559,16 @@ class TaskHub:
         return self.store.mark_read(member_id, ids)
 
     def bootstrap(self, member_id: str | None) -> dict:
+        me = None
+        if member_id:
+            try:
+                me = self.member(member_id)
+            except NotFound:
+                me = None
         return {
-            "me": self.store.get_member(member_id) if member_id else None,
-            "members": self.members(),
+            "me": me,
+            "host": bool(self.people),
+            "members": self.members(include_inactive=True),
             "boards": self.boards(),
             "unread": self.unread_count(member_id) if member_id else 0,
             "server_time": now_iso(),

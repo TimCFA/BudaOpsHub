@@ -1,18 +1,17 @@
-"""TaskHub: a self-contained task delegation module (Flask blueprint + vanilla JS).
+"""TaskHub: task delegation for the Ops Hub (Flask blueprint + vanilla JS).
 
-Standalone:
-    python3 -m taskhub            # serves http://localhost:5055/taskhub/
-
-Mounted inside another Flask app:
-    from taskhub import create_blueprint
+In the hub (app.py):
+    from taskhub import create_blueprint, FirebaseBackend
     app.register_blueprint(create_blueprint(
-        db_path="taskhub.db",
-        resolve_member=lambda: session.get("member_id"),   # your auth
+        backend=FirebaseBackend(lambda path: db.reference(path)),
+        resolve_member=...,   # {id, name, role} from the hub's session, or None
+        people=...,           # [{id, name, role}]: who can be given work
     ))
+The page is the hub's own: a Tasks tab, a #tasksView, and
+static/js/taskhub.js + static/css/taskhub.css.
 
-`resolve_member` is the only seam the host needs to provide. It returns the
-current member's id (or None). The default reads the `X-Taskhub-Member`
-header or a `me` query parameter, which is what the standalone demo uses.
+Standalone, for development and demos (no hub, no Firebase):
+    python3 -m taskhub            # http://localhost:5055/taskhub/
 """
 
 from __future__ import annotations
@@ -23,17 +22,21 @@ from flask import Flask
 
 from .api import create_blueprint
 from .service import TaskHub
-from .store import Store
+from .store import FirebaseBackend, JsonFileBackend, MemoryBackend, Store
 
-__all__ = ["create_blueprint", "create_app", "TaskHub", "Store"]
+__all__ = ["create_blueprint", "create_app", "TaskHub", "Store",
+           "FirebaseBackend", "JsonFileBackend", "MemoryBackend"]
+
+REPO_STATIC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static")
 
 
 def create_app(db_path: str | None = None, seed: bool = False) -> Flask:
-    """Standalone app for development, demos and tests."""
-    app = Flask(__name__)
-    db_path = db_path or os.environ.get("TASKHUB_DB", ":memory:")
-    store = Store(db_path)
-    hub = TaskHub(store)
+    """Standalone app: the hub's static folder (for taskhub.js and .css),
+    a JSON file for data (or memory when db_path is None), and the demo
+    people with an "I am" picker in place of the hub's sign-in."""
+    app = Flask(__name__, static_folder=REPO_STATIC, static_url_path="/static")
+    backend = JsonFileBackend(db_path) if db_path else MemoryBackend()
+    hub = TaskHub(Store(backend))
     if seed:
         from .seed import seed_demo
         seed_demo(hub)
