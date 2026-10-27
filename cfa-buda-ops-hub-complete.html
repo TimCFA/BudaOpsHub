@@ -80,8 +80,10 @@
 
       <!-- Tools (Tim, Oct 23 2026): the pages that work the numbers for us: the
            Prep Board, Know the Numbers, the Forecast and CEM Insights, as pills
-           at the top (launch-mode.js LAUNCH_TOOLS). Full site only (Oct 27). -->
+           at the top (launch-mode.js LAUNCH_TOOLS). On the simplified site only
+           the Prep Board, as its own tab (Oct 27). -->
       <button type="button" class="tab full-only" role="tab" aria-selected="false" aria-controls="prepboardView" data-view="prepboard" data-views="prepboard knownumbers forecast cem">Tools <span class="sub"><i>Herramientas</i></span></button>
+      <button type="button" class="tab launch-only" role="tab" aria-selected="false" aria-controls="prepboardView" data-view="prepboard">Prep Board <span class="sub"><i>Preparación</i></span></button>
 
       <div class="tab-group full-only" data-group="experience">
         <button type="button" class="tab-group-label" aria-haspopup="true" aria-expanded="false">Experience <span class="chevron-mini">▾</span></button>
@@ -94,8 +96,8 @@
 
       <button type="button" class="tab full-only" role="tab" aria-selected="false" aria-controls="scoreboardView" data-view="scoreboard">Scoreboard <span class="sub"><i>Tableros</i></span></button>
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="calendarView" data-view="calendar">Calendar <span class="sub"><i>Calendario</i></span></button>
-      <!-- Forms (forms.js; Tim, Oct 21 2026): Submissions for directors, managers and the Admin Team. Full site only (Oct 27). -->
-      <button type="button" class="tab full-only" role="tab" aria-selected="false" aria-controls="formsView" data-view="forms">Forms <span class="sub"><i>Formularios</i></span></button>
+      <!-- Forms (forms.js; Tim, Oct 21 2026): everyone fills them out; Submissions for directors, managers and the Admin Team. -->
+      <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="formsView" data-view="forms">Forms <span class="sub"><i>Formularios</i></span></button>
       <!-- Our Team (headcount, departures, profiles and food handler permits): directors, the manager PIN and the Admin Team (headcount.js hcSyncTab). -->
       <button type="button" class="tab hc-only" role="tab" aria-selected="false" aria-controls="headcountView" data-view="headcount">Our Team <span class="sub"><i>Equipo</i></span></button>
       <button type="button" class="tab manager-only" role="tab" aria-selected="false" aria-controls="directorsView" data-view="directors">Directors <span class="sub"><i>Directores</i></span></button>

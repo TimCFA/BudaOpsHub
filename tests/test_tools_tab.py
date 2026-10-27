@@ -21,12 +21,15 @@ LAUNCH = read('static', 'js', 'launch-mode.js')
 
 
 class Tools(unittest.TestCase):
-    def test_one_tab_on_the_full_site_only(self):
-        # Tim, Oct 27 2026: no Tools on the simplified site; a link to one of its pages opens Home.
+    def test_tools_on_the_full_site_the_prep_board_on_both(self):
+        # Tim, Oct 27 2026: no Tools on the simplified site, but the Prep Board
+        # stays, as its own tab; a link to the rest opens Home.
         tab = re.search(r'<button[^>]*data-views="prepboard knownumbers forecast cem"[^>]*>Tools <span class="sub"><i>Herramientas</i></span>', PAGE)
         self.assertTrue(tab)
         self.assertIn('class="tab full-only"', tab.group(0))
-        self.assertIn("const LAUNCH_FULL_ONLY_VIEWS = ['prepboard', 'knownumbers', 'forecast', 'cem', 'forms', 'uniforms'];", LAUNCH)
+        self.assertIn('<button type="button" class="tab launch-only" role="tab" aria-selected="false" aria-controls="prepboardView" data-view="prepboard">Prep Board', PAGE)
+        self.assertIn("const LAUNCH_FULL_ONLY_VIEWS = ['knownumbers', 'forecast', 'cem'];", LAUNCH)
+        self.assertIn("'prepboard'", LAUNCH.split('const LAUNCH_VIEWS')[1].split(';')[0])
         self.assertIn("if(typeof launchIsOn === 'function' && launchIsOn() && LAUNCH_FULL_ONLY_VIEWS.includes(view)) view = 'home';", read('static', 'js', 'navigation.js'))
 
     def test_moved_out_of_lists_oe_and_the_tab_bar(self):
@@ -41,7 +44,7 @@ class Tools(unittest.TestCase):
         self.assertEqual(re.findall(r"view: '(\w+)'", tools), ['prepboard', 'knownumbers', 'forecast', 'cem'])
         self.assertEqual(re.findall(r"view: '(\w+)'[^}]*leaders: true", tools), ['knownumbers'])   # Team Leads and up
         self.assertIn("|| (l.leaders && typeof knPageShown === 'function' && !knPageShown());", LAUNCH)
-        self.assertEqual(re.findall(r"view: '(\w+)'[^}]*full: true", tools), ['forecast', 'cem'])
+        self.assertEqual(re.findall(r"view: '(\w+)'[^}]*full: true", tools), ['knownumbers', 'forecast', 'cem'])
         self.assertIn('|| (l.full && launchIsOn())', LAUNCH)
         self.assertIn('nav.hidden = shown.length < 2;', LAUNCH)          # the team's one tool: no pill row
         for view in ('prepboard', 'knownumbers', 'forecast', 'cem'):
