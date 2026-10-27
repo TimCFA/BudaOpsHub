@@ -1,4 +1,5 @@
 function activateView(view){
+  if(typeof launchIsOn === 'function' && launchIsOn() && LAUNCH_FULL_ONLY_VIEWS.includes(view)) view = 'home';
   // Directors is managers-only (Tim, Oct 2026); the Calendar is for
   // everyone (Oct 18). Uniform orders moved into Forms (Oct 23): a link to
   // the old tab opens them there.

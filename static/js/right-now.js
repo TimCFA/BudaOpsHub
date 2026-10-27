@@ -482,10 +482,12 @@ function rnKitchenCard(day){
   const rows = [];
   if(!day.closed){
     const prep = rnPrepLeft();
+    // The Prep Board is on the full site only (Tim, Oct 27 2026): here the line just reads.
+    const prepGo = typeof launchIsOn === 'function' && launchIsOn() ? '' : 'prepboard';
     if(prep){
       rows.push(prep.left.length
-        ? rnRow(String(prep.units), `still to prep: ${prep.left.slice(0, 3).map(x => `${x.name} ${x.left}`).join(' · ')}${prep.left.length > 3 ? ` · ${prep.left.length - 3} more` : ''}`, esText('Still to prep', prep.units), 'prepboard', 'warn')
-        : rnRow('0', 'All prep made for today', esText('All prep made today'), 'prepboard', 'ok'));
+        ? rnRow(String(prep.units), `still to prep: ${prep.left.slice(0, 3).map(x => `${x.name} ${x.left}`).join(' · ')}${prep.left.length > 3 ? ` · ${prep.left.length - 3} more` : ''}`, esText('Still to prep', prep.units), prepGo, 'warn')
+        : rnRow('0', 'All prep made for today', esText('All prep made today'), prepGo, 'ok'));
     }
     const br = rnBreaksLeft('boh', day.now);
     if(br.total){

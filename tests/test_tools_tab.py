@@ -21,11 +21,13 @@ LAUNCH = read('static', 'js', 'launch-mode.js')
 
 
 class Tools(unittest.TestCase):
-    def test_one_tab_on_both_sites(self):
+    def test_one_tab_on_the_full_site_only(self):
+        # Tim, Oct 27 2026: no Tools on the simplified site; a link to one of its pages opens Home.
         tab = re.search(r'<button[^>]*data-views="prepboard knownumbers forecast cem"[^>]*>Tools <span class="sub"><i>Herramientas</i></span>', PAGE)
         self.assertTrue(tab)
-        self.assertNotIn('launch-only', tab.group(0))
-        self.assertNotIn('full-only', tab.group(0))
+        self.assertIn('class="tab full-only"', tab.group(0))
+        self.assertIn("const LAUNCH_FULL_ONLY_VIEWS = ['prepboard', 'knownumbers', 'forecast', 'cem', 'forms', 'uniforms'];", LAUNCH)
+        self.assertIn("if(typeof launchIsOn === 'function' && launchIsOn() && LAUNCH_FULL_ONLY_VIEWS.includes(view)) view = 'home';", read('static', 'js', 'navigation.js'))
 
     def test_moved_out_of_lists_oe_and_the_tab_bar(self):
         self.assertIn('data-views="zonereset foodsafety safecount">Lists', PAGE)

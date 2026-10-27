@@ -262,7 +262,11 @@ class InStep(unittest.TestCase):
         self.assertIn('<div class="view" id="formsView">', page)
         self.assertIn('data-manage-go="forms" aria-selected="false">Forms</button>', page)
         self.assertIn('<script src="/static/forms/form-definitions.js"></script>\n<script src="/static/forms/forms-engine.js"></script>\n<script src="/static/js/forms.js"></script>', page)
-        self.assertIn("'forms'", read('static', 'js', 'launch-mode.js').split('const LAUNCH_VIEWS')[1].split(';')[0])
+        # Full site only (Tim, Oct 27 2026): no Forms tab on the simplified site.
+        self.assertIn('class="tab full-only" role="tab" aria-selected="false" aria-controls="formsView"', page)
+        launch = read('static', 'js', 'launch-mode.js')
+        self.assertNotIn("'forms'", launch.split('const LAUNCH_VIEWS')[1].split(';')[0])
+        self.assertIn("'forms'", launch.split('const LAUNCH_FULL_ONLY_VIEWS')[1].split(';')[0])
         self.assertIn("if(typeof fmSync === 'function') fmSync();", read('static', 'js', 'fohoe-and-safecount.js'))
         self.assertIn('.fm-page .of-root,.of-toast{--of-bg:var(--cfa-bg);', read('static', 'css', 'theme-cfa.css'))
 

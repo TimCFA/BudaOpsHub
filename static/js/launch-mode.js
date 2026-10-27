@@ -1,9 +1,10 @@
 // ===== LAUNCH MODE =====
 // While the team is getting started, the site shows only Home and the
-// essentials: Set Ups, Waste, Lists, Tools and the store's Calendar. The Lists tab opens Zone Reset &
-// Walkthroughs in one tap; Food Safety Walkthrough and Daily Safe Count are
-// pills at the top of each list page. Tools opens the Prep Board (on the full
-// site, the Forecast and CEM Insights are pills beside it). Everything else is still there:
+// essentials: Set Ups, Schedule, Waste, Lists and the store's Calendar. The
+// Lists tab opens Zone Reset & Walkthroughs in one tap; Food Safety
+// Walkthrough and Daily Safe Count are pills at the top of each list page.
+// Tools (the Prep Board, Know the Numbers, the Forecast, CEM Insights) and
+// Forms are on the full site only (Tim, Oct 27 2026). Everything else is still there:
 // a device signed in with the manager PIN (Manage tab) sees every tab again,
 // and a manager can turn launch mode off for everyone in Manage.
 //
@@ -15,7 +16,9 @@
 // (app.py PRIVATE_SECTIONS), so signing in fetches it right away, and
 // locking reloads the page to clear it from the device.
 
-const LAUNCH_VIEWS = ['home', 'positions', 'schedule', 'wastelog', 'scoreboard', 'zonereset', 'foodsafety', 'safecount', 'prepboard', 'knownumbers', 'calendar', 'forms', 'manage', 'headcount'];
+const LAUNCH_VIEWS = ['home', 'positions', 'schedule', 'wastelog', 'scoreboard', 'zonereset', 'foodsafety', 'safecount', 'calendar', 'manage', 'headcount'];
+// Off the simplified site (Tim, Oct 27 2026): a link to one opens Home.
+const LAUNCH_FULL_ONLY_VIEWS = ['prepboard', 'knownumbers', 'forecast', 'cem', 'forms', 'uniforms'];
 // Zone Resets and the Leader Transition List share a view; `page` picks
 // which of its cards show (data-launch-page on the cards).
 const LAUNCH_LISTS = [
