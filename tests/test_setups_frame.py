@@ -95,30 +95,40 @@ class StatusRow(unittest.TestCase):
 
 
 class ChipRow(unittest.TestCase):
-    def test_changes_chip_and_event_chips_in_one_row(self):
+    """Tim, Oct 26 2026: no row of pills over the cards (the day's events are on
+    the daypart cards) and no list of every shift change ("can't decipher the
+    information at one glance"). The row holds "N spots to fix" when someone
+    off today is still placed, and the phone's FOH/BOH switch."""
+
+    def test_row_is_the_fix_chip_and_the_switch(self):
         board = read('static', 'js', 'setups-board.js')
         fn = block(board, 'function suChipsRowHtml(section, date){', '\n}\n')
-        self.assertIn("rosterChangesChipHtml(section, date) : '') + suDayEventChipsHtml(date)", fn)
-        self.assertIn('<div class="su-chips-row" aria-label="Today">${chips}</div>', fn)
-        self.assertIn("return eventsAllDay(date).map(eventChipHtml).join('');", board)
+        self.assertIn("rosterFixChipHtml(section, date)", fn)
+        self.assertIn('<div class="su-chips-line">${fix}${suSideSwitchHtml(section)}</div>', fn)
         self.assertEqual(board.count('${suChipsRowHtml(section, date)}'), 2)     # the Set up view and Coach
-        for gone in ('suAllDayEventsHtml', 'su-day-events', 'rosterChangesHtml(section, date)'):
+        for gone in ('suDayEventChipsHtml', 'rosterChangesChipHtml', 'rosterChangesBodyHtml', 'su-chips-row', '.ev-chip'):
             self.assertNotIn(gone, board)
-        self.assertIn("const evChip = t.closest('.su-chips-row .ev-chip');\n  if(evChip){ evChip.classList.toggle('is-full'); return; }", board)
-
-    def test_changes_chip_opens_the_list_below(self):
         rc = read('static', 'js', 'roster-changes.js')
-        chip = block(rc, 'function rosterChangesChipHtml(side, date){', '\n}\n')
-        self.assertIn("""<button type="button" class="su-rowchip su-chip-changes ${rcOpen ? 'is-open' : ''}" data-rc-toggle="1" aria-expanded="${rcOpen}">""", chip)
-        self.assertIn('<span class="su-changes-count" aria-label="${n} change${n === 1 ? \'\' : \'s\'}">${n}</span>', chip)
-        self.assertIn("Shift changes${esHtml('Shift changes')}", chip)
-        body = block(rc, 'function rosterChangesBodyHtml(side, date){', '\n}\n')
-        self.assertIn("if(!rcOpen || (!changes.length && !otherN)) return '';", body)
-        self.assertIn('<div class="su-changes is-open" role="note">', body)
-        self.assertNotIn('su-changes-head', rc)
-        css = read('static', 'css', 'theme-cfa.css')
-        self.assertIn('.su-chip-changes{border-color:#C47A00;color:#8A5600;background:#FFF8EA;}', css)
-        self.assertIn('.su-chips-row{display:flex;align-items:center;gap:6px;overflow-x:auto;', css)
+        for gone in ('rosterChangesHtml', 'rcOpen', 'data-rc-reset', 'still placed:'):
+            self.assertNotIn(gone, rc)
+        css = read('static', 'css', 'theme-cfa.css') + read('static', 'css', 'main.css')
+        for gone in ('.su-changes', '.su-chip-changes', '.su-chips-row'):
+            self.assertNotIn(gone, css)
+
+    def test_all_day_events_on_the_cards(self):
+        board = read('static', 'js', 'setups-board.js')
+        fn = block(board, 'function suEventsLineHtml(section, date, dp, i){', '\n}\n')
+        self.assertIn("[...(typeof eventsAllDay === 'function' ? eventsAllDay(date) : []), ...eventsInWindow(date, startMin, endMin)]", fn)
+
+    def test_off_today_on_the_spot(self):
+        board = read('static', 'js', 'setups-board.js')
+        self.assertIn("off: typeof rosterIsOff === 'function' && names.some(n => rosterIsOff(date, section, n)),", board)
+        self.assertIn("${t.off ? `<span class=\"su-off-tag\">Off today${esLine('Off today')}</span>` : ''}", board)
+        # A spot held only by someone off counts as open on its card.
+        self.assertIn("return !!v && !(typeof rosterIsOff === 'function' && suSplitNames(v).every(n => rosterIsOff(date, section, n)));", board)
+        self.assertIn("if(t.closest('[data-rc-fix]')){", board)
+        sheet = read('static', 'js', 'setups-sheet.js')
+        self.assertIn("${x.off && !target ? `<span class=\"su-off-tag\">Off today${esLine('Off today')}</span>` : ''}", sheet)
 
 
 class DaypartCards(unittest.TestCase):
@@ -159,7 +169,7 @@ class DaypartCards(unittest.TestCase):
         filled/on shift as before; the Coach chips say the same thing."""
         board = read('static', 'js', 'setups-board.js')
         count = block(board, 'function suDaypartOpenCount(section, date, dp, i){', '\n}\n')
-        self.assertIn("const open = slots.slice(0, onShift).filter(s => !posAssignments[key + '||' + s]).length;", count)
+        self.assertIn("const open = slots.slice(0, onShift).filter(s => !held(s)).length;", count)
         text = block(board, 'function suDaypartFillText(section, date, dp, i, count){', '\n}\n')
         self.assertIn("return open ? `${open} open${esLine('N open', open)}` : onShift ? `${filled}/${onShift}` : filled ? `${filled} placed${esLine('N placed', filled)}` : '—';", text)
         self.assertIn("""`<span class="su-dp-fill ${count.open && !suDaypartIsOver(section, date, dp) ? 'is-short' : ''}">""", board)
@@ -216,7 +226,7 @@ class DaypartCards(unittest.TestCase):
         cards = block(board, 'function suDaypartCardsHtml(section, date){', '\n}\n')
         self.assertIn("if(date === today && !open.size && !suCardsTouched[section]){\n    const now = suDefaultDaypart(section, date);\n    open.add(now);\n    suSelectedDaypart[section] = now;\n    suAutoOpened = now;", cards)
         self.assertEqual(board.count('suCardsTouched[sec] = true;'), 1)
-        self.assertEqual(board.count('suCardsTouched[currentPosSection] = true;'), 1)
+        self.assertEqual(board.count('suCardsTouched[currentPosSection] = true;'), 2)   # a daypart tapped, or "N spots to fix" opening one
         self.assertIn("suCardsTouched = {foh: false, boh: false};", block(board, 'function suCurrentDaypart(section, date){', '\n}\n'))
         card = block(board, 'function suDaypartCardHtml(section, date, dp, i, open, openHtml, m, pill){', '\n}\n')
         self.assertIn("const isNow = date === today && suDefaultDaypart(section, date) === dp.name;", card)
@@ -239,7 +249,7 @@ class DaypartCards(unittest.TestCase):
 class Spanish(unittest.TestCase):
     def test_boh_phrases_are_in_the_glossary(self):
         es = read('static', 'js', 'spanish.js')
-        for key in ('projected', 'per labor hour', 'Shift changes', 'Checking', 'none on SIDE', 'N still placed', 'since the schedule was posted'):
+        for key in ('projected', 'per labor hour', 'Shift changes', 'Checking', 'Off today', 'N spots to fix'):
             self.assertIn(f"'{key}':", es)
 
 
@@ -269,7 +279,6 @@ class SideSwitch(unittest.TestCase):
 
     def test_switch_at_the_end_of_the_chip_row(self):
         js = read('static', 'js', 'setups-board.js')
-        self.assertIn('<div class="su-chips-line">${chips ? `<div class="su-chips-row" aria-label="Today">${chips}</div>` : \'\'}${suSideSwitchHtml(section)}</div>', js)
         self.assertIn('role="switch" aria-checked="${boh}"', js)
         self.assertIn("if(t.closest('[data-su-side]')){", js)
 

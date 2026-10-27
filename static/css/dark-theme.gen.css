@@ -10,11 +10,6 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .su-week-toggle-btn.active,:where(html[data-theme="dark"]) .week-toggle-btn.active{color:var(--ink-dark-red);}
 :where(html[data-theme="dark"]) .day-pill:hover{color:var(--ink-dark-red);}
 :where(html[data-theme="dark"]) .su-mode-btn.active{color:var(--cfa-bg);}
-:where(html[data-theme="dark"]) .su-changes-flag{color:var(--ink-red);}
-:where(html[data-theme="dark"]) .su-changes-head .su-changes-flag{color:var(--ink-red);}
-:where(html[data-theme="dark"]) .su-changes-ic.is-on{color:#78D091;}
-:where(html[data-theme="dark"]) .su-changes-ic.is-off{color:var(--ink-red);}
-:where(html[data-theme="dark"]) .su-changes-ic.is-time,:where(html[data-theme="dark"]) .su-changes-ic.is-swap{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .su-dp{--sky:linear-gradient(135deg,#1F2C3D,#222830);}
 :where(html[data-theme="dark"]) .su-col-eb{--sky:linear-gradient(135deg,#453423,#3B2F1E);}
 :where(html[data-theme="dark"]) .su-col-b{--sky:linear-gradient(135deg,#484025,#3A331E);}
@@ -242,7 +237,9 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .rn-roster-ic{background:rgba(29,29,29,0.14);}
 :where(html[data-theme="dark"]) .rn-rg-h{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .su-strip-arrow:hover{color:var(--ink-dark-red);}
-:where(html[data-theme="dark"]) .su-chip-changes{color:#FFC059;background:#362F20;}
+:where(html[data-theme="dark"]) .su-chip-fix{border-color:#692D39;background:#342225;color:var(--ink-dark-red);}
+:where(html[data-theme="dark"]) .su-row.is-off,:where(html[data-theme="dark"]) .su-tile.is-off{background:#2D2425;}
+:where(html[data-theme="dark"]) .su-row.is-off .su-row-name > :first-child,:where(html[data-theme="dark"]) .su-tile.is-off .su-tile-name{text-decoration-color:rgba(255,48,94,0.55);}
 :where(html[data-theme="dark"]) .su-dp-brief-lead{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .su-dp-brief-lead.is-none{color:var(--ink-red);}
 :where(html[data-theme="dark"]) #allDayparts .su-sheet-list .su-rowwrap:has(.su-row.is-needed){border-color:#692D39;}

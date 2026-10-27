@@ -243,8 +243,6 @@ html[data-theme="dark"]{--cfa-white:#1D1D1D;--cfa-bg:#262626;--cfa-light:#222222
 :where(html[data-theme="dark"]) .gx-fs-tier.is-elite,:where(html[data-theme="dark"]) .gx-fs-tier.is-great{color:#71E08B;}
 :where(html[data-theme="dark"]) .gx-fs-tier.is-fair{color:#FFC559;}
 :where(html[data-theme="dark"]) .gx-fs-tier.is-bad{color:#E6574F;}
-:where(html[data-theme="dark"]) .su-changes-warn{color:#EF7E58;}
-:where(html[data-theme="dark"]) .su-changes-actions button{background:#2D2B27;}
 :where(html[data-theme="dark"]) .wd-h-total{color:var(--ink-red);}
 :where(html[data-theme="dark"]) .wd-dot{background:var(--c,#7A7A7A);}
 :where(html[data-theme="dark"]) .wd-entry button{color:var(--ink-red);}
