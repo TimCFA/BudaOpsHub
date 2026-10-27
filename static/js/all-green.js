@@ -34,6 +34,7 @@ function agTeamMembers(strength){
     names.forEach(p=>{
       fromRoster = true;
       if(p.leader) return;   // a Team Leader shift
+      if(typeof teamHasLeft === 'function' && teamHasLeft(p.name)) return;   // logged as left
       const peaName = peaNames.length ? peaMatchName(p.name, peaNames) : null;
       if(!peaName){ unmatched.push(p.name); return; }
       if(SU_LEADER_ROLES.includes(strength[peaName].role)) return;
@@ -48,7 +49,7 @@ function agTeamMembers(strength){
     cutoff.setDate(cutoff.getDate() - AG_FALLBACK_DAYS);
     const since = toLocalISODate(cutoff);
     Object.entries(strength).forEach(([peaName, person])=>{
-      if(SU_LEADER_ROLES.includes(person.role) || person.lastAt.slice(0, 10) < since) return;
+      if(SU_LEADER_ROLES.includes(person.role) || person.lastAt.slice(0, 10) < since || (typeof teamHasLeft === 'function' && teamHasLeft(peaName))) return;
       const count = area => Object.keys(person.positions).filter(p => agAreaPositions(area).includes(p)).length;
       const foh = count('foh'), boh = count('boh');
       if(!foh && !boh) return;   // only a 3H Week so far

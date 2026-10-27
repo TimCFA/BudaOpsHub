@@ -44,7 +44,7 @@ function tlPeople(){
   });
   // On the leader list but not on the PIN list (or a director): kept, marked.
   if(team) tlLeaders().forEach((r, i) => {
-    if(r && r.name && !rows.some(x => x.name && tlSame(x.name, r.name))) rows.push({kind: 'leader', i, name: r.name, role: 'lead'});
+    if(r && r.name && !rows.some(x => x.name && tlSame(x.name, r.name)) && !(typeof teamHasLeft === 'function' && teamHasLeft(r.name))) rows.push({kind: 'leader', i, name: r.name, role: 'lead'});
   });
   const at = r => TL_ORDER.indexOf(r.role);
   rows.sort((a, b) => (a.kind === 'director' && !a.name ? 1 : 0) - (b.kind === 'director' && !b.name ? 1 : 0) || at(a) - at(b) || a.name.localeCompare(b.name));

@@ -649,7 +649,7 @@ function ptKnownNames(){
   const names = new Map();
   Object.values(pointsRecords || {}).forEach(q => Object.values(q || {}).forEach(r => { if(r && r.tmName) names.set(APS.slug(r.tmName), r.tmName); }));
   Object.entries(pointsTeam || {}).forEach(([tm, t]) => { if(t && t.name && !names.has(tm)) names.set(tm, t.name); });
-  return [...names.values()].sort((a, b) => APS.displayName(a).localeCompare(APS.displayName(b)));
+  return [...names.values()].filter(n => !(typeof teamHasLeft === 'function' && teamHasLeft(n))).sort((a, b) => APS.displayName(a).localeCompare(APS.displayName(b)));   // not who has left
 }
 
 // A typed name as the report would spell it: one already known (either

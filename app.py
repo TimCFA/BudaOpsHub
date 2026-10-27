@@ -1112,6 +1112,10 @@ def accounts_pins():
     before = dict(ref.get() or {})
     is_manage_pin = _manage_pin_checker()
     clean, skipped, seen = {}, [], set()
+    # Someone logged as left stays off, even if the store's report still has
+    # them (it can lag); a director brings them back with Set PIN.
+    # Someone who gave notice is still on the report until their last day.
+    left = {k: v for k, v in _departed(db.reference(TURNOVER_PATH).get() or {}, before).items() if v['lastDay'] < _turnover_today()}
     directors = 0
     for i, r in enumerate(rows):
         if not isinstance(r, dict):
@@ -1130,6 +1134,8 @@ def accounts_pins():
             skipped.append(f'{name}: directors sign in with Google or the director PIN; a clock-in PIN signs in as a director only once the name is on the Directors list in Manage, with the PIN on file from Our Team')
         elif role not in TEAM_ROLES:
             skipped.append(f'{name}: role “{r.get("role")}” isn’t one of Team Member, Trainer, Team Lead, Admin Team')
+        elif _turnover_key(name) in left:
+            skipped.append(f'{name}: logged as left ({left[_turnover_key(name)]["lastDay"]}); set their PIN in Our Team to bring them back')
         elif pin in seen:
             skipped.append(f'{name}: the same PIN as someone else in the list')
         elif _team_pin_key(pin, salt) not in before and is_manage_pin(pin):   # one already on the list was checked when added
@@ -1231,6 +1237,8 @@ def _turnover_after_pins(before, after, source, directors=None):
                 if isinstance(d, dict) and d.get('status') == 'pending' and _turnover_key(d.get('name')) in new:
                     d.update(status='dismissed', note='back on the PIN list')
             open_names = {_turnover_key(d.get('name')) for d in departures.values() if isinstance(d, dict) and d.get('status') == 'pending'}
+            # Off the list after giving notice: already logged, nothing to explain.
+            open_names |= {_turnover_key(d.get('name')) for d in departures.values() if isinstance(d, dict) and d.get('status') == 'logged' and d.get('notice')}
             for v in left:
                 if _turnover_key(v.get('name')) in open_names:
                     continue
@@ -1243,16 +1251,72 @@ def _turnover_after_pins(before, after, source, directors=None):
         print(f"[TEAM] couldn’t record the headcount: {type(e).__name__}")
 
 
+def _departed(data, pins):
+    """Who has left, or is leaving (Tim, Oct 25 2026): a logged departure for
+    someone no longer on the PIN list, or one who gave notice and is still on
+    it until their last day (`notice`, Oct 26), {name key: {name, lastDay}}.
+    A director who puts a PIN on file for someone who left has brought them
+    back. The page counts them gone only after lastDay (teamHasLeft)."""
+    on_list = {_turnover_key(v.get('name')) for v in (pins or {}).values() if isinstance(v, dict) and v.get('name')}
+    out = {}
+    for d in ((data or {}).get('departures') or {}).values():
+        if isinstance(d, dict) and d.get('status') == 'logged' and d.get('name'):
+            k = _turnover_key(d['name'])
+            if (k not in on_list or d.get('notice')) and (k not in out or (d.get('lastDay') or '') > out[k]['lastDay']):
+                out[k] = {'name': d['name'], 'lastDay': d.get('lastDay') or ''}
+    return out
+
+def _notice_due(d, today):
+    return isinstance(d, dict) and d.get('status') == 'logged' and bool(d.get('notice')) and (d.get('lastDay') or '') < today
+
+def _departures_sweep(data):
+    """Someone who gave notice comes off the clock-in PIN list the day after
+    their last day (Tim, Oct 26 2026), which signs them out. Runs when a
+    signed-in page asks for the team's names, or Our Team opens: `data` is
+    the departures as just read, so most calls cost nothing. True if a PIN
+    came off."""
+    today = _turnover_today()
+    if not any(_notice_due(d, today) for d in ((data or {}).get('departures') or {}).values()):
+        return False
+    changed = False
+    with _turnover_lock:
+        ref = db.reference(TURNOVER_PATH)
+        fresh = ref.get() or {}
+        departures = fresh.get('departures') or {}
+        pins = db.reference(TEAM_PINS_PATH).get() or {}
+        for d in departures.values():
+            if not _notice_due(d, today):
+                continue
+            stash = dict(d.get('pin') or {}) if isinstance(d.get('pin'), dict) else {}
+            for k, v in list(pins.items()):
+                if isinstance(v, dict) and k not in stash and _turnover_key(v.get('name')) == _turnover_key(d.get('name')):
+                    db.reference(f'{TEAM_PINS_PATH}/{k}').delete()
+                    stash[k] = v
+                    changed = True
+            d.pop('notice', None)
+            if stash:
+                d['pin'] = stash
+        fresh['departures'] = departures
+        ref.set(fresh)
+    if changed:
+        print('[TEAM] a last day passed; their PIN is off the list')
+        _auth_changed()                    # their sign-ins end now
+    return changed
+
 def _turnover_out():
     # The three reads at once, not one after another (Our Team opened slowly;
     # Tim, Oct 22 2026).
     data, pins, profiles = _firebase_get_all(TURNOVER_PATH, TEAM_PINS_PATH, PROFILES_PATH)
+    if _departures_sweep(data or {}):
+        data, pins, profiles = _firebase_get_all(TURNOVER_PATH, TEAM_PINS_PATH, PROFILES_PATH)
     data, pins, profiles = data or {}, pins or {}, profiles or {}
     counts = data.get('counts') or {}
     last = counts[max(counts)] if counts else {}
     team = [{'name': v.get('name'), 'role': v.get('role') or 'member'} for v in pins.values() if isinstance(v, dict) and v.get('name')]
     directors = int(last.get('directors') or 0)
-    departures = sorted(({**v, 'id': k} for k, v in (data.get('departures') or {}).items() if isinstance(v, dict)),
+    # A departure keeps the PIN it took off the list (to put back if it was
+    # logged by mistake); that never leaves the server.
+    departures = sorted(({**{f: x for f, x in v.items() if f != 'pin'}, 'id': k} for k, v in (data.get('departures') or {}).items() if isinstance(v, dict)),
                         key=lambda d: (d.get('lastDay') or d.get('noticed') or '', d.get('at') or 0), reverse=True)
     hires = sorted((v for v in (data.get('hires') or {}).values() if isinstance(v, dict)), key=lambda h: h.get('date') or '', reverse=True)
     return {'now': {'total': len(team) + directors, 'team': len(team), 'directors': directors,
@@ -1260,6 +1324,7 @@ def _turnover_out():
             'counts': [dict(v, date=k) for k, v in sorted(counts.items())],
             'departures': departures, 'hires': hires[:200],
             'names': sorted(p['name'] for p in team),
+            'departed': sorted(_departed(data, pins).values(), key=lambda d: d['name']),
             'team': sorted(team, key=lambda p: _turnover_key(p['name'])),
             'types': [{'id': k, 'label': v} for k, v in DEPARTURE_TYPES.items()],
             'profiles': sorted((v for v in profiles.values() if isinstance(v, dict) and v.get('name')),
@@ -1380,6 +1445,12 @@ def team_names():
     and the page falls back on the names on the schedule."""
     if not (session.get('manager') or _who_name()):
         return jsonify({'names': []})
+    try:
+        turnover = db.reference(TURNOVER_PATH).get() or {}
+        _departures_sweep(turnover)        # a last day passed: their PIN comes off first
+    except Exception as e:
+        print(f'[TEAM] departed not read: {type(e).__name__}')
+        turnover = None
     pins = _auth_lists().get('pins') or {}
     seen, out = set(), []
     for rec in pins.values():
@@ -1388,7 +1459,8 @@ def team_names():
             seen.add(name.lower())
             out.append({'name': name, 'role': rec.get('role') or ''})
     out.sort(key=lambda r: r['name'].lower())
-    resp = jsonify({'names': out})
+    left = sorted(_departed(turnover, pins).values(), key=lambda d: d['name']) if turnover is not None else []
+    resp = jsonify({'names': out, 'departed': left})
     resp.headers['Cache-Control'] = 'no-store'
     return resp
 
@@ -1485,10 +1557,19 @@ def team_departures():
         departures = data.get('departures') or {}
         if did and did not in departures:
             return jsonify({'error': 'That departure isn’t there any more. Reload.'}), 404
+        pins_changed = False
         if request.method == 'DELETE':
             if not did:
                 return jsonify({'error': 'Which departure?'}), 400
-            departures.pop(did)
+            gone = departures.pop(did)
+            # Logged by mistake: the PIN it took off the list goes back.
+            stash = gone.get('pin') if isinstance(gone.get('pin'), dict) else {}
+            if stash:
+                current = db.reference(TEAM_PINS_PATH).get() or {}
+                for k, v in stash.items():
+                    if k not in current and isinstance(v, dict):
+                        db.reference(f'{TEAM_PINS_PATH}/{k}').set(v)
+                        pins_changed = True
         elif body.get('status') == 'dismissed':
             if not did:
                 return jsonify({'error': 'Which departure?'}), 400
@@ -1507,13 +1588,39 @@ def team_departures():
             if rehire not in REHIRE_CHOICES:
                 return jsonify({'error': 'Eligible for rehire: yes, no or not sure.'}), 400
             old = departures.get(did) or {}
-            rec = {'name': name, 'role': str(body.get('role') or old.get('role') or '')[:20], 'lastDay': last_day, 'type': kind,
+            # Whoever left comes off the clock-in PIN list, so they can't sign
+            # in and the hub stops offering them (Tim, Oct 25 2026). Their role
+            # is the list's, not the page's.
+            pins = db.reference(TEAM_PINS_PATH).get() or {}
+            theirs = {k: v for k, v in pins.items() if isinstance(v, dict) and _turnover_key(v.get('name')) == _turnover_key(name)}
+            listed_role = next((v.get('role') for v in theirs.values() if v.get('role')), '')
+            rec = {'name': name, 'role': str(listed_role or body.get('role') or old.get('role') or '')[:20], 'lastDay': last_day, 'type': kind,
                    'reason': str(body.get('reason') or '').strip()[:600], 'rehire': rehire, 'status': 'logged',
                    'source': old.get('source') or 'manual', 'noticed': old.get('noticed') or _turnover_today(),
                    'by': by, 'at': int(time.time())}
+            stash = dict(old.get('pin') or {}) if isinstance(old.get('pin'), dict) else {}
+            if last_day >= _turnover_today():
+                # Gave notice (Tim, Oct 26 2026): on the team, and signing in,
+                # through their last day; _departures_sweep takes the PIN off
+                # the day after. A last day moved later puts a PIN back.
+                rec['notice'] = True
+                for k, v in stash.items():
+                    if k not in pins and isinstance(v, dict):
+                        db.reference(f'{TEAM_PINS_PATH}/{k}').set(v)
+                        pins_changed = True
+                stash = {}
+            else:
+                for k, v in theirs.items():
+                    db.reference(f'{TEAM_PINS_PATH}/{k}').delete()
+                    stash[k] = v
+                    pins_changed = True
+            if stash:
+                rec['pin'] = stash
             departures[did or secrets.token_hex(6)] = rec
         data['departures'] = departures
         ref.set(data)
+    if pins_changed:
+        _auth_changed()                    # their sign-ins end now
     resp = jsonify(dict(_turnover_out(), success=True))
     resp.headers['Cache-Control'] = 'no-store'
     return resp

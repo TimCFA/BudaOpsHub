@@ -412,13 +412,15 @@ async function confirmWeeklyImport(){
     // Keep the day's posted schedule before it's replaced (shift changes).
     rosterNotePosted(dateISO, 'foh', fohRoster[dateISO]);
     rosterNotePosted(dateISO, 'boh', bohRoster[dateISO]);
-    fohRoster[dateISO] = mergeImportedDayRoster(fohRoster[dateISO], dayData.foh);
-    bohRoster[dateISO] = mergeImportedDayRoster(bohRoster[dateISO], dayData.boh);
+    // Someone logged as left stays off after their last day (the schedule can lag).
+    const stay = list => (list || []).filter(p => !(p && p.name && typeof teamHasLeft === 'function' && teamHasLeft(p.name, dateISO)));
+    fohRoster[dateISO] = mergeImportedDayRoster(fohRoster[dateISO], stay(dayData.foh));
+    bohRoster[dateISO] = mergeImportedDayRoster(bohRoster[dateISO], stay(dayData.boh));
     // Who has the Truck shift: the schedule's, replacing the day's (truck.js).
-    const truck = weeklyImportTruck[hsDay] || [];
+    const truck = stay(weeklyImportTruck[hsDay]);
     if(truck.length) truckShifts[dateISO] = truck.map(t => ({name: t.name, start: t.start, end: t.end})); else delete truckShifts[dateISO];
     // Administrative shifts: the directors' time, for the Directors page.
-    const admin = weeklyImportAdmin[hsDay] || [];
+    const admin = stay(weeklyImportAdmin[hsDay]);
     if(admin.length) adminShifts[dateISO] = admin.map(t => ({name: t.name, start: t.start, end: t.end})); else delete adminShifts[dateISO];
     touchLastUpdated(dateISO);
   });

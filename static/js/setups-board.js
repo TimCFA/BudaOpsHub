@@ -309,10 +309,23 @@ function suDayEventChipsHtml(date){
   return eventsAllDay(date).map(eventChipHtml).join('');
 }
 
+// On a phone the FOH/BOH switch sits at the end of this row, big enough to
+// hit without aiming (Tim, Oct 26 2026: "I want to be able to click it with
+// less precision"); a tap anywhere on it flips the side. Wider screens keep
+// it in the day strip (theme-cfa.css hides one or the other).
+function suSideSwitchHtml(section){
+  const boh = section === 'boh';
+  return `<button type="button" class="su-side-switch ${boh ? 'is-boh' : ''}" role="switch" aria-checked="${boh}" aria-label="Kitchen side (BOH)" data-su-side>
+      <span class="su-side-knob" aria-hidden="true"></span>
+      <span class="su-side-opt ${boh ? '' : 'is-on'}">FOH<i>Frente</i></span>
+      <span class="su-side-opt ${boh ? 'is-on' : ''}">BOH<i>Atrás</i></span>
+    </button>`;
+}
+
 function suChipsRowHtml(section, date){
   const chips = (typeof rosterChangesChipHtml === 'function' ? rosterChangesChipHtml(section, date) : '') + suDayEventChipsHtml(date);
   const body = typeof rosterChangesBodyHtml === 'function' ? rosterChangesBodyHtml(section, date) : '';
-  return (chips ? `<div class="su-chips-row" aria-label="Today">${chips}</div>` : '') + body;
+  return `<div class="su-chips-line">${chips ? `<div class="su-chips-row" aria-label="Today">${chips}</div>` : ''}${suSideSwitchHtml(section)}</div>` + body;
 }
 
 // A daypart's numbers, as text: {sales, goal, actual, off, ev}.
@@ -768,6 +781,11 @@ document.getElementById('allDayparts').addEventListener('click', e=>{
   const t = e.target;
   const evChip = t.closest('.su-chips-row .ev-chip');
   if(evChip){ evChip.classList.toggle('is-full'); return; }
+  if(t.closest('[data-su-side]')){
+    const other = document.querySelector(`#posToggle .toggle-btn[data-section="${currentPosSection === 'boh' ? 'foh' : 'boh'}"]`);
+    if(other) other.click();
+    return;
+  }
   const daypart = t.closest('[data-su-daypart]');
   if(daypart){ suSelectedDaypart[currentPosSection] = daypart.dataset.suDaypart; suOpenCards[currentPosSection].add(daypart.dataset.suDaypart); suCardsTouched[currentPosSection] = true; suExpandedZones.clear(); suSheet = null; suTrayPick = null; renderAllDayparts(); return; }
   const dpToggle = t.closest('[data-su-dp-toggle]');

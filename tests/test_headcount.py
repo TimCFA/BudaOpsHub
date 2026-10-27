@@ -351,6 +351,142 @@ class TeamNames(HeadcountTest):
         self.assertIn('<details class="hc-card hc-pins', hc)
 
 
+class FixedDayTest(HeadcountTest):
+    """The store's day held still, so a last day is behind or ahead of it."""
+
+    TODAY = '2026-10-27'
+
+    def setUp(self):
+        super().setUp()
+        real = appmod._turnover_today
+        appmod._turnover_today = lambda: self.TODAY
+        self.addCleanup(setattr, appmod, '_turnover_today', real)
+
+    def log(self, body, c=None):
+        return (c or self.owner).post('/api/team/departures', json=dict({'lastDay': '2026-10-25', 'type': 'quit', 'rehire': 'unsure'}, **body))
+
+
+class DepartedEverywhere(FixedDayTest):
+    """Someone logged as left is gone from the hub (Tim, Oct 25 2026): off the
+    clock-in PIN list (signed out), out of the names every list offers, kept
+    off by a later PIN report; their role is the list's; a departure logged by
+    mistake puts their PIN back."""
+
+    def test_off_the_pin_list_signed_out_and_out_of_the_names(self):
+        self.upload(TEAM)
+        phone = self.login('123456')                                             # Jordan, a Team Member
+        self.assertEqual(phone.get('/api/manager/status').get_json()['user']['name'], 'Jordan Testcase')
+        r = self.log({'name': 'Jordan Testcase', 'role': 'lead'})               # the page's role is ignored
+        d = next(x for x in r.get_json()['departures'] if x['name'] == 'Jordan Testcase')
+        self.assertEqual(d['role'], 'member')
+        self.assertNotIn('pin', d)                                               # the stashed PIN never leaves the server
+        self.assertIsNone(phone.get('/api/manager/status').get_json()['user'])    # signed out
+        self.assertEqual(appmod.app.test_client().post('/api/manager/login', json={'pin': '123456'}).status_code, 401)
+        lead = self.login('345678')
+        names = lead.get('/api/team/names').get_json()
+        self.assertNotIn('Jordan Testcase', [n['name'] for n in names['names']])
+        self.assertEqual(names['departed'], [{'name': 'Jordan Testcase', 'lastDay': '2026-10-25'}])
+        self.assertEqual(r.get_json()['departed'], [{'name': 'Jordan Testcase', 'lastDay': '2026-10-25'}])
+
+    def test_a_pin_report_doesnt_bring_them_back_but_set_pin_does(self):
+        self.upload(TEAM)
+        self.log({'name': 'Jordan Testcase'})
+        r = self.upload(TEAM)                                                    # the store's report still has them
+        self.assertTrue(any(x.startswith('Jordan Testcase: logged as left') for x in r.get_json()['skipped']))
+        self.assertEqual(appmod.app.test_client().post('/api/manager/login', json={'pin': '123456'}).status_code, 401)
+        self.owner.post('/api/team/pin', json={'name': 'Jordan Testcase', 'pin': '121212', 'role': 'member'})   # rehired
+        self.assertEqual(self.get().get_json()['departed'], [])
+
+    def test_logged_by_mistake_puts_the_pin_back(self):
+        self.upload(TEAM)
+        did = next(x['id'] for x in self.log({'name': 'Jordan Testcase'}).get_json()['departures'] if x['name'] == 'Jordan Testcase')
+        self.owner.delete('/api/team/departures', json={'id': did})
+        self.assertEqual(appmod.app.test_client().post('/api/manager/login', json={'pin': '123456'}).get_json()['name'], 'Jordan Testcase')
+
+    def test_every_list_leaves_them_out(self):
+        for f, line in [('daypicker-and-positions.js', ".filter(p => !(typeof teamHasLeft === 'function' && teamHasLeft(p.name)))"),
+                        ('team-schedule.js', "!onDay(t.name) && !(typeof teamHasLeft === 'function' && teamHasLeft(t.name))"),
+                        ('team-pea.js', "Object.keys(now).filter(name => !(typeof teamHasLeft === 'function' && teamHasLeft(name)))"),
+                        ('all-green.js', "if(typeof teamHasLeft === 'function' && teamHasLeft(p.name)) return;"),
+                        ('pea-ratings.js', "!(typeof teamHasLeft === 'function' && teamHasLeft(n))"),
+                        ('leaders.js', "!(typeof teamHasLeft === 'function' && teamHasLeft(n))"),
+                        ('points.js', "!(typeof teamHasLeft === 'function' && teamHasLeft(n))"),
+                        ('forms.js', "!(typeof teamHasLeft === 'function' && teamHasLeft(n))"),
+                        ('uniform-orders.js', "!(typeof teamHasLeft === 'function' && teamHasLeft(n))"),
+                        ('weekly-roster-import.js', "teamHasLeft(p.name, dateISO)"),
+                        ('headcount.js', "const off = typeof launchManager !== 'undefined' && launchManager ? hcTakeOffSchedule(f.name, f.lastDay)"),
+                        ('headcount.js', "teamLeftSet(data.departed);")]:
+            self.assertIn(line, read('static', 'js', f), f)
+
+
+class GaveNotice(FixedDayTest):
+    """Two weeks' notice (Tim, Oct 26 2026): a departure logged with a last
+    day still to come keeps them on the team, signing in, through that day;
+    the day after, their PIN comes off and they're signed out."""
+
+    def notice(self):
+        self.upload(TEAM)
+        phone = self.login('123456')                                             # Jordan
+        r = self.log({'name': 'Jordan Testcase', 'lastDay': '2026-11-07'})
+        return phone, r
+
+    def test_on_the_team_and_signed_in_through_their_last_day(self):
+        phone, r = self.notice()
+        d = next(x for x in r.get_json()['departures'] if x['name'] == 'Jordan Testcase')
+        self.assertTrue(d['notice'])
+        self.assertEqual(d['noticed'], self.TODAY)
+        self.assertEqual(phone.get('/api/manager/status').get_json()['user']['name'], 'Jordan Testcase')
+        names = self.login('345678').get('/api/team/names').get_json()
+        self.assertIn('Jordan Testcase', [n['name'] for n in names['names']])
+        # On the left list with their last day: the page counts them gone after it.
+        self.assertEqual(names['departed'], [{'name': 'Jordan Testcase', 'lastDay': '2026-11-07'}])
+        self.TODAY = '2026-11-07'                                                # their last day: still on
+        self.assertEqual(appmod.app.test_client().post('/api/manager/login', json={'pin': '123456'}).status_code, 200)
+
+    def test_the_day_after_their_pin_comes_off(self):
+        phone, r = self.notice()
+        self.TODAY = '2026-11-08'
+        names = self.login('345678').get('/api/team/names').get_json()          # any signed-in page load
+        self.assertNotIn('Jordan Testcase', [n['name'] for n in names['names']])
+        self.assertIsNone(phone.get('/api/manager/status').get_json()['user'])    # signed out
+        self.assertEqual(appmod.app.test_client().post('/api/manager/login', json={'pin': '123456'}).status_code, 401)
+        d = next(x for x in self.get().get_json()['departures'] if x['name'] == 'Jordan Testcase')
+        self.assertNotIn('notice', d)
+        self.assertNotIn('pin', d)
+        # Logged by mistake after all: the PIN goes back.
+        self.owner.delete('/api/team/departures', json={'id': d['id']})
+        self.assertEqual(appmod.app.test_client().post('/api/manager/login', json={'pin': '123456'}).status_code, 200)
+
+    def test_our_team_opening_also_takes_it_off(self):
+        self.notice()
+        self.TODAY = '2026-11-09'
+        self.assertNotIn('Jordan Testcase', [t['name'] for t in self.get().get_json()['team']])
+
+    def test_a_pin_report_keeps_them_until_then(self):
+        self.notice()
+        r = self.upload(TEAM)
+        self.assertFalse(any(x.startswith('Jordan Testcase') for x in r.get_json()['skipped']))
+        self.assertEqual(appmod.app.test_client().post('/api/manager/login', json={'pin': '123456'}).status_code, 200)
+        # A report without them early: already logged, nothing new to explain.
+        self.upload([row for row in TEAM if row['name'] != 'Jordan Testcase'])
+        pending = [x for x in self.get().get_json()['departures'] if x['status'] == 'pending']
+        self.assertNotIn('Jordan Testcase', [x['name'] for x in pending])
+
+    def test_a_last_day_moved_later_puts_the_pin_back(self):
+        self.upload(TEAM)
+        did = next(x['id'] for x in self.log({'name': 'Jordan Testcase'}).get_json()['departures'] if x['name'] == 'Jordan Testcase')
+        self.assertEqual(appmod.app.test_client().post('/api/manager/login', json={'pin': '123456'}).status_code, 401)
+        self.log({'id': did, 'name': 'Jordan Testcase', 'lastDay': '2026-11-14'})
+        self.assertEqual(appmod.app.test_client().post('/api/manager/login', json={'pin': '123456'}).status_code, 200)
+
+    def test_the_page(self):
+        js = read('static', 'js', 'headcount.js')
+        self.assertIn('value="${escapeHtml(f.lastDay || f.noticed || today)}" required>', js)   # no max: a last day ahead is allowed
+        self.assertIn('${hcLeavingHtml(s)}', js)
+        self.assertIn("const recent = deps.filter(d => hcWhen(d) >= since && !hcIsLeaving(d));", js)   # not counted as left yet
+        self.assertIn("return !!hit && (!hit.lastDay || (iso || today) > hit.lastDay);", read('static', 'js', 'state-and-utils.js'))
+
+
 class DeparturePick(unittest.TestCase):
     """Log a departure picks who left from the team (Tim, Oct 25 2026), not a typed name."""
 
@@ -360,7 +496,9 @@ class DeparturePick(unittest.TestCase):
         self.assertIn('<div class="tm-picks" id="hcNamePicks" role="listbox"', js)
         self.assertIn("((hcData && hcData.team) || []).forEach(t => add(t.name, t.role));", js)
         self.assertIn("if(!known && !hcForm.allowOff){ hcPickDraw();", js)
-        self.assertIn("if(who && who.role && role && [...role.options].some(o => o.value === who.role)) role.value = who.role;", js)
+        # The role is the PIN list's: no Role box for someone the hub knows (Tim, Oct 25 2026).
+        self.assertIn("if(who && who.role && HC_ROLE_LABELS[who.role]){ hcForm.role = who.role; hcForm.roleKnown = true; }", js)
+        self.assertIn("${hcRoleKnown(f) ? `<div class=\"field\"><span class=\"hc-role-label\">Role</span>", js)
 
 
 class PinOnFile(HeadcountTest):
@@ -418,7 +556,7 @@ class RowIcons(unittest.TestCase):
         import subprocess
         runner = (
             "const fs=require('fs'),vm=require('vm');"
-            "const c={today:'2026-10-23',escapeHtml:s=>String(s),toLocalISODate:d=>d.toISOString().slice(0,10)};vm.createContext(c);"
+            "const c={today:'2026-10-23',hcData:null,escapeHtml:s=>String(s),toLocalISODate:d=>d.toISOString().slice(0,10)};vm.createContext(c);"
             "const js=fs.readFileSync(process.argv[1],'utf8');"
             "vm.runInContext(js.slice(js.indexOf('function hcAddDays'),js.indexOf('function hcTypeLabel'))+"
             "js.slice(js.indexOf('const HC_PERMIT_SOON_DAYS'),js.indexOf('const HC_ROLE_LABELS'))+"
@@ -441,7 +579,7 @@ class RowIcons(unittest.TestCase):
     def test_no_permit_list_at_first_glance(self):
         js = read('static', 'js', 'headcount.js')
         self.assertNotIn('Food handler permits', js)
-        self.assertIn("${hcMarks(p).map(hcMarkIcon).join('')}</button>", js)
+        self.assertIn("${hcMarks(p || {name}).map(hcMarkIcon).join('')}</button>", js)
 
 
 if __name__ == '__main__':

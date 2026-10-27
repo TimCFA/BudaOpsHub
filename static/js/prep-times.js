@@ -50,7 +50,7 @@ function ptShortItem(item){
 function ptPeople(){
   const iso = today;
   const on = [...(fohRoster[iso] || []), ...(bohRoster[iso] || [])].map(p => p.name.trim());
-  const past = prepTimes.map(t => t.name);
+  const past = prepTimes.map(t => t.name).filter(n => !(typeof teamHasLeft === 'function' && teamHasLeft(n)));   // not who has left
   const seen = new Set();
   const list = [];
   [...on.sort((a, b) => a.localeCompare(b)), ...past.sort((a, b) => a.localeCompare(b))].forEach(n => { const k = n.toLowerCase(); if(n && !seen.has(k)){ seen.add(k); list.push({name: n, today: on.includes(n)}); } });

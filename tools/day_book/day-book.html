@@ -1,0 +1,489 @@
+<title>Hub Day Book</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zilla+Slab:ital,wght@0,500;0,600;0,700;1,400;1,500&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one column of day sections on the hub's ivory ground; navy stat tiles up top, red only for actions. */
+:root{
+  --bg:#F6F1E8; --card:#FFFDF9; --soft:#EBE4D8; --line:#E4DCCF;
+  --ink:#1C1B19; --muted:#5F5A52; --faint:#7C766C;
+  --red:#DD0031; --red-ink:#FFFFFF; --dark-red:#AF272F;
+  --navy:#004F71; --navy-ink:#FFFFFF; --navy-soft:#DCE9F0;
+  --ok:#2E7D45; --ok-soft:#E5F1E8; --amber:#C47A00; --amber-soft:#F7ECD6;
+  --claude:#5B4B8A; --claude-soft:#ECE7F6;
+  --focus:#004F71;
+  --font-display:'Zilla Slab', Georgia, 'Times New Roman', serif;
+  --font-ui:'Figtree', 'DM Sans', system-ui, -apple-system, sans-serif;
+  --radius:14px; --shadow:0 1px 2px rgba(28,27,25,.06), 0 6px 18px -12px rgba(28,27,25,.25);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15181B; --card:#1E2226; --soft:#2A2F34; --line:#353B42;
+    --ink:#F2EEE6; --muted:#B8B1A6; --faint:#8E877B;
+    --red:#FF3B5C; --red-ink:#1A0A0E; --dark-red:#FF7A8C;
+    --navy:#0B5C80; --navy-ink:#FFFFFF; --navy-soft:#16333F;
+    --ok:#5BBF7A; --ok-soft:#1E3328; --amber:#E6A23C; --amber-soft:#3A2E17;
+    --claude:#B9A8EA; --claude-soft:#2B2640;
+    --focus:#8FC7E8; --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 20px -12px rgba(0,0,0,.6);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15181B; --card:#1E2226; --soft:#2A2F34; --line:#353B42;
+  --ink:#F2EEE6; --muted:#B8B1A6; --faint:#8E877B;
+  --red:#FF3B5C; --red-ink:#1A0A0E; --dark-red:#FF7A8C;
+  --navy:#0B5C80; --navy-ink:#FFFFFF; --navy-soft:#16333F;
+  --ok:#5BBF7A; --ok-soft:#1E3328; --amber:#E6A23C; --amber-soft:#3A2E17;
+  --claude:#B9A8EA; --claude-soft:#2B2640;
+  --focus:#8FC7E8; --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 20px -12px rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-ui);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:860px;margin:0 auto;padding-block:20px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+svg.i{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* header */
+.hdr{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 20px;margin-bottom:18px}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dark-red);margin:0 0 4px}
+h1{font-family:var(--font-display);font-weight:700;font-size:clamp(30px,6vw,40px);line-height:1.05;letter-spacing:-.01em;margin:0;text-wrap:balance}
+.dayline{font-family:var(--font-display);font-style:italic;font-size:17px;color:var(--muted);margin:6px 0 0}
+.daypick{display:flex;align-items:center;gap:8px}
+.daypick label{font-size:13px;color:var(--muted);font-weight:600}
+select#daySel{appearance:none;-webkit-appearance:none;background:var(--card) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237C766C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>") no-repeat right 10px center/14px;border:1px solid var(--line);border-radius:999px;padding:8px 32px 8px 14px;font-weight:600;min-height:40px}
+
+/* stat tiles */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:18px}
+.stat{background:var(--navy);color:var(--navy-ink);border-radius:var(--radius);padding:14px 16px 12px;min-height:88px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:var(--shadow)}
+.stat .n{font-family:var(--font-display);font-weight:700;font-size:34px;line-height:1;font-variant-numeric:tabular-nums}
+.stat .n small{font-size:16px;font-weight:600;font-family:var(--font-ui);opacity:.85;margin-left:4px}
+.stat .l{font-size:12.5px;font-weight:600;letter-spacing:.02em;opacity:.9;margin-top:6px}
+.stat.ok .n{color:#9ADFAE}
+.stat.warn .n{color:#FFD08A}
+.statline{font-size:13px;color:var(--muted);margin:-8px 0 18px}
+
+/* filter chips */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;position:sticky;top:env(safe-area-inset-top,0px);z-index:5;padding-block:8px;background:var(--bg)}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 13px;font-size:13.5px;font-weight:600;min-height:38px;display:inline-flex;align-items:center;gap:6px;color:var(--ink);white-space:nowrap}
+.chip .c{font-variant-numeric:tabular-nums;color:var(--faint);font-weight:600}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip[aria-pressed="true"] .c{color:inherit;opacity:.75}
+.chip.pick[aria-pressed="true"]{background:var(--red);border-color:var(--red);color:var(--red-ink)}
+
+/* sections */
+.sec{margin-bottom:28px}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 10px;padding-bottom:8px;border-bottom:2px solid var(--line)}
+.sec-h h2{font-family:var(--font-display);font-weight:600;font-size:23px;margin:0;line-height:1.15}
+.sec-h .sub{font-family:var(--font-display);font-style:italic;color:var(--faint);font-size:14.5px}
+.area{font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);margin:16px 0 8px}
+.area:first-child{margin-top:4px}
+.list{display:grid;gap:10px}
+
+/* item card */
+.item{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 14px 12px;box-shadow:var(--shadow);position:relative}
+.item.picked{border-color:var(--red);box-shadow:0 0 0 1px var(--red), var(--shadow)}
+.item .top{display:flex;align-items:flex-start;gap:10px}
+.item .top .txt{flex:1;min-width:0}
+.item h3{font-family:var(--font-display);font-weight:600;font-size:18px;line-height:1.25;margin:0 0 4px;text-wrap:balance}
+.item p.body{margin:0;color:var(--muted);font-size:14.5px}
+.item .meta{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin-top:8px;font-size:12.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+.pill{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;background:var(--soft);color:var(--muted)}
+.pill.shipped{background:var(--ok-soft);color:var(--ok)}
+.pill.fixed{background:var(--navy-soft);color:var(--navy)}
+.pill.waiting{background:var(--amber-soft);color:var(--amber)}
+.pill.todo{background:var(--soft);color:var(--ink)}
+.pill.idea{background:var(--claude-soft);color:var(--claude)}
+.pill.claude{background:var(--claude-soft);color:var(--claude)}
+.pick{flex:none;width:34px;height:34px;border-radius:10px;border:1.5px solid var(--line);background:transparent;display:inline-flex;align-items:center;justify-content:center;color:var(--faint);margin-top:1px}
+.pick[aria-pressed="true"]{background:var(--red);border-color:var(--red);color:var(--red-ink)}
+.acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.btn{border:1px solid var(--line);background:transparent;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;min-height:34px;display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
+.btn:hover{background:var(--soft)}
+.btn.primary{background:var(--red);border-color:var(--red);color:var(--red-ink)}
+.btn.primary:hover{background:var(--dark-red);border-color:var(--dark-red)}
+.btn.claude{border-color:var(--claude);color:var(--claude)}
+.btn.claude:hover{background:var(--claude-soft)}
+.btn[disabled]{opacity:.55;cursor:default}
+.btn.quiet{border-color:transparent;color:var(--muted)}
+.note{margin-top:10px}
+.note textarea{width:100%;min-height:72px;resize:vertical;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:var(--bg);font-size:14px;line-height:1.45}
+.note .saved{font-size:12px;color:var(--faint);margin-top:4px;min-height:16px}
+.note-ro{margin-top:10px;background:var(--bg);border-left:3px solid var(--line);padding:8px 11px;border-radius:0 10px 10px 0;font-size:14px;white-space:pre-wrap;color:var(--ink)}
+.exp{margin-top:10px;border:1px solid var(--line);border-left:3px solid var(--claude);border-radius:0 10px 10px 0;padding:10px 12px;background:var(--bg)}
+.exp .eh{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--faint);margin-bottom:4px}
+.exp .eh b{color:var(--claude);font-weight:700;letter-spacing:.03em;text-transform:uppercase;font-size:11.5px}
+.exp .et{white-space:pre-wrap;font-size:14.5px;line-height:1.5}
+.exp .et.thinking{color:var(--faint);font-style:italic}
+.exp .x{border:0;background:transparent;color:var(--faint);padding:2px 4px;border-radius:6px}
+.exp .x:hover{color:var(--red)}
+.more{margin-top:12px;background:var(--card);border:1px dashed var(--line);border-radius:var(--radius);padding:12px 14px;display:grid;gap:8px}
+.more .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.more input{flex:1 1 200px;min-width:0;border:1px solid var(--line);border-radius:999px;padding:8px 13px;background:var(--bg);min-height:38px}
+.more .hint{font-size:12.5px;color:var(--faint);margin:0}
+.add{display:grid;gap:8px}
+.add input,.add textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:var(--bg)}
+.add textarea{min-height:60px;resize:vertical}
+.empty{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:26px 20px;text-align:center;color:var(--muted)}
+.empty h2{font-family:var(--font-display);font-weight:600;font-size:22px;margin:0 0 6px;color:var(--ink)}
+.empty p{margin:0;font-size:14.5px}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:999px;font-size:13.5px;font-weight:600;box-shadow:var(--shadow);z-index:20;max-width:calc(100vw - 32px)}
+.foot{margin-top:28px;font-size:12.5px;color:var(--faint);text-align:center}
+@media (prefers-reduced-motion:no-preference){.item{transition:border-color .15s, box-shadow .15s}.pick,.chip,.btn{transition:background .12s,color .12s,border-color .12s}}
+@media (max-width:520px){.stat{min-height:78px;padding:12px 13px 10px}.stat .n{font-size:28px}.item{padding:12px 12px 10px}}
+</style>
+
+<div class="wrap">
+  <header class="hdr">
+    <div>
+      <p class="eyebrow">CFA Buda Ops Hub</p>
+      <h1>Day Book</h1>
+      <p class="dayline" id="dayline">Loading the day…</p>
+    </div>
+    <div class="daypick">
+      <label for="daySel">Day</label>
+      <select id="daySel" aria-label="Choose a day"></select>
+    </div>
+  </header>
+
+  <section class="stats" id="stats" aria-label="The day at a glance"></section>
+  <p class="statline" id="statline"></p>
+
+  <nav class="chips" id="chips" aria-label="Show"></nav>
+
+  <main id="main">
+    <div class="empty" id="loading">
+      <h2>Opening the day book</h2>
+      <p>What shipped, what's waiting, and the ideas worth developing will appear here.</p>
+    </div>
+  </main>
+
+  <p class="foot">Pick what you want to work on, write notes against any item, and ask Claude to develop an idea or suggest new ones. Everything you change is saved to this page.</p>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var $ = function(s, r){ return (r||document).querySelector(s); };
+  var el = function(tag, attrs, kids){
+    var n = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function(k){
+      if (k === 'text') n.textContent = attrs[k];
+      else if (k === 'html') n.innerHTML = attrs[k];
+      else if (k.slice(0,2) === 'on') n.addEventListener(k.slice(2), attrs[k]);
+      else if (attrs[k] === false || attrs[k] == null) {}
+      else n.setAttribute(k, attrs[k] === true ? '' : attrs[k]);
+    });
+    (kids||[]).forEach(function(c){ if (c) n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return n;
+  };
+  var ICON = {
+    check: '<svg class="i" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg>',
+    flag: '<svg class="i" viewBox="0 0 24 24"><path d="M5 21V4"/><path d="M5 4h11l-1.5 4L16 12H5"/></svg>',
+    pen: '<svg class="i" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+    spark: '<svg class="i" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6.3 6.3l2.8 2.8M14.9 14.9l2.8 2.8M6.3 17.7l2.8-2.8M14.9 9.1l2.8-2.8"/></svg>',
+    plus: '<svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+    x: '<svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+    stop: '<svg class="i" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+    link: '<svg class="i" viewBox="0 0 24 24"><path d="M10 14 21 3"/><path d="M15 3h6v6"/><path d="M19 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h6"/></svg>'
+  };
+  var icon = function(name){ var s = el('span'); s.innerHTML = ICON[name]; return s.firstChild; };
+
+  var KINDS = [
+    {k:'shipped', h:'What went live', sub:'what each change does for the team', pill:'Live'},
+    {k:'fixed',   h:'Bugs found and fixed', sub:'what went wrong, who it hit, the fix', pill:'Fixed'},
+    {k:'waiting', h:'Waiting on you', sub:'open PRs and decisions still yours', pill:'Waiting'},
+    {k:'todo',    h:'On the to-do list', sub:'written down, not started', pill:'To-do'},
+    {k:'idea',    h:'Ideas worth developing', sub:'said once, saved for later, not yet a task', pill:'Idea'}
+  ];
+  var KIND_BY = {}; KINDS.forEach(function(k){ KIND_BY[k.k] = k; });
+  var AREA_ORDER = ['Home / Right Now','Set Ups','Schedule','Waste','Our Team','Sign-in','Manage','Food Safety','Prep Board','Behind the scenes','Other'];
+
+  var state = { db:null, sample:null, user:null, canWrite:true, days:[], day:null, items:[], filter:'all', unsubItems:null, loaded:false, noteOpen:{}, pending:{} };
+  var writeQ = {};
+  function queueWrite(id, fn){ var p = (writeQ[id] || Promise.resolve()).then(fn, fn); writeQ[id] = p.catch(function(){}); return p; }
+
+  function toast(msg){ var t = $('.toast'); if (t) t.remove(); t = el('div',{class:'toast',role:'status',text:msg}); document.body.appendChild(t); setTimeout(function(){ t.remove(); }, 2600); }
+  function fmtDay(iso){ var p = iso.split('-').map(Number); var d = new Date(p[0], p[1]-1, p[2]); return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}); }
+  function fmtWhen(ts){ var d = new Date(ts); return d.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
+
+  /* ---------- rendering ---------- */
+  function counts(){ var c = {all:state.items.length, picked:0}; KINDS.forEach(function(k){ c[k.k] = 0; }); state.items.forEach(function(it){ if (c[it.kind] != null) c[it.kind]++; if (it.picked) c.picked++; }); return c; }
+
+  function renderHeader(){
+    var dayDoc = state.days.filter(function(d){ return d.id === state.day; })[0];
+    $('#dayline').textContent = state.day ? fmtDay(state.day) + (dayDoc && dayDoc.headline ? ' · ' + dayDoc.headline : '') : 'No day yet';
+    var sel = $('#daySel'); sel.innerHTML = '';
+    state.days.slice().sort(function(a,b){ return a.id < b.id ? 1 : -1; }).forEach(function(d){ sel.appendChild(el('option',{value:d.id,text:fmtDay(d.id)})); });
+    sel.value = state.day || '';
+    var c = counts();
+    var st = $('#stats'); st.innerHTML = '';
+    var merges = dayDoc && dayDoc.merges != null ? dayDoc.merges : c.shipped;
+    st.appendChild(tile(merges, 'merges went live', ''));
+    var build = dayDoc ? dayDoc.buildMatches : null;
+    st.appendChild(tile(build === true ? 'Yes' : build === false ? 'No' : '—', build === true ? 'live site is on the last merge' : build === false ? 'live site behind the last merge' : 'live build not checked', build === true ? 'ok' : build === false ? 'warn' : ''));
+    st.appendChild(tile(c.waiting, 'waiting on you', c.waiting ? 'warn' : ''));
+    st.appendChild(tile(c.todo + c.idea, 'to-dos and ideas', ''));
+    st.appendChild(tile(c.picked, 'picked to work on', c.picked ? 'ok' : ''));
+    $('#statline').textContent = dayDoc && dayDoc.liveCheck ? dayDoc.liveCheck : '';
+    renderChips(c);
+  }
+  function tile(n, label, cls){ return el('div',{class:'stat ' + (cls||'')},[ el('div',{class:'n',text:String(n)}), el('div',{class:'l',text:label}) ]); }
+
+  function renderChips(c){
+    var nav = $('#chips'); nav.innerHTML = '';
+    var defs = [{k:'all',l:'Everything'}].concat(KINDS.map(function(k){ return {k:k.k,l:k.h}; })).concat([{k:'picked',l:'My picks',cls:'pick'}]);
+    defs.forEach(function(d){
+      var b = el('button',{class:'chip ' + (d.cls||''), 'aria-pressed': state.filter === d.k ? 'true' : 'false', onclick:function(){ state.filter = d.k; try{ localStorage.setItem('hdb.filter', d.k); }catch(e){} renderChips(counts()); renderMain(); }},[ d.k==='picked' ? icon('flag') : null, document.createTextNode(d.l), el('span',{class:'c',text:String(c[d.k] != null ? c[d.k] : '')}) ]);
+      nav.appendChild(b);
+    });
+  }
+
+  function renderMain(){
+    var main = $('#main'); main.innerHTML = '';
+    if (!state.loaded){ main.appendChild(el('div',{class:'empty'},[el('h2',{text:'Opening the day book'}), el('p',{text:'What shipped, what\'s waiting, and the ideas worth developing will appear here.'})])); return; }
+    if (!state.db){ main.appendChild(el('div',{class:'empty'},[el('h2',{text:'Sign in to open the day book'}), el('p',{text:'The entries, your picks and your notes live with this page and need a signed-in claude.ai viewer.'})])); return; }
+    if (!state.items.length){ main.appendChild(el('div',{class:'empty'},[el('h2',{text:'Nothing written for this day yet'}), el('p',{text:'Ask Claude in the session to add the day, or add an idea below.'})])); main.appendChild(addIdeaBox()); return; }
+    var shown = state.items.filter(function(it){ return state.filter === 'all' || (state.filter === 'picked' ? it.picked : it.kind === state.filter); });
+    if (state.filter === 'picked'){
+      var sec = el('section',{class:'sec'},[ el('div',{class:'sec-h'},[ el('h2',{text:'My picks'}), el('span',{class:'sub',text: shown.length ? 'the working list, in day order' : 'tap the flag on any item to add it here'}) ]) ]);
+      var list = el('div',{class:'list'}); shown.sort(byOrder).forEach(function(it){ list.appendChild(card(it)); }); sec.appendChild(list); main.appendChild(sec); return;
+    }
+    KINDS.forEach(function(k){
+      var its = shown.filter(function(it){ return it.kind === k.k; }).sort(byOrder);
+      if (!its.length && state.filter === 'all' && (k.k === 'shipped' || k.k === 'fixed' || k.k === 'waiting')) return;
+      if (!its.length && state.filter !== 'all' && state.filter !== k.k) return;
+      var sec = el('section',{class:'sec', id:'s-' + k.k},[ el('div',{class:'sec-h'},[ el('h2',{text:k.h}), el('span',{class:'sub',text:k.sub}) ]) ]);
+      if (k.k === 'shipped'){
+        var groups = {}; its.forEach(function(it){ var a = it.area || 'Other'; (groups[a] = groups[a] || []).push(it); });
+        Object.keys(groups).sort(function(a,b){ return areaRank(a) - areaRank(b); }).forEach(function(a){
+          sec.appendChild(el('div',{class:'area',text:a}));
+          var list = el('div',{class:'list'}); groups[a].forEach(function(it){ list.appendChild(card(it)); }); sec.appendChild(list);
+        });
+      } else {
+        var list2 = el('div',{class:'list'});
+        if (!its.length) list2.appendChild(el('div',{class:'empty'},[el('p',{text: k.k === 'idea' ? 'No ideas parked yet. Add one, or ask Claude for suggestions.' : 'Nothing here for this day.'})]));
+        its.forEach(function(it){ list2.appendChild(card(it)); }); sec.appendChild(list2);
+      }
+      if (k.k === 'idea' || k.k === 'todo') sec.appendChild(moreBox(k.k));
+      if (k.k === 'idea') sec.appendChild(addIdeaBox());
+      main.appendChild(sec);
+    });
+  }
+  function areaRank(a){ var i = AREA_ORDER.indexOf(a); return i < 0 ? 99 : i; }
+  function byOrder(a,b){ return (a.order||0) - (b.order||0) || (a.createdAt||'').localeCompare(b.createdAt||''); }
+
+  function card(it){
+    var kind = KIND_BY[it.kind] || {pill:it.kind};
+    var c = el('article',{class:'item' + (it.picked ? ' picked' : ''), 'data-id':it.id});
+    var pick = el('button',{class:'pick','aria-pressed': it.picked ? 'true':'false', 'aria-label': it.picked ? 'Picked to work on. Tap to unpick' : 'Pick to work on', title:'Work on this', onclick:function(){ togglePick(it); }},[icon('flag')]);
+    if (!state.canWrite) pick.disabled = true;
+    var txt = el('div',{class:'txt'},[
+      el('h3',{text:it.title}),
+      it.body ? el('p',{class:'body',text:it.body}) : null,
+      meta(it, kind)
+    ]);
+    c.appendChild(el('div',{class:'top'},[pick, txt]));
+
+    var acts = el('div',{class:'acts'});
+    if (state.canWrite){
+      var noteBtn = el('button',{class:'btn', onclick:function(){ state.noteOpen[it.id] = !state.noteOpen[it.id]; renderMain(); }},[icon('pen'), document.createTextNode(it.notes ? 'Edit note' : 'Add a note')]);
+      acts.appendChild(noteBtn);
+    }
+    if (state.sample && state.canWrite){
+      var exBtn = el('button',{class:'btn claude', onclick:function(){ expand(it, exBtn); }},[icon('spark'), document.createTextNode((it.expansions && it.expansions.length) ? 'Develop it further' : 'Develop with Claude')]);
+      acts.appendChild(exBtn);
+    }
+    if (it.source === 'claude' && state.canWrite){
+      acts.appendChild(el('button',{class:'btn quiet', onclick:function(){ removeItem(it); }},[icon('x'), document.createTextNode('Remove')]));
+    }
+    c.appendChild(acts);
+
+    if (state.noteOpen[it.id] && state.canWrite){
+      var ta = el('textarea',{id:'note-' + it.id, placeholder:'Where you want to take this, what to check, who to ask…'}); ta.value = it.notes || '';
+      var saved = el('div',{class:'saved', text:''});
+      var timer;
+      ta.addEventListener('input', function(){ clearTimeout(timer); saved.textContent = 'Saving…'; timer = setTimeout(function(){ saveNote(it, ta.value, saved); }, 800); });
+      ta.addEventListener('blur', function(){ clearTimeout(timer); if (ta.value !== (it.notes||'')) saveNote(it, ta.value, saved); });
+      c.appendChild(el('div',{class:'note'},[ta, saved]));
+    } else if (it.notes){
+      c.appendChild(el('div',{class:'note-ro', text:it.notes}));
+    }
+    (it.expansions||[]).forEach(function(ex, i){
+      c.appendChild(el('div',{class:'exp'},[
+        el('div',{class:'eh'},[ el('b',{text:'Claude · ' + fmtWhen(ex.at)}), state.canWrite ? el('button',{class:'x', 'aria-label':'Remove this note from Claude', onclick:function(){ removeExpansion(it, i); }},[icon('x')]) : null ]),
+        el('div',{class:'et',text:ex.text})
+      ]));
+    });
+    if (state.pending[it.id]) c.appendChild(state.pending[it.id]);
+    return c;
+  }
+  function meta(it, kind){
+    var m = el('div',{class:'meta'});
+    m.appendChild(el('span',{class:'pill ' + it.kind, text: kind.pill || it.kind}));
+    if (it.source === 'claude') m.appendChild(el('span',{class:'pill claude', text:'Claude suggested'}));
+    if (it.source === 'tim') m.appendChild(el('span',{class:'pill', text:'Added by you'}));
+    if (it.kind !== 'shipped' && it.area) m.appendChild(el('span',{text:it.area}));
+    if (it.pr){
+      var prs = String(it.pr).split(/[\s,]+/).filter(Boolean);
+      prs.forEach(function(p){ var n = p.replace('#',''); m.appendChild(el('a',{href:'https://github.com/TimCFA/BudaOpsHub/pull/' + n, target:'_blank', rel:'noopener', text:'PR #' + n, style:'color:inherit;text-decoration:underline;text-decoration-color:var(--line)'})); });
+    }
+    if (it.time) m.appendChild(el('span',{text:'live ' + it.time}));
+    if (it.ref) m.appendChild(el('span',{text:it.ref}));
+    return m;
+  }
+
+  function moreBox(kind){
+    if (!state.sample || !state.canWrite) return el('span');
+    var inp = el('input',{id:'steer-' + kind, placeholder: kind === 'idea' ? 'Steer it (optional): e.g. kitchen side, speed, new leaders' : 'Steer it (optional): e.g. small wins for this week'});
+    var btn = el('button',{class:'btn claude'},[icon('spark'), document.createTextNode(kind === 'idea' ? 'Ask Claude for more ideas' : 'Ask Claude what else belongs here')]);
+    var hint = el('p',{class:'hint', text:'Five suggestions, built from what shipped, what you picked and your notes. They land here tagged as Claude\'s; remove any you don\'t want.'});
+    btn.addEventListener('click', function(){ suggest(kind, inp.value.trim(), btn, hint); });
+    return el('div',{class:'more'},[ el('div',{class:'row'},[inp, btn]), hint ]);
+  }
+  function addIdeaBox(){
+    if (!state.canWrite || !state.db) return el('span');
+    var t = el('input',{id:'add-title', placeholder:'An idea in a few words'});
+    var b = el('textarea',{id:'add-body', placeholder:'What made you think of it, or what it would do (optional)'});
+    var btn = el('button',{class:'btn primary'},[icon('plus'), document.createTextNode('Save the idea')]);
+    btn.addEventListener('click', function(){
+      var title = t.value.trim(); if (!title){ t.focus(); return; }
+      btn.disabled = true;
+      addItem({kind:'idea', area:'Other', title:title, body:b.value.trim(), source:'tim'}).then(function(){ t.value=''; b.value=''; toast('Idea saved'); }, function(){ toast('Could not save. Try again.'); }).then(function(){ btn.disabled = false; });
+    });
+    return el('div',{class:'more'},[ el('p',{class:'hint', text:'Add an idea of your own'}), el('div',{class:'add'},[t, b, el('div',{class:'row'},[btn])]) ]);
+  }
+
+  /* ---------- writes ---------- */
+  function ref(it){ return state.db.doc('items/' + it.id); }
+  function togglePick(it){
+    var v = !it.picked; it.picked = v; renderAll();
+    queueWrite(it.id, function(){ return ref(it).update({picked:v}); }).catch(function(e){ it.picked = !v; renderAll(); fail(e); });
+  }
+  function saveNote(it, text, savedEl){
+    it.notes = text;
+    queueWrite(it.id, function(){ return ref(it).update({notes:text}); }).then(function(){ if (savedEl) savedEl.textContent = 'Saved'; }, function(e){ if (savedEl) savedEl.textContent = 'Not saved. Try again.'; fail(e); });
+  }
+  function removeExpansion(it, i){
+    var next = (it.expansions||[]).slice(); next.splice(i,1); it.expansions = next; renderAll();
+    queueWrite(it.id, function(){ return ref(it).update({expansions:next}); }).catch(fail);
+  }
+  function removeItem(it){
+    var idx = state.items.indexOf(it); if (idx >= 0) state.items.splice(idx,1); renderAll();
+    queueWrite(it.id, function(){ return ref(it).delete(); }).then(function(){ toast('Removed'); }, fail);
+  }
+  function addItem(fields){
+    var now = new Date().toISOString();
+    var maxOrder = state.items.reduce(function(m,it){ return Math.max(m, it.order||0); }, 0);
+    var doc = { day:state.day, kind:fields.kind, area:fields.area||'Other', title:fields.title, body:fields.body||'', pr:'', time:'', ref:'', order:maxOrder+1, picked:false, notes:'', source:fields.source||'tim', createdAt:now, expansions:[] };
+    return state.db.collection('items').add(doc);
+  }
+  function fail(e){ var code = e && e.code; if (code === 'invalid_argument' && state.canWrite){ state.canWrite = false; renderAll(); toast('This page is read-only for you.'); } else if (code !== 'revoked'){ toast('Could not save. It will not be lost if you try again.'); } console.warn(e); }
+
+  /* ---------- Claude ---------- */
+  var HUB_CONTEXT = 'Context: the CFA Buda Ops Hub is the operations web app Tim (the operator of Chick-fil-A Buda, Texas) built for his store. Flask + vanilla JS, run by the leadership team on their phones and a few iPads. Tabs include Home / Right Now, Set Ups (position assignments by daypart), Schedule, Waste, Our Team, Sign-in, Manage, Food Safety and Prep Board. Everything the kitchen (BOH) team sees carries Spanish next to the English; FOH is English-only. Merging to main deploys to Render and restarts the server for about a minute, so merges happen after close, one a day; a failed save must retry, never be dropped. The leadership team\'s ethos draws on Excellence Wins (Horst Schulze), Good to Great, The 5 Dysfunctions of a Team, 4DX, Unreasonable Hospitality, 2 Second Lean, Leaders Eat Last, Atomic Habits and The Infinite Game. Never use real team member names; say "a Team Lead" or "a team member".';
+  function dayDigest(){
+    var lines = [];
+    var byKind = {}; state.items.forEach(function(it){ (byKind[it.kind] = byKind[it.kind] || []).push(it); });
+    KINDS.forEach(function(k){ var its = byKind[k.k]; if (!its || !its.length) return; lines.push(k.h + ':'); its.forEach(function(it){ lines.push('- ' + it.title + (it.body ? ' — ' + it.body : '') + (it.picked ? ' [Tim picked this]' : '') + (it.notes ? ' [Tim\'s note: ' + it.notes + ']' : '')); }); });
+    return lines.join('\n').slice(0, 24000);
+  }
+  function errCopy(code){
+    switch(code){
+      case 'not_granted': case 'sampling_disabled': case 'not_declared': case 'capability_disabled': return 'Claude isn\'t available on this page for you.';
+      case 'rate_limited': return 'Claude is busy or you\'ve hit your usage limit. Try again in a little while.';
+      case 'session_expired': return 'Sign in again to ask Claude.';
+      case 'refused': return 'Claude declined that one. Change the ask and try again.';
+      case 'invalid_json': return 'Claude\'s answer didn\'t come back as a list. Try again.';
+      default: return 'Claude didn\'t answer. Try again.';
+    }
+  }
+  function expand(it, btn){
+    var ctl = new AbortController();
+    var out = el('div',{class:'et thinking', text:'Thinking…'});
+    var stop = el('button',{class:'x', 'aria-label':'Stop', onclick:function(){ ctl.abort(); }},[icon('stop')]);
+    var box = el('div',{class:'exp'},[ el('div',{class:'eh'},[ el('b',{text:'Claude · working'}), stop ]), out ]);
+    state.pending[it.id] = box; btn.disabled = true; renderMain();
+    var prior = (it.expansions||[]).map(function(e){ return e.text; }).join('\n\n');
+    var prompt = HUB_CONTEXT + '\n\nWhat went live and what is pending on ' + fmtDay(state.day) + ':\n' + dayDigest() +
+      '\n\nThe item to develop (' + (KIND_BY[it.kind]||{}).h + '):\nTitle: ' + it.title + '\n' + (it.body ? 'Detail: ' + it.body + '\n' : '') + (it.notes ? 'Tim\'s notes: ' + it.notes + '\n' : '') +
+      (prior ? '\nWhat you already said about it (build on it, do not repeat it):\n' + prior + '\n' : '') +
+      '\nDevelop this for Tim in plain words a store leader reads on a phone. Cover: what it would do for the team on a shift; the smallest first version that could ship in one evening; what to watch for (saving and retries, the deploy rules, Spanish on kitchen screens, who may change what); and one question only Tim can answer. Under 220 words. Short paragraphs, no headings, no bullet symbols, no markdown.';
+    state.sample(prompt, { signal: ctl.signal, cache:false, onText:function(u){ out.classList.remove('thinking'); out.textContent = u.text; } })
+      .then(function(res){
+        var next = (it.expansions||[]).concat([{at:new Date().toISOString(), text:res.text + (res.truncated ? '\n\n(Cut short. Ask again for the rest.)' : '')}]);
+        it.expansions = next; delete state.pending[it.id]; renderAll();
+        return queueWrite(it.id, function(){ return ref(it).update({expansions:next}); }).catch(fail);
+      }, function(e){
+        delete state.pending[it.id]; renderAll();
+        if (e && e.code === 'cancelled'){ if (e.text) { var next = (it.expansions||[]).concat([{at:new Date().toISOString(), text:e.text + '\n\n(Stopped here.)'}]); it.expansions = next; renderAll(); queueWrite(it.id, function(){ return ref(it).update({expansions:next}); }).catch(fail); } return; }
+        if (e && (e.code === 'not_granted' || e.code === 'sampling_disabled' || e.code === 'not_declared' || e.code === 'capability_disabled')){ state.sample = null; renderAll(); }
+        toast(errCopy(e && e.code));
+      });
+  }
+  function suggest(kind, steer, btn, hint){
+    btn.disabled = true; var was = hint.textContent; hint.textContent = 'Thinking… Claude is reading the day.';
+    var existing = state.items.filter(function(it){ return it.kind === 'idea' || it.kind === 'todo'; }).map(function(it){ return it.title; });
+    var prompt = HUB_CONTEXT + '\n\nWhat went live and what is pending on ' + fmtDay(state.day) + ':\n' + dayDigest() +
+      '\n\nAlready on the list (do not repeat these): ' + (existing.join('; ') || 'nothing yet') +
+      (steer ? '\n\nTim asked to steer the suggestions toward: ' + steer : '') +
+      '\n\nSuggest 5 new ' + (kind === 'idea' ? 'ideas worth developing for the hub: natural next steps from what shipped, gaps a leader would hit on shift, or small things that make the day smoother for the team. Mix sizes; make at least two tiny.' : 'concrete to-do items that follow from what shipped and what is pending: checks, follow-ups, small fixes or messages to the team, each doable in one sitting.') +
+      ' Each needs a title of at most 9 words and a body of one or two plain sentences on what it does for the team and why now. Pick area from: ' + AREA_ORDER.join(', ') + '. Reply with only a JSON array of 5 objects shaped {"title": string, "body": string, "area": string}, no other text.';
+    state.sample.json(prompt, { cache:false, modelTier:'default' })
+      .then(function(arr){
+        if (!Array.isArray(arr)) throw {code:'invalid_json'};
+        var rows = arr.filter(function(r){ return r && r.title; }).slice(0,5);
+        var chain = Promise.resolve();
+        rows.forEach(function(r){ chain = chain.then(function(){ return addItem({kind:kind, area: AREA_ORDER.indexOf(String(r.area)) >= 0 ? String(r.area) : 'Other', title:String(r.title).slice(0,120), body:String(r.body||'').slice(0,400), source:'claude'}); }); });
+        return chain.then(function(){ toast(rows.length + ' suggestions added'); });
+      })
+      .catch(function(e){ if (e && (e.code === 'not_granted' || e.code === 'sampling_disabled' || e.code === 'not_declared' || e.code === 'capability_disabled')){ state.sample = null; renderAll(); } toast(errCopy(e && e.code)); })
+      .then(function(){ btn.disabled = false; hint.textContent = was; });
+  }
+
+  /* ---------- data ---------- */
+  function renderAll(){ renderHeader(); renderMain(); }
+  function subscribeItems(){
+    if (state.unsubItems) state.unsubItems();
+    state.loaded = false; state.items = []; renderAll();
+    if (!state.db || !state.day){ state.loaded = true; renderAll(); return; }
+    state.unsubItems = state.db.collection('items').where('day','==',state.day).onSnapshot(function(snap){
+      var pendingIds = Object.keys(state.pending);
+      state.items = snap.docs.map(function(d){ var o = Object.assign({}, d.data()); o.id = d.id; return o; });
+      state.loaded = true; renderAll();
+      pendingIds.forEach(function(id){ if (!state.items.some(function(it){ return it.id === id; })) delete state.pending[id]; });
+    }, function(e){ state.loaded = true; renderAll(); if (e && e.code !== 'revoked') toast('Lost the connection to the day book. Reload to try again.'); });
+  }
+  function chooseDay(id){ state.day = id; try{ localStorage.setItem('hdb.day', id); }catch(e){} renderHeader(); subscribeItems(); }
+
+  function start(){
+    try{ var f = localStorage.getItem('hdb.filter'); if (f) state.filter = f; }catch(e){}
+    $('#daySel').addEventListener('change', function(e){ chooseDay(e.target.value); });
+    renderAll();
+    if (!window.claude || !window.claude.use){ state.loaded = true; renderAll(); return; }
+    window.claude.use('user').then(function(u){ state.user = u; if (u) return u.can('data.write').then(function(w){ if (w === false) state.canWrite = false; }); }).catch(function(){});
+    window.claude.use('sample').then(function(s){ state.sample = s; renderAll(); });
+    window.claude.use('db').then(function(db){
+      state.db = db;
+      if (!db){ state.loaded = true; renderAll(); return; }
+      db.collection('days').onSnapshot(function(snap){
+        state.days = snap.docs.map(function(d){ var o = Object.assign({}, d.data()); o.id = d.id; return o; });
+        if (!state.day){
+          var want = null;
+          var h = (location.hash||'').replace('#',''); if (/^\d{4}-\d{2}-\d{2}$/.test(h)) want = h;
+          if (!want){ try{ want = localStorage.getItem('hdb.day'); }catch(e){} }
+          if (!want || !state.days.some(function(d){ return d.id === want; })) want = state.days.map(function(d){ return d.id; }).sort().pop() || null;
+          if (want) chooseDay(want); else { state.loaded = true; renderAll(); }
+        } else renderHeader();
+      }, function(){ state.loaded = true; renderAll(); });
+    });
+  }
+  if (window.claude && window.claude.hot && window.claude.hot.snapshot) window.claude.hot.snapshot(function(){ return {day:state.day, filter:state.filter}; });
+  var boot = function(data){ if (data && data.filter) state.filter = data.filter; if (data && data.day) { try{ localStorage.setItem('hdb.day', data.day); }catch(e){} } start(); };
+  if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(boot); else boot((window.claude && window.claude.hot && window.claude.hot.data) || {});
+})();
+</script>
