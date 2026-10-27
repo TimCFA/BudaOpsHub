@@ -480,6 +480,30 @@ calendar has a **Meeting / leadership** kind (navy) and every event form a
 them. Nothing is emailed yet: delivery is copy or PDF until a mail
 provider's key is on Render.
 
+### Tasks (delegation)
+Projects and the tasks handed to each person (`static/js/tasks.js`; Tim,
+Oct 27 2026), its own tab for everyone signed in, on the simplified site
+too. A task is what, for whom, by when (optional), under which project
+(optional), with details and a thread of notes; a project is a name, why
+it matters, an owner and a target date, with its tasks' progress.
+- **Who delegates:** Team Leads, the Admin Team and directors (the manager
+  PIN too). They see **Mine**, **Team** (everyone's open tasks grouped by
+  person, most overdue first, with Overdue / Due this week / Not delegated
+  filters), **Projects** (cards with a progress bar; tap one for its tasks,
+  edit, mark done, delete) and **Done** (the last 30 days). Their changes
+  go through the ordinary save; the server stamps `by`.
+- **Everyone else** (Team Members, Trainers) sees Mine and Done: their own
+  list, overdue first. They mark a task that's theirs done (or not done
+  yet) and add notes through `/api/tasks/update`, which checks the task is
+  for them (names matched as Right Now matches them); the section's keys
+  never take their save. Spanish rides on the team-facing lines.
+- **Right Now** (Home) opens with "N tasks for you, M overdue" for whoever
+  is signed in; a tap opens Mine.
+- A name comes from the PIN list and the schedule (Set Ups' picker); a
+  task can wait with nobody yet. Done tasks fall away after 90 days.
+  `teamProjects` and `teamTasks` are the `delegation` section, sent to
+  every signed-in device (work, not people data).
+
 ### Talent
 - **Trainer trial** (30 days) and **Team Lead trial** (90 days) trackers, built
   from the store's Leadership Playbook.

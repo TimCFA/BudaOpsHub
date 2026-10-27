@@ -695,6 +695,8 @@ function renderRightNow(){
     day = rnDay();
     v = rnViewer();
     card = rnCardFor(v, day);
+    // Tasks delegated to whoever's holding the phone (tasks.js), first in the list.
+    if(typeof tkRightNowRow === 'function'){ const r = tkRightNowRow(v); if(r) card.rows.unshift(r); }
   }catch(err){
     console.warn('Right Now card:', err);
     root.innerHTML = '';
@@ -764,6 +766,7 @@ function rnGo(g){
     window.scrollTo({top: 0});
   }
   else if(what === 'waste'){ launchShowTab('wastelog'); window.scrollTo({top: 0}); }
+  else if(what === 'tasks' && typeof tkShow === 'function') tkShow(rest || 'mine');
   else if(what === 'headcount'){ launchShowTab('headcount'); window.scrollTo({top: 0}); }
   else if(what === 'schedule' && typeof tsShowDay === 'function') tsShowDay(rest);
   else if(what === 'foodsafety'){ launchShowTab('foodsafety'); window.scrollTo({top: 0}); }

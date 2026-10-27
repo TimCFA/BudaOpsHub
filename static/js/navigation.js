@@ -22,6 +22,7 @@ function activateView(view){
   document.getElementById(view+'View').classList.add('active');
   if(view === 'positions') renderPositionsTab();
   if(view === 'schedule') renderTeamSchedule();
+  if(view === 'tasks' && typeof renderTasksView === 'function') renderTasksView();
   if(view === 'wastelog'){ renderGrid(); renderTape(); }
   if(view === 'zonereset'){ renderZoneResetView(); renderWalkthroughsPage(); }
   if(view === 'safecount') renderSafeCount();

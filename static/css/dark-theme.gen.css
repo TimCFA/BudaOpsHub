@@ -338,3 +338,14 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .hc-pins b.is-missing{color:var(--ink-red);}
 :where(html[data-theme="dark"]) .hc-pin-line b.is-missing{color:var(--ink-red);}
 :where(html[data-theme="dark"]) .si-reason{background:#2F2426;color:var(--ink-dark-red);}
+:where(html[data-theme="dark"]) .tk-chip b{color:var(--ink-red);}
+:where(html[data-theme="dark"]) .tk-error{background:#2F2426;color:var(--ink-dark-red);}
+:where(html[data-theme="dark"]) .is-bad{color:var(--ink-red);}
+:where(html[data-theme="dark"]) .tk-row.is-bad .tk-meta{color:var(--ink-red);}
+:where(html[data-theme="dark"]) .tk-row.is-warn .tk-meta{color:#FFB545;}
+:where(html[data-theme="dark"]) .tk-row:hover .tk-go,:where(html[data-theme="dark"]) .tk-project:hover .tk-go{color:var(--ink-red);}
+:where(html[data-theme="dark"]) .tk-back{color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .tk-delete{color:var(--ink-dark-red);}
+:where(html[data-theme="dark"]) .tk-facts .is-bad{color:var(--ink-red);}
+:where(html[data-theme="dark"]) .tk-facts .is-warn{color:#FFB545;}
+:where(html[data-theme="dark"]) .tk-hit{color:var(--ink-navy);}

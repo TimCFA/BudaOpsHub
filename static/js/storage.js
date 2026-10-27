@@ -36,6 +36,8 @@ const STATE_SECTIONS = {
   // Change orders placed, and when each arrives (safe-order.js; Tim, Oct 23 2026): private.
   safeOrders: ['safeOrders'],
   points: ['pointsRecords', 'pointsUploads', 'pointsSettings', 'pointsTeam', 'pointsMemos'],
+  // Projects and the tasks delegated to the team (tasks.js; Tim, Oct 27 2026).
+  delegation: ['teamProjects', 'teamTasks'],
   misc: []
 };
 const STATE_SECTION_OF = {};
@@ -162,7 +164,8 @@ function stateSnapshot(){
     prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, prepMade, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, launchMode, prepTimes, prepTimers,
     salesHistory, forecastSettings, forecastLog, daypartWeeks, zoneOwners, posNotes, callIns, storeEvents, truckShifts,
     uniformOrders, uniformCatalog, directors, adminShifts, leaderNotes, leaderRoster, peaGoals, leaderFocus, teamNotes, safeOrderSettings,
-    pointsRecords, pointsUploads, pointsSettings, pointsTeam, pointsMemos, lxQuarters, safeOrders
+    pointsRecords, pointsUploads, pointsSettings, pointsTeam, pointsMemos, lxQuarters, safeOrders,
+    teamProjects, teamTasks
   };
 }
 
@@ -672,6 +675,10 @@ function applyStateData(data){
   safeOrderSettings = (data.safeOrderSettings && typeof data.safeOrderSettings === 'object' && !Array.isArray(data.safeOrderSettings)) ? data.safeOrderSettings : {};
   safeOrders = Array.isArray(data.safeOrders) ? data.safeOrders : [];
   if(typeof renderSafeOrder === 'function') renderSafeOrder();
+  // Projects and delegated tasks (tasks.js).
+  teamProjects = Array.isArray(data.teamProjects) ? data.teamProjects : [];
+  teamTasks = Array.isArray(data.teamTasks) ? data.teamTasks : [];
+  if(typeof tkRerender === 'function') tkRerender();
   leaderFocus = (data.leaderFocus && typeof data.leaderFocus === 'object' && !Array.isArray(data.leaderFocus)) ? data.leaderFocus : {};
   // The directors' notes on each team member (team-pea.js).
   teamNotes = (data.teamNotes && typeof data.teamNotes === 'object' && !Array.isArray(data.teamNotes)) ? data.teamNotes : {};

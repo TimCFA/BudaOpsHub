@@ -369,6 +369,25 @@ const ES = {
   'Next break': (who, time) => `Siguiente: ${who} a las ${time}`,
   'Kitchen waste today': 'Desperdicio de cocina hoy',
   'Most wasted': (item, money) => `Más desperdiciado: ${item} ${money}`,
+  // Tasks: what's delegated to each person (tasks.js).
+  'Tasks': 'Tareas',
+  'Your tasks': 'Tus tareas',
+  'Mine': 'Mías',
+  'What’s been handed to you': 'Lo que te han encargado',
+  'Sign in to see your tasks': 'Inicia sesión con tu PIN para ver tus tareas',
+  'N tasks for you': n => `${n} ${n === 1 ? 'tarea para ti' : 'tareas para ti'}`,
+  'Nothing for you right now': 'No tienes nada pendiente por ahora',
+  'Nothing done yet': 'Todavía no hay nada terminado',
+  'For': 'Para',
+  'From': 'De',
+  'Mark done': 'Marcar como hecha',
+  'Not done yet': 'Aún no está hecha',
+  'Notes': 'Notas',
+  'Add a note': 'Agregar una nota',
+  'Overdue': 'Atrasada',
+  'Due today': 'Para hoy',
+  'Due tomorrow': 'Para mañana',
+  'Due DATE': d => `Para el ${d}`,
 };
 
 // Words of the BOH stations (zone-reset.js bohPositions), lower case. A spot

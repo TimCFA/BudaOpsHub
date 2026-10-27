@@ -177,6 +177,9 @@ STATE_SECTIONS = {
     # Change orders placed, and when each arrives (safe-order.js; Tim, Oct 23 2026).
     'safeOrders': ['safeOrders'],
     'points': ['pointsRecords', 'pointsUploads', 'pointsSettings', 'pointsTeam', 'pointsMemos'],
+    # Projects and the tasks delegated to the team (tasks.js; Tim, Oct 27
+    # 2026): everyone signed in reads it; leaders write it (DELEGATE_KEYS).
+    'delegation': ['teamProjects', 'teamTasks'],
     'misc': [],
 }
 SECTION_OF_KEY = {key: name for name, keys in STATE_SECTIONS.items() for key in keys}
@@ -2125,11 +2128,43 @@ def _lead_or_up():
     user = session.get('user') if isinstance(session.get('user'), dict) else {}
     return user.get('role') == 'lead'
 
+# Projects and tasks (tasks.js; Tim, Oct 27 2026): Team Leads, the Admin
+# Team and directors create them and delegate them. A Team Member or
+# Trainer only marks a task delegated to them done (or not) and adds a note
+# to it, through /api/tasks/update: the keys never take their saves.
+DELEGATE_KEYS = set(STATE_SECTIONS['delegation'])
+
+def _can_delegate():
+    if session.get('manager'):
+        return True
+    user = session.get('user') if isinstance(session.get('user'), dict) else {}
+    return user.get('role') in ('lead', 'admin')
+
+def _same_person(a, b):
+    """The PIN list and the schedule can spell a name with or without a
+    middle or second last name (right-now.js rnSame): the same first name,
+    and the shorter one's last name somewhere in the longer."""
+    def words(s):
+        s = unicodedata.normalize('NFD', str(s or ''))
+        s = ''.join(ch for ch in s if not unicodedata.combining(ch))
+        return s.strip().lower().split()
+    x, y = words(a), words(b)
+    if not x or not y:
+        return False
+    if x == y:
+        return True
+    if x[0] != y[0] or len(x) < 2 or len(y) < 2:
+        return False
+    short, long_ = (x, y) if len(x) <= len(y) else (y, x)
+    return short[-1] in long_[1:]
+
 def _may_change(key):
     if session.get('manager'):
         return True
     role = (session.get('user') or {}).get('role') if isinstance(session.get('user'), dict) else None
     if role == 'lead':
+        return True
+    if role == 'admin' and key in DELEGATE_KEYS:
         return True
     if role in ('member', 'trainer') and SECTION_OF_KEY.get(key, 'misc') in MEMBER_SECTIONS:
         return True
@@ -2255,6 +2290,12 @@ def state_patch():
                     allowed = [op for op in ops if op['p'][0] not in LEAD_ONLY_KEYS]
                     if len(allowed) != len(ops):
                         dropped, ops = True, allowed
+                if not _can_delegate():
+                    # Projects and tasks are a leader's to write; a team member
+                    # marks their own done through /api/tasks/update.
+                    allowed = [op for op in ops if op['p'][0] not in DELEGATE_KEYS]
+                    if len(allowed) != len(ops):
+                        dropped, ops = True, allowed
                 if require:
                     allowed = [op for op in ops if _may_change(op['p'][0])]
                     if len(allowed) != len(ops):
@@ -2358,6 +2399,51 @@ def safe_order_received():
                         'receivedBy': str(user.get('name') or ('Director' if session.get('manager') else ''))[:80]})
             _write_section('safeOrders', dict(data, safeOrders=orders))
     return jsonify({'success': True, 'order': {k: hit.get(k) for k in ('id', 'status', 'receivedAt', 'receivedBy')}})
+
+# A task delegated to someone (tasks.js; Tim, Oct 27 2026): the person it's
+# for marks it done (or open again) and adds a note, from any signed-in
+# phone. Leaders change tasks through the ordinary save; this is for
+# everyone else, so the section's keys never take a team member's save.
+TASK_NOTE_MAX = 500
+
+@app.route('/api/tasks/update', methods=['POST'])
+def task_update():
+    who = _who_name()
+    user = session.get('user') if isinstance(session.get('user'), dict) else {}
+    if not (session.get('manager') or user.get('name')):
+        return jsonify({'error': 'Sign in with your clock-in PIN to update a task.'}), 403
+    body = request.get_json(silent=True) or {}
+    task_id = str(body.get('id') or '')
+    status = body.get('status')
+    note = str(body.get('note') or '').strip()[:TASK_NOTE_MAX]
+    if status not in (None, 'open', 'done'):
+        return jsonify({'error': 'status must be open or done'}), 400
+    if status is None and not note:
+        return jsonify({'error': 'Nothing to change'}), 400
+    now = int(time.time() * 1000)
+    with _state_lock:
+        _ensure_cache()
+        entry = _cache.get('delegation')
+        data = dict(entry['data']) if entry and isinstance(entry.get('data'), dict) else {}
+        tasks = [dict(t) for t in (data.get('teamTasks') or []) if isinstance(t, dict)]
+        hit = next((t for t in tasks if t.get('id') == task_id), None)
+        if not hit:
+            return jsonify({'error': 'That task is no longer on file.'}), 404
+        if not _can_delegate() and not _same_person(hit.get('to'), who):
+            return jsonify({'error': 'Only the person a task is for can update it.'}), 403
+        if status and status != hit.get('status'):
+            hit['status'] = status
+            if status == 'done':
+                hit['doneAt'], hit['doneBy'] = now, who[:80]
+            else:
+                hit.pop('doneAt', None)
+                hit.pop('doneBy', None)
+        if note:
+            notes = [n for n in (hit.get('notes') or []) if isinstance(n, dict)]
+            notes.append({'text': note, 'by': who[:80], 'ts': now})
+            hit['notes'] = notes
+        _write_section('delegation', dict(data, teamTasks=tasks))
+    return jsonify({'success': True, 'task': hit})
 
 # Waste by day, for the team's waste scoreboard (Tim, Oct 18 2026). A team
 # device is sent two days of waste entries (WASTE_TEAM_WINDOW_MS), so its

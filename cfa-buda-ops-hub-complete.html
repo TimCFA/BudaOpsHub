@@ -61,6 +61,8 @@
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="positionsView" data-view="positions">Set Ups <span class="sub"><i>Configuración</i></span></button>
       <!-- The team's shifts for the week (team-schedule.js; Tim, Oct 25 2026). -->
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="scheduleView" data-view="schedule">Schedule <span class="sub"><i>Horario</i></span></button>
+      <!-- Tasks (tasks.js; Tim, Oct 27 2026): projects and the tasks delegated to each person. -->
+      <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="tasksView" data-view="tasks">Tasks <span class="sub"><i>Tareas</i></span></button>
 
       <!-- Launch mode (launch-mode.js): Home plus the team's essentials. -->
       <!-- Waste logging, with the waste scoreboard as a pill at the top of the page (launch-mode.js). -->
@@ -865,6 +867,13 @@
     <div class="ts-page" id="scheduleRoot"></div>
   </div>
 
+  <!-- Tasks (tasks.js): what's delegated to whom, by project; leaders delegate, everyone sees their own. -->
+  <div class="view" id="tasksView">
+    <div class="tk-page" id="tasksRoot"></div>
+  </div>
+  <!-- The task and project sheets (tasks.js), over whatever page is open. -->
+  <div class="overlay tk-overlay" id="tkSheet" role="dialog" aria-modal="true" aria-labelledby="tkSheetTitle"><div class="sheet tk-sheet" id="tkSheetCard"></div></div>
+
   <!-- Know the Numbers (kn-page.js): each daypart's productivity goal and what it takes, for Team Leads and up. In Tools. -->
   <div class="view" id="knownumbersView">
     <nav class="launch-subnav" aria-label="Tools" data-launch-subnav></nav>
@@ -1232,6 +1241,7 @@
 <script src="/static/js/waste-export.js"></script>
 <script src="/static/js/fohoe-and-safecount.js"></script>
 <script src="/static/js/safe-order.js"></script>
+<script src="/static/js/tasks.js"></script>
 <script src="/static/js/food-safety.js"></script>
 <script src="/static/js/shift-time.js"></script>
 <script src="/static/js/daypicker-and-positions.js"></script>
