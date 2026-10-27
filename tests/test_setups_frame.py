@@ -262,5 +262,30 @@ class SofterLook(unittest.TestCase):
         self.assertNotRegex(css, r'(^|\})\.pos-option-list\{display:grid')
 
 
+class SideSwitch(unittest.TestCase):
+    """FOH/BOH on a phone (Tim, Oct 26 2026): one switch at the end of the chip
+    row that flips on a tap anywhere on it; wider screens keep it in the day
+    strip, where tapping the side that's on flips too."""
+
+    def test_switch_at_the_end_of_the_chip_row(self):
+        js = read('static', 'js', 'setups-board.js')
+        self.assertIn('<div class="su-chips-line">${chips ? `<div class="su-chips-row" aria-label="Today">${chips}</div>` : \'\'}${suSideSwitchHtml(section)}</div>', js)
+        self.assertIn('role="switch" aria-checked="${boh}"', js)
+        self.assertIn("if(t.closest('[data-su-side]')){", js)
+
+    def test_one_or_the_other_by_width(self):
+        css = read('static', 'css', 'theme-cfa.css')
+        self.assertIn('.su-side-switch{position:relative;flex:none;display:none;', css)
+        self.assertIn('@media (max-width:600px){\n  .su-side-switch{display:grid;}\n  .su-strip .foh-boh-toggle{display:none;}\n}', css)
+
+    def test_tapping_the_side_on_flips(self):
+        js = read('static', 'js', 'fohoe-and-safecount.js')
+        self.assertIn("const t = btn.classList.contains('active') ? document.querySelector(`#posToggle .toggle-btn:not([data-section=\"${btn.dataset.section}\"])`) : btn;", js)
+        # The two that pick a side on purpose click only a side that isn't on.
+        rn = read('static', 'js', 'right-now.js')
+        self.assertIn("if(b && !b.classList.contains('active')) b.click();", rn)
+        self.assertIn("if(currentPosSection !== side){", rn)
+
+
 if __name__ == '__main__':
     unittest.main()
