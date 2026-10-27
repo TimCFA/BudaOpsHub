@@ -1,16 +1,23 @@
 // ===== SHIFT CHANGES (swaps since the schedule was posted) =====
 // The team swaps a lot of shifts in HotSchedules, and the roster is synced
 // again (Ops Hub Sync) to pick them up. A sync replaces each day's imported
-// roster, so on its own nobody would see what changed. So the first time a
-// day that already has an imported roster is synced again, the roster it had
-// is kept as that day's posted schedule (rosterPosted). Set Ups then shows
-// the difference for the day on screen:
+// roster, so the first time a day that already has an imported roster is
+// synced again, the roster it had is kept as that day's posted schedule
+// (rosterPosted). The difference for the day:
 //   swap  — one person off and another on for the same hours
 //   on    — added
-//   off   — no longer scheduled (and where they're still placed, if anywhere)
+//   off   — no longer scheduled
 //   time  — same person, different hours
 // Only imported people count; ones added by hand (source: 'manual') are the
 // leader's own changes. Past days are pruned after a week.
+//
+// Set Ups doesn't list them (Tim, Oct 26 2026: the list was "chaotic and
+// unhelpful… can't decipher the information at one glance"). The one a lead
+// has to act on, someone off who is still placed, shows on the spot itself
+// (rosterIsOff): the name marked "Off today", the spot counted as open on
+// its daypart card, and one chip above the cards ("2 spots to fix") that
+// opens the first. Adds, swaps and new hours need nothing from them: the
+// roster and the cards' arrival and leave times already show them.
 
 const ROSTER_POSTED_KEEP_DAYS = 7;
 
@@ -53,32 +60,6 @@ function rosterNotePosted(date, side, currentList){
   rosterPosted[date] = day;
 }
 
-// Manager reset: the roster as it is now becomes the posted schedule for
-// these days (say the first sync was a draft), so their changes clear and
-// later syncs compare with it.
-function rosterResetPosted(dates){
-  dates.forEach(date=>{
-    const day = {};
-    ['foh', 'boh'].forEach(side=>{
-      const now = rcImported((side === 'foh' ? fohRoster : bohRoster)[date]);
-      if(now.length) day[side] = rcSlim(now);
-    });
-    if(day.foh || day.boh){ day.at = Date.now(); rosterPosted[date] = day; }
-    else delete rosterPosted[date];
-  });
-}
-
-// Monday–Saturday of `date`'s week, from today on.
-function rcWeekDates(date){
-  const d = new Date(date + 'T00:00:00');
-  const monday = isoAddDays(date, d.getDay() === 0 ? -6 : 1 - d.getDay());
-  return [0, 1, 2, 3, 4, 5].map(i => isoAddDays(monday, i)).filter(x => x >= today);
-}
-
-function rcDayLabel(date){
-  return new Date(date + 'T00:00:00').toLocaleDateString('en-US', {weekday: 'short', month: 'numeric', day: 'numeric'});
-}
-
 function rosterPrunePosted(){
   const cutoff = isoAddDays(today, -ROSTER_POSTED_KEEP_DAYS);
   Object.keys(rosterPosted).forEach(d => { if(d < cutoff) delete rosterPosted[d]; });
@@ -111,116 +92,43 @@ function rosterDayChanges(date, side){
   return changes;
 }
 
-// Where someone is still placed on `date` (positions and Lead Captain), e.g.
-// ['iPOS 1 · Lunch'].
-function rosterPlacedAt(date, side, name){
-  const prefix = `${side}||${date}||`, who = String(name).trim().toLowerCase();
+// Who is off on `date` for `side`: off the roster since it was posted, or
+// swapped out. Lowercased names. Kept until the roster or the posted
+// schedule changes, since every spot on the page asks.
+const rcOffMemo = new Map();
+function rosterOffNames(date, side){
+  const k = side + '||' + date;
+  const roster = (side === 'foh' ? fohRoster : bohRoster)[date], posted = (rosterPosted[date] || {})[side];
+  const hit = rcOffMemo.get(k);
+  if(hit && hit.roster === roster && hit.posted === posted && hit.len === (roster || []).length) return hit.off;
+  const off = new Set();
+  rosterDayChanges(date, side).forEach(c => off.add(String(c.kind === 'swap' ? c.for : c.kind === 'off' ? c.name : '').trim().toLowerCase()));
+  off.delete('');
+  rcOffMemo.set(k, {roster, posted, len: (roster || []).length, off});
+  return off;
+}
+function rosterIsOff(date, side, name){
+  return rosterOffNames(date, side).has(String(name || '').trim().toLowerCase());
+}
+
+// The spots on `date` held by someone who's off, in daypart and priority
+// order: [{dp, slot}].
+function rosterSpotsToFix(date, side){
+  if(!rosterOffNames(date, side).size) return [];
+  const posMap = side === 'foh' ? fohPositions : bohPositions;
   const out = [];
-  Object.keys(posAssignments).forEach(k=>{
-    if(!k.startsWith(prefix)) return;
-    if(!suSplitNames(posAssignments[k]).some(n => n.toLowerCase() === who)) return;
-    const [dp, slot] = k.slice(prefix.length).split('||');
-    out.push(`${slot} · ${suShortDaypart(dp)}`);
-  });
+  suDaypartsFor(side).forEach(dp => (posMap[dp.name] || []).forEach(slot => {
+    const v = posAssignments[`${side}||${date}||${dp.name}||${slot}`];
+    if(v && suSplitNames(v).some(n => rosterIsOff(date, side, n))) out.push({dp: dp.name, slot});
+  }));
   return out;
 }
 
-// The card is a drop-down, closed to start so it takes one line on Set Ups.
-// The header carries how many changes there are, and flags in red when
-// someone who changed is still placed in a spot. Open or closed is
-// remembered on the device. Changed hours read "was" (light) then "now"
-// (bold), so the current time is the one that stands out.
-const RC_OPEN_KEY = 'cfaBudaShiftChangesOpen';
-let rcOpen = false;
-try{ rcOpen = localStorage.getItem(RC_OPEN_KEY) === '1'; }catch(e){}
-function rcToggleOpen(){
-  rcOpen = !rcOpen;
-  try{ localStorage.setItem(RC_OPEN_KEY, rcOpen ? '1' : '0'); }catch(e){}
-}
-const RC_SVG = d => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
-const RC_ICONS = {
-  swap: RC_SVG('<path d="M7 7h11l-3-3"/><path d="M17 17H6l3 3"/>'),
-  on: RC_SVG('<path d="M12 5v14M5 12h14"/>'),
-  off: RC_SVG('<path d="M5 12h14"/>'),
-  time: RC_SVG('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
-  warn: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5M12 17.5v.01"/></svg>'
-};
+const RC_ICON_WARN = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5M12 17.5v.01"/></svg>';
 
-// The chip on the Set Ups chip row ("3 Shift changes ▾") and, open, the
-// list under the row (Tim, Oct 18 2026); rosterChangesHtml is both.
-function rosterChangesHtml(side, date){
-  return rosterChangesChipHtml(side, date) + rosterChangesBodyHtml(side, date);
+// Above the cards, only when there's something to fix; a tap opens the first.
+function rosterFixChipHtml(side, date){
+  const n = rosterSpotsToFix(date, side).length;
+  if(!n) return '';
+  return `<button type="button" class="su-rowchip su-chip-fix" data-rc-fix="1">${RC_ICON_WARN}<span>${n} spot${n === 1 ? '' : 's'} to fix${esLine('N spots to fix', n)}</span></button>`;
 }
-
-function rosterChangesChipHtml(side, date){
-  const changes = rosterDayChanges(date, side);
-  const other = side === 'foh' ? 'boh' : 'foh';
-  const otherN = rosterDayChanges(date, other).length;
-  if(!changes.length && !otherN) return '';
-  const placedAt = n => rosterPlacedAt(date, side, n);
-  const stillPlaced = changes.filter(c => (c.kind === 'swap' && placedAt(c.for).length) || (c.kind === 'off' && placedAt(c.name).length)).length;
-  const n = changes.length;
-  return `<button type="button" class="su-rowchip su-chip-changes ${rcOpen ? 'is-open' : ''}" data-rc-toggle="1" aria-expanded="${rcOpen}">
-      ${n ? `<span class="su-changes-count" aria-label="${n} change${n === 1 ? '' : 's'}">${n}</span>` : ''}
-      <span class="su-changes-title">Shift changes${esHtml('Shift changes')}</span>
-      ${stillPlaced ? `<span class="su-changes-flag">${RC_ICONS.warn}${stillPlaced} still placed${esHtml('N still placed', stillPlaced)}</span>` : ''}
-      ${n ? '' : `<span class="su-changes-sub">none on ${side.toUpperCase()}${esHtml('none on SIDE', side.toUpperCase())}</span>`}
-      <span class="su-changes-chev" aria-hidden="true">▾</span>
-    </button>`;
-}
-
-function rosterChangesBodyHtml(side, date){
-  const changes = rosterDayChanges(date, side);
-  const other = side === 'foh' ? 'boh' : 'foh';
-  const otherN = rosterDayChanges(date, other).length;
-  if(!rcOpen || (!changes.length && !otherN)) return '';
-  const nm = n => `<b>${escapeHtml(suDisplayName(n))}</b>`;
-  const placedAt = n => rosterPlacedAt(date, side, n);
-  const placed = n => {
-    const at = placedAt(n);
-    return at.length ? `<span class="su-changes-warn">${RC_ICONS.warn}still placed: ${escapeHtml(at.join(', '))}</span>` : '';
-  };
-  const stillPlaced = changes.filter(c => (c.kind === 'swap' && placedAt(c.for).length) || (c.kind === 'off' && placedAt(c.name).length)).length;
-  const was = t => `<span class="su-changes-was">was ${escapeHtml(t)}</span>`;
-  const now = t => `<span class="su-changes-now">now ${escapeHtml(t)}</span>`;
-  // The Spanish for a change, on its own line under the English.
-  const es = c => {
-    const who = suDisplayName(c.name), at = placedAt(c.kind === 'swap' ? c.for : c.name);
-    const line = esText('Change ' + c.kind, who, c.kind === 'swap' ? suDisplayName(c.for) : c.kind === 'time' ? c.was : c.span, c.span);
-    return esSpan(line + (at.length && (c.kind === 'swap' || c.kind === 'off') ? ` · ${esText('still placed')}: ${at.join(', ')}` : ''), true);
-  };
-  const line = c => {
-    const ic = `<span class="su-changes-ic is-${c.kind}">${RC_ICONS[c.kind] || RC_ICONS.time}</span>`;
-    if(c.kind === 'swap') return `<li>${ic}<span>${nm(c.name)} for ${nm(c.for)} <span class="su-changes-now">${escapeHtml(c.span)}</span>${placed(c.for)}${es(c)}</span></li>`;
-    if(c.kind === 'on') return `<li>${ic}<span>${nm(c.name)} added <span class="su-changes-now">${escapeHtml(c.span)}</span>${es(c)}</span></li>`;
-    if(c.kind === 'off') return `<li>${ic}<span>${nm(c.name)} off ${was(c.span)}${placed(c.name)}${es(c)}</span></li>`;
-    return `<li>${ic}<span>${nm(c.name)} <span class="su-changes-times">${was(c.was)} ${now(c.span)}</span>${es(c)}</span></li>`;
-  };
-  const n = changes.length;
-  return `<div class="su-changes is-open" role="note">
-    <div class="su-changes-body">
-    ${n ? `<div class="su-changes-sub">${n} since the schedule was posted${esHtml('since the schedule was posted')}</div><ul>${changes.map(line).join('')}</ul>` : ''}
-    ${otherN ? `<div class="su-changes-other">${otherN} ${other.toUpperCase()} change${otherN === 1 ? '' : 's'} — switch to ${other.toUpperCase()} to see ${otherN === 1 ? 'it' : 'them'}${esLine('N SIDE changes', otherN, other.toUpperCase())}</div>` : ''}
-    ${typeof launchManager !== 'undefined' && launchManager ? `<div class="su-changes-actions">
-      <button type="button" data-rc-reset="day" data-rc-date="${escapeHtml(date)}">Reset day</button>
-      <button type="button" data-rc-reset="week" data-rc-date="${escapeHtml(date)}">Reset week</button>
-      <span>Managers: make the roster as it is now the posted schedule</span>
-    </div>` : ''}
-    </div>
-  </div>`;
-}
-
-document.getElementById('allDayparts').addEventListener('click', async e=>{
-  if(e.target.closest('[data-rc-toggle]')){ rcToggleOpen(); renderAllDayparts(); return; }
-  const btn = e.target.closest('[data-rc-reset]');
-  if(!btn) return;
-  const date = btn.dataset.rcDate;
-  const dates = btn.dataset.rcReset === 'week' ? rcWeekDates(date) : [date];
-  if(!dates.length) return;
-  const span = dates.length > 1 ? `${rcDayLabel(dates[0])} – ${rcDayLabel(dates[dates.length - 1])}` : rcDayLabel(dates[0]);
-  if(!confirm(`Use the roster as it is now as the posted schedule for ${span}? Its shift changes clear, and later syncs are compared with it.`)) return;
-  rosterResetPosted(dates);
-  renderAllDayparts();
-  showToast(`✓ Posted schedule reset · ${span}`);
-  await saveState();
-});

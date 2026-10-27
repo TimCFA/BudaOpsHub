@@ -23,6 +23,8 @@ const ctx = {
   suClock(min){ const h = Math.floor(min / 60) % 24; return `${(h + 11) % 12 + 1}:${String(min % 60).padStart(2, '0')}`; },
   suSplitNames(v){ return String(v || '').split(/\s*\/\s*/).filter(Boolean); },
   suShortDaypart(n){ return n; }, suDisplayName(n){ return n.split(' ')[0]; },
+  fohPositions: {Breakfast: ['iPOS 1', 'Drinks 1'], Lunch: ['iPOS 1', 'Host 2']}, bohPositions: {},
+  suDaypartsFor(side){ return side === 'foh' ? [{name: 'Breakfast'}, {name: 'Lunch'}] : []; },
   escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => '&#' + c.charCodeAt(0) + ';'); },
   isoAddDays(iso, n){ const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); },
 };
@@ -51,7 +53,8 @@ def scenario(posted, now, extra=''):
       rosterNotePosted('2026-10-02', 'foh', fohRoster['2026-10-02']);
       fohRoster['2026-10-02'] = {json.dumps(now)};
       {extra}
-      return {{changes: rosterDayChanges('2026-10-02', 'foh'), html: rosterChangesHtml('foh', '2026-10-02')}};
+      return {{changes: rosterDayChanges('2026-10-02', 'foh'), off: [...rosterOffNames('2026-10-02', 'foh')].sort(),
+               fix: rosterSpotsToFix('2026-10-02', 'foh'), html: rosterFixChipHtml('foh', '2026-10-02')}};
     }}"""
 
 
@@ -67,26 +70,34 @@ class RosterChangesTest(unittest.TestCase):
         self.assertEqual(got[('swap', 'Jordan Lee')]['for'], 'Avery Stone')
         self.assertEqual(got[('time', 'Casey Brooks')]['was'], '6:00a–2:00p')
 
-    def test_off_and_still_placed(self):
-        posted = [P('Avery Stone', '6:00a', '1:00p'), P('Riley Park', '10:30a', '3:00p')]
-        now = [P('Riley Park', '10:30a', '3:00p')]
-        place = "posAssignments['foh||2026-10-02||Lunch||iPOS 1'] = 'Avery Stone';"
-        [closed, opened] = run([scenario(posted, now, place + 'rcOpen = false;'), scenario(posted, now, place + 'rcOpen = true;')])
-        self.assertEqual([(c['kind'], c['name']) for c in opened['changes']], [('off', 'Avery Stone')])
-        self.assertIn('still placed: iPOS 1 · Lunch', opened['html'])
-        # Closed, the header still flags it, with the count.
-        self.assertNotIn('<ul>', closed['html'])
-        self.assertIn('1 still placed', closed['html'])
-        self.assertIn('class="su-changes-count" aria-label="1 change">1<', closed['html'])
+    def test_off_and_still_placed_is_a_spot_to_fix(self):
+        # Tim, Oct 26 2026: no list of changes; the spot held by someone off is what to fix.
+        posted = [P('Avery Stone', '6:00a', '1:00p'), P('Riley Park', '10:30a', '3:00p'), P('Sam Swap', '4:00p', '9:00p')]
+        now = [P('Riley Park', '10:30a', '3:00p'), P('Jordan Lee', '4:00p', '9:00p')]
+        place = ("posAssignments['foh||2026-10-02||Lunch||iPOS 1'] = 'Avery Stone';"
+                 "posAssignments['foh||2026-10-02||Breakfast||Drinks 1'] = 'Riley Park/Sam Swap';"
+                 "posAssignments['foh||2026-10-02||Lunch||Host 2'] = 'Riley Park';")
+        [r] = run([scenario(posted, now, place)])
+        self.assertEqual(r['off'], ['avery stone', 'sam swap'])                  # off, and swapped out
+        self.assertEqual(r['fix'], [{'dp': 'Breakfast', 'slot': 'Drinks 1'}, {'dp': 'Lunch', 'slot': 'iPOS 1'}])   # daypart order
+        self.assertIn('data-rc-fix="1"', r['html'])
+        self.assertIn('2 spots to fix', r['html'])
 
-    def test_changed_hours_read_was_then_now(self):
+    def test_nothing_to_fix_no_chip(self):
         posted = [P('Casey Brooks', '6:00a', '2:00p')]
-        now = [P('Casey Brooks', '6:00a', '11:00a')]
-        [r] = run([scenario(posted, now, 'rcOpen = true;')])
-        html = r['html']
-        was, cur = html.index('su-changes-was">was 6:00a–2:00p'), html.index('su-changes-now">now 6:00a–11:00a')
-        self.assertLess(was, cur)
-        self.assertNotIn('1 still placed', html)
+        now = [P('Casey Brooks', '6:00a', '11:00a'), P('Morgan Hale', '4:00p', '9:00p')]   # new hours and an add: nothing to do
+        [r] = run([scenario(posted, now, "posAssignments['foh||2026-10-02||Lunch||iPOS 1'] = 'Casey Brooks';")])
+        self.assertEqual(r['off'], [])
+        self.assertEqual(r['html'], '')
+
+    def test_off_names_follow_a_new_sync(self):
+        posted = [P('Avery Stone', '6:00a', '1:00p')]
+        js = scenario(posted, [], """var before = [...rosterOffNames('2026-10-02', 'foh')];
+          fohRoster['2026-10-02'] = [{name: 'Avery Stone', start: '6:00a', end: '1:00p'}];""").replace(
+            "return {changes:", "return {before: before, changes:")
+        [r] = run([js])
+        self.assertEqual(r['before'], ['avery stone'])
+        self.assertEqual(r['off'], [])                                           # back on: no longer off
 
     def test_first_import_and_past_days_keep_nothing(self):
         [first, past] = run(["""function(){ rosterPosted = {}; rosterNotePosted('2026-10-02', 'foh', []); return rosterPosted; }""",
@@ -94,46 +105,12 @@ class RosterChangesTest(unittest.TestCase):
         self.assertEqual(first, {})
         self.assertEqual(past, {})
 
-    def test_posted_kept_once_and_no_card_when_unchanged(self):
+    def test_posted_kept_once_and_nothing_when_unchanged(self):
         posted = [P('Avery Stone', '6:00a', '1:00p')]
         again = "rosterNotePosted('2026-10-02', 'foh', [{name: 'Someone Else', start: '1:00p', end: '5:00p'}]);"
         [r] = run([scenario(posted, posted, again)])
         self.assertEqual(r['changes'], [])
         self.assertEqual(r['html'], '')
-
-    def test_manager_reset(self):
-        posted = [P('Avery Stone', '6:00a', '1:00p')]
-        now = [P('Jordan Lee', '6:00a', '1:00p'), P('Hand Added', '11:00a', '2:00p', source='manual')]
-        reset = """rosterResetPosted(['2026-10-02', '2026-10-03']);
-          var after = rosterDayChanges('2026-10-02', 'foh').length;
-          var kept = rosterPosted['2026-10-02'].foh.map(function(p){ return p.name; });
-          var emptyDay = '2026-10-03' in rosterPosted;"""
-        js = scenario(posted, now, reset).replace(
-            "return {changes:", "return {after: after, kept: kept, emptyDay: emptyDay, changes:")
-        [r] = run([js])
-        self.assertEqual(r['after'], 0)
-        self.assertEqual(r['kept'], ['Jordan Lee'])     # the hand-added person isn't part of it
-        self.assertFalse(r['emptyDay'])                 # a day with no roster keeps nothing
-
-    def test_week_dates_from_today(self):
-        [fri, nextmon] = run(["function(){ return rcWeekDates('2026-10-02'); }",
-                              "function(){ return rcWeekDates('2026-10-05'); }"])
-        self.assertEqual(fri, ['2026-10-02', '2026-10-03'])
-        self.assertEqual(nextmon, ['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09', '2026-10-10'])
-
-    def test_reset_buttons_only_for_managers(self):
-        posted = [P('Avery Stone', '6:00a', '1:00p')]
-        now = [P('Jordan Lee', '6:00a', '1:00p')]
-        [team, mgr] = run([scenario(posted, now, 'rcOpen = true;'), scenario(posted, now, 'rcOpen = true; launchManager = true;')])
-        self.assertNotIn('data-rc-reset', team['html'])
-        self.assertIn('data-rc-reset="week"', mgr['html'])
-
-    def test_names_escaped(self):
-        posted = [P('Avery Stone', '6:00a', '1:00p')]
-        now = [P('<img src=x onerror=alert(1)> Lee', '6:00a', '1:00p')]
-        [r] = run([scenario(posted, now, 'rcOpen = true;')])
-        self.assertIn('&#60;img', r['html'])            # shown, escaped (card open)
-        self.assertNotIn('<img', r['html'])
 
 
 if __name__ == '__main__':

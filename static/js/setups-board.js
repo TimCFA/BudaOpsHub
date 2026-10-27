@@ -153,6 +153,7 @@ function suDaypartModel(section, date, dp, dpIndex){
       tier: !first ? 'open' : !positions.length ? 'na' : cell ? cell.tier.key : 'unrated',
       develop: first ? devNames.has(first.toLowerCase()) : false,
       flagged: !!posVacancyFlags[key + '||' + slot],
+      off: typeof rosterIsOff === 'function' && names.some(n => rosterIsOff(date, section, n)),   // off today, still placed
       notes: posNotesFor(key + '||' + slot).length,
       timeNote: suSlotTimeNote(timing, names),
       coming: suNotHereYet(section, date, dp, timing, names)
@@ -188,9 +189,11 @@ function suDaypartOpenCount(section, date, dp, i){
   const posMap = section === 'foh' ? fohPositions : bohPositions;
   const key = suEvalKey(section, date, dp.name);
   const slots = posMap[dp.name] || [];
-  const filled = slots.filter(s => posAssignments[key + '||' + s]).length;
+  // A spot held only by someone who's off today is as good as open.
+  const held = s => { const v = posAssignments[key + '||' + s]; return !!v && !(typeof rosterIsOff === 'function' && suSplitNames(v).every(n => rosterIsOff(date, section, n))); };
+  const filled = slots.filter(held).length;
   const onShift = suDaypartTiming(section, date, i).effective;
-  const open = slots.slice(0, onShift).filter(s => !posAssignments[key + '||' + s]).length;
+  const open = slots.slice(0, onShift).filter(s => !held(s)).length;
   return {filled, onShift, open};
 }
 function suDaypartFillText(section, date, dp, i, count){
@@ -296,19 +299,17 @@ function suEventsLineHtml(section, date, dp, i){
   if(typeof eventsInWindow !== 'function' || i < 0 || !evCalendarShown()) return '';
   const {startMin, endMin} = daypartTimeWindow(suDaypartsFor(section), i);
   // The ones counting for Know the Numbers are on the numbers line already.
-  const list = eventsInWindow(date, startMin, endMin).filter(ev => !evCountsForNumbers(ev));
+  // All-day events (a promotion, a sampling day) belong to every daypart, so
+  // they're here too, not in a row of pills over the cards (Tim, Oct 26 2026).
+  const list = [...(typeof eventsAllDay === 'function' ? eventsAllDay(date) : []), ...eventsInWindow(date, startMin, endMin)].filter(ev => !evCountsForNumbers(ev));
   return list.length ? `<div class="su-dp-events">${list.map(eventChipHtml).join('')}</div>` : '';
 }
 
-// The chip row under the status line (Tim, Oct 18 2026): the day's shift
-// changes ("3 Shift changes ▾", opening the list under the row) and the
-// store's all-day events, one chip each, scrolling sideways. Tapping an
-// event chip shows it whole.
-function suDayEventChipsHtml(date){
-  if(typeof eventsAllDay !== 'function' || !evCalendarShown()) return '';
-  return eventsAllDay(date).map(eventChipHtml).join('');
-}
-
+// The row under the status line: "2 spots to fix" when someone off today
+// is still placed (roster-changes.js), and on a phone the FOH/BOH switch.
+// Nothing else: the day's events are on the daypart cards, and the list of
+// every shift change is gone (Tim, Oct 26 2026: duplicate information,
+// "can't decipher the information at one glance").
 // On a phone the FOH/BOH switch sits at the end of this row, big enough to
 // hit without aiming (Tim, Oct 26 2026: "I want to be able to click it with
 // less precision"); a tap anywhere on it flips the side. Wider screens keep
@@ -323,9 +324,8 @@ function suSideSwitchHtml(section){
 }
 
 function suChipsRowHtml(section, date){
-  const chips = (typeof rosterChangesChipHtml === 'function' ? rosterChangesChipHtml(section, date) : '') + suDayEventChipsHtml(date);
-  const body = typeof rosterChangesBodyHtml === 'function' ? rosterChangesBodyHtml(section, date) : '';
-  return `<div class="su-chips-line">${chips ? `<div class="su-chips-row" aria-label="Today">${chips}</div>` : ''}${suSideSwitchHtml(section)}</div>` + body;
+  const fix = typeof rosterFixChipHtml === 'function' ? rosterFixChipHtml(section, date) : '';
+  return `<div class="su-chips-line">${fix}${suSideSwitchHtml(section)}</div>`;
 }
 
 // A daypart's numbers, as text: {sales, goal, actual, off, ev}.
@@ -554,7 +554,7 @@ function suTileHtml(t){
   const avatar = t.names.length ? suInitials(t.names[0]) : '+';
   const label = `${t.slot}, priority ${t.rank}: ${t.names.length ? t.names.join(' then ') : (t.needed ? 'needed' : 'open')}${t.cell ? `, ${t.cell.tier.label} ${t.cell.avg.toFixed(2)}` : ''}${t.notes ? `, ${t.notes} note${t.notes === 1 ? '' : 's'}` : ''}`;
   return `
-    <button type="button" class="su-tile ${t.needed ? 'is-needed' : ''} ${!t.names.length ? 'is-open' : ''} ${t.flagged ? 'is-flagged' : ''} ${t.coming ? 'is-coming' : ''}" data-su-tile="${escapeHtml(t.slot)}" ${t.coming ? `data-su-arrives="${t.coming}"` : ''} aria-label="${escapeHtml(label + (t.coming ? `, not here yet, arrives ${suClock(t.coming)}` : ''))}">
+    <button type="button" class="su-tile ${t.needed ? 'is-needed' : ''} ${!t.names.length ? 'is-open' : ''} ${t.flagged ? 'is-flagged' : ''} ${t.coming ? 'is-coming' : ''} ${t.off ? 'is-off' : ''}" data-su-tile="${escapeHtml(t.slot)}" ${t.coming ? `data-su-arrives="${t.coming}"` : ''} aria-label="${escapeHtml(label + (t.coming ? `, not here yet, arrives ${suClock(t.coming)}` : ''))}">
       <span class="su-tile-top"><span class="su-tile-slot">${escapeHtml(t.slot)}</span><span class="su-tile-rank">${t.notes ? `<span class="su-tile-noted" title="Has a note">${SU_ICON_NOTE}</span>` : ''}#${t.rank}</span></span>
       <span class="su-tile-who">
         <span class="su-avatar su-av-${t.tier}" aria-hidden="true">${escapeHtml(avatar)}</span>
@@ -562,6 +562,7 @@ function suTileHtml(t){
       </span>
       ${t.timeNote ? `<span class="su-tile-time ${t.timeNote.warn ? 'is-warn' : ''} ${t.timeNote.out ? 'is-out' : ''}">${t.timeNote.out ? SU_ICON_OUT : ''}${escapeHtml(t.timeNote.text)}${t.timeNote.es ? esSpan(t.timeNote.es, true) : ''}</span>` : ''}
       ${t.flagged ? '<span class="su-tile-flag">Needs coverage</span>' : ''}
+      ${t.off ? `<span class="su-off-tag">Off today${esLine('Off today')}</span>` : ''}
     </button>`;
 }
 
@@ -779,8 +780,16 @@ document.getElementById('allDayparts').addEventListener('click', suTakeCard, tru
 
 document.getElementById('allDayparts').addEventListener('click', e=>{
   const t = e.target;
-  const evChip = t.closest('.su-chips-row .ev-chip');
-  if(evChip){ evChip.classList.toggle('is-full'); return; }
+  if(t.closest('[data-rc-fix]')){
+    // Open the first spot to fix and bring it into view.
+    const first = rosterSpotsToFix(document.getElementById('daySelect').value, currentPosSection)[0];
+    if(!first) return;
+    suSelectedDaypart[currentPosSection] = first.dp; suOpenCards[currentPosSection].add(first.dp); suCardsTouched[currentPosSection] = true;
+    renderAllDayparts();
+    const row = [...document.querySelectorAll('#allDayparts [data-su-tile].is-off')].find(r => r.dataset.suTile === first.slot) || document.querySelector('#allDayparts [data-su-tile].is-off');
+    if(row) row.scrollIntoView({block: 'center', behavior: 'smooth'});
+    return;
+  }
   if(t.closest('[data-su-side]')){
     const other = document.querySelector(`#posToggle .toggle-btn[data-section="${currentPosSection === 'boh' ? 'foh' : 'boh'}"]`);
     if(other) other.click();
