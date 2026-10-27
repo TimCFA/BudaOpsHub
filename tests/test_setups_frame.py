@@ -162,16 +162,18 @@ class DaypartCards(unittest.TestCase):
         self.assertIn("if(date !== today) return false;", fn)
         self.assertIn("return i >= nowIdx && i <= nowIdx + 1;", fn)
 
-    def test_banner_count_is_what_is_open(self):
-        """The pill read "8/9" while three spots sat red: a spot filled below
-        the headcount line made up for a skipped one above it (Oct 2026). Now
-        "3 open" (red) while spots up to the headcount are empty, else
-        filled/on shift as before; the Coach chips say the same thing."""
+    def test_banner_count_is_assigned_over_on_shift(self):
+        """Spots assigned / people on shift ("9/10"), red while a spot up to the
+        headcount is empty (a spot filled below the line doesn't make up for
+        one skipped above it). It read "3 open" for a while; Tim asked for the
+        old count back (Oct 27 2026). The Coach chips say the same thing."""
         board = read('static', 'js', 'setups-board.js')
         count = block(board, 'function suDaypartOpenCount(section, date, dp, i){', '\n}\n')
         self.assertIn("const open = slots.slice(0, onShift).filter(s => !held(s)).length;", count)
         text = block(board, 'function suDaypartFillText(section, date, dp, i, count){', '\n}\n')
-        self.assertIn("return open ? `${open} open${esLine('N open', open)}` : onShift ? `${filled}/${onShift}` : filled ? `${filled} placed${esLine('N placed', filled)}` : '—';", text)
+        # Tim, Oct 27 2026: assigned / on shift again, not "1 open"; red while short.
+        self.assertIn("return onShift ? `${filled}/${onShift}` : filled ? `${filled} placed${esLine('N placed', filled)}` : '—';", text)
+        self.assertNotIn(" open${esLine('N open'", board)
         self.assertIn("""`<span class="su-dp-fill ${count.open && !suDaypartIsOver(section, date, dp) ? 'is-short' : ''}">""", board)
         over = block(board, 'function suDaypartIsOver(section, date, dp){', '\n}\n')
         self.assertIn("if(date < today) return true;", over)

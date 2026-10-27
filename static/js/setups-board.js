@@ -180,11 +180,10 @@ function suDaypartModel(section, date, dp, dpIndex){
 
 // ----- Pieces -----
 
-// The banner's count: what the leader still has to do. "3 open" (red) while
-// spots up to the headcount are empty; otherwise "9/9" (spots filled / people
-// on shift), "3 placed" with no roster, or "—". Until Oct 2026 it counted
-// every filled spot, so it read "8/9" while three spots sat red: a spot
-// filled below the headcount line made up for a skipped one above it.
+// The banner's count: spots assigned / people on shift ("9/10"), red while
+// a spot up to the headcount is still empty, "3 placed" with no roster, or
+// "—". For a while in Oct 2026 it read "3 open" instead; Tim asked for the
+// assigned / available count back (Oct 27).
 function suDaypartOpenCount(section, date, dp, i){
   const posMap = section === 'foh' ? fohPositions : bohPositions;
   const key = suEvalKey(section, date, dp.name);
@@ -198,7 +197,9 @@ function suDaypartOpenCount(section, date, dp, i){
 }
 function suDaypartFillText(section, date, dp, i, count){
   const {filled, onShift, open} = count || suDaypartOpenCount(section, date, dp, i);
-  return open ? `${open} open${esLine('N open', open)}` : onShift ? `${filled}/${onShift}` : filled ? `${filled} placed${esLine('N placed', filled)}` : '—';
+  // Spots assigned / people on shift (Tim, Oct 27 2026: back from "1 open"):
+  // red while a spot up to the headcount is still empty (suDaypartFillHtml).
+  return onShift ? `${filled}/${onShift}` : filled ? `${filled} placed${esLine('N placed', filled)}` : '—';
 }
 // Red only while it can still be acted on: a daypart already over (earlier
 // today, or any daypart of a past day) shows its open count in grey.
@@ -405,9 +406,9 @@ function suDaypartCardsHtml(section, date){
 function suDaypartPillsHtml(section, date, current){
   return `<nav class="su-dpp" role="tablist" aria-label="Daypart">${suDaypartsFor(section).map((dp, i)=>{
     const active = dp.name === current;
-    const fill = suDaypartFillText(section, date, dp, i);
-    const [n, of] = fill.split('/');
-    const done = of && +n >= +of;
+    const count = suDaypartOpenCount(section, date, dp, i);
+    const fill = suDaypartFillText(section, date, dp, i, count);
+    const done = count.onShift && !count.open;
     return `<button type="button" role="tab" aria-selected="${active}" class="su-dpp-pill ${active ? 'active' : ''}" data-su-daypart="${escapeHtml(dp.name)}">
       <span class="su-dpp-name">${escapeHtml(suShortDaypart(dp.name))}${esSpan(esDaypart(dp.name), true)}</span>
       <span class="su-dpp-count ${done ? 'is-done' : ''}">${escapeHtml(fill)}</span>
