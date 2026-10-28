@@ -430,18 +430,21 @@ class FullScreen(unittest.TestCase):
 
 
 class TapAndHold(unittest.TestCase):
-    """Tim, Oct 28 2026: a tap resets at once, no prompt; press and hold opens
-    the sheet to say who did it or hand the timer off."""
+    """Tim, Oct 28 2026: one tap pauses (a tap on a paused timer resumes it),
+    a quick double tap resets, press and hold opens the sheet to say who did
+    it or hand the timer off."""
 
     def test_the_page(self):
         root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         js = open(os.path.join(root, 'static', 'js', 'timers.js'), encoding='utf-8').read()
         self.assertIn("if(press && press.id === d.tmTimer && (press.fired || press.moved)) return;", js)
-        self.assertIn('quickReset(d.tmTimer);', js)
+        self.assertIn('tapTimer(d.tmTimer);', js)
+        self.assertIn('const HOLD_MS = 550, DOUBLE_MS = 320;', js)
+        self.assertIn("if(tapWait && tapWait.id === id){ clearTimeout(tapWait.timer); tapWait = null; quickReset(id); return; }", js)   # the second tap resets
+        self.assertIn("if(st.cls === 'paused') resumeTimer(id);", js)
+        self.assertIn("else if(['ok', 'soon', 'late'].includes(st.cls)) pauseTimer(id, 'rest');", js)
         self.assertIn("resetTimer(id, S.me && S.me.name ? S.me.name : '');", js)
-        self.assertIn('const HOLD_MS = 550;', js)
         self.assertIn("S.root.addEventListener('contextmenu'", js)
-        self.assertIn('Press and hold to pause it, say who did it, or hand it off.', js)
-        self.assertIn("if(t && cycle(t).cls === 'paused'){ resumeTimer(id); return; }", js)     # a tap on a paused timer resumes it
+        self.assertIn('Tap to pause, tap again to resume. Double tap when it’s done. Press and hold to say who did it or hand it off.', js)
         css = open(os.path.join(root, 'static', 'css', 'timers.css'), encoding='utf-8').read()
         self.assertIn('-webkit-touch-callout:none', css)

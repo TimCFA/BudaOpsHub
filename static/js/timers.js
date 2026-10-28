@@ -246,7 +246,7 @@
     return headHtml() + `
       <div class="tm-grid" id="tmGrid" style="--tm-cols:${Math.max(1, Math.min(5, c.timers.length))}" data-ids="${h(c.timers.map(t => t.id).join())}">${c.timers.map(tileHtml).join('')}</div>
       ${c.counters.length ? `<h3 class="tm-h">Counters</h3><div class="tm-grid">${c.counters.map(counterHtml).join('')}</div>` : ''}
-      <p class="tm-hint">Tap a timer when it’s done. Press and hold to pause it, say who did it, or hand it off.</p>
+      <p class="tm-hint">Tap to pause, tap again to resume. Double tap when it’s done. Press and hold to say who did it or hand it off.</p>
       <label class="tm-sound"><input type="checkbox" data-tm-sound ${S.sound ? 'checked' : ''}> Beep on this device when a timer goes overdue</label>`;
   }
   function paintTiles(){
@@ -271,7 +271,7 @@
       }
       if(st.cls === 'paused'){
         ring.style.background = 'var(--tm-c)';
-        el.querySelector('.tm-owner').textContent = st.rest ? 'Rest of today' : `Back at ${fmtTime(st.until)}`;
+        el.querySelector('.tm-owner').textContent = st.rest ? 'Tap to resume' : `Back at ${fmtTime(st.until)}`;
       } else {
         const o = st.cls === 'off' ? '' : ownerNow(t.id);
         el.querySelector('.tm-owner').textContent = o ? (o === S.lead ? 'LC · ' : '') + first(o) : '';
@@ -349,8 +349,8 @@
   async function pauseTimer(id, how){
     const ev = await send('pause', Object.assign({timerId: id, name: sheetName()}, how === 'rest' ? {rest: true} : {minutes: Number(how)}));
     if(!ev) return;
-    toast(`${ev.data.timerName} paused ${ev.data.rest ? 'for the rest of today' : `until ${fmtTime(ev.data.until)}`}`);
-    closeSheet();
+    toast(`${ev.data.timerName} paused${ev.data.rest ? '. Tap to resume.' : ` until ${fmtTime(ev.data.until)}`}`);
+    if(S.sheet) closeSheet(); else render();
   }
   async function resumeTimer(id){
     const ev = await send('resume', {timerId: id, name: sheetName()});
@@ -363,18 +363,32 @@
     const id = S.sheet && S.sheet.id;
     if(await resetTimer(id, name)) closeSheet();
   }
-  // A tap resets the timer at once, no questions (Tim, Oct 28 2026); whoever
-  // is signed in is named, otherwise nobody is. Press and hold opens the
-  // timer's sheet: who did it, and the handoff.
-  const HOLD_MS = 550;
-  let hold = null;
-  // A tap on a paused timer brings it back instead (it wasn't done, it was off).
-  function quickReset(id){
+  // Tim, Oct 28 2026: one tap pauses (and a tap on a paused timer resumes
+  // it), a quick double tap resets it when it's done, and press and hold
+  // opens the sheet: who did it, the handoff, a pause for a set time. A tap
+  // pause lasts until it's tapped again or the store closes. A timer that
+  // hasn't started starts on a tap; one that's already a miss only resets.
+  // Whoever is signed in is named, otherwise nobody is.
+  const HOLD_MS = 550, DOUBLE_MS = 320;
+  let hold = null, tapWait = null;
+  function flash(id){
     const el = document.querySelector(`#tmGrid [data-tm-timer="${CSS.escape(id)}"]`);
-    if(el){ el.classList.add('is-tapped'); setTimeout(() => el.classList.remove('is-tapped'), 600); }
+    if(el){ el.classList.remove('is-tapped'); void el.offsetWidth; el.classList.add('is-tapped'); setTimeout(() => el.classList.remove('is-tapped'), 600); }
+  }
+  function quickReset(id){ flash(id); resetTimer(id, S.me && S.me.name ? S.me.name : ''); }
+  function singleTap(id){
     const t = S.config.timers.find(x => x.id === id);
-    if(t && cycle(t).cls === 'paused'){ resumeTimer(id); return; }
-    resetTimer(id, S.me && S.me.name ? S.me.name : '');
+    const st = t ? cycle(t) : {cls: 'off'};
+    if(st.cls === 'paused') resumeTimer(id);
+    else if(['ok', 'soon', 'late'].includes(st.cls)) pauseTimer(id, 'rest');
+    else if(st.cls === 'new') quickReset(id);
+    else toast(st.cls === 'missed' ? `${t.name} is already a miss. Double tap it when it’s done.` : 'The store is closed. Double tap to restart it.');
+  }
+  function tapTimer(id){
+    if(tapWait && tapWait.id === id){ clearTimeout(tapWait.timer); tapWait = null; quickReset(id); return; }
+    if(tapWait){ clearTimeout(tapWait.timer); const other = tapWait.id; tapWait = null; singleTap(other); }
+    flash(id);
+    tapWait = {id, timer: setTimeout(() => { tapWait = null; singleTap(id); }, DOUBLE_MS)};
   }
   // `hold` lives until the click that follows the press: a press that opened
   // the sheet (fired) or slid off (moved) isn't a tap.
@@ -546,7 +560,7 @@
     else if(d.tmTimer){
       const press = hold; hold = null;
       if(press && press.id === d.tmTimer && (press.fired || press.moved)) return;   // opened the sheet, or slid off: not a tap
-      quickReset(d.tmTimer);
+      tapTimer(d.tmTimer);
     }
     else if(d.tmCount){
       const id = d.tmCount, v = Math.max(0, (S.counts[id] || 0) + Number(d.d));

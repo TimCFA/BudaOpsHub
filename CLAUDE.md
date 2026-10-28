@@ -83,11 +83,12 @@ grace runs out, and works out who gets the credit from Set Ups when the cycle
 came due: the Lead Captain of the FOH daypart on the floor, or whoever they
 handed the timer to (a handoff holds until a different Lead Captain takes
 the floor, or it's taken back). Timers rest outside store hours and on closed
-days; a timer nobody has ever reset hasn't started. A tap resets; press and
-hold opens the sheet (who did it, handoff, pause). A pause is always for a set
-time (15 / 30 / 60 min or the rest of the day) and moves the cycle later by
-however long it sat paused; a tap on a paused timer resumes it, and a cycle
-that's already a miss can't be paused (the rule lives in `cycle` in both
+days; a timer nobody has ever reset hasn't started. One tap pauses (a tap on a
+paused timer resumes it), a quick double tap resets, press and hold opens the
+sheet (who did it, handoff, a pause for 15 / 30 / 60 min); Tim's call, Oct 28
+2026. A tap pause lasts until it's tapped again or the store closes. Paused
+time moves the cycle later by as much, and a cycle that's already a miss
+can't be paused (the rule lives in `cycle` in both
 timers_api.py and timers.js; tests/test_timers.py runs both). Events live under
 `timers/events/<id>` in Firebase, one record each, never a saved-state
 section, so it never touches `/api/state/sync`. Anyone can reset (a

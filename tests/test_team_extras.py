@@ -217,6 +217,19 @@ class Credit(Base):
         self.as_(manager=True)                                                                  # the shared PIN has no name
         self.assertEqual(self.send().status_code, 401)
 
+    def test_never_the_operator(self):
+        """Tim, Oct 28 2026: the Operator is left off the uniform credit (and PTO)."""
+        self.as_('Ash Admin', 'admin')
+        self.c.post('/api/team/level', json={'name': self.director, 'level': 'operator'})
+        p = self.person(self.director)
+        self.assertFalse(p['director'])
+        self.assertNotIn('credit', p)
+        self.as_(self.director, 'director')
+        self.assertEqual(self.send().status_code, 403)
+        me = self.c.get('/api/me/extras').get_json()
+        self.assertNotIn('credit', me)
+        self.assertIsNone(me['pto']['allowance'])
+
 
 if __name__ == '__main__':
     unittest.main()
