@@ -49,7 +49,7 @@ LEVELS = (
 LEVEL_IDS = tuple(k for k, _ in LEVELS)
 LEVEL_LABEL = dict(LEVELS)
 FROM_ROLE = {'member': 'member', 'trainer': 'trainer', 'lead': 'lead', 'director': 'director'}
-DIRECTOR_TIER = ('director', 'cert_director', 'executive', 'cert_executive', 'operator')
+DIRECTOR_TIER = ('director', 'cert_director', 'executive', 'cert_executive')   # the uniform credit; never the Operator (Tim, Oct 28 2026)
 CREDIT_PER_YEAR = 500
 # The store's PTO chart (Tim, Oct 28 2026). Hours go with certified levels:
 # everyone gets those of the highest certified level they've reached, so a
@@ -176,7 +176,7 @@ def register(app, *, ref, get_all, access, me, people, key_of, today, is_owner):
             lv = level_of(levels.get(k), p.get('role'))
             out.append({'name': p['name'], 'key': k, 'role': p.get('role') or 'member', 'level': lv,
                         'levelSet': bool((levels.get(k) or {}).get('level')),
-                        'director': p.get('role') == 'director' or lv in DIRECTOR_TIER})
+                        'director': lv != 'operator' and (p.get('role') == 'director' or lv in DIRECTOR_TIER)})
         return out
 
     @app.route('/api/team/extras')
