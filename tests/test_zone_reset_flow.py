@@ -20,11 +20,13 @@ def read(*parts):
 
 
 class ZoneResetFlow(unittest.TestCase):
-    def test_intro_matches_the_page(self):
+    def test_the_list_comes_first(self):
+        """Tim, Oct 28 2026: no intro box at the top; the pills, then the list."""
         page = read('cfa-buda-ops-hub-complete.html')
-        intro = page.split('id="zoneresetView"')[1].split('</p>')[0]
-        self.assertNotIn('Walkthroughs', intro)
-        self.assertIn('the zone closes itself when its list is done', intro)
+        view = page.split('id="zoneresetView"')[1].split('<div class="view"')[0]
+        self.assertNotIn('section-intro', view)
+        self.assertLess(view.index('data-launch-subnav'), view.index('id="zoneResetCard"'))
+        self.assertIn('root.appendChild(hint);', read('static', 'js', 'launch-mode.js'))   # the sign-in line goes last
 
     def test_last_tick_closes_the_zone(self):
         js = read('static', 'js', 'zone-reset.js')

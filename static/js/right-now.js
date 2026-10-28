@@ -3,8 +3,10 @@
 // (Tim). Under it, this card: what matters this minute, for whoever is
 // holding the phone. Who that is comes from the sign-in (accounts.js
 // acUser, launch-mode.js launchManager):
-//  - Team Member: their spot now and next, their shift, their break, the
-//    zone they reset at the coming handoff, the day's waste.
+//  - Team Member: their spot now, next and later today, their shift, their
+//    break, the zone they reset at the coming handoff, the tickets handed to
+//    them on the Tasks tab, their own PEA scores, the day's waste (Tim,
+//    Oct 28 2026: "what all they need to see").
 //  - Trainer: the same, plus the open spots on their side now.
 //  - Team Lead: their side's shift: open spots, people on the floor with no
 //    spot, the handoff's zones, breaks coming up, waste, Food Safety.
@@ -238,18 +240,86 @@ function rnPersonCard(v, day, trainer){
 
   if(nowSpot && !nowFirst) rows.push(rnRow('', `Now: ${nowSpot.slot} (${rnShort(nowSpot.dp.name)})`, esText('Your spot now') + (esPlace(nowSpot.slot) ? ': ' + esPlace(nowSpot.slot) : ''), `setups:${nowSpot.side}|${today}|${nowSpot.dp.name}`));
   if(nextSpot) rows.push(rnRow(rnClock(parseDaypartTimeToMinutes(nextSpot.dp.time)), `Next: ${nextSpot.slot} (${rnShort(nextSpot.dp.name)})`, esText('Next spot') + (esPlace(nextSpot.slot) ? ': ' + esPlace(nextSpot.slot) : ''), `setups:${nextSpot.side}|${today}|${nextSpot.dp.name}`));
+  // Every spot after that today, so the whole day's Set Ups are here.
+  spots.filter(x => x !== nextSpot && parseDaypartTimeToMinutes(x.dp.time) > day.now).forEach(x =>
+    rows.push(rnRow(rnClock(parseDaypartTimeToMinutes(x.dp.time)), `Later: ${x.slot} (${rnShort(x.dp.name)})`, esText('Later spot') + (esPlace(x.slot) ? ': ' + esPlace(x.slot) : ''), `setups:${x.side}|${today}|${x.dp.name}`)));
   if(on.length) rows.push(rnRow('', `Your shift: ${rnShiftsText(on)}`, esText('Your shift'), ''));
   // A planned break still ahead (or just due); one long past is the leader's to sort out.
   if(brk && brk.start !== null && brk.start >= day.now - 15 && !brkTaken && !onBreak) rows.push(rnRow(rnClock(brk.start), 'your break', esText('Your break'), `setups:${side}|${today}|`, brk.start <= day.now ? 'warn' : ''));
   myZones.forEach(z => rows.push(rnRow(`${z.checked}/${z.total}`, `your zone: ${z.zone} · ${hand.title} at ${rnClock(hand.at)}`, '', `zone:${hand.name}`, z.done ? 'ok' : '')));
+  rnTicketRows(day).forEach(r => rows.push(r));
   if(trainer && entry){
     const g = rnDaypartGaps(side, today, rnDaypartIndex(side, day.now));
     rows.push(rnRow(String(g.open.length), `open spot${g.open.length === 1 ? '' : 's'} on ${side.toUpperCase()} for ${rnShort(g.dp.name)}`, esText('Open spots now'), g.open.length ? `spot:${side}|${g.dp.name}|${g.open[0].slot}` : `setups:${side}|${today}|${g.dp.name}`, g.open.length ? 'bad' : 'ok'));
   }
   const w = rnWaste();
   rows.push(rnRow(rnMoney(w.total), `waste today, limit ${rnMoney(w.limit)}`, esText('Waste today'), 'waste', w.over ? 'bad' : w.near ? 'warn' : 'ok'));
-  return {side, first, rows, title: `Hi, ${first1}`};
+  return {side, first, rows, title: `Hi, ${first1}`, pea: rnMine.pea && rnMine.pea.positions && rnMine.pea.positions.length ? rnMine.pea : null};
 }
+
+// ----- Mine: my tickets and my PEA (Tim, Oct 28 2026) -----
+// Read for a signed-in Team Member or Trainer, at most every RN_MINE_EVERY
+// while Home is up: the tickets handed to them on the Tasks tab (pass.js;
+// the server sends a team member only their own) and their own PEA scores
+// (app.py /api/me/pea: only theirs, never anyone else's). Until they're in,
+// or offline, the card simply doesn't have those lines.
+const RN_MINE_EVERY = 5 * 60 * 1000;
+const RN_TICKETS_SHOWN = 4;
+let rnMine = {who: '', at: 0, pea: null, tickets: null};
+function rnMineLoad(){
+  if(typeof fetch !== 'function') return;
+  const v = rnViewer();
+  if(!['member', 'trainer'].includes(v.role) || !v.name){ if(rnMine.who) rnMine = {who: '', at: 0, pea: null, tickets: null}; return; }
+  if(rnMine.who === v.name && Date.now() - rnMine.at < RN_MINE_EVERY) return;
+  if(rnMine.who !== v.name) rnMine = {who: v.name, at: 0, pea: null, tickets: null};
+  rnMine.at = Date.now();
+  const who = v.name, get = url => fetch(url, {credentials: 'same-origin', cache: 'no-store'}).then(r => (r.ok ? r.json() : null)).catch(() => null);
+  Promise.all([get('/api/me/pea'), get('/api/pass/state')]).then(([pea, pass]) => {
+    if(rnMine.who !== who) return;
+    rnMine.pea = pea && Array.isArray(pea.positions) ? pea : null;
+    rnMine.tickets = pass ? rnTicketsFrom(pass) : null;
+    const home = document.getElementById('homeView');
+    if(home && home.classList.contains('active')) renderRightNow();
+  });
+}
+// Open tickets I own, in the order they need me: say it back, late, a
+// check-in due, working, waiting on a new time, turned in.
+function rnTicketsFrom(pass){
+  if(typeof PassEngine === 'undefined' || !pass.me || !Array.isArray(pass.events)) return [];
+  const E = PassEngine, now = Date.now(), rank = {say: 0, late: 1, checkin: 2, working: 3, counter: 4, turned: 5};
+  return Object.values(E.fold(pass.events)).filter(t => t.owner === pass.me.id && E.OPEN.includes(t.status)).map(t => {
+    const r = E.derive(t, now);
+    const state = t.status === 'delegated' ? 'say' : t.status === 'negotiating' ? 'counter' : t.status === 'submitted' ? 'turned' : r.late ? 'late' : r.checkinDue ? 'checkin' : 'working';
+    return {id: t.id, title: t.title, due: t.due, state};
+  }).sort((a, b) => rank[a.state] - rank[b.state] || a.due - b.due);
+}
+function rnDueText(ts){
+  const d = new Date(ts), iso = toLocalISODate(d), min = d.getHours() * 60 + d.getMinutes();
+  if(iso === today) return rnClock(min);
+  return d.toLocaleDateString('en-US', {weekday: 'short'});
+}
+function rnTicketRows(day){
+  const list = rnMine.tickets || [];
+  const hint = {say: ['say it back', 'Say it back'], late: ['late', 'Late'], checkin: ['check-in due', 'Check-in due'], working: ['', ''], counter: ['waiting on a new time', 'Waiting on a new time'], turned: ['turned in', 'Turned in']};
+  const rows = list.slice(0, RN_TICKETS_SHOWN).map(t => {
+    const [h, key] = hint[t.state];
+    const n = t.state === 'late' ? 'Late' : t.state === 'turned' ? '' : rnDueText(t.due);
+    const tone = t.state === 'late' ? 'bad' : t.state === 'say' || t.state === 'checkin' ? 'warn' : t.state === 'turned' ? 'ok' : '';
+    return rnRow(n, `ticket: ${t.title}${h ? ' · ' + h : ''}`, esText('Your ticket') + (key ? ' · ' + esText(key) : ''), `ticket:${t.id}`, tone);
+  });
+  if(list.length > RN_TICKETS_SHOWN) rows.push(rnRow(`+${list.length - RN_TICKETS_SHOWN}`, 'more tickets on the Tasks tab', esText('More tickets'), 'tickets', ''));
+  return rows;
+}
+function rnPeaHtml(pea, boh){
+  if(!pea) return '';
+  const es = t => boh && t ? esSpan(t, false) : '';
+  return `<section class="rn-pea" aria-label="Your PEA scores">
+      <div class="rn-pea-head"><span>Your PEA${es(esText('Your PEA'))}</span><small>latest ${PEA_RECENT_RATINGS_RN} ratings per position${es(esText('Latest ratings per position'))}</small></div>
+      <div class="rn-pea-grid">${pea.positions.map(p => `<div class="rn-pea-cell is-${escapeHtml(p.tier)}" title="${escapeHtml(`${p.total} rating${p.total === 1 ? '' : 's'}, last ${p.last}`)}">
+          <span>${escapeHtml(p.position)}</span><b>${escapeHtml(Number(p.avg).toFixed(2))}</b><small>${escapeHtml(p.tierLabel)}${es(esText(p.tierLabel))}</small></div>`).join('')}</div>
+    </section>`;
+}
+const PEA_RECENT_RATINGS_RN = 5;   // pea_mine.py RECENT, pea-ratings.js PEA_RECENT_RATINGS
 
 function rnLeadCard(v, day, store){
   const on = v.name ? rnOnRoster(v.name, today) : [];
@@ -690,6 +760,7 @@ const RN_ROLE_LABELS = {member: 'Team Member', trainer: 'Trainer', lead: 'Team L
 function renderRightNow(){
   const root = document.getElementById('rightNow');
   if(!root) return;
+  rnMineLoad();
   let card, day, v;
   try{
     day = rnDay();
@@ -725,7 +796,7 @@ function renderRightNow(){
           <span class="rn-t">${escapeHtml(r.text)}${es(r.es)}</span>
           ${r.go ? `<span class="rn-go">${RN_ICON_GO}</span>` : ''}
         </div>`).join('')}
-    </div>${card.roster && !card.rosterFirst ? rnRosterHtml(card.roster, card.rosterHead) : ''}`;
+    </div>${rnPeaHtml(card.pea, boh)}${card.roster && !card.rosterFirst ? rnRosterHtml(card.roster, card.rosterHead) : ''}`;
 }
 
 // Taps: open the screen that fixes it.
@@ -768,6 +839,7 @@ function rnGo(g){
   else if(what === 'schedule' && typeof tsShowDay === 'function') tsShowDay(rest);
   else if(what === 'foodsafety'){ launchShowTab('foodsafety'); window.scrollTo({top: 0}); }
   else if(what === 'prepboard'){ launchShowTab('prepboard'); window.scrollTo({top: 0}); }
+  else if(what === 'ticket' || what === 'tickets'){ launchShowTab('tasks'); window.scrollTo({top: 0}); if(what === 'ticket' && typeof psOpenTicket === 'function') psOpenTicket(rest); }
   else if(what === 'signin' && typeof siOpen === 'function') siOpen();
   else if(what === 'signin'){ launchShowTab('manage'); window.scrollTo({top: 0}); const pin = document.getElementById('pinInput'); if(pin) pin.focus(); }
 }

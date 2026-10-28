@@ -28,6 +28,7 @@ from permit_sheet import read_permit_sheet, PermitSheetError
 from analytics_pdf import read_analytics_pdf, AnalyticsPdfError
 from event_fixes import fix_events, add_mens_outerwear
 import forms_api
+import pea_mine
 from reports_parser import parse_report_file, ReportParseError
 import levelset_sync
 from state_patch import PatchError, _identity, apply_ops, canon, check_ops, union_merge
@@ -1985,6 +1986,19 @@ def _note_tags(rec):
 def _note_out(key, v):
     return dict({k: v.get(k) for k in ('at', 'position', 'leader', 'overall', 'text')}, key=key,
                 tags=[{k: t.get(k) for k in ('id', 'text', 'pillars', 'at')} for t in _note_tags(v)])
+
+@app.route('/api/me/pea')
+def my_pea():
+    """The signed-in person's own PEA scores (pea_mine.py), for their Right
+    Now card: only theirs, only per position, never a rater or a note. A
+    session without a name (the shared PINs, nobody) gets none."""
+    me = _pass_me()
+    if not me or me['id'] == 'director':
+        return jsonify({'name': None, 'positions': []})
+    sections = _read_sections() or {}
+    resp = jsonify(pea_mine.scores_for(sections.get('pea'), me['name']))
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 @app.route('/api/pea/notes', methods=['POST'])
 def pea_notes():

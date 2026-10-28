@@ -22,22 +22,26 @@ LAUNCH = read('static', 'js', 'launch-mode.js')
 
 class Tools(unittest.TestCase):
     def test_tools_on_the_full_site_the_prep_board_on_both(self):
-        # Tim, Oct 27 2026: no Tools on the simplified site, but the Prep Board
-        # stays, as its own tab; a link to the rest opens Home.
+        # Tim, Oct 27 2026: no Tools on the simplified site; a link to the rest
+        # opens Home. The Prep Board is a pill in Lists there (Oct 28).
         tab = re.search(r'<button[^>]*data-views="prepboard knownumbers forecast cem"[^>]*>Tools <span class="sub"><i>Herramientas</i></span>', PAGE)
         self.assertTrue(tab)
         self.assertIn('class="tab full-only"', tab.group(0))
-        self.assertIn('<button type="button" class="tab launch-only" role="tab" aria-selected="false" aria-controls="prepboardView" data-view="prepboard">Prep Board', PAGE)
+        self.assertNotIn('data-view="prepboard">Prep Board', PAGE)                  # no tab of its own any more
         self.assertIn("const LAUNCH_FULL_ONLY_VIEWS = ['knownumbers', 'forecast', 'cem'];", LAUNCH)
         self.assertIn("'prepboard'", LAUNCH.split('const LAUNCH_VIEWS')[1].split(';')[0])
         self.assertIn("if(typeof launchIsOn === 'function' && launchIsOn() && LAUNCH_FULL_ONLY_VIEWS.includes(view)) view = 'home';", read('static', 'js', 'navigation.js'))
 
-    def test_moved_out_of_lists_oe_and_the_tab_bar(self):
-        self.assertIn('data-views="zonereset timers foodsafety safecount">Lists', PAGE)
+    def test_the_prep_board_is_in_lists_on_the_simplified_site(self):
+        """Tim, Oct 28 2026: "Can we add prep board to the lists tab?" A pill
+        in Lists on the simplified site; the full site keeps it in Tools."""
+        self.assertIn('data-views="zonereset timers foodsafety safecount prepboard">Lists', PAGE)
         self.assertNotIn('class="tab-dropdown-item" role="menuitem" aria-controls="prepboardView"', PAGE)
         self.assertNotIn('data-view="forecast">Forecast', PAGE)
         lists = LAUNCH[LAUNCH.index('const LAUNCH_LISTS'):LAUNCH.index('const LAUNCH_TOOLS')]
-        self.assertNotIn('prepboard', lists)
+        self.assertIn("{view: 'prepboard', label: 'Prep Board', sub: 'Preparación', launch: true}", lists)
+        self.assertIn('const group = LAUNCH_SUBNAVS.find(g => g.some(l => l.view === view && !(l.launch && !launchIsOn())));', LAUNCH)
+        self.assertIn('|| (l.launch && !launchIsOn())', LAUNCH)
 
     def test_the_tools_and_who_sees_them(self):
         tools = LAUNCH[LAUNCH.index('const LAUNCH_TOOLS'):LAUNCH.index('];', LAUNCH.index('const LAUNCH_TOOLS'))]
