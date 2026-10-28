@@ -5,8 +5,10 @@ and are shown on the profile from there.
 
   Level    one of LEVELS, set by a director or the Admin Team; until someone
            sets it, it follows the PIN list's role (member → Team Member ...).
-  PTO      hours a year by level (PTO_DEFAULT, the store's chart, until the
-           table on Our Team is saved; then that table), from January 1,
+  PTO      hours a year for the highest certified level someone has reached
+           (pto_basis: a Trainer gets a Certified Team Member's), from the
+           store's chart (PTO_DEFAULT) until the table on Our Team is saved,
+           then that table; from January 1,
            unused hours don't carry over. The Admin Team logs PTO taken (a
            date, hours, a note); used and left add up from those.
   Credit   directors get CREDIT_PER_YEAR a calendar year for uniforms, unused
@@ -49,10 +51,12 @@ LEVEL_LABEL = dict(LEVELS)
 FROM_ROLE = {'member': 'member', 'trainer': 'trainer', 'lead': 'lead', 'director': 'director'}
 DIRECTOR_TIER = ('director', 'cert_director', 'executive', 'cert_executive', 'operator')
 CREDIT_PER_YEAR = 500
-# The store's PTO chart (Tim, Oct 28 2026): only certified levels get PTO.
-# The Operator isn't on it, so has none set.
-PTO_DEFAULT = {'cert_executive': 140.0, 'cert_director': 120.0, 'cert_lead': 80.0, 'cert_trainer': 40.0, 'cert_member': 20.0,
-               'member': 0.0, 'trainer': 0.0, 'lead': 0.0, 'director': 0.0, 'executive': 0.0}
+# The store's PTO chart (Tim, Oct 28 2026). Hours go with certified levels:
+# everyone gets those of the highest certified level they've reached, so a
+# Trainer gets a Certified Team Member's 20 until certified as a Trainer, and
+# a Team Member (nothing certified yet) gets none.
+CERTIFIED = tuple(k for k in LEVEL_IDS if k.startswith('cert_'))
+PTO_DEFAULT = {'cert_member': 20.0, 'cert_trainer': 40.0, 'cert_lead': 80.0, 'cert_director': 120.0, 'cert_executive': 140.0}
 
 LEVELS_PATH = 'secure/teamLevels'          # {key: {name, level, by, at}}
 PTO_HOURS_PATH = 'secure/ptoHours'         # {level: hours a year}
@@ -93,10 +97,26 @@ def level_of(rec, role):
     return lv if lv in LEVEL_IDS else FROM_ROLE.get(role)
 
 
-def pto_summary(entries, allowance, year):
+def pto_basis(level):
+    """The highest certified level at or below `level`, or None."""
+    if level not in LEVEL_IDS:
+        return None
+    return next((k for k in reversed(LEVEL_IDS[:LEVEL_IDS.index(level) + 1]) if k in CERTIFIED), None)
+
+
+def allowance_for(level, hours):
+    """Hours a year at `level`: None with no level or no hours set for its basis."""
+    if not level:
+        return None
+    basis = pto_basis(level)
+    return 0.0 if basis is None else hours.get(basis)
+
+
+def pto_summary(entries, allowance, year, level=None):
+    basis = pto_basis(level)
     mine = sorted((e for e in entries if str(e.get('date', '')).startswith(year)), key=lambda e: e.get('date', ''), reverse=True)
     used = round(sum(float(e.get('hours') or 0) for e in mine), 2)
-    return {'allowance': allowance, 'used': used,
+    return {'allowance': allowance, 'used': used, 'basis': LEVEL_LABEL[basis] if basis and basis != level else None,
             'left': None if allowance is None else round(max(0.0, allowance - used), 2), 'entries': mine}
 
 
@@ -142,7 +162,7 @@ def register(app, *, ref, get_all, access, me, people, key_of, today, is_owner):
         levels, hours, pto, credit = get_all(LEVELS_PATH, PTO_HOURS_PATH, PTO_PATH, CREDIT_PATH)
         clean = lambda d: {k: dict(v, id=k) for k, v in (d or {}).items() if isinstance(v, dict)}
         hours = PTO_DEFAULT if hours is None else hours
-        hours = {k: float(v) for k, v in (hours or {}).items() if k in LEVEL_IDS and isinstance(v, (int, float))}
+        hours = {k: float(v) for k, v in (hours or {}).items() if k in CERTIFIED and isinstance(v, (int, float))}
         return clean(levels), hours, clean(pto), clean(credit)
 
     def everyone(levels):
@@ -171,7 +191,7 @@ def register(app, *, ref, get_all, access, me, people, key_of, today, is_owner):
         for r in credit.values():
             creq.setdefault(r.get('key'), []).append(r)
         for p in ppl:
-            p['pto'] = pto_summary(by_key.get(p['key'], []), hours.get(p['level']) if p['level'] else None, year)
+            p['pto'] = pto_summary(by_key.get(p['key'], []), allowance_for(p['level'], hours), year, p['level'])
             if p['director']:
                 p['credit'] = credit_summary(creq.get(p['key'], []), year)
         pending = sorted((_public(r) for r in credit.values() if r.get('status') == 'pending'), key=lambda r: r.get('at') or 0)
@@ -203,7 +223,7 @@ def register(app, *, ref, get_all, access, me, people, key_of, today, is_owner):
             raise Refused('Nothing to save.')
         out = {}
         for k, v in hours.items():
-            if k in LEVEL_IDS and v not in (None, ''):
+            if k in CERTIFIED and v not in (None, ''):
                 n = _num(v, 0, 2000)
                 if n is None:
                     raise Refused('Hours as a number from 0 to 2000.')
@@ -310,7 +330,7 @@ def register(app, *, ref, get_all, access, me, people, key_of, today, is_owner):
         mine = next((x for x in everyone(levels) if x['key'] == k), None)
         lv = mine['level'] if mine else level_of(levels.get(k), p.get('role'))
         out = {'name': p['name'], 'level': lv, 'levelLabel': LEVEL_LABEL.get(lv, ''), 'year': year,
-               'pto': pto_summary([e for e in pto.values() if e.get('key') == k], hours.get(lv) if lv else None, year)}
+               'pto': pto_summary([e for e in pto.values() if e.get('key') == k], allowance_for(lv, hours), year, lv)}
         if (mine and mine['director']) or lv in DIRECTOR_TIER:
             out['credit'] = credit_summary([r for r in credit.values() if r.get('key') == k], year)
         if can_decide():

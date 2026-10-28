@@ -102,12 +102,13 @@ function apPtoHtml(p){
   const t = p.pto, year = apData.year;
   return `<div class="ap-block"><h4>PTO ${escapeHtml(year)}</h4>
       <div class="ap-stats">
-        <div><b>${apHours(t.allowance)}</b><span>a year${p.level ? ` as ${escapeHtml(apLevelLabel(p.level))}` : ''}</span></div>
+        <div><b>${apHours(t.allowance)}</b><span>a year${t.basis ? ` (${escapeHtml(t.basis)})` : p.level ? ` as ${escapeHtml(apLevelLabel(p.level))}` : ''}</span></div>
         <div><b>${apHours(t.used)}</b><span>used</span></div>
         <div class="is-left"><b>${apHours(t.left)}</b><span>left</span></div>
       </div>
-      ${t.allowance === 0 && !t.used ? `<small class="ap-sub">No PTO at this level: it starts at Certified Team Member.</small>` : ''}
-      ${t.allowance === null ? `<small class="ap-sub">${p.level ? 'No hours set for this level yet: set them under PTO hours by level, at the top of Our Team.' : 'Set their level to give them PTO hours.'}</small>` : ''}
+      ${t.allowance === 0 && !t.used ? `<small class="ap-sub">No PTO yet: it starts at Certified Team Member.</small>` : ''}
+      ${t.basis ? `<small class="ap-sub">PTO goes with the highest certified level reached: ${escapeHtml(t.basis)}.</small>` : ''}
+      ${t.allowance === null ? `<small class="ap-sub">${p.level ? 'No hours set for their certified level yet: set them under PTO hours by level, at the top of Our Team.' : 'Set their level to give them PTO hours.'}</small>` : ''}
       ${t.entries.length ? `<ul class="ap-list">${t.entries.map(e => `<li><span>${escapeHtml(apDay(e.date))}</span>${escapeHtml(e.note || 'PTO')}<b>${apHours(e.hours)}</b><button type="button" class="ap-x" data-ap-pto-del="${escapeHtml(e.id)}" aria-label="Remove this PTO">${AP_ICON_X}</button></li>`).join('')}</ul>` : ''}
       ${apPtoFormHtml(p.name)}
       <small class="ap-sub">Resets January 1; unused hours don’t carry over.</small></div>`;
@@ -157,9 +158,9 @@ function apPanelHtml(){
       <details class="ap-more"><summary>Log PTO</summary>${apPtoFormHtml('')}</details>
       <details class="ap-more"><summary>PTO hours by level</summary>
         <form class="ap-hours" data-ap-hours-form>
-          ${apData.levels.map(l => `<label><span>${escapeHtml(l.label)}</span><input class="ap-in" type="number" min="0" max="2000" step="0.5" inputmode="decimal" name="${l.id}" value="${apData.ptoHours[l.id] ?? ''}" placeholder="–"> h a year</label>`).join('')}
+          ${apData.levels.filter(l => l.id.startsWith('cert_')).map(l => `<label><span>${escapeHtml(l.label)}</span><input class="ap-in" type="number" min="0" max="2000" step="0.5" inputmode="decimal" name="${l.id}" value="${apData.ptoHours[l.id] ?? ''}" placeholder="–"> h a year</label>`).join('')}
           <button type="submit" class="btn btn-primary">Save hours</button>
-          <small class="ap-sub">Each person’s PTO for the year, from January 1. Unused hours don’t carry over.</small>
+          <small class="ap-sub">Each person gets the hours of the highest certified level they’ve reached (a Trainer gets a Certified Team Member’s), for the year from January 1. Unused hours don’t carry over.</small>
         </form></details>
     </section>`;
 }
