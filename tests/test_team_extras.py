@@ -128,13 +128,17 @@ class Pto(Base):
         certified as a Team Lead (80); and so on."""
         self.as_('Ash Admin', 'admin')
         got = []
-        for lv in ('member', 'cert_member', 'trainer', 'cert_trainer', 'lead', 'cert_lead', 'director', 'cert_director', 'executive', 'cert_executive', 'operator'):
+        for lv in ('member', 'cert_member', 'trainer', 'cert_trainer', 'lead', 'cert_lead', 'director', 'cert_director', 'executive', 'cert_executive'):
             self.c.post('/api/team/level', json={'name': 'Ana Ruiz', 'level': lv})
             p = self.person('Ana Ruiz')['pto']
             got.append((lv, p['allowance'], p['basis']))
         self.assertEqual(got, [('member', 0.0, None), ('cert_member', 20.0, None), ('trainer', 20.0, 'Certified Team Member'), ('cert_trainer', 40.0, None),
                                ('lead', 40.0, 'Certified Trainer'), ('cert_lead', 80.0, None), ('director', 80.0, 'Certified Team Lead'), ('cert_director', 120.0, None),
-                               ('executive', 120.0, 'Certified Director'), ('cert_executive', 140.0, None), ('operator', 140.0, 'Certified Executive')])
+                               ('executive', 120.0, 'Certified Director'), ('cert_executive', 140.0, None)])
+        self.c.post('/api/team/level', json={'name': 'Ana Ruiz', 'level': 'operator'})      # the Operator: no PTO (Tim, Oct 28 2026)
+        p = self.person('Ana Ruiz')['pto']
+        self.assertEqual((p['allowance'], p['basis'], p['off']), (None, None, True))
+        self.c.post('/api/team/level', json={'name': 'Ana Ruiz', 'level': 'cert_executive'})
         self.as_('Ana Ruiz', 'member')
         self.assertEqual(self.c.get('/api/me/extras').get_json()['pto']['allowance'], 140.0)
 
