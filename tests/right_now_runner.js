@@ -50,6 +50,7 @@ vm.runInContext(`
   function fsTotals(){ return fsDone || {done: 0, total: 84}; }
 `, ctx);
 vm.runInContext(js('events.js'), ctx);
+vm.runInContext(js('pass-engine.js'), ctx);   // the member card's tickets (PassEngine)
 vm.runInContext(js('right-now.js'), ctx);
 // The Schedule tab (team-schedule.js) on the same stubs.
 vm.runInContext(`
@@ -66,6 +67,7 @@ process.stdout.write(JSON.stringify(input.cases.map(c => {
   ctx.Date = fixedDate(c.at || '2026-10-19T17:10:00-05:00');
   vm.runInContext(`today = toLocalISODate(new Date()); fohRoster = {}; bohRoster = {}; truckShifts = {}; adminShifts = {}; rnRosterOpen = false; hcSummary = undefined; posAssignments = {}; completedBreaks = {}; breakCountdowns = {};
     storeEvents = [];
-    acUser = null; launchManager = false; breaks = {foh: [], boh: []}; gaps = {}; handoff = null; wasteFoh = 0; wasteBoh = 0;`, ctx);
+    acUser = null; launchManager = false; breaks = {foh: [], boh: []}; gaps = {}; handoff = null; wasteFoh = 0; wasteBoh = 0;
+    rnMine = {who: '', at: 0, pea: null, tickets: null};`, ctx);
   return vm.runInContext(`(${c.op})`, ctx)(c);
 })));
