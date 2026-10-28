@@ -2767,3 +2767,8 @@ body:not(.hc-allowed) .hc-only{display:none !important;}
    under the keyboard, and scrolls inside if it's taller than that. */
 .kb-open .overlay.active,.kb-open .si-sheet.active,.kb-open .rn-evs.is-open{inset:auto 0 auto 0;top:var(--vvt,0);height:var(--vvh,100%);}
 .kb-open .overlay.active > .sheet,.kb-open .si-sheet.active > .si-card,.kb-open .rn-evs.is-open > .rn-evs-card{max-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+/* Uploads: how often, and the date a report is next due (data-uploads.js; Tim, Oct 26 2026). */
+.du-when{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin-top:8px;}
+.du-when .du-freq{margin-top:0;}
+.du-when input[type="date"]{padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-family:var(--font-ui);font-size:16px;background:var(--cfa-white);color:var(--text-primary);}
+.du-when-hint{flex-basis:100%;margin:0;font-size:12px;line-height:1.4;color:var(--text-secondary);}
