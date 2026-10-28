@@ -16,7 +16,7 @@ const STATE_SECTIONS = {
   pea: ['peaRatings', 'peaNameAliases'],
   rosters: ['fohRoster', 'bohRoster', 'rosterPosted', 'truckShifts', 'adminShifts'],
   setups: ['posAssignments', 'posVacancyFlags', 'setupDayTypes', 'lastUpdated',
-           'breakCountdowns', 'completedBreaks', 'zoneOwners', 'posNotes', 'callIns'],
+           'breakCountdowns', 'completedBreaks', 'zoneOwners', 'posNotes', 'callIns', 'roleBoards'],
   history: ['setupHistory', 'numbersHistory', 'wasteMonthlyHistory', 'zoneChecklistHistory', 'leaderTransitionHistory'],
   waste: ['entries', 'wasteDays', 'formDone', 'formDoneDate', 'wasteLogLastClosedOut'],
   ops: ['foodSafetyDays', 'foodSafetyWalkthroughs', 'fohOEDays', 'fohOEChecked', 'fohOECheckedDate',
@@ -160,7 +160,7 @@ function stateSnapshot(){
     eoiSubmissions, zoneChecklistState, zoneChecklistHistory, numbersData, lastUpdated,
     safeCounts, trainerTrainees, trainerProgress, teamLeadTrainees, teamLeadProgress, scoreboardItems, posVacancyFlags, wasteLogLastClosedOut, deletedProductIds, productFixesVersion, productCategoryOrder, wasteMonthlyHistory,
     prepBuffers, prepSoldEntries, prepWasteEntries, prepStockoutEvents, prepHistorySeeded, prepMade, cemEntries, foodSafetyWalkthroughs, setupHistory, peaRatings, peaNameAliases, numbersHistory, setupDayTypes, dataUploadLog, dataUploadSettings, productivityProfiles, reportData, launchMode, prepTimes, prepTimers,
-    salesHistory, forecastSettings, forecastLog, daypartWeeks, zoneOwners, posNotes, callIns, storeEvents, truckShifts,
+    salesHistory, forecastSettings, forecastLog, daypartWeeks, zoneOwners, posNotes, callIns, roleBoards, storeEvents, truckShifts,
     uniformOrders, uniformCatalog, directors, adminShifts, leaderNotes, leaderRoster, peaGoals, leaderFocus, teamNotes, safeOrderSettings,
     pointsRecords, pointsUploads, pointsSettings, pointsTeam, pointsMemos, lxQuarters, safeOrders
   };
@@ -634,6 +634,8 @@ function applyStateData(data){
   posNotes = (data.posNotes && typeof data.posNotes === 'object' && !Array.isArray(data.posNotes)) ? data.posNotes : {};
   // Who a leader called in, by day (team-schedule.js, Not working).
   callIns = (data.callIns && typeof data.callIns === 'object' && !Array.isArray(data.callIns)) ? data.callIns : {};
+  // Each Team Lead role's week and log (roles.js).
+  roleBoards = (data.roleBoards && typeof data.roleBoards === 'object' && !Array.isArray(data.roleBoards)) ? data.roleBoards : {};
   setupHistory = normalizeSetupHistory(data.setupHistory);
   peaRatings = normalizePeaRatings(data.peaRatings);
   peaNameAliases = (data.peaNameAliases && typeof data.peaNameAliases === 'object') ? data.peaNameAliases : {};

@@ -68,6 +68,8 @@
       <button type="button" class="tab launch-only" role="tab" aria-selected="false" aria-controls="wastelogView" data-view="wastelog" data-views="wastelog scoreboard">Waste <span class="sub"><i>Desperdicio</i></span></button>
       <!-- One tap opens Zone Resets; the other lists are pills at the top of the page (launch-mode.js). -->
       <button type="button" class="tab launch-only" role="tab" aria-selected="false" aria-controls="zoneresetView" data-view="zonereset" data-views="zonereset foodsafety safecount">Lists <span class="sub"><i>Listas</i></span></button>
+      <!-- Roles (roles.js; Tim, Oct 27 2026): a place for each Team Lead role. Team Leads and up only (rlSyncTab). -->
+      <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="rolesView" data-view="roles" style="display:none">Roles <span class="sub"><i>Roles</i></span></button>
 
       <div class="tab-group full-only" data-group="oe">
         <button type="button" class="tab-group-label" aria-haspopup="true" aria-expanded="false">OE <span class="chevron-mini">▾</span></button>
@@ -920,6 +922,10 @@
     <div class="dir-page" id="directorsRoot"></div>
   </div>
 
+  <div class="view" id="rolesView">
+    <div id="rolesRoot" class="rl-page"></div>
+  </div>
+
   <div class="view" id="formsView">
     <div class="fm-page" id="formsRoot">
       <div id="formsSwitch"></div>
@@ -1275,6 +1281,7 @@
 <script src="/static/js/headcount.js"></script>
 <script src="/static/js/team-list.js"></script>
 <script src="/static/js/leaders.js"></script>
+<script src="/static/js/roles.js"></script>
 <script src="/static/js/team-pea.js"></script>
 <script src="/static/js/leader-report.js"></script>
 <script src="/static/js/points-engine.js"></script>

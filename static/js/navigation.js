@@ -8,6 +8,8 @@ function activateView(view){
     if(typeof fmMode !== 'undefined' && typeof fmUniformsShown === 'function' && fmUniformsShown()){ fmFrom = 'fill'; fmMode = 'uniforms'; }
   }
   if(view === 'directors' && typeof launchManager !== 'undefined' && !launchManager) view = 'home';
+  // Roles: Team Leads and up (roles.js).
+  if(view === 'roles' && typeof rlShown === 'function' && !rlShown()) view = 'home';
   // Know the Numbers: Team Leads and up (kn-page.js).
   if(view === 'knownumbers' && typeof knPageShown === 'function' && !knPageShown()) view = 'prepboard';
   // Our Team: directors and the Admin Team (headcount.js).
@@ -45,6 +47,7 @@ function activateView(view){
   if(view === 'directors' && typeof renderDirectorsView === 'function') renderDirectorsView();
   if(view === 'headcount'){ renderHeadcountView(); hcLoad(true); }
   if(view === 'forms' && typeof renderForms === 'function') renderForms();
+  if(view === 'roles' && typeof renderRoles === 'function') renderRoles();
   if(view === 'manage' && typeof refreshManage === 'function'){
     if(typeof manageStale !== 'undefined' && manageStale) renderManage(); else refreshManage();
     if(typeof acMountGoogle === 'function') acMountGoogle();   // Google's sign-in button, once Manage shows
