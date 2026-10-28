@@ -262,3 +262,29 @@ class Page(unittest.TestCase):
         js = self.read('static', 'js', 'timers.js')
         self.assertIsNone(re.search('[\U0001F300-\U0001FAFF☀-➿]', js))
         self.assertEqual(set(re.findall(r"^    (\w+): '<", js[js.index('const ICONS'):js.index('};', js.index('const ICONS'))], re.M)), set(TA.ICONS))
+
+
+class FullScreen(unittest.TestCase):
+    """Tim, Oct 28 2026: on the counter iPad the case covers the screen's
+    edges and the hub's header and tabs crowd the timers. Full screen is the
+    timers alone inside a margin the case can't cover, sized to fit five in a
+    row, remembered on the device, and the Timers page's only."""
+
+    def setUp(self):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        rd = lambda *p: open(os.path.join(root, *p), encoding='utf-8').read()
+        self.js, self.css, self.nav = rd('static', 'js', 'timers.js'), rd('static', 'css', 'timers.css'), rd('static', 'js', 'navigation.js')
+
+    def test_the_button_and_the_device_remembers(self):
+        self.assertIn('data-tm-full aria-pressed="${full}"', self.js)
+        self.assertIn("LS.set('full', on ? '1' : '0');", self.js)
+        self.assertIn("if(fullOn()) window.addEventListener('load'", self.js)
+        self.assertIn("function applyFull(){ document.body.classList.toggle('tm-full', fullOn() && shown()); }", self.js)
+        self.assertIn("if(typeof tmFullSync === 'function') tmFullSync();", self.nav)        # leaving the page leaves full screen
+
+    def test_the_layout(self):
+        for rule in ('body.tm-full .hdr,body.tm-full .tabs-wrap', '--tm-case:max(36px, 4vw);', 'env(safe-area-inset-left,0px)',
+                     '--tm-size:clamp(150px, calc((100vw - 2 * max(36px, 4vw) - (var(--tm-cols, 5) - 1) * 24px) / var(--tm-cols, 5)), 240px);',
+                     'body.tm-full .tm-badge{width:calc(var(--tm-size) * .23);'):
+            self.assertIn(rule, self.css)
+        self.assertIn('style="--tm-cols:${Math.max(1, Math.min(5, c.timers.length))}"', self.js)

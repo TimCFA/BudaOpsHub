@@ -151,3 +151,33 @@ html[data-theme="dark"] .tm-root,html[data-theme="dark"] .tm-layer{--tm-heat:#E8
   .tm-bar{width:40px;}.tm-table.full td:first-child b{white-space:normal;}
   .tm-set > select,.tm-set-head > span:nth-child(3){display:none;}
 }
+
+/* ----- full screen (Tim, Oct 28 2026) -----
+   The counter iPad sits in a case whose frame covers the screen's edges, and
+   the hub's header, tabs and pills took the top of it. In full screen the
+   page is the timers alone: everything sits inside --tm-case, a margin the
+   frame can't cover, and the tiles size themselves so a row of five fits
+   the width (--tm-cols, set on the grid). */
+.tm-full-btn{align-self:center;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:8px 14px;border:1px solid var(--tm-line);border-radius:999px;background:var(--tm-card);color:var(--tm-ink);font:inherit;font-size:14px;font-weight:700;cursor:pointer;}
+body.tm-full .hdr,body.tm-full .tabs-wrap,body.tm-full #timersView > [data-launch-subnav],body.tm-full #timersView > .launch-signin-hint{display:none !important;}
+body.tm-full{background:var(--cfa-bg,#F6F1E8);}
+body.tm-full .app{max-width:none;margin:0;padding:0;min-height:0;}
+body.tm-full #timersView{
+  --tm-case:max(36px, 4vw);
+  box-sizing:border-box;min-height:100vh;min-height:100dvh;
+  padding:calc(var(--tm-case) + env(safe-area-inset-top,0px)) calc(var(--tm-case) + env(safe-area-inset-right,0px)) calc(var(--tm-case) + env(safe-area-inset-bottom,0px)) calc(var(--tm-case) + env(safe-area-inset-left,0px));
+}
+body.tm-full .tm-grid{
+  --tm-size:clamp(150px, calc((100vw - 2 * max(36px, 4vw) - (var(--tm-cols, 5) - 1) * 24px) / var(--tm-cols, 5)), 240px);
+  grid-template-columns:repeat(auto-fill,minmax(var(--tm-size),1fr));gap:24px;
+}
+body.tm-full .tm-tile,body.tm-full .tm-counter{width:var(--tm-size);height:var(--tm-size);}
+body.tm-full .tm-full-btn{background:var(--tm-navy);border-color:var(--tm-navy);color:#fff;}
+/* What's inside a tile grows and shrinks with it, so the icon badge never
+   sits on the clock however many timers share the row. */
+body.tm-full .tm-face{padding:0 calc(var(--tm-size) * .1);}
+body.tm-full .tm-time{font-size:calc(var(--tm-size) * .2);}
+body.tm-full .tm-time.is-long{font-size:calc(var(--tm-size) * .16);}
+body.tm-full .tm-name{font-size:calc(var(--tm-size) * .082);}
+body.tm-full .tm-badge{width:calc(var(--tm-size) * .23);height:calc(var(--tm-size) * .23);}
+body.tm-full .tm-ic{width:calc(var(--tm-size) * .12);height:calc(var(--tm-size) * .12);}

@@ -197,8 +197,29 @@
       <button type="button" class="tm-step" data-tm-count="${h(c.id)}" data-d="1" aria-label="One more ${h(c.name)}">+</button>
     </div><div class="tm-counter-name">${h(c.name)}</div></div>`;
   }
+  // Full screen (Tim, Oct 28 2026: on the counter iPad the case covers the
+  // edges and the hub's header and tabs crowd the timers). On, the page is
+  // the timers alone, sized to fit inside a margin the case can't cover,
+  // and this device opens straight into it after a reload. The browser's
+  // own full screen is asked for too where the iPad allows it.
+  const FULL_ICON = {
+    on: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
+    off: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>',
+  };
+  function fullOn(){ return LS.get('full', '') === '1'; }
+  function applyFull(){ document.body.classList.toggle('tm-full', fullOn() && shown()); }
+  function setFull(on){
+    LS.set('full', on ? '1' : '0');
+    const el = document.documentElement, d = document;
+    try {
+      if(on){ const ask = el.requestFullscreen || el.webkitRequestFullscreen; if(ask && !(d.fullscreenElement || d.webkitFullscreenElement)){ const p = ask.call(el); if(p && p.catch) p.catch(() => {}); } }
+      else if(d.fullscreenElement || d.webkitFullscreenElement){ const exit = d.exitFullscreen || d.webkitExitFullscreen; const p = exit && exit.call(d); if(p && p.catch) p.catch(() => {}); }
+    } catch (e) {}
+    applyFull(); render(); window.scrollTo(0, 0);
+  }
   function headHtml(){
     const tabs = [['now', 'Now'], ['stats', 'Scoreboard']].concat(isLead() ? [['setup', 'Setup']] : []);
+    const full = fullOn();
     return `<div class="tm-head">
       <div class="tm-lc">
         <span class="tm-lc-k">Lead Captain · ${h(dpShort(S.daypart))}</span>
@@ -206,12 +227,13 @@
         <span class="tm-lc-sub">Owns every timer unless it's handed off</span>
       </div>
       <div class="tm-seg" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" aria-selected="${S.tab === k}" class="${S.tab === k ? 'on' : ''}" data-tm-tab="${k}">${l}</button>`).join('')}</div>
+      <button type="button" class="tm-full-btn" data-tm-full aria-pressed="${full}">${full ? FULL_ICON.off : FULL_ICON.on}<span>${full ? 'Exit full screen' : 'Full screen'}</span></button>
     </div>`;
   }
   function renderNow(){
     const c = S.config;
     return headHtml() + `
-      <div class="tm-grid" id="tmGrid" data-ids="${h(c.timers.map(t => t.id).join())}">${c.timers.map(tileHtml).join('')}</div>
+      <div class="tm-grid" id="tmGrid" style="--tm-cols:${Math.max(1, Math.min(5, c.timers.length))}" data-ids="${h(c.timers.map(t => t.id).join())}">${c.timers.map(tileHtml).join('')}</div>
       ${c.counters.length ? `<h3 class="tm-h">Counters</h3><div class="tm-grid">${c.counters.map(counterHtml).join('')}</div>` : ''}
       <label class="tm-sound"><input type="checkbox" data-tm-sound ${S.sound ? 'checked' : ''}> Beep on this device when a timer goes overdue</label>`;
   }
@@ -421,6 +443,7 @@
     const el = e.target.closest('button,[data-tm-close]');
     if(!el) return;
     const d = el.dataset;
+    if(d.tmFull !== undefined){ setFull(!fullOn()); return; }
     if(d.tmRetry !== undefined){ S.status = 'loading'; render(); load(); }
     else if(d.tmTab){ S.tab = d.tmTab; S.draft = null; render(); if(S.tab === 'stats') loadStats(); }
     else if(d.tmRange){ S.range = d.tmRange; LS.set('range', S.range); loadStats(); }
@@ -490,11 +513,16 @@
   // navigation.js: the view opened.
   window.tmActivate = function(){
     mount();
+    applyFull();
     render();
     load();
     clearInterval(S.poll); clearInterval(S.tick);
-    S.poll = setInterval(() => { if(!shown()){ clearInterval(S.poll); clearInterval(S.tick); return; } if(!document.hidden) load(); }, POLL_MS);
+    S.poll = setInterval(() => { if(!shown()){ clearInterval(S.poll); clearInterval(S.tick); applyFull(); return; } if(!document.hidden) load(); }, POLL_MS);
     S.tick = setInterval(() => { if(shown() && S.tab === 'now' && S.status === 'ready') paintTiles(); }, 1000);
   };
+  // navigation.js, on every view change: full screen is the Timers page's only.
+  window.tmFullSync = applyFull;
+  // A device left in full screen opens on the timers again after a reload.
+  if(fullOn()) window.addEventListener('load', () => setTimeout(() => { if(typeof launchShowTab === 'function' && !shown()) launchShowTab('timers'); }, 400));
   window.TimersPage = {S, cycle, cyclesOf, agg, ownerNow, onTheFloor};
 })();
