@@ -44,6 +44,7 @@ function activateView(view){
   if(view === 'knownumbers' && typeof renderKnPage === 'function') renderKnPage();
   if(view === 'calendar' && typeof renderCalendarView === 'function') renderCalendarView();
   if(view === 'tasks' && typeof psActivate === 'function') psActivate();   // pass.js
+  if(view === 'timers' && typeof tmActivate === 'function') tmActivate();   // timers.js
   if(view === 'directors' && typeof renderDirectorsView === 'function') renderDirectorsView();
   if(view === 'headcount'){ renderHeadcountView(); hcLoad(true); }
   if(view === 'forms' && typeof renderForms === 'function') renderForms();

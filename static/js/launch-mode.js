@@ -16,7 +16,7 @@
 // (app.py PRIVATE_SECTIONS), so signing in fetches it right away, and
 // locking reloads the page to clear it from the device.
 
-const LAUNCH_VIEWS = ['home', 'positions', 'schedule', 'wastelog', 'scoreboard', 'zonereset', 'foodsafety', 'safecount', 'prepboard', 'calendar', 'tasks', 'forms', 'manage', 'headcount', 'roles'];
+const LAUNCH_VIEWS = ['home', 'positions', 'schedule', 'wastelog', 'scoreboard', 'zonereset', 'timers', 'foodsafety', 'safecount', 'prepboard', 'calendar', 'tasks', 'forms', 'manage', 'headcount', 'roles'];
 // Off the simplified site (Tim, Oct 27 2026): a link to one opens Home.
 const LAUNCH_FULL_ONLY_VIEWS = ['knownumbers', 'forecast', 'cem'];
 // Zone Resets and the Leader Transition List share a view; `page` picks
@@ -24,6 +24,8 @@ const LAUNCH_FULL_ONLY_VIEWS = ['knownumbers', 'forecast', 'cem'];
 const LAUNCH_LISTS = [
   {view: 'zonereset', page: 'zones', label: 'Zone Resets', sub: 'Reinicios'},
   {view: 'zonereset', page: 'leaders', label: 'Leader Transition', sub: 'Transición'},
+  // Timers (timers.js; Tim, Oct 28 2026): the counter tablet's task timers.
+  {view: 'timers', label: 'Timers', sub: 'Temporizadores'},
   {view: 'foodsafety', label: 'Food Safety', sub: 'Seguridad'},
   {view: 'safecount', label: 'Safe Count', sub: 'Caja Fuerte'},
 ];

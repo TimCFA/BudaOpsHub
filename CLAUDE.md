@@ -72,6 +72,24 @@ phrases live in the glossary's Tasks section and go through `T` / `TL` / `V`
 / `TT` in pass.js. Tests: `tests/test_pass.py` (rules, API) and
 `tests/test_pass_tab.py` (wiring, look, every phrase in the glossary).
 
+## Timers
+
+The Timers page under Lists (OE on the full site) is the counter tablet's
+recurring task timers (`timers_api.py`, `static/js/timers.js`,
+`static/css/timers.css`; Tim, Oct 28 2026). Each timer has an interval and
+a grace; a cycle starts at the last reset (or at opening) and is on time,
+late (inside the grace) or missed. The server writes a miss itself when the
+grace runs out, and works out who gets the credit from Set Ups when the cycle
+came due: the Lead Captain of the FOH daypart on the floor, or whoever they
+handed the timer to (a handoff holds until a different Lead Captain takes
+the floor, or it's taken back). Timers rest outside store hours and on closed
+days; a timer nobody has ever reset hasn't started. Events live under
+`timers/events/<id>` in Firebase, one record each, never a saved-state
+section, so it never touches `/api/state/sync`. Anyone can reset (a
+signed-out device names who did it); Team Leads and up hand off and change
+the timers. FOH only, so English only. `FOH_DAYPARTS` in timers_api.py must
+match `fohDayparts` in zone-reset.js (tests/test_timers.py checks).
+
 ## Deploying
 
 Merging to `main` deploys to Render and restarts the server for about a
