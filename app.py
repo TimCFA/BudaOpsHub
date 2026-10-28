@@ -983,10 +983,48 @@ def _director_names():
         names = [{'name': n} for n in DIRECTORS_SEED]
     return {_name_key(d.get('name')) for d in names if isinstance(d, dict) and str(d.get('name') or '').strip()}
 
+def _same_person(a, b):
+    """The same person under two spellings, as the page's rnSame
+    (right-now.js) has it: the same words, or the same first name with the
+    shorter name's last word among the longer one's later words ("Ana Diaz"
+    and "Ana Maria Diaz")."""
+    x, y = _name_key(a).split(), _name_key(b).split()
+    if not x or not y:
+        return False
+    if x == y:
+        return True
+    if x[0] != y[0] or len(x) < 2 or len(y) < 2:
+        return False
+    short, long_ = (x, y) if len(x) <= len(y) else (y, x)
+    return short[-1] in long_[1:]
+
+def _leader_names():
+    """The hub's leader list (leaderRoster: the Team Leads in Manage →
+    Directors' team list, the ones Set Ups and the Leaders page count)."""
+    try:
+        sections = _read_sections()
+        names = (sections.get('manager') or {}).get('leaderRoster') if sections else None
+    except Exception as e:
+        print(f'[AUTH] leader list not read: {type(e).__name__}')
+        names = None
+    if not isinstance(names, list):
+        return []
+    return [str(d.get('name')).strip() for d in names if isinstance(d, dict) and str(d.get('name') or '').strip()]
+
+def _team_role(rec):
+    """A PIN list record's team role. Someone on the leader list is a Team
+    Lead whatever the PIN list carries (Tim, Oct 27 2026: leads marked Team
+    Lead on the team list signed in as Team Members; each PIN report upload
+    had set them back). An Admin Team role stays as it is."""
+    role = rec.get('role')
+    if role in ('member', 'trainer') and any(_same_person(rec.get('name'), n) for n in _leader_names()):
+        return 'lead'
+    return role
+
 def _pin_role(rec):
     """What a PIN list record signs in as: a director when the name is on
-    the Directors list, else the role the list carries."""
-    return 'director' if _name_key(rec.get('name')) in _director_names() else rec.get('role')
+    the Directors list, else its team role (_team_role)."""
+    return 'director' if _name_key(rec.get('name')) in _director_names() else _team_role(rec)
 
 def _team_pin_lookup(pin):
     if not TEAM_PIN_RE.match(str(pin)):
@@ -1112,6 +1150,8 @@ def accounts_pins():
     before = dict(ref.get() or {})
     is_manage_pin = _manage_pin_checker()
     clean, skipped, seen = {}, [], set()
+    # A role set by hand (the team list) stays when the report names none.
+    held = {_turnover_key(v.get('name')): v.get('role') for v in before.values() if isinstance(v, dict) and v.get('name') and v.get('role') in TEAM_ROLES}
     # Someone logged as left stays off, even if the store's report still has
     # them (it can lag); a director brings them back with Set PIN.
     # Someone who gave notice is still on the report until their last day.
@@ -1142,6 +1182,8 @@ def accounts_pins():
             skipped.append(f'{name}: that PIN is the manager or director PIN')
         else:
             seen.add(pin)
+            if r.get('roleSaid') is False and held.get(_turnover_key(name)):
+                role = held[_turnover_key(name)]
             clean[_team_pin_key(pin, salt)] = {'name': name, 'role': role, 'addedAt': int(time.time())}
     if body.get('replace'):
         ref.set(clean)
@@ -1457,7 +1499,7 @@ def team_names():
         name = str((rec or {}).get('name') or '').strip() if isinstance(rec, dict) else ''
         if name and name.lower() not in seen:
             seen.add(name.lower())
-            out.append({'name': name, 'role': rec.get('role') or ''})
+            out.append({'name': name, 'role': _team_role(rec) or ''})
     out.sort(key=lambda r: r['name'].lower())
     left = sorted(_departed(turnover, pins).values(), key=lambda d: d['name']) if turnover is not None else []
     resp = jsonify({'names': out, 'departed': left})

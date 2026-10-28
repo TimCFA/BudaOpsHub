@@ -14,8 +14,10 @@
 //    role card, kept on the hub's leader list (`leaderRoster`), which is
 //    what Set Ups, the Leaders page and the Directors brief count as
 //    leaders. Setting someone Team Lead here adds them to it; another role
-//    takes them off. When the two disagree (the list was kept by hand
-//    before), a banner offers to make them match.
+//    takes them off. Being on it is what makes a PIN sign in as a Team Lead
+//    (app.py _team_role), so a PIN report that names no roles can't undo it
+//    (Tim, Oct 27 2026). A Team Lead on the PIN list who isn't on it yet
+//    gets a banner that adds them.
 
 const TL_ROLES = {director: 'Director', mp: 'Managing Partner', admin: 'Admin Team', lead: 'Team Lead', trainer: 'Trainer', member: 'Team Member'};
 const TL_ORDER = ['director', 'mp', 'admin', 'lead', 'trainer', 'member'];
@@ -40,7 +42,10 @@ function tlPeople(){
   const rows = dirList().map((d, i) => ({kind: 'director', i, name: d.name || '', role: /managing partner/i.test(d.title || '') ? 'mp' : 'director'}));
   (team || []).forEach(p => {
     if(rows.some(r => r.kind === 'director' && r.name && tlSame(r.name, p.name))) return;
-    rows.push({kind: 'pin', name: p.name, role: TL_TEAM_ROLES.includes(p.role) ? p.role : 'member'});
+    // The role they sign in as: on the leader list is a Team Lead (app.py
+    // _team_role; Tim, Oct 27 2026), whatever the PIN report said.
+    const role = TL_TEAM_ROLES.includes(p.role) ? p.role : 'member';
+    rows.push({kind: 'pin', name: p.name, role: (role === 'member' || role === 'trainer') && tlLeaderFor(p.name) ? 'lead' : role});
   });
   // On the leader list but not on the PIN list (or a director): kept, marked.
   if(team) tlLeaders().forEach((r, i) => {
