@@ -165,14 +165,19 @@ button.ps-ticket:active{transform:translateY(1px);}
 
 /* ----- sheets ----- */
 .ps-layer{position:relative;z-index:1200;}
-.ps-scrim{position:fixed;inset:0;display:flex;align-items:flex-end;justify-content:center;background:rgba(20,18,15,.55);}
-.ps-sheet{width:100%;max-width:640px;max-height:94vh;overflow:auto;-webkit-overflow-scrolling:touch;padding:8px 18px calc(24px + var(--ps-safe-b));
+/* A sheet is never taller than what's on screen: 94vh on an iPhone is the
+   screen without Safari's toolbars, so the top of a long sheet (the close
+   button) sat under the address bar where no scroll could reach it (Tim,
+   Oct 28 2026). Its height comes from the scrim, which is the visible area,
+   and the title row stays pinned while the sheet scrolls. */
+.ps-scrim{position:fixed;inset:0;display:flex;align-items:flex-end;justify-content:center;background:rgba(20,18,15,.55);overscroll-behavior:contain;}
+.ps-sheet{width:100%;max-width:640px;max-height:calc(100% - 12px - env(safe-area-inset-top,0px));overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:8px 18px calc(24px + var(--ps-safe-b));
   border-radius:20px 20px 0 0;background:var(--ps-ground);color:var(--ps-ink);box-shadow:0 -10px 40px rgba(0,0,0,.25);}
 .ps-sheet.anim{animation:psUp .22s ease-out;}
 @keyframes psUp{from{transform:translateY(24px);opacity:.4;}to{transform:none;opacity:1;}}
-@media (min-width:700px){.ps-scrim{align-items:center;}.ps-sheet{border-radius:20px;max-height:90vh;}}
+@media (min-width:700px){.ps-scrim{align-items:center;}.ps-sheet{border-radius:20px;max-height:calc(100% - 48px);}}
 .ps-grab{width:44px;height:5px;margin:4px auto 10px;border-radius:3px;background:var(--ps-line);}
-.ps-sheethead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
+.ps-sheethead{position:sticky;top:-8px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 -18px 8px;padding:8px 18px;background:var(--ps-ground);}
 .ps-sheethead h2{margin:0;font-family:var(--ps-display);font-weight:700;font-size:27px;line-height:1.05;}
 .ps-close{flex:none;width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--ps-line);border-radius:10px;background:var(--ps-card);color:var(--ps-muted);}
 .ps-field{margin:16px 0;}
