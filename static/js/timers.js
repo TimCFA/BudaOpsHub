@@ -235,6 +235,7 @@
     return headHtml() + `
       <div class="tm-grid" id="tmGrid" style="--tm-cols:${Math.max(1, Math.min(5, c.timers.length))}" data-ids="${h(c.timers.map(t => t.id).join())}">${c.timers.map(tileHtml).join('')}</div>
       ${c.counters.length ? `<h3 class="tm-h">Counters</h3><div class="tm-grid">${c.counters.map(counterHtml).join('')}</div>` : ''}
+      <p class="tm-hint">Tap a timer when it’s done. Press and hold to say who did it or hand it off.</p>
       <label class="tm-sound"><input type="checkbox" data-tm-sound ${S.sound ? 'checked' : ''}> Beep on this device when a timer goes overdue</label>`;
   }
   function paintTiles(){
@@ -299,16 +300,43 @@
     S.layer.hidden = false;
   }
   function closeSheet(){ S.sheet = null; if(S.layer) S.layer.hidden = true; render(); }
+  async function resetTimer(id, name){
+    const ev = await send('reset', {timerId: id, name: name || ''});
+    if(!ev) return false;
+    const d = ev.data, thanks = ev.by ? ` Thanks, ${first(ev.by)}!` : '';
+    toast(d.status === 'ontime' ? `${d.timerName}: on time.${thanks}`
+      : d.status === 'late' ? `${d.timerName}: ${d.lateMin} min late, inside the grace`
+      : d.status === 'missed' ? `${d.timerName}: picked up.${thanks} Counted as a miss.` : `${d.timerName} restarted`);
+    return true;
+  }
   async function done(name){
     const id = S.sheet && S.sheet.id;
-    const ev = await send('reset', {timerId: id, name});
-    if(!ev) return;
-    const d = ev.data;
-    toast(d.status === 'ontime' ? `${d.timerName}: on time. Thanks, ${first(ev.by)}!`
-      : d.status === 'late' ? `${d.timerName}: ${d.lateMin} min late, inside the grace`
-      : d.status === 'missed' ? `${d.timerName}: picked up, thanks ${first(ev.by)}. Counted as a miss.` : `${d.timerName} restarted`);
-    closeSheet();
+    if(await resetTimer(id, name)) closeSheet();
   }
+  // A tap resets the timer at once, no questions (Tim, Oct 28 2026); whoever
+  // is signed in is named, otherwise nobody is. Press and hold opens the
+  // timer's sheet: who did it, and the handoff.
+  const HOLD_MS = 550;
+  let hold = null;
+  function quickReset(id){
+    const el = document.querySelector(`#tmGrid [data-tm-timer="${CSS.escape(id)}"]`);
+    if(el){ el.classList.add('is-tapped'); setTimeout(() => el.classList.remove('is-tapped'), 600); }
+    resetTimer(id, S.me && S.me.name ? S.me.name : '');
+  }
+  // `hold` lives until the click that follows the press: a press that opened
+  // the sheet (fired) or slid off (moved) isn't a tap.
+  function holdStart(e){
+    const el = e.target.closest('[data-tm-timer]');
+    if(!el || (e.button !== undefined && e.button !== 0)) return;
+    if(hold) clearTimeout(hold.timer);
+    el.classList.add('is-holding');
+    const h0 = hold = {el, id: el.dataset.tmTimer, x: e.clientX, y: e.clientY, fired: false, moved: false,
+      timer: setTimeout(() => { h0.fired = true; el.classList.remove('is-holding'); openTimer(h0.id); }, HOLD_MS)};
+  }
+  function holdMove(e){
+    if(hold && !hold.fired && !hold.moved && Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > 12){ hold.moved = true; holdEnd(); }
+  }
+  function holdEnd(){ if(hold){ clearTimeout(hold.timer); hold.el.classList.remove('is-holding'); } }
 
   /* ---------- Scoreboard ---------- */
   function cyclesOf(events){
@@ -447,7 +475,11 @@
     if(d.tmRetry !== undefined){ S.status = 'loading'; render(); load(); }
     else if(d.tmTab){ S.tab = d.tmTab; S.draft = null; render(); if(S.tab === 'stats') loadStats(); }
     else if(d.tmRange){ S.range = d.tmRange; LS.set('range', S.range); loadStats(); }
-    else if(d.tmTimer) openTimer(d.tmTimer);
+    else if(d.tmTimer){
+      const press = hold; hold = null;
+      if(press && press.id === d.tmTimer && (press.fired || press.moved)) return;   // opened the sheet, or slid off: not a tap
+      quickReset(d.tmTimer);
+    }
     else if(d.tmCount){
       const id = d.tmCount, v = Math.max(0, (S.counts[id] || 0) + Number(d.d));
       S.counts[id] = v; render(); queueCount(id);
@@ -502,6 +534,15 @@
     S.mounted = true;
     S.root.addEventListener('click', onClick);
     S.root.addEventListener('change', onChange);
+    S.root.addEventListener('pointerdown', holdStart);
+    S.root.addEventListener('pointermove', holdMove);
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => S.root.addEventListener(t, holdEnd));
+    S.root.addEventListener('contextmenu', e => {           // a right click, or a long press the browser reports
+      const el = e.target.closest('[data-tm-timer]');
+      if(!el) return;
+      e.preventDefault();
+      if(!(hold && hold.fired)){ holdEnd(); hold = {fired: true, moved: false, el, id: el.dataset.tmTimer}; openTimer(el.dataset.tmTimer); }
+    });
     document.addEventListener('click', e => { if(S.layer && !S.layer.hidden && S.layer.contains(e.target)) onClick(e); });
     document.addEventListener('keydown', e => {
       if(e.key === 'Escape' && S.sheet) closeSheet();

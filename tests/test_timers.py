@@ -187,7 +187,11 @@ class Api(unittest.TestCase):
     def test_who_may_do_what(self):
         self.at(WED, '09:00')
         self.as_()
-        self.assertEqual(self.send('reset', timerId='restroom').status_code, 400)          # who did it?
+        # A tap on a signed-out tablet resets with nobody named (Tim, Oct 28 2026);
+        # the cycle is still the Lead Captain's from Set Ups.
+        r = self.send('reset', timerId='restroom')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.get_json()['event']['by'], '')
         self.assertEqual(self.send('handoff', timerId='restroom', to='X').status_code, 403)
         self.assertEqual(self.send('config', timers=[{'name': 'X'}]).status_code, 403)
         self.as_('Ben Cole', 'member')
@@ -288,3 +292,20 @@ class FullScreen(unittest.TestCase):
                      'body.tm-full .tm-badge{width:calc(var(--tm-size) * .23);'):
             self.assertIn(rule, self.css)
         self.assertIn('style="--tm-cols:${Math.max(1, Math.min(5, c.timers.length))}"', self.js)
+
+
+class TapAndHold(unittest.TestCase):
+    """Tim, Oct 28 2026: a tap resets at once, no prompt; press and hold opens
+    the sheet to say who did it or hand the timer off."""
+
+    def test_the_page(self):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        js = open(os.path.join(root, 'static', 'js', 'timers.js'), encoding='utf-8').read()
+        self.assertIn("if(press && press.id === d.tmTimer && (press.fired || press.moved)) return;", js)
+        self.assertIn('quickReset(d.tmTimer);', js)
+        self.assertIn("resetTimer(id, S.me && S.me.name ? S.me.name : '');", js)
+        self.assertIn('const HOLD_MS = 550;', js)
+        self.assertIn("S.root.addEventListener('contextmenu'", js)
+        self.assertIn('Press and hold to say who did it or hand it off.', js)
+        css = open(os.path.join(root, 'static', 'css', 'timers.css'), encoding='utf-8').read()
+        self.assertIn('-webkit-touch-callout:none', css)

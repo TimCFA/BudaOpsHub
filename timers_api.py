@@ -435,9 +435,10 @@ def register(app, me, setups, ref, tz):
                     t = timers.get(d.get('timerId'))
                     if not t:
                         raise Refused('That timer is gone. Reload the page.')
+                    # A tap resets with nobody named (Tim, Oct 28 2026: no prompt on
+                    # every tap); press and hold names who did it. The cycle's credit
+                    # comes from Set Ups either way.
                     by = p['name'] if p else _text(d.get('name'), 40)
-                    if not by:
-                        raise Refused('Say who did it.')
                     sweep(f, now)                          # a miss due first is written first
                     c = cycle(t, f['last'].get(t['id']), now, cfg['hours'], tz)
                     data = {'timerId': t['id'], 'timerName': t['name'], 'signedIn': bool(p)}

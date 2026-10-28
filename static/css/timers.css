@@ -181,3 +181,14 @@ body.tm-full .tm-time.is-long{font-size:calc(var(--tm-size) * .16);}
 body.tm-full .tm-name{font-size:calc(var(--tm-size) * .082);}
 body.tm-full .tm-badge{width:calc(var(--tm-size) * .23);height:calc(var(--tm-size) * .23);}
 body.tm-full .tm-ic{width:calc(var(--tm-size) * .12);height:calc(var(--tm-size) * .12);}
+
+/* Tap to reset, press and hold for the sheet (Tim, Oct 28 2026): no text
+   selection or callout on a long press, a squeeze while it's held and a
+   flash when a tap reset it. */
+.tm-tile{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation;}
+.tm-tile .tm-face{transition:background .3s,transform .55s ease-out;}
+.tm-tile.is-holding .tm-face{transform:scale(.94);}
+.tm-tile.is-tapped .tm-face{animation:tm-tap .6s ease-out;}
+@keyframes tm-tap{0%{box-shadow:0 0 0 0 var(--tm-c);}40%{box-shadow:0 0 0 10px transparent;}100%{box-shadow:0 0 0 0 transparent;}}
+@media (prefers-reduced-motion:reduce){.tm-tile.is-holding .tm-face{transform:none;}.tm-tile.is-tapped .tm-face{animation:none;}}
+.tm-hint{margin:18px 4px 0;font-size:13.5px;color:var(--tm-muted);}
