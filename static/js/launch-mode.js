@@ -72,14 +72,16 @@ function launchSubnavRender(view){
   if(!nav) return;
   nav.setAttribute('aria-label', group === LAUNCH_LISTS ? 'Lists' : group === LAUNCH_WASTE ? 'Waste' : 'Tools');
   const shown = group.filter(l => !hidden(l));
-  // A device nobody signed in on: say where Leader Transition and Safe Count went.
-  let hint = nav.nextElementSibling && nav.nextElementSibling.classList.contains('launch-signin-hint') ? nav.nextElementSibling : null;
+  // A device nobody signed in on: say where Leader Transition and Safe Count
+  // went, at the bottom of the page, so the list itself comes first (Tim,
+  // Oct 28 2026).
+  let hint = root.querySelector(':scope > .launch-signin-hint');
   const showHint = group === LAUNCH_LISTS && typeof scSignedOut === 'function' && scSignedOut();
   if(showHint && !hint){
     hint = document.createElement('p');
     hint.className = 'launch-signin-hint';
     hint.innerHTML = `Team Leads: <button type="button" data-launch-signin>sign in with your clock-in PIN</button> for Leader Transition and Safe Count.${esLine('Leads sign in hint')}`;
-    nav.after(hint);
+    root.appendChild(hint);
   }
   if(hint) hint.hidden = !showHint;
   // One page in the group (the team's Tools): no pill row.
