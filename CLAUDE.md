@@ -53,16 +53,24 @@ SVG), never emoji. New components go in the theme's conventions.
 
 ## Tasks
 
-The Tasks tab (`taskhub/`, `static/js/taskhub.js`, `static/css/taskhub.css`;
-`taskhub/README.md`) is delegation for the leadership team: boards, tasks with
-a person and a due date, assign → accept → blocked / done with a note to the
-other side. Its data is its own Firebase tree (`taskhub/<table>/<id>`), not a
-saved-state section, so it never touches `/api/state/sync` or Set Ups; who
-someone is comes from the hub's session (app.py `_taskhub_me`). Spanish is a
-per-device EN / ES switch on the tab (not a BOH side): its phrases live in the
-glossary's Tasks section and go through `tx` / `tt` in taskhub.js. Tests:
-`tests/test_taskhub.py` (rules and API) and `tests/test_tasks_tab.py` (wiring,
-and that every phrase the tab asks for is in the glossary).
+The Tasks tab is the Pass (`pass_api.py`, `static/js/pass-engine.js`,
+`static/js/pass.js`, `static/css/pass.css`; Tim, Oct 28 2026, from the "The
+Pass" design): a leader hands a ticket to one owner with what done looks
+like, why it matters, a due time, an authority level (1-5) and check-ins; the
+owner says it back (or asks for another time), checks in, turns it in with
+proof; the leader verifies it (meets / elite) or sends it back. My tickets /
+Waiting on / Rail / Team (directors). Tickets are folded from events, one
+Firebase record each under `pass/events/<id>` (photos apart under
+`pass/photos/`), never a saved-state section, so it never touches
+`/api/state/sync` or Set Ups. The rules live twice, `fold` in pass_api.py and
+in pass-engine.js, and must stay the same (tests/test_pass.py runs both). Who
+someone is comes from the hub's session (app.py `_pass_me`); who can be handed
+work is the PIN list plus the Directors list (`_pass_people`). Team Leads and
+up hand work off; Team Members and Trainers see only their own tickets.
+Spanish is a per-device EN / ES switch on the tab (not a BOH side): its
+phrases live in the glossary's Tasks section and go through `T` / `TL` / `V`
+/ `TT` in pass.js. Tests: `tests/test_pass.py` (rules, API) and
+`tests/test_pass_tab.py` (wiring, look, every phrase in the glossary).
 
 ## Deploying
 
