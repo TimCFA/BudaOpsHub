@@ -24,6 +24,7 @@
 <link rel="stylesheet" href="/static/css/theme-cfa.css">
 <link rel="stylesheet" href="/static/css/dark-theme.gen.css">
 <link rel="stylesheet" href="/static/css/dark.css">
+<link rel="stylesheet" href="/static/css/taskhub.css">
 <!-- Dark mode, per device (theme.js): set before the page paints so it never flashes light. -->
 <script>try{if(localStorage.getItem('cfaBudaTheme')==='dark'){document.documentElement.dataset.theme='dark';document.querySelector('meta[name="theme-color"]').content='#121418';}}catch(e){}</script>
 </head>
@@ -96,6 +97,8 @@
 
       <button type="button" class="tab full-only" role="tab" aria-selected="false" aria-controls="scoreboardView" data-view="scoreboard">Scoreboard <span class="sub"><i>Tableros</i></span></button>
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="calendarView" data-view="calendar">Calendar <span class="sub"><i>Calendario</i></span></button>
+      <!-- Tasks (taskhub/, static/js/taskhub.js): who's doing what by when, and where it stands. The count is what's overdue or due today for whoever is signed in. -->
+      <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="tasksView" data-view="tasks">Tasks<span class="th-tab-badge" id="tasksTabBadge" hidden></span> <span class="sub"><i>Tareas</i></span></button>
       <!-- Forms (forms.js; Tim, Oct 21 2026): everyone fills them out; Submissions for directors, managers and the Admin Team. -->
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="formsView" data-view="forms">Forms <span class="sub"><i>Formularios</i></span></button>
       <!-- Our Team (headcount, departures, profiles and food handler permits): directors, the manager PIN and the Admin Team (headcount.js hcSyncTab). -->
@@ -905,6 +908,9 @@
 
   <!-- Calendar View: the store's events calendar (events.js), for the whole
        team; it's changed in Manage → Events Calendar. -->
+  <!-- Tasks: filled by static/js/taskhub.js when the tab opens (navigation.js activateView). -->
+  <div class="view" id="tasksView" data-taskhub-api="/taskhub/api"></div>
+
   <div class="view" id="calendarView">
     <div class="cal-page" id="calendarRoot"></div>
   </div>
@@ -1278,6 +1284,7 @@
 <script src="/static/js/launch-mode.js"></script>
 <script src="/static/js/right-now.js"></script>
 <script src="/static/js/team-schedule.js"></script>
+<script src="/static/js/taskhub.js"></script>
 <script src="/static/js/hub-health.js"></script>
 </body>
 </html>

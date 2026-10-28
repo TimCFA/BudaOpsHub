@@ -16,7 +16,7 @@
 // (app.py PRIVATE_SECTIONS), so signing in fetches it right away, and
 // locking reloads the page to clear it from the device.
 
-const LAUNCH_VIEWS = ['home', 'positions', 'schedule', 'wastelog', 'scoreboard', 'zonereset', 'foodsafety', 'safecount', 'prepboard', 'calendar', 'forms', 'manage', 'headcount'];
+const LAUNCH_VIEWS = ['home', 'positions', 'schedule', 'wastelog', 'scoreboard', 'zonereset', 'foodsafety', 'safecount', 'prepboard', 'calendar', 'tasks', 'forms', 'manage', 'headcount'];
 // Off the simplified site (Tim, Oct 27 2026): a link to one opens Home.
 const LAUNCH_FULL_ONLY_VIEWS = ['knownumbers', 'forecast', 'cem'];
 // Zone Resets and the Leader Transition List share a view; `page` picks
