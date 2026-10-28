@@ -684,6 +684,7 @@
     }
     const typing = S.sheet && document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
     if(!typing) render();
+    if(S.pendingOpen && S.tasks[S.pendingOpen]){ openSheet('task', S.pendingOpen); S.pendingOpen = null; }
   }
   function startPolling(){
     if(S.poll) return;
@@ -721,7 +722,14 @@
     try { const j = await call('/count'); syncBadge(j.count); } catch(e){ syncBadge(0); }
   }
 
-  window.ThePass = { activate, sync, state: S };
+  // A ticket from Home's Right Now card: open it once the tab has loaded.
+  function openTicket(id){
+    S.pendingOpen = id;
+    if(S.status === 'ready' && S.tasks[id]){ S.pendingOpen = null; openSheet('task', id); }
+  }
+
+  window.ThePass = { activate, sync, openTicket, state: S };
+  window.psOpenTicket = openTicket;
   window.psActivate = activate;
   window.psSync = sync;
   if(document.getElementById('tasksTabBadge')){

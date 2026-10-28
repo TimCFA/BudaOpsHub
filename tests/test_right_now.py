@@ -329,3 +329,67 @@ class PageWiring(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class WhatsMine(unittest.TestCase):
+    """Tim, Oct 28 2026: a team member's card shows where they are on Set Ups
+    all day, the tickets handed to them on the Tasks tab, and their own PEA."""
+
+    def test_every_spot_left_today(self):
+        day = SETUP + """
+          posAssignments['foh||' + today + '||Lunch (10:30-1:00)||iPOS 2 LANE 1'] = 'Ana Ruiz Lopez';"""
+        got = run({'op': card('member', 'Ana Ruiz', setup=day), 'at': '2026-10-19T12:30:00-05:00'})[0]
+        self.assertEqual(got['first'], 'You’re on iPOS 2 LANE 1 until 1:00.')
+        texts = [r[1] for r in got['rows']]
+        self.assertIn('Next: Drinks 1 (Dinner)', texts)
+        self.assertIn('Later: Host 1 (Close)', texts)
+        later = next(r for r in got['rows'] if r[1] == 'Later: Host 1 (Close)')
+        self.assertEqual((later[0], later[2]), ('8:00', 'setups:foh|2026-10-19|Close (8:00-10:00)'))
+
+    def test_my_tickets_in_the_order_they_need_me(self):
+        op = card('member', 'Ana Ruiz', extra="""
+          const at = Date.now(), H = 3600e3, ev = (i, off, type, by, task, data) => ({id: String(at + off).padStart(13, '0') + '-' + i, at: at + off, type, by, taskId: task, data});
+          rnMine = {who: 'Ana Ruiz', at: Date.now(), pea: null, tickets: rnTicketsFrom({me: {id: 'ana'}, events: [
+            ev(1, -30 * H, 'created', 'lee', 't1', {title: 'Restock the sauce caddy', owner: 'ana', due: at + 2 * H}),
+            ev(2, -29 * H, 'backbrief', 'ana', 't1', {summary: 'ok'}),
+            ev(3, -20 * H, 'created', 'lee', 't2', {title: 'Wipe the menu boards', owner: 'ana', due: at - H}),
+            ev(4, -19 * H, 'backbrief', 'ana', 't2', {summary: 'ok'}),
+            ev(5, -H, 'created', 'lee', 't3', {title: 'Fold the to-go bags', owner: 'ana', due: at + 26 * H}),
+            ev(6, -H, 'created', 'lee', 't4', {title: 'Someone else\\'s', owner: 'sam', due: at + 26 * H}),
+          ]})};""")
+        rows = run({'op': op})[0]['rows']
+        tickets = [r for r in rows if r[2].startswith('ticket:')]
+        self.assertEqual([r[1] for r in tickets], ['ticket: Fold the to-go bags · say it back', 'ticket: Wipe the menu boards · late',
+                                                  'ticket: Restock the sauce caddy · check-in due'])
+        self.assertEqual([r[0] for r in tickets], ['Tue', 'Late', '7:10'])
+        self.assertEqual(tickets[1][2], 'ticket:t2')
+
+    def test_more_than_four_tickets(self):
+        op = card('member', 'Ana Ruiz', extra="""rnMine = {who: 'Ana Ruiz', at: Date.now(), pea: null,
+            tickets: [1, 2, 3, 4, 5, 6].map(i => ({id: 't' + i, title: 'T' + i, due: Date.now() + i * 3600e3, state: 'working'}))};""")
+        rows = run({'op': op})[0]['rows']
+        self.assertEqual(sum(r[2].startswith('ticket:') for r in rows), 4)
+        self.assertIn(['+2', 'more tickets on the Tasks tab', 'tickets', 'Más tickets en Tareas'], rows)
+
+    def test_my_pea_on_the_card(self):
+        got = run({'op': """c => { """ + SETUP + """
+            acUser = {role: 'member', name: 'Ana Ruiz'};
+            rnMine = {who: 'Ana Ruiz', at: Date.now(), tickets: [], pea: {name: 'Ana Ruiz Lopez', positions: [
+              {position: 'iPOS', avg: 2.8, n: 5, total: 7, last: '2026-10-15', tier: 'crushing', tierLabel: 'Crushing It'},
+              {position: 'Drinks 1/3', avg: 1.5, n: 2, total: 2, last: '2026-10-01', tier: 'notyet', tierLabel: 'Not Yet'}]}};
+            const card = rnCardFor(rnViewer(), rnDay());
+            return [card.pea.positions.length, rnPeaHtml(card.pea, false), rnPeaHtml(card.pea, true), rnPeaHtml(null, false)]; }"""})[0]
+        self.assertEqual(got[0], 2)
+        self.assertIn('<div class="rn-pea-cell is-crushing"', got[1])
+        self.assertIn('<b>2.80</b>', got[1])
+        self.assertIn('<b>1.50</b><small>Not Yet</small>', got[1])
+        self.assertNotIn('lang="es"', got[1])                    # FOH stays English
+        self.assertIn('Todavía no', got[2])                      # the kitchen's side carries Spanish
+        self.assertEqual(got[3], '')
+
+    def test_only_team_members_and_trainers_ask(self):
+        js = read('static', 'js', 'right-now.js')
+        self.assertIn("if(!['member', 'trainer'].includes(v.role) || !v.name)", js)
+        self.assertIn("Promise.all([get('/api/me/pea'), get('/api/pass/state')])", js)
+        self.assertIn("if(what === 'ticket' && typeof psOpenTicket === 'function') psOpenTicket(rest);", js)
+        self.assertIn('window.psOpenTicket = openTicket;', read('static', 'js', 'pass.js'))
