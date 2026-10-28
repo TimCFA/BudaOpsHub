@@ -3016,6 +3016,20 @@ def _pass_people():
 
 pass_api.register(app, me=_pass_me, people=_pass_people, ref=lambda path: db.reference(path))
 
+# ===== TIMERS (Oct 28 2026) =====
+# The store's recurring task timers on the Lists tab (timers_api.py; the
+# screen is static/js/timers.js). Events kept under timers/ in Firebase, one
+# record per event. Each cycle is credited to the Lead Captain on Set Ups
+# when it came due, or to whoever they handed the timer to.
+import timers_api
+
+def _timers_setups():
+    sections = _read_sections() or {}
+    return (sections.get('setups') or {}).get('posAssignments') or {}
+
+timers_api.register(app, me=_pass_me, setups=_timers_setups, ref=lambda path: db.reference(path),
+                    tz=levelset_sync.STORE_TZ)
+
 # ===== START SERVER =====
 
 if __name__ == '__main__':

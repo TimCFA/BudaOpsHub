@@ -33,7 +33,7 @@ class Tools(unittest.TestCase):
         self.assertIn("if(typeof launchIsOn === 'function' && launchIsOn() && LAUNCH_FULL_ONLY_VIEWS.includes(view)) view = 'home';", read('static', 'js', 'navigation.js'))
 
     def test_moved_out_of_lists_oe_and_the_tab_bar(self):
-        self.assertIn('data-views="zonereset foodsafety safecount">Lists', PAGE)
+        self.assertIn('data-views="zonereset timers foodsafety safecount">Lists', PAGE)
         self.assertNotIn('class="tab-dropdown-item" role="menuitem" aria-controls="prepboardView"', PAGE)
         self.assertNotIn('data-view="forecast">Forecast', PAGE)
         lists = LAUNCH[LAUNCH.index('const LAUNCH_LISTS'):LAUNCH.index('const LAUNCH_TOOLS')]
