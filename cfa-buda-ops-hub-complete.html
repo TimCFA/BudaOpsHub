@@ -79,10 +79,12 @@
         </div>
       </div>
 
-      <!-- Tools (Tim, Oct 23 2026): the pages that work the numbers for us. The
-           team gets the Prep Board; managers also the Forecast and CEM Insights,
-           as pills at the top (launch-mode.js LAUNCH_TOOLS). -->
-      <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="prepboardView" data-view="prepboard" data-views="prepboard knownumbers forecast cem">Tools <span class="sub"><i>Herramientas</i></span></button>
+      <!-- Tools (Tim, Oct 23 2026): the pages that work the numbers for us: the
+           Prep Board, Know the Numbers, the Forecast and CEM Insights, as pills
+           at the top (launch-mode.js LAUNCH_TOOLS). On the simplified site only
+           the Prep Board, as its own tab (Oct 27). -->
+      <button type="button" class="tab full-only" role="tab" aria-selected="false" aria-controls="prepboardView" data-view="prepboard" data-views="prepboard knownumbers forecast cem">Tools <span class="sub"><i>Herramientas</i></span></button>
+      <button type="button" class="tab launch-only" role="tab" aria-selected="false" aria-controls="prepboardView" data-view="prepboard">Prep Board <span class="sub"><i>Preparación</i></span></button>
 
       <div class="tab-group full-only" data-group="experience">
         <button type="button" class="tab-group-label" aria-haspopup="true" aria-expanded="false">Experience <span class="chevron-mini">▾</span></button>
