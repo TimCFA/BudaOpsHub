@@ -241,6 +241,141 @@ class Api(unittest.TestCase):
         self.assertEqual(self.c.get('/api/timers/state').headers.get('Cache-Control'), 'no-store')
 
 
+class Pause(Api):
+    """Tim, Oct 28 2026: a way to pause a timer. Press and hold, pause for a
+    set time (never open-ended); the clock stops, nothing is missed while it's
+    paused, and it comes back by itself, with a tap, or with a reset."""
+
+    def start(self):
+        self.at(WED, '08:00')
+        self.send('reset', timerId='restroom', name='A')          # due 08:30, grace to 08:40
+
+    def test_the_clock_stops_and_nothing_is_missed(self):
+        self.start()
+        self.at(WED, '08:20')
+        r = self.send('pause', timerId='restroom', minutes=15)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.get_json()['event']['data']['until'], ms(WED, '08:35'))
+        self.at(WED, '08:41')                                       # would have been a miss
+        self.state()
+        self.assertEqual(self.events('miss'), [])
+        self.assertEqual(self.state()['pauses'], {'restroom': [[ms(WED, '08:20'), ms(WED, '08:35')]]})
+        self.at(WED, '08:44')
+        r = self.send('reset', timerId='restroom', name='B').get_json()['event']['data']
+        self.assertEqual((r['status'], r['due']), ('ontime', ms(WED, '08:45')))
+
+    def test_resume_early_and_late_after_it(self):
+        self.start()
+        self.at(WED, '08:20')
+        self.send('pause', timerId='restroom', minutes=30)
+        self.at(WED, '08:25')
+        self.assertEqual(self.send('resume', timerId='restroom').status_code, 200)
+        self.assertEqual(self.send('resume', timerId='restroom').status_code, 400)       # not paused any more
+        self.at(WED, '08:38')
+        r = self.send('reset', timerId='restroom').get_json()['event']['data']
+        self.assertEqual((r['status'], r['lateMin'], r['due']), ('late', 3, ms(WED, '08:35')))
+
+    def test_paused_while_overdue_keeps_the_late_minutes(self):
+        self.start()
+        self.at(WED, '08:35')                                       # 5 min late
+        self.send('pause', timerId='restroom', minutes=60)
+        self.at(WED, '09:30')
+        self.state()
+        self.assertEqual(self.events('miss'), [])
+        self.at(WED, '09:36')                                       # back at 09:35: due is 09:30
+        r = self.send('reset', timerId='restroom').get_json()['event']['data']
+        self.assertEqual((r['status'], r['lateMin']), ('late', 6))
+
+    def test_rest_of_today(self):
+        self.start()
+        self.at(WED, '08:10')
+        r = self.send('pause', timerId='restroom', rest=True).get_json()['event']['data']
+        self.assertEqual((r['until'], r['rest']), (ms(WED, '22:00'), True))
+        self.at(WED, '21:59')
+        self.state()
+        self.assertEqual(self.events('miss'), [])
+        self.at(29, '06:10')                                        # Thursday: a fresh cycle from opening
+        c = TA.cycle(TA.DEFAULT_CONFIG['timers'][0], TA.fold(store_events())['last']['restroom'], ms(29, '06:10'),
+                     TA.DEFAULT_CONFIG['hours'], TZ, TA.fold(store_events())['pauses']['restroom'])
+        self.assertEqual((c['due'], c['paused']), (ms(29, '06:30'), None))
+
+    def test_a_reset_ends_the_pause(self):
+        self.start()
+        self.at(WED, '08:10')
+        self.send('pause', timerId='restroom', minutes=60)
+        self.at(WED, '08:15')
+        self.send('reset', timerId='restroom')
+        self.assertEqual(self.state()['pauses']['restroom'], [[ms(WED, '08:10'), ms(WED, '08:15')]])
+        self.at(WED, '08:56')
+        self.state()
+        self.assertEqual([e['data']['due'] for e in self.events('miss')], [ms(WED, '08:45')])   # 30 min from the reset, not paused
+
+    def test_what_cant_be_paused(self):
+        self.at(WED, '08:00')
+        self.assertEqual(self.send('pause', timerId='restroom', minutes=15).status_code, 400)    # never started
+        self.send('reset', timerId='restroom')
+        self.assertEqual(self.send('pause', timerId='restroom').status_code, 400)                # how long?
+        self.assertEqual(self.send('pause', timerId='nope', minutes=15).status_code, 400)
+        self.at(WED, '08:41')
+        r = self.send('pause', timerId='restroom', minutes=15)                                    # already a miss
+        self.assertEqual((r.status_code, r.get_json()['error']), (400, 'It’s already a miss. Tap it when it’s done.'))
+        self.at(SUN, '12:00')
+        self.assertEqual(self.send('pause', timerId='restroom', minutes=15).status_code, 400)    # closed
+
+    def test_anyone_can_pause_and_it_names_who(self):
+        self.start()
+        self.at(WED, '08:10')
+        self.as_()
+        self.send('pause', timerId='restroom', minutes=15, name='Grace Kim')
+        self.assertEqual(self.events('pause')[-1]['by'], 'Grace Kim')
+        self.as_('Ben Cole', 'member')
+        self.send('resume', timerId='restroom')
+        self.assertEqual(self.events('resume')[-1]['by'], 'Ben Cole')
+
+    def test_the_page_runs_the_same_clock(self):
+        """timers.js cycle() against the server's, on the same pauses."""
+        timer = {'id': 'restroom', 'interval': 30, 'grace': 10}
+        cases = [  # (last reset, pauses, now)
+            (ms(WED, '08:00'), [[ms(WED, '08:20'), ms(WED, '08:35')]], ms(WED, '08:41')),
+            (ms(WED, '08:00'), [[ms(WED, '08:20'), ms(WED, '08:35')]], ms(WED, '08:25')),
+            (ms(WED, '08:00'), [[ms(WED, '08:35'), ms(WED, '09:35')]], ms(WED, '09:00')),
+            (ms(WED, '08:00'), [[ms(WED, '07:00'), ms(WED, '07:30')], [ms(WED, '08:05'), ms(WED, '08:10')], [ms(WED, '08:50'), ms(WED, '09:10')]], ms(WED, '08:55')),
+            (ms(WED, '08:00'), [[ms(WED, '08:45'), ms(WED, '09:00')]], ms(WED, '08:50')),     # after the deadline: no help
+        ]
+        js = os.path.join(ROOT, 'static', 'js', 'timers.js')
+        script = """
+const vm = require('vm'), fs = require('fs');
+const el = {addEventListener(){}, classList: {contains: () => false, toggle(){}}};
+const ctx = {console, Date, Math, JSON, CSS: {escape: s => s}, setTimeout, clearTimeout, setInterval, clearInterval,
+  localStorage: {getItem: () => null, setItem(){}}, document: {getElementById: () => null, addEventListener(){}, body: el, documentElement: el}};
+ctx.window = ctx; ctx.window.addEventListener = () => {};
+vm.createContext(ctx);
+vm.runInContext(fs.readFileSync(process.argv[1], 'utf8'), ctx);
+const P = ctx.TimersPage, input = JSON.parse(fs.readFileSync(0, 'utf8'));
+P.S.config = {hours: input.hours};
+process.stdout.write(JSON.stringify(input.cases.map(([last, pauses, at]) => {
+  P.S.last = {restroom: last}; P.S.pauses = {restroom: pauses}; P.S.offset = at - Date.now();
+  const c = P.cycle(input.timer);
+  return {cls: c.cls, due: c.due, until: c.until || null};
+})));
+"""
+        import json
+        import subprocess
+        out = subprocess.run(['node', '-e', script, js], input=json.dumps({'timer': timer, 'hours': TA.DEFAULT_CONFIG['hours'], 'cases': cases}),
+                             capture_output=True, text=True, check=True)
+        got = json.loads(out.stdout)
+        for (last, pauses, at), page in zip(cases, got):
+            c = TA.cycle(timer, last, at, TA.DEFAULT_CONFIG['hours'], TZ, pauses)
+            self.assertEqual(page['due'], c['due'])
+            self.assertEqual(page['cls'] == 'paused', bool(c['paused']))
+            if c['paused']:
+                self.assertEqual(page['until'], c['paused'][1])
+
+
+def store_events():
+    return [v for k, v in store.items() if k.startswith('timers/events/')]
+
+
 if __name__ == '__main__':
     unittest.main()
 
@@ -306,6 +441,7 @@ class TapAndHold(unittest.TestCase):
         self.assertIn("resetTimer(id, S.me && S.me.name ? S.me.name : '');", js)
         self.assertIn('const HOLD_MS = 550;', js)
         self.assertIn("S.root.addEventListener('contextmenu'", js)
-        self.assertIn('Press and hold to say who did it or hand it off.', js)
+        self.assertIn('Press and hold to pause it, say who did it, or hand it off.', js)
+        self.assertIn("if(t && cycle(t).cls === 'paused'){ resumeTimer(id); return; }", js)     # a tap on a paused timer resumes it
         css = open(os.path.join(root, 'static', 'css', 'timers.css'), encoding='utf-8').read()
         self.assertIn('-webkit-touch-callout:none', css)
