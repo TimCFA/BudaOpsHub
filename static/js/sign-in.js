@@ -55,6 +55,7 @@ function siWhy(keys){
 function siRender(){
   if(typeof renderInitialsBadge === 'function') renderInitialsBadge();
   if(typeof rlSyncTab === 'function') rlSyncTab();     // Roles: Team Leads and up
+  if(typeof psSync === 'function') psSync();           // Tasks: start over as whoever signed in
   const sheet = document.getElementById('siSheet');
   if(sheet && sheet.classList.contains('active')) siDraw();
   siRenderSettings();
