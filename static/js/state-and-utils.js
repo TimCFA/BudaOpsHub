@@ -35,6 +35,7 @@ let directors = null;    // [{name, title}] the director team (directors.js); nu
 let adminShifts = {};    // {date: [{name, start, end}]}: Administrative shifts from the roster import (directors' time)
 let leaderNotes = {};    // {leader name: [{text, by, ts, date, type, pec}]}: directors' notes on each leader, newest last (leaders.js)
 let leaderRoster = null; // [{name, roles}] the leaders and their PEC roles (leaders.js); null until edited
+let roleBoards = {};      // each Team Lead role's week and log (roles.js)
 let safeOrders = [];          // change orders placed: [{id, placedAt, by, lines, total, expected, note, status, receivedAt, receivedBy}] (safe-order.js)
 let safeOrderSettings = {};   // {par: {'1': bills, Quarters: rolls, ...}, step: {...}}: the change order (safe-order.js)
 let peaGoals = null;     // {team, leader}: PEAs per quarter the team and each leader aim for; null = PEA_GOALS_SEED

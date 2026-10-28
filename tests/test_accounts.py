@@ -266,6 +266,44 @@ class TeamPinTest(unittest.TestCase):
         self.assertEqual(self.login('333444')[1].get_json()['role'], 'director')
         self.assertEqual(self.login('111222')[1].get_json()['role'], 'lead')
 
+    def leaders(self, names):
+        """The leader list (leaderRoster) as the team list saves it."""
+        store['state'] = {'manager': json.dumps({'leaderRoster': [{'name': n, 'roles': []} for n in names]})}
+        appmod._cache.clear()
+        appmod._cache_ready = False
+
+    def test_the_leader_list_makes_a_team_lead(self):
+        """Tim, Oct 27 2026: leads marked Team Lead on the team list signed in
+        as Team Members (each PIN report upload set them back). Someone on the
+        leader list signs in as a Team Lead whatever the PIN list carries,
+        under the HotSchedules spelling too; an Admin Team role stays."""
+        self.upload([{'name': 'Jordan Testcase', 'pin': '123456', 'role': 'Team Member'},
+                     {'name': 'Riley Sample', 'pin': '234567', 'role': 'Trainer'},
+                     {'name': 'Avery Office', 'pin': '567890', 'role': 'Admin Team'}])
+        c, r = self.login('123456')
+        self.assertEqual(r.get_json()['role'], 'member')
+        self.leaders(['Jordan Q Testcase', 'Riley Sample', 'Avery Office'])
+        self.assertEqual(c.get('/api/manager/status').get_json()['user']['role'], 'lead')   # the open sign-in too
+        self.assertEqual(self.login('234567')[1].get_json()['role'], 'lead')
+        self.assertEqual(self.login('567890')[1].get_json()['role'], 'admin')
+        names = {n['name']: n['role'] for n in c.get('/api/team/names').get_json()['names']}
+        self.assertEqual(names['Jordan Testcase'], 'lead')
+        self.assertEqual({v['role'] for v in store['secure/teamPins'].values()}, {'member', 'trainer', 'admin'})   # the PIN list itself unchanged
+        # Off the leader list: what the PIN list says again.
+        self.leaders(['Riley Sample'])
+        self.assertEqual(c.get('/api/manager/status').get_json()['user']['role'], 'member')
+
+    def test_a_report_with_no_roles_keeps_the_roles_set_here(self):
+        self.upload([{'name': 'Riley Sample', 'pin': '234567', 'role': 'Trainer'}, {'name': 'Avery Office', 'pin': '567890', 'role': 'Admin Team'}])
+        self.upload([{'name': 'Riley Sample', 'pin': '234567', 'role': 'Team Member', 'roleSaid': False},
+                     {'name': 'Avery Office', 'pin': '567890', 'role': 'Team Member', 'roleSaid': False},
+                     {'name': 'New Person', 'pin': '777888', 'role': 'Team Member', 'roleSaid': False}], replace=True)
+        roles = {v['name']: v['role'] for v in store['secure/teamPins'].values()}
+        self.assertEqual(roles, {'Riley Sample': 'trainer', 'Avery Office': 'admin', 'New Person': 'member'})
+        # A role the report (or a tap) names wins.
+        self.upload([{'name': 'Riley Sample', 'pin': '234567', 'role': 'Team Member', 'roleSaid': True}], replace=True)
+        self.assertEqual([v['role'] for v in store['secure/teamPins'].values()], ['member'])
+
     def test_a_team_pin_never_opens_manage_or_private_data(self):
         """Whatever the role, a clock-in PIN gets no manager session: no
         private state sections, no manager routes, no accounts."""

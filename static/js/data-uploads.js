@@ -96,7 +96,7 @@ const DU_SOURCES = [
 ];
 
 let dataUploadLog = {};        // {sourceKey: [{at, file, summary, periodEnd?}]} newest last
-let dataUploadSettings = {};   // {freq: {sourceKey: 'weekly' | ...}}
+let dataUploadSettings = {};   // {freq: {sourceKey: 'weekly' | ...}, due: {sourceKey: {date, at}}}
 let duResults = [];            // session-only: what the last drop did
 let duPending = [];            // session-only: files waiting for a day / weekday
 let duPendingSeq = 0;
@@ -144,6 +144,57 @@ function duStatusFromTime(last, freq, now){
   return last >= start ? 'fresh' : last >= prev ? 'due' : 'overdue';
 }
 
+// ----- A due date picked by hand (Tim, Oct 26 2026) -----
+// The automatic status guesses from what each upload covers, and it kept
+// calling reports due or overdue when they weren't. A manager can pick the
+// date a report is next due instead: before it the report is up to date, on
+// it it's due, and from the day after it's overdue. An upload made after the
+// date was picked counts for the due date nearest to it, so the next one is
+// one frequency later (a weekly report uploaded on Sunday or Tuesday for a
+// Monday due date is next due the Monday after). Clearing it goes back to
+// the automatic status.
+function duDueSetting(key){
+  const d = dataUploadSettings && dataUploadSettings.due && dataUploadSettings.due[key];
+  return d && /^\d{4}-\d{2}-\d{2}$/.test(d.date || '') ? d : null;
+}
+// The k-th due date from the picked one (k may be negative). Monthly and
+// quarterly keep the day of the month (the 31st falls on the month's last).
+function duDueStep(iso, freq, k){
+  const a = new Date(iso + 'T00:00:00');
+  if(freq === 'monthly' || freq === 'quarterly'){
+    const m = a.getMonth() + (freq === 'monthly' ? 1 : 3) * k;
+    return duISO(new Date(a.getFullYear(), m, Math.min(a.getDate(), new Date(a.getFullYear(), m + 1, 0).getDate())));
+  }
+  return duISO(duAddDays(a, ({daily: 1, weekly: 7, biweekly: 14}[freq] || 7) * k));
+}
+function duDayGap(later, earlier){
+  return Math.round((new Date(later + 'T12:00:00') - new Date(earlier + 'T12:00:00')) / 86400000);
+}
+// When it's due now, as 'YYYY-MM-DD'.
+function duNextDue(set, freq, last){
+  if(!last || (set.at && last < new Date(set.at))) return set.date;
+  const L = duISO(last);
+  let k = 0;
+  while(duDueStep(set.date, freq, k) > L) k--;
+  while(duDueStep(set.date, freq, k + 1) <= L) k++;
+  // The due date nearest the upload (a tie goes to the later one) is the one it met.
+  const met = duDayGap(L, duDueStep(set.date, freq, k)) < duDayGap(duDueStep(set.date, freq, k + 1), L) ? k : k + 1;
+  const next = duDueStep(set.date, freq, met + 1);
+  return next > set.date ? next : set.date;
+}
+function duApplyDue(src, st, now){
+  const set = duDueSetting(src.key);
+  if(!set) return st;
+  const dueDate = duNextDue(set, st.freq, st.last), t = duISO(now);
+  const status = t < dueDate ? 'fresh' : t === dueDate ? 'due' : 'overdue';
+  return {...st, status, dueDate, note: status === 'fresh' ? '' : st.note};
+}
+// "next due Nov 2" / "due today" / "was due Nov 2", for a picked due date.
+function duDueText(st){
+  if(!st.dueDate) return '';
+  return st.status === 'fresh' ? `next due ${duShort(st.dueDate)}` : st.status === 'due' ? 'due today' : `was due ${duShort(st.dueDate)}`;
+}
+
 // ----- Per-source status -----
 
 function duRosterWeekLoaded(monday){
@@ -162,6 +213,10 @@ function duCemLatest(){
 }
 
 function duSourceState(src, now){
+  return duApplyDue(src, duAutoState(src, now), now);
+}
+
+function duAutoState(src, now){
   const freq = duFreq(src);
   const log = duLastLog(src.key);
   const logAt = log ? new Date(log.at) : null;
@@ -1287,7 +1342,7 @@ function duRowHtml(src, st, foldable){
       <div class="du-row-head">
         <span class="du-row-icon" aria-hidden="true">${src.icon}</span>
         <span class="du-row-name">${escapeHtml(src.name)}</span>
-        <span class="du-cadence">${escapeHtml(DU_FREQUENCIES[st.freq])}</span>
+        <span class="du-cadence">${escapeHtml(DU_FREQUENCIES[st.freq])}${st.dueDate ? ` · ${escapeHtml(duDueText(st))}` : ''}</span>
         <span class="du-status ${s.cls}">${icon} ${s.label}</span>
         ${foldable ? `<button type="button" class="du-row-fold" data-du-close="${escapeHtml(src.key)}" aria-expanded="true" title="Fold ${escapeHtml(src.name)}">${DU_ICON.up}<span>Fold</span></button>` : ''}
       </div>
@@ -1304,10 +1359,15 @@ function duRowHtml(src, st, foldable){
         ${src.key === 'numbers' ? '<button type="button" class="du-sync-btn" data-du-template="1">Download template</button>' : ''}
       </div>
       <details class="du-more">
-        <summary>How to get it</summary>
+        <summary>How to get it · when it’s due</summary>
         <p>${escapeHtml(src.how)}</p>
         <p class="du-feeds">${escapeHtml(lastText)}</p>
-        ${src.fixedFreq ? '' : `<label class="du-freq">Due <select data-du-freq="${src.key}">${Object.entries(DU_FREQUENCIES).map(([k, v]) => `<option value="${k}" ${k === st.freq ? 'selected' : ''}>${v}</option>`).join('')}</select></label>`}
+        <div class="du-when">
+          ${src.fixedFreq ? '' : `<label class="du-freq">How often <select data-du-freq="${src.key}">${Object.entries(DU_FREQUENCIES).map(([k, v]) => `<option value="${k}" ${k === st.freq ? 'selected' : ''}>${v}</option>`).join('')}</select></label>`}
+          <label class="du-freq">Next due <input type="date" data-du-due="${src.key}" value="${escapeHtml(st.dueDate || '')}"></label>
+          ${st.dueDate ? `<button type="button" class="ld-link" data-du-due-clear="${src.key}">Back to automatic</button>` : ''}
+          <p class="du-when-hint">${st.dueDate ? `Overdue the day after its due date. Each upload moves the date ahead ${({daily: 'a day', weekly: 'a week', biweekly: 'two weeks', monthly: 'a month', quarterly: 'a quarter'})[st.freq] || 'one period'}.` : 'Automatic: due and overdue come from what the last upload covered. Pick a date to set it yourself.'}</p>
+        </div>
       </details>
     </li>`;
 }
@@ -1316,7 +1376,7 @@ function duMiniHtml(src, st){
   return `<li><button type="button" class="du-mini" data-du-open="${src.key}" aria-expanded="false">
     <span class="du-mini-dot" aria-hidden="true">${DU_ICON.check}</span>
     <b>${escapeHtml(src.name)}</b>
-    <span>${escapeHtml(st.cover)}</span>
+    <span>${escapeHtml(st.dueDate ? `${duDueText(st).replace(/^./, c => c.toUpperCase())} · ${st.cover}` : st.cover)}</span>
   </button></li>`;
 }
 
@@ -1361,7 +1421,7 @@ function duTodayHtml(rows, counts, lastText){
     .map(r => ({...r, done: !r.pending && r.st.status === 'fresh' && !!r.at}));
   const left = items.filter(r => !r.done).length, total = items.length;
   const clock = d => d.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'});
-  const note = r => r.done ? `Done ${clock(r.at)}` : r.pending ? 'Waiting on a tap below' : r.st.status === 'overdue' ? 'Behind' : `Due ${r.st.freq === 'daily' ? 'today' : r.st.freq === 'monthly' ? 'this month' : r.st.freq === 'quarterly' ? 'this quarter' : 'this week'}`;
+  const note = r => r.done ? `Done ${clock(r.at)}` : r.pending ? 'Waiting on a tap below' : r.st.dueDate ? duDueText(r.st).replace(/^./, c => c.toUpperCase()) : r.st.status === 'overdue' ? 'Behind' : `Due ${r.st.freq === 'daily' ? 'today' : r.st.freq === 'monthly' ? 'this month' : r.st.freq === 'quarterly' ? 'this quarter' : 'this week'}`;
   const pct = total ? Math.round((total - left) / total * 100) : 100;
   // Each line is a button: tap it to go to that report's card below.
   const item = r => `
@@ -1508,6 +1568,15 @@ document.getElementById('dataUploadsRoot').addEventListener('change', async e=>{
     await duResolvePending(+e.target.dataset.duPendingDate, e.target.value);
     return;
   }
+  const due = e.target.closest('[data-du-due]');
+  if(due){
+    dataUploadSettings.due = dataUploadSettings.due || {};
+    if(/^\d{4}-\d{2}-\d{2}$/.test(due.value)) dataUploadSettings.due[due.dataset.duDue] = {date: due.value, at: new Date().toISOString()};
+    else delete dataUploadSettings.due[due.dataset.duDue];
+    await saveState();
+    renderDataUploads();
+    return;
+  }
   const freq = e.target.closest('[data-du-freq]');
   if(freq){
     dataUploadSettings.freq = dataUploadSettings.freq || {};
@@ -1536,6 +1605,13 @@ document.getElementById('dataUploadsRoot').addEventListener('drop', e=>{
 });
 
 document.getElementById('dataUploadsRoot').addEventListener('click', async e=>{
+  const dueClear = e.target.closest('[data-du-due-clear]');
+  if(dueClear){
+    if(dataUploadSettings.due) delete dataUploadSettings.due[dueClear.dataset.duDueClear];
+    await saveState();
+    renderDataUploads();
+    return;
+  }
   const cem = e.target.closest('[data-du-cem-cell]');
   if(cem){
     const [key, dim] = cem.dataset.duCemCell.split('::');

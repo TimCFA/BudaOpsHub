@@ -300,7 +300,7 @@ function acParsePinList(text){
     const cells = line.split(/[,\t;]/).map(c => c.replace(/^"|"$/g, '').trim());
     if(cells.length < 2 || !cells.some(Boolean)) return;
     if(/^name$/i.test(cells[0]) && !/^\d{6}$/.test(cells[1] || '')) return;
-    rows.push({name: cells[0], pin: cells[1], role: cells[2] || 'Team Member'});
+    rows.push({name: cells[0], pin: cells[1], role: cells[2] || 'Team Member', roleSaid: !!cells[2]});
   });
   return rows;
 }
@@ -349,7 +349,7 @@ document.addEventListener('change', e => {
   if(!sel || !acPinRows) return;
   const r = acPinRows[+sel.dataset.acPinRole];
   // No redraw: it would clear anything typed in the box below.
-  if(r){ r.role = sel.value; r.why = ''; sel.closest('.ac-pin-item').classList.toggle('is-skip', r.role === 'Director'); }
+  if(r){ r.role = sel.value; r.why = ''; r.roleSet = true; sel.closest('.ac-pin-item').classList.toggle('is-skip', r.role === 'Director'); }
 });
 document.addEventListener('submit', async e => {
   if(e.target.id === 'acGoogleForm'){
@@ -362,7 +362,9 @@ document.addEventListener('submit', async e => {
   e.preventDefault();
   if(acPinSaving) return;                       // one save at a time
   const typed = acParsePinList(document.getElementById('acPinText').value);
-  const rows = [...(acPinRows || []).map(r => ({name: r.name, pin: r.pin, role: r.role})), ...typed];
+  // roleSaid: the report (or a tap here) named the role. When it didn't, the
+  // server keeps the role someone already has (set on the team list).
+  const rows = [...(acPinRows || []).map(r => ({name: r.name, pin: r.pin, role: r.role, roleSaid: !!(r.roleFromReport || r.roleSet || r.roleSaid)})), ...typed];
   const msg = document.getElementById('acPinMsg');
   if(!rows.length){ if(msg) msg.textContent = 'Paste the list or pick a file first.'; return; }
   const replace = document.getElementById('acPinReplace').checked;

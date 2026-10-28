@@ -151,8 +151,16 @@ async function main(){
           const unsent = await p.page.evaluate(() => stateHasUnsent());
           log.push(`phone 0 set ${key.split('||').slice(2).join(' / ')} = ${name} offline; unsent before reload: ${unsent}`);
           await p.ctx.setOffline(false);
-          await p.page.reload({waitUntil: 'load'});
-          await p.page.waitForFunction(() => typeof saveState === 'function' && stateVersions && stateVersions.setups, null, {timeout: 30000});
+          // A reload that lands while the server is down gets an error page
+          // with no hub on it; the person refreshes again, so the phone does too.
+          let tries = 0;
+          for(;;){
+            await p.page.reload({waitUntil: 'load'}).catch(() => {});
+            const up = await p.page.waitForFunction(() => typeof saveState === 'function' && stateVersions && stateVersions.setups, null, {timeout: 15000}).then(() => true, () => false);
+            if(up) break;
+            if(++tries >= 4) throw new Error('phone 0 never loaded the hub after reloading');
+            log.push('phone 0 reloaded while the server was down; reloading again');
+          }
           log.push('phone 0 reloaded with an unsent change');
         }
       }

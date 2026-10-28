@@ -53,14 +53,16 @@ class TeamList(unittest.TestCase):
             ['director', 'Pat Partner', 'mp'],
             ['pin', 'Eve Admin', 'admin'],
             ['pin', 'Ana Lead', 'lead'],
+            ['pin', 'Ben Member', 'lead'],                   # on the leader list: signs in as a Team Lead (Oct 27 2026)
             ['pin', 'Fay New Lead', 'lead'],
             ['leader', 'Gus Levelset', 'lead'],               # on the leader list, not the PIN list: kept, marked
-            ['pin', 'Cy Trainer', 'trainer'],
-            ['pin', 'Ben Member', 'member']])
+            ['pin', 'Cy Trainer', 'trainer']])
 
     def test_where_the_leader_list_and_the_roles_disagree(self):
+        # A Team Lead on the PIN list not yet counted as a leader. Someone on
+        # the leader list is a Team Lead, so there's no "extra" any more.
         self.assertEqual(self.d['missing'], ['Fay New Lead'])
-        self.assertEqual(self.d['extra'], ['Ben Member'])
+        self.assertEqual(self.d['extra'], [])
 
 
 class Wiring(unittest.TestCase):

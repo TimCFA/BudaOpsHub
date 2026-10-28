@@ -1,9 +1,10 @@
 // ===== LAUNCH MODE =====
 // While the team is getting started, the site shows only Home and the
-// essentials: Set Ups, Waste, Lists, Tools and the store's Calendar. The Lists tab opens Zone Reset &
-// Walkthroughs in one tap; Food Safety Walkthrough and Daily Safe Count are
-// pills at the top of each list page. Tools opens the Prep Board (on the full
-// site, the Forecast and CEM Insights are pills beside it). Everything else is still there:
+// essentials: Set Ups, Schedule, Waste, Lists, the Prep Board, the store's
+// Calendar and Forms. The Lists tab opens Zone Reset & Walkthroughs in one
+// tap; Food Safety Walkthrough and Daily Safe Count are pills at the top of
+// each list page. The rest of Tools (Know the Numbers, the Forecast, CEM
+// Insights) is on the full site only (Tim, Oct 27 2026). Everything else is still there:
 // a device signed in with the manager PIN (Manage tab) sees every tab again,
 // and a manager can turn launch mode off for everyone in Manage.
 //
@@ -15,7 +16,9 @@
 // (app.py PRIVATE_SECTIONS), so signing in fetches it right away, and
 // locking reloads the page to clear it from the device.
 
-const LAUNCH_VIEWS = ['home', 'positions', 'schedule', 'wastelog', 'scoreboard', 'zonereset', 'foodsafety', 'safecount', 'prepboard', 'knownumbers', 'calendar', 'tasks', 'forms', 'manage', 'headcount'];
+const LAUNCH_VIEWS = ['home', 'positions', 'schedule', 'wastelog', 'scoreboard', 'zonereset', 'foodsafety', 'safecount', 'prepboard', 'calendar', 'tasks', 'forms', 'manage', 'headcount', 'roles'];
+// Off the simplified site (Tim, Oct 27 2026): a link to one opens Home.
+const LAUNCH_FULL_ONLY_VIEWS = ['knownumbers', 'forecast', 'cem'];
 // Zone Resets and the Leader Transition List share a view; `page` picks
 // which of its cards show (data-launch-page on the cards).
 const LAUNCH_LISTS = [
@@ -28,8 +31,8 @@ const LAUNCH_LISTS = [
 // Forecast and CEM Insights are for the full site (managers).
 const LAUNCH_TOOLS = [
   {view: 'prepboard', label: 'Prep Board', sub: 'Preparación'},
-  // Know the Numbers (kn-page.js): Team Leads and up.
-  {view: 'knownumbers', label: 'Know the Numbers', sub: 'Los números', leaders: true},
+  // Know the Numbers (kn-page.js): Team Leads and up, on the full site (Oct 27 2026).
+  {view: 'knownumbers', label: 'Know the Numbers', sub: 'Los números', leaders: true, full: true},
   {view: 'forecast', label: 'Sales & Labor Forecast', sub: 'Pronóstico', full: true},
   {view: 'cem', label: 'CEM Insights', sub: 'Encuestas', full: true},
 ];

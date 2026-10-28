@@ -87,5 +87,19 @@ class Wiring(unittest.TestCase):
         self.assertIn("else if(what === 'signin' && typeof siOpen === 'function') siOpen();", read('static', 'js', 'right-now.js'))
 
 
+
+class PhoneTaps(unittest.TestCase):
+    """Tim, Oct 27 2026, on his iPhone: "It won't let me click sign in"."""
+
+    def test_an_empty_pin_says_so(self):
+        js = read('static', 'js', 'sign-in.js')
+        self.assertNotIn('autocomplete="off" required>', js)          # iPhones block a required box without a word
+        self.assertIn("if(!pin){ siReason = 'Type your clock-in PIN first, then tap Sign in.'; siDraw(); return; }", js)
+
+    def test_no_cursor_jump_on_a_phone(self):
+        js = read('static', 'js', 'sign-in.js')
+        self.assertIn("if(pin && !(window.matchMedia && matchMedia('(pointer: coarse)').matches)) setTimeout(() => pin.focus(), 50);", js)
+
+
 if __name__ == '__main__':
     unittest.main()

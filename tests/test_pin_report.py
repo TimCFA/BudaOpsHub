@@ -142,8 +142,8 @@ class PageWiring(unittest.TestCase):
         self.assertIn("if(f.type === 'application/pdf' || /\\.pdf$/i.test(f.name)){ acReadPinReport(f); return; }", js)
         # The check list shows the last two digits only.
         self.assertIn("PIN ••••${escapeHtml(String(r.pin).slice(-2))}", js)
-        # Saved as name, PIN and role only (not the notes shown beside them).
-        self.assertIn('...(acPinRows || []).map(r => ({name: r.name, pin: r.pin, role: r.role}))', js)
+        # Saved as name, PIN, role and whether the role was named (not the notes shown beside them).
+        self.assertIn('...(acPinRows || []).map(r => ({name: r.name, pin: r.pin, role: r.role, roleSaid: !!(r.roleFromReport || r.roleSet || r.roleSaid)}))', js)
 
 
 if __name__ == '__main__':
