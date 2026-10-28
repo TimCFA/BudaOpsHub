@@ -40,7 +40,7 @@
 
   const S = {
     root: null, layer: null, mounted: false, status: 'loading', error: '',
-    config: null, counts: {}, last: {}, events: [], cursor: '', offset: 0, me: null, lead: '', daypart: '',
+    config: null, counts: {}, last: {}, pauses: {}, events: [], cursor: '', offset: 0, me: null, lead: '', daypart: '',
     tab: 'now', range: LS.get('range', '7'), stats: null, statsFor: '', poll: null, tick: null,
     sheet: null, busy: false, prevCls: {}, sound: LS.get('sound', '1') === '1', draft: null,
   };
@@ -76,7 +76,18 @@
     if(!today || n < today[0] || n >= today[1]) return {cls: 'off'};
     const base = Math.max(lastReset, today[0]);
     if(base >= today[1]) return {cls: 'off'};
-    const due = base + t.interval * MIN, left = due - n;
+    // Time paused before the deadline moves the cycle later by as much.
+    let due = base + t.interval * MIN, paused = null;
+    const grace = t.grace * MIN;
+    for(const [s0, pe] of [...(S.pauses[t.id] || [])].sort((a, b) => a[0] - b[0])){
+      const ps = Math.max(s0, base);
+      if(pe <= ps) continue;
+      if(ps >= due + grace) break;
+      due += pe - ps;
+      if(ps <= n && n < pe) paused = [ps, pe];
+    }
+    if(paused) return {cls: 'paused', due, left: due - paused[1], until: paused[1], rest: paused[1] >= today[1]};
+    const left = due - n;
     let cls = 'ok';
     if(left <= 0) cls = -left > t.grace * MIN ? 'missed' : 'late';
     else if(left <= Math.min(5 * MIN, t.interval * MIN * 0.2)) cls = 'soon';
@@ -119,7 +130,7 @@
     S.offset = d.serverTime - Date.now();
     const pending = {};
     Object.keys(countWait).forEach(id => { pending[id] = S.counts[id]; });   // taps not sent yet win
-    S.config = d.config; S.counts = Object.assign({}, d.counts || {}, pending); S.last = d.last || {};
+    S.config = d.config; S.counts = Object.assign({}, d.counts || {}, pending); S.last = d.last || {}; S.pauses = d.pauses || {};
     S.me = d.me; S.lead = d.lead || ''; S.daypart = d.daypart || '';
     if(d.full) S.events = d.events;
     else {
@@ -181,7 +192,7 @@
   }
 
   /* ---------- Now ---------- */
-  const STATUS = {ok: 'On track', soon: 'Due soon', late: 'Overdue', missed: 'Missed', off: 'Closed', new: 'Not started'};
+  const STATUS = {ok: 'On track', soon: 'Due soon', late: 'Overdue', missed: 'Missed', off: 'Closed', new: 'Not started', paused: 'Paused'};
   function tileHtml(t){
     return `<button type="button" class="tm-tile" data-tm-timer="${h(t.id)}">
       <span class="tm-ring"></span>
@@ -235,7 +246,7 @@
     return headHtml() + `
       <div class="tm-grid" id="tmGrid" style="--tm-cols:${Math.max(1, Math.min(5, c.timers.length))}" data-ids="${h(c.timers.map(t => t.id).join())}">${c.timers.map(tileHtml).join('')}</div>
       ${c.counters.length ? `<h3 class="tm-h">Counters</h3><div class="tm-grid">${c.counters.map(counterHtml).join('')}</div>` : ''}
-      <p class="tm-hint">Tap a timer when it’s done. Press and hold to say who did it or hand it off.</p>
+      <p class="tm-hint">Tap a timer when it’s done. Press and hold to pause it, say who did it, or hand it off.</p>
       <label class="tm-sound"><input type="checkbox" data-tm-sound ${S.sound ? 'checked' : ''}> Beep on this device when a timer goes overdue</label>`;
   }
   function paintTiles(){
@@ -258,8 +269,13 @@
         const pct = st.left > 0 ? Math.max(0, Math.min(1, st.left / (t.interval * MIN))) : 1;
         ring.style.background = st.left > 0 ? `conic-gradient(var(--tm-c) ${pct * 360}deg, var(--tm-track) 0)` : 'var(--tm-c)';
       }
-      const o = st.cls === 'off' ? '' : ownerNow(t.id);
-      el.querySelector('.tm-owner').textContent = o ? (o === S.lead ? 'LC · ' : '') + first(o) : '';
+      if(st.cls === 'paused'){
+        ring.style.background = 'var(--tm-c)';
+        el.querySelector('.tm-owner').textContent = st.rest ? 'Rest of today' : `Back at ${fmtTime(st.until)}`;
+      } else {
+        const o = st.cls === 'off' ? '' : ownerNow(t.id);
+        el.querySelector('.tm-owner').textContent = o ? (o === S.lead ? 'LC · ' : '') + first(o) : '';
+      }
       const was = S.prevCls[t.id];
       if(st.cls === 'late' && was && !['late', 'missed'].includes(was)) beep();
       S.prevCls[t.id] = st.cls;
@@ -274,6 +290,7 @@
     const st = cycle(t), floor = onTheFloor(), owner = ownerNow(id), signed = S.me && S.me.name;
     const when = st.cls === 'new' ? 'Not started. Done starts its first cycle.'
       : st.cls === 'off' ? 'The store is closed. This only restarts it.'
+      : st.cls === 'paused' ? `Paused with ${fmtLeft(st.left)} ${st.left >= 0 ? 'left' : 'over'}. ${st.rest ? 'Off for the rest of today.' : `Back on at ${fmtTime(st.until)}.`}`
       : st.left > 0 ? `Due in ${fmtLeft(st.left)}, on time` : `Overdue by ${fmtLeft(-st.left)}${st.cls === 'missed' ? ', already a miss' : ''}`;
     const handoff = isLead() && st.cls !== 'off' ? `
       <div class="tm-sheet-sec">
@@ -290,8 +307,18 @@
          ${floor.length ? `<div class="tm-chips">${floor.map(n => `<button type="button" class="tm-chip" data-tm-done="${h(n)}">${h(n)}</button>`).join('')}</div>` : ''}
          <div class="tm-row"><input class="tm-input" id="tmName" maxlength="40" placeholder="Or type your name" autocomplete="off">
          <button type="button" class="tm-btn red" data-tm-done-typed>Done</button></div>`;
+    // Pause (Tim, Oct 28 2026): always for a set time, so a timer is never
+    // left off and forgotten; a tap on the paused tile brings it back sooner.
+    const pause = st.cls === 'paused' ? `
+      <div class="tm-sheet-sec"><button type="button" class="tm-btn ghost big" data-tm-resume>${PAUSE_ICON.play} Resume now</button></div>`
+      : ['ok', 'soon', 'late'].includes(st.cls) ? `
+      <div class="tm-sheet-sec">
+        <div class="tm-k">Pause it</div>
+        <div class="tm-chips">${PAUSE_FOR.map(([k, l]) => `<button type="button" class="tm-chip" data-tm-pause="${k}">${PAUSE_ICON.pause} ${l}</button>`).join('')}</div>
+        <p class="tm-note">The clock stops and nothing counts as missed. It comes back on by itself, or tap it.</p>
+      </div>` : '';
     drawSheet(`<div class="tm-sheet-head">${icon(t.icon, 'tm-ic-lg')}<div><h2>${h(t.name)}</h2><p>${h(when)}</p></div></div>
-      ${who}${handoff}
+      ${who}${pause}${handoff}
       <button type="button" class="tm-btn ghost" data-tm-close>Cancel</button>`);
   }
   function drawSheet(inner){
@@ -309,6 +336,29 @@
       : d.status === 'missed' ? `${d.timerName}: picked up.${thanks} Counted as a miss.` : `${d.timerName} restarted`);
     return true;
   }
+  const PAUSE_FOR = [['15', '15 min'], ['30', '30 min'], ['60', '1 hour'], ['rest', 'Rest of today']];
+  const PAUSE_ICON = {
+    pause: '<svg class="tm-ic-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>',
+    play: '<svg class="tm-ic-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>',
+  };
+  function sheetName(){
+    if(S.me && S.me.name) return S.me.name;
+    const el = document.getElementById('tmName');
+    return el ? el.value.trim() : '';
+  }
+  async function pauseTimer(id, how){
+    const ev = await send('pause', Object.assign({timerId: id, name: sheetName()}, how === 'rest' ? {rest: true} : {minutes: Number(how)}));
+    if(!ev) return;
+    toast(`${ev.data.timerName} paused ${ev.data.rest ? 'for the rest of today' : `until ${fmtTime(ev.data.until)}`}`);
+    closeSheet();
+  }
+  async function resumeTimer(id){
+    const ev = await send('resume', {timerId: id, name: sheetName()});
+    if(!ev) return;
+    const t = S.config.timers.find(x => x.id === id), st = t ? cycle(t) : null;
+    toast(`${ev.data.timerName} is back on${st && st.left > 0 ? `, ${fmtLeft(st.left)} left` : ''}`);
+    if(S.sheet) closeSheet();
+  }
   async function done(name){
     const id = S.sheet && S.sheet.id;
     if(await resetTimer(id, name)) closeSheet();
@@ -318,9 +368,12 @@
   // timer's sheet: who did it, and the handoff.
   const HOLD_MS = 550;
   let hold = null;
+  // A tap on a paused timer brings it back instead (it wasn't done, it was off).
   function quickReset(id){
     const el = document.querySelector(`#tmGrid [data-tm-timer="${CSS.escape(id)}"]`);
     if(el){ el.classList.add('is-tapped'); setTimeout(() => el.classList.remove('is-tapped'), 600); }
+    const t = S.config.timers.find(x => x.id === id);
+    if(t && cycle(t).cls === 'paused'){ resumeTimer(id); return; }
     resetTimer(id, S.me && S.me.name ? S.me.name : '');
   }
   // `hold` lives until the click that follows the press: a press that opened
@@ -351,6 +404,16 @@
       }
     });
     return [...map.values()];
+  }
+  // Every pause and how long it really lasted (to its time, a resume or a reset).
+  function pausesOf(events){
+    const out = [], open = {};
+    [...events].sort((a, b) => a.at - b.at).forEach(e => {
+      const d = e.data || {}, cur = open[d.timerId];
+      if(['pause', 'resume', 'reset'].includes(e.type) && cur && cur.end > e.at){ cur.end = e.at; delete open[d.timerId]; }
+      if(e.type === 'pause'){ const p = {timer: d.timerName, at: e.at, end: d.until, by: e.by, rest: !!d.rest}; out.push(p); open[d.timerId] = p; }
+    });
+    return out.map(p => Object.assign(p, {mins: Math.max(0, Math.round((Math.min(p.end, now()) - p.at) / MIN))}));
   }
   function agg(list){
     const n = list.length, on = list.filter(c => c.status === 'ontime').length, late = list.filter(c => c.status === 'late').length;
@@ -389,7 +452,9 @@
       let ev = d.events;
       if(S.range === 'today'){ const t0 = new Date(now()); t0.setHours(0, 0, 0, 0); ev = ev.filter(e => (e.data && (e.data.due || 0)) >= t0.getTime()); }
       S.stats = cyclesOf(ev); S.statsFor = S.range;
-    } catch (e) { S.stats = []; toast(e.message); }
+      const day0 = new Date(now()).setHours(0, 0, 0, 0);
+      S.statsPauses = pausesOf(d.events).filter(p => S.range !== 'today' || p.at >= day0);
+    } catch (e) { S.stats = []; S.statsPauses = []; toast(e.message); }
     render();
   }
   function renderStats(){
@@ -414,6 +479,9 @@
       <section class="tm-card"><h3>Handed off</h3><p class="tm-note">Cycles a Lead Captain handed to someone, and how they went.</p>${table(handed, c => c.owner, 'Owner', true, 'No handoffs in this range.')}</section>
       <section class="tm-card"><h3>Who reset them</h3>${pickupTable(list)}</section>
       <section class="tm-card"><h3>Timers</h3>${table(list, c => c.timer, 'Timer', false)}</section>
+      <section class="tm-card"><h3>Paused</h3><p class="tm-note">Paused time doesn't count toward a cycle, so here's who paused what and for how long.</p>${(S.statsPauses || []).length ? `<div class="tm-table-wrap"><table class="tm-table"><thead><tr><th>Timer</th><th>When</th><th>For</th><th>By</th></tr></thead><tbody>${
+        [...S.statsPauses].sort((x, y) => y.at - x.at).slice(0, 15).map(p => `<tr><td>${h(p.timer)}</td><td>${h(fmtDay(p.at))} ${h(fmtTime(p.at))}</td><td>${p.mins} min${p.rest ? ' (rest of day)' : ''}</td><td>${h(p.by || '–')}</td></tr>`).join('')
+      }</tbody></table></div>` : '<p class="tm-empty">No pauses in this range.</p>'}</section>
       <section class="tm-card"><h3>Recent</h3>${recent.length ? `<div class="tm-table-wrap"><table class="tm-table"><thead><tr><th>Timer</th><th>Due</th><th>Owner</th><th>Reset by</th><th>Result</th></tr></thead><tbody>${
         recent.map(c => `<tr><td>${h(c.timer)}</td><td>${h(fmtDay(c.due))} ${h(fmtTime(c.due))}</td><td>${h(c.owner || '–')}</td><td>${h(c.by || '–')}</td>
           <td><span class="tm-pill ${c.status}">${c.status === 'ontime' ? 'On time' : c.status === 'late' ? `Late ${c.lateMin}m` : c.by ? `Missed, +${c.lateMin}m` : 'Missed'}</span></td></tr>`).join('')
@@ -496,6 +564,8 @@
       if(!n.trim()){ toast('Type your name first'); return; }
       done(n.trim());
     }
+    else if(d.tmPause) pauseTimer(S.sheet.id, d.tmPause);
+    else if(d.tmResume !== undefined) resumeTimer(S.sheet.id);
     else if(d.tmHandoff !== undefined){
       const id = S.sheet.id, to = d.tmHandoff;
       send('handoff', {timerId: id, to}).then(ev => { if(ev){ toast(to ? `${first(to)} owns it now` : 'It’s back with the Lead Captain'); openTimer(id); } });
@@ -565,5 +635,5 @@
   window.tmFullSync = applyFull;
   // A device left in full screen opens on the timers again after a reload.
   if(fullOn()) window.addEventListener('load', () => setTimeout(() => { if(typeof launchShowTab === 'function' && !shown()) launchShowTab('timers'); }, 400));
-  window.TimersPage = {S, cycle, cyclesOf, agg, ownerNow, onTheFloor};
+  window.TimersPage = {S, cycle, cyclesOf, pausesOf, agg, ownerNow, onTheFloor};
 })();

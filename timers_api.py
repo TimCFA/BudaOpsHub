@@ -17,6 +17,13 @@ different Lead Captain takes the floor or it's taken back. The server works
 all of this out from Set Ups when the cycle comes due, so what a phone sends
 can't change who gets the credit.
 
+Pausing (Tim, Oct 28 2026). Press and hold, then pause for 15 minutes, 30,
+an hour, or the rest of the day (the playground in the rain, a closed
+dining room). The clock stops: the cycle comes due later by however long it
+sat paused, and no miss is written while it's paused. It comes back by
+itself when the time is up, or sooner with a tap (resume) or a reset. A
+cycle that's already a miss can't be paused away.
+
 Each cycle ends one way:
   ontime   reset by the time it came due
   late     reset within the grace
@@ -35,6 +42,8 @@ section; never goes through /api/state/sync.
   POST /api/timers/events   {type, data}
         reset     {timerId, name?}     anyone (a signed-out device names who)
         count     {counterId, value}   anyone
+        pause     {timerId, minutes | rest: true, name?}   anyone
+        resume    {timerId}            anyone
         handoff   {timerId, to}        Team Leads and up; to '' takes it back
         config    {timers, counters, hours}   Team Leads and up
 """
@@ -79,7 +88,8 @@ DEFAULT_CONFIG = {
     'hours': {'open': '06:00', 'close': '22:00', 'closeLate': '23:00', 'lateDays': [4, 5], 'closedDays': [6]},
 }
 # Days are Python's (Monday 0 ... Sunday 6).
-EVENT_TYPES = ('reset', 'count', 'handoff', 'config')
+EVENT_TYPES = ('reset', 'count', 'handoff', 'config', 'pause', 'resume')
+PAUSE_MAX_MIN = 8 * 60
 MAX_BODY = 20_000
 
 
@@ -131,8 +141,14 @@ def _key(name):
 
 def fold(events):
     """What the events add up to: the config, each timer's last reset, the
-    misses already written, today's handoffs, and the counters."""
-    cfg, last, misses, handoffs, counts = None, {}, set(), [], {}
+    misses already written, today's handoffs, the counters, and each timer's
+    pauses ([start, end] ms; a pause ends at its time, a resume or a reset)."""
+    cfg, last, misses, handoffs, counts, pauses = None, {}, set(), [], {}, {}
+
+    def end_pause(tid, at):
+        cur = (pauses.get(tid) or [None])[-1]
+        if cur and cur[1] > at:
+            cur[1] = at
     for e in sorted(events, key=lambda x: x['id']):
         d = e.get('data') or {}
         t = e.get('type')
@@ -140,22 +156,33 @@ def fold(events):
             cfg = d
         elif t == 'reset':
             last[d.get('timerId')] = max(last.get(d.get('timerId'), 0), e['at'])
+            end_pause(d.get('timerId'), e['at'])
+        elif t == 'pause':
+            cur = (pauses.get(d.get('timerId')) or [None])[-1]
+            if cur and cur[1] > e['at']:
+                cur[1] = d.get('until', e['at'])            # paused again while paused: the new time stands
+            else:
+                pauses.setdefault(d.get('timerId'), []).append([e['at'], d.get('until', e['at'])])
+        elif t == 'resume':
+            end_pause(d.get('timerId'), e['at'])
         elif t == 'miss':
             misses.add((d.get('timerId'), d.get('due')))
         elif t == 'handoff':
             handoffs.append(e)
         elif t == 'count':
             counts[d.get('counterId')] = d.get('value', 0)
-    return {'config': cfg or DEFAULT_CONFIG, 'last': last, 'misses': misses, 'handoffs': handoffs, 'counts': counts}
+    return {'config': cfg or DEFAULT_CONFIG, 'last': last, 'misses': misses, 'handoffs': handoffs, 'counts': counts, 'pauses': pauses}
 
 
-def cycle(timer, last_reset, now, hours, tz):
-    """The cycle a timer is on: {day, due, deadline, open, close}, or None
+def cycle(timer, last_reset, now, hours, tz, pauses=()):
+    """The cycle a timer is on: {day, due, deadline, open, close, paused}, or None
     when the store hasn't opened yet today and yesterday has nothing open.
     The day is today once the store has opened, else the last day it was
     open (so a miss from last night can still be written in the morning).
     A timer nobody has ever reset hasn't started: no cycle, no misses from
-    before it was in use."""
+    before it was in use. Time spent paused before the deadline moves the
+    cycle later by as much; `paused` is the pause on now ([start, end]) or
+    None."""
     if not last_reset:
         return None
     today = _local(now, tz).date()
@@ -167,8 +194,17 @@ def cycle(timer, last_reset, now, hours, tz):
             base = max(last_reset or 0, o)
             if base >= c:                    # reset after close: nothing due that day
                 return None
-            due = base + timer['interval'] * MIN
-            return {'day': day.isoformat(), 'due': due, 'deadline': due + timer['grace'] * MIN, 'open': o, 'close': c}
+            due, grace, paused = base + timer['interval'] * MIN, timer['grace'] * MIN, None
+            for ps, pe in sorted(pauses or ()):
+                ps = max(ps, base)
+                if pe <= ps:
+                    continue
+                if ps >= due + grace:
+                    break
+                due += pe - ps
+                if ps <= now < pe:
+                    paused = [ps, pe]
+            return {'day': day.isoformat(), 'due': due, 'deadline': due + grace, 'open': o, 'close': c, 'paused': paused}
     return None
 
 
@@ -378,7 +414,7 @@ def register(app, me, setups, ref, tz):
         """Write a miss for every cycle whose grace ran out unreset."""
         p = None
         for t in f['config']['timers']:
-            c = cycle(t, f['last'].get(t['id']), now, f['config']['hours'], tz)
+            c = cycle(t, f['last'].get(t['id']), now, f['config']['hours'], tz, f['pauses'].get(t['id']))
             if not c or c['deadline'] > min(now, c['close']) or (t['id'], c['due']) in f['misses']:
                 continue
             p = posa() if p is None else p
@@ -409,6 +445,7 @@ def register(app, me, setups, ref, tz):
                 p = me()
                 return jsonify({'serverTime': now, 'full': newer is None, 'cursor': store.cursor(),
                                 'config': f['config'], 'counts': f['counts'], 'last': f['last'],
+                                'pauses': {k: [x for x in v if x[1] > now - DAY] for k, v in f['pauses'].items() if any(x[1] > now - DAY for x in v)},
                                 'lead': lead_at(posa(), now, tz), 'daypart': daypart_at(now, tz),
                                 'me': {'name': p['name'], 'role': p['role'], 'canLead': is_lead(p)} if p else None,
                                 'events': sorted(events, key=lambda e: e['id'])})
@@ -440,7 +477,7 @@ def register(app, me, setups, ref, tz):
                     # comes from Set Ups either way.
                     by = p['name'] if p else _text(d.get('name'), 40)
                     sweep(f, now)                          # a miss due first is written first
-                    c = cycle(t, f['last'].get(t['id']), now, cfg['hours'], tz)
+                    c = cycle(t, f['last'].get(t['id']), now, cfg['hours'], tz, f['pauses'].get(t['id']))
                     data = {'timerId': t['id'], 'timerName': t['name'], 'signedIn': bool(p)}
                     if c and c['open'] <= now < c['close'] + 30 * MIN:
                         late = max(0, -(-(now - c['due']) // MIN)) if now > c['due'] else 0
@@ -449,6 +486,30 @@ def register(app, me, setups, ref, tz):
                                     **credit(t['id'], c['due'], f['handoffs'], posa(), tz))
                     else:
                         data['status'] = 'closed'          # restarted out of hours: not a cycle
+                elif typ in ('pause', 'resume'):
+                    t = timers.get(d.get('timerId'))
+                    if not t:
+                        raise Refused('That timer is gone. Reload the page.')
+                    by = p['name'] if p else _text(d.get('name'), 40)
+                    sweep(f, now)
+                    c = cycle(t, f['last'].get(t['id']), now, cfg['hours'], tz, f['pauses'].get(t['id']))
+                    data = {'timerId': t['id'], 'timerName': t['name'], 'signedIn': bool(p)}
+                    if typ == 'resume':
+                        if not (c and c['paused']):
+                            raise Refused('It isn’t paused.')
+                    else:
+                        if not c or not (c['open'] <= now < c['close']):
+                            raise Refused('Nothing to pause: the store is closed or the timer hasn’t started.')
+                        if now >= c['deadline']:
+                            raise Refused('It’s already a miss. Tap it when it’s done.')
+                        if d.get('rest'):
+                            until, data['rest'] = c['close'], True
+                        else:
+                            m = _int(d.get('minutes'), 0, PAUSE_MAX_MIN, 0)
+                            if not m:
+                                raise Refused('Pause for how long?')
+                            until, data['minutes'] = min(c['close'], now + m * MIN), m
+                        data['until'] = until
                 elif typ == 'count':
                     if d.get('counterId') not in {c['id'] for c in cfg['counters']}:
                         raise Refused('That counter is gone. Reload the page.')

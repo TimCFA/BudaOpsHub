@@ -64,6 +64,12 @@ html[data-theme="dark"] .tm-root,html[data-theme="dark"] .tm-layer{--tm-heat:#E8
 .tm-tile.is-missed .tm-face{background:var(--tm-red-soft);}
 .tm-tile.is-off,.tm-tile.is-new{--tm-c:var(--tm-faint);}
 .tm-tile.is-off .tm-time,.tm-tile.is-new .tm-time{color:var(--tm-faint);}
+/* Paused: the clock stands still, grey and striped, with when it comes back. */
+.tm-tile.is-paused{--tm-c:repeating-linear-gradient(135deg,var(--tm-faint) 0 8px,var(--tm-track) 8px 16px);}
+.tm-tile.is-paused .tm-time{color:var(--tm-muted);}
+.tm-tile.is-paused .tm-status{color:var(--tm-muted);letter-spacing:.08em;}
+.tm-tile.is-paused .tm-owner{color:var(--tm-muted);}
+.tm-chip .tm-ic-sm{width:14px;height:14px;vertical-align:-2px;}
 @keyframes tm-pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.03);}}
 @media (prefers-reduced-motion:reduce){.tm-tile.is-missed{animation:none;}}
 
