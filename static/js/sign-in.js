@@ -78,8 +78,12 @@ function siOpen(reason){
   if(!sheet) return;
   sheet.classList.add('active');
   siDraw();                      // after it shows, so Google's button can draw
+  // The cursor in the PIN box on a computer. Not on a phone (Tim, Oct 27
+  // 2026: "it won't let me click sign in"): there it can bring the keyboard
+  // up and move the sheet under the finger, so a tap meant for Google's
+  // button lands somewhere else.
   const pin = document.getElementById('siPin');
-  if(pin) setTimeout(() => pin.focus(), 50);
+  if(pin && !(window.matchMedia && matchMedia('(pointer: coarse)').matches)) setTimeout(() => pin.focus(), 50);
 }
 function siClose(){
   const sheet = document.getElementById('siSheet');
@@ -103,7 +107,7 @@ function siDraw(){
     ${device}
     ${signedIn && !handOver ? signedIn : `${handOver ? signedIn : ''}<form class="si-form" data-si-form>
       <label for="siPin">${handOver ? 'A Team Lead’s clock-in PIN' : 'Clock-in PIN'}</label>
-      <input id="siPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" required>
+      <input id="siPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off">
       <button type="submit" class="btn btn-primary" ${siBusy ? 'disabled' : ''}>Sign in</button>
       <p class="si-hint">Your 6-digit clock-in PIN.</p>
     </form>${!handOver && typeof acGoogleClientId !== 'undefined' && acGoogleClientId ? `
@@ -131,8 +135,12 @@ document.addEventListener('submit', e => {
   const form = e.target.closest('[data-si-form]');
   if(!form) return;
   e.preventDefault();
-  const pin = (document.getElementById('siPin') || {}).value || '';
-  if(pin && !siBusy) siSignIn(pin.trim());
+  const pin = ((document.getElementById('siPin') || {}).value || '').trim();
+  if(siBusy) return;
+  // An empty box used to stop the tap without a word (iPhones don't show the
+  // browser's "fill this out" note): say what's missing.
+  if(!pin){ siReason = 'Type your clock-in PIN first, then tap Sign in.'; siDraw(); return; }
+  siSignIn(pin);
 });
 document.addEventListener('click', e => {
   if(e.target.closest('[data-si-close]') || e.target.id === 'siSheet'){ siClose(); return; }
