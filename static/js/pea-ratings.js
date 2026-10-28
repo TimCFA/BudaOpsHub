@@ -623,23 +623,33 @@ function peaMatchName(rosterName, peaNames){
 
 // ----- Name Matching card (Manage) -----
 
-// Every name Set Ups knows: rosters still held (last two weeks), set-up
-// history (a year) and current assignments. {name: lastSeenISO}
+// The people to match: everyone on an imported HotSchedules roster still
+// held (last two weeks), and anyone on the clock-in PIN list who has been
+// on Set Ups. A name typed by hand (a roster entry added before Add Team
+// Member picked from the team, a spot, a year of set-up history) only
+// counts when it's one of those real names (Tim, Oct 27 2026: the list kept
+// asking to match names typed into Set Ups). Whoever has left drops out.
+// [{name, date: lastSeenISO}]
 function peaRosterNamesSeen(){
-  const seen = {};
+  const seen = {}, real = new Set();
   const note = (name, date)=>{
     name = String(name || '').trim();
     if(!name) return;
     if(!isSetupDateKey(date)) date = '';
     if(!seen[name] || (date && date > seen[name])) seen[name] = date || seen[name] || '';
   };
-  [fohRoster, bohRoster].forEach(roster => Object.keys(roster).forEach(date => (roster[date] || []).forEach(p => note(p.name, date))));
+  [fohRoster, bohRoster].forEach(roster => Object.keys(roster).forEach(date => (roster[date] || []).forEach(p => {
+    if(p && p.name && p.source !== 'manual') real.add(peaRosterKey(p.name));
+    note(p && p.name, date);
+  })));
+  (typeof tmPinNames !== 'undefined' && Array.isArray(tmPinNames) ? tmPinNames : []).forEach(p => p && p.name && real.add(peaRosterKey(p.name)));
   Object.keys(posAssignments).forEach(k => suSplitNames(posAssignments[k]).forEach(n => note(n, k.split('||')[1])));
   Object.keys(setupHistory.days).forEach(date => setupHistory.days[date].forEach(([, n]) => note(setupHistory.names[n], date)));
   // One entry per person even if the roster spelled them two ways by case.
   const byKey = {};
   Object.entries(seen).forEach(([name, date])=>{
     const k = peaRosterKey(name);
+    if(!real.has(k) || (typeof teamHasLeft === 'function' && teamHasLeft(name))) return;
     if(!byKey[k] || date > byKey[k].date) byKey[k] = {name, date};
   });
   return Object.values(byKey);
@@ -657,6 +667,11 @@ function renderPeaNameMatching(){
   if(!root) return;
   const peaNames = Object.keys(peaStrengthByPerson()).sort((a, b) => a.localeCompare(b));
   if(!peaNames.length){ root.innerHTML = '<p class="pea-muted">Upload PEA ratings first.</p>'; return; }
+  // The PIN list's names, once fetched, count as real people too.
+  if(typeof tmPinNames !== 'undefined' && !tmPinNames && typeof teamNamesLoad === 'function' && !renderPeaNameMatching.asked){
+    renderPeaNameMatching.asked = true;
+    teamNamesLoad().then(n => { if(n) renderPeaNameMatching(); });
+  }
   const roster = peaRosterNamesSeen().sort((a, b) => a.name.localeCompare(b.name));
   if(!roster.length){ root.innerHTML = '<p class="pea-muted">No HotSchedules names yet — import a roster in Team & Scheduling.</p>'; return; }
 
