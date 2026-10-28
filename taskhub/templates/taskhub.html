@@ -13,6 +13,8 @@
 <div class="th-standalone">
   <div id="tasksView" data-taskhub-api="{{ api_base }}"></div>
 </div>
+<script>function escapeHtml(s){return String(s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));}</script>
+<script src="/static/js/spanish.js"></script>
 <script src="/static/js/taskhub.js"></script>
 <script>TaskHub.mount(document.getElementById('tasksView'));</script>
 </body>

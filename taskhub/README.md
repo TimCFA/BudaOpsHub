@@ -34,8 +34,13 @@ Flask blueprint under `/taskhub/api` (this folder); the screen is
   `taskhub.css`. Line icons only.
 - **The tab's count** is what's overdue or due today for whoever is signed
   in, loaded after idle on every page load.
-- **Spanish**: English only for now (it's a leadership tool, not a BOH
-  screen); the tab carries "Tareas" like every other tab.
+- **Spanish**: an EN / ES switch in the toolbar, remembered per device
+  (Tim, Oct 28 2026). On, every label carries its Spanish beside the
+  English from the hub's glossary (`static/js/spanish.js`, the Tasks
+  section), the way the kitchen screens do; people's own text (titles,
+  comments, reasons) stays as typed, and the activity log stays English.
+  `tests/test_tasks_tab.py` fails if a phrase the tab asks for is missing
+  from the glossary.
 
 ## Standalone (no hub, no Firebase)
 
@@ -94,4 +99,4 @@ Under `/taskhub/api`; the session says who you are.
 ## Not yet
 
 Recurring tasks, templates, attachments, push or email, a row on Home's
-Right Now card, Spanish inside the tab, reporting.
+Right Now card, Spanish in the activity log and notifications, reporting.

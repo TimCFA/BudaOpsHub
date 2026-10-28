@@ -92,6 +92,34 @@ class Wiring(unittest.TestCase):
         self.assertIn('window.thActivate = activate;', js)
         self.assertNotIn('innerHTML = ', js.replace("node.innerHTML = v;", ''))   # people's text never goes in as HTML
 
+    def test_spanish_switch_and_every_phrase_it_asks_for(self):
+        """An EN / ES switch on the tab (Tim, Oct 28 2026): on, every label
+        carries its Spanish from the glossary, the way the kitchen screens
+        do. Each phrase taskhub.js asks for (tx, txLine, txv's key, tt,
+        esWord) must be in static/js/spanish.js."""
+        import json
+        import subprocess
+        js = read('static', 'js', 'taskhub.js')
+        self.assertIn("class: 'th-lang-btn', dataset: { es: '1' }", js)
+        self.assertIn("LS.set('es'", js)
+        out = subprocess.run(['node', os.path.join(ROOT, 'tests', 'spanish_runner.js')], capture_output=True, text=True, check=True)
+        keys = set(json.loads(out.stdout)['keys'])
+        asked = set(re.findall(r"""\b(?:tx|txLine|tt|esWord)\(\s*'((?:\\.|[^'\\])*)'""", js))
+        asked |= set(re.findall(r"""\btxv\([^,]+,\s*'((?:\\.|[^'\\])*)'""", js))
+        asked |= set(re.findall(r"""\besNode\(\s*'((?:\\.|[^'\\])*)'""", js))
+        for label in ('Open', 'Accepted', 'Blocked', 'Done', 'Urgent', 'High', 'Normal', 'Low',          # STATUS_LABEL / PRIORITY_LABEL through tx()
+                      'Task', 'Status', 'Who', 'Column', 'Due', 'Priority', 'Labels',                    # the list's headers
+                      'Overdue', 'Today', 'This week', 'Later', 'No due date', 'Done this week',           # My Tasks groups
+                      'Today', 'Tomorrow', 'Yesterday', 'To do', 'In progress',                           # due pills, column kinds
+                      'New task', 'New board', 'Board settings', 'Everyone', 'Unassigned', 'Me', 'Any label', 'Any status', 'Any priority'):
+            asked.add(label)
+        asked |= set(re.findall(r"dataset: \{ en \} \}", js) and re.findall(r"\['\w*', '([^']+)'\]", js[js.index("'Any status'"):js.index("'Any priority'") + 200]))
+        self.assertGreater(len(asked), 60)
+        self.assertEqual(sorted(p.replace("\\'", "'") for p in asked if p.replace("\\'", "'") not in keys), [])
+        self.assertIn('/static/js/spanish.js', read('taskhub', 'templates', 'taskhub.html'))   # standalone has it too
+        css = read('static', 'css', 'taskhub.css')
+        self.assertIn('.th-root.th-es-off .es,.th-layer.th-es-off .es{display:none;}', css)
+
     def test_styles_use_the_theme_tokens(self):
         css = read('static', 'css', 'taskhub.css')
         for token in ('var(--cfa-red', 'var(--cfa-navy', 'var(--cfa-white', 'var(--font-display', 'var(--font-ui', 'html[data-theme="dark"]'):

@@ -23,7 +23,7 @@
   const S = {
     root: null, api: '/taskhub/api', host: false, mounted: false,
     me: null, members: [], boards: [], boardId: null, board: null, tasks: [],
-    view: LS.get('view', 'board'), search: '',
+    view: LS.get('view', 'board'), search: '', es: LS.get('es', '') === '1',
     filters: { assignee: '', status: '', priority: '', label: '' },
     openTaskId: null, openTask: null, notifs: [], unread: 0, mine: null,
     sort: { key: 'due_at', desc: false }, pollTimer: null, layer: null,
@@ -65,6 +65,27 @@
     settings: SVG('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
   };
   const svg = name => el('span', { class: 'th-ico', html: ICON[name] });
+
+  // Spanish beside the English, from the hub's glossary (spanish.js), when
+  // the EN / ES switch is on (remembered per device). tx(phrase) → the
+  // English and a <span class="es"> after it; txLine puts the Spanish on its
+  // own line; txv(shown, key, …) when the English on screen isn't the key
+  // ("3 open" for 'N open tasks'); tt(phrase) → "English / Español" for
+  // option labels, placeholders and toasts, where only text fits. Every
+  // phrase asked for here must be in the glossary (tests/test_tasks_tab.py).
+  const esWord = (en, ...args) => typeof window.esText === 'function' ? window.esText(en, ...args) : '';
+  const esNode = (en, line, ...args) => { const t = esWord(en, ...args); return t ? el('span', { class: line ? 'es es-line' : 'es', lang: 'es' }, t) : null; };
+  const tx = (en, ...args) => [en, esNode(en, false, ...args)];
+  const txLine = (en, ...args) => [en, esNode(en, true, ...args)];
+  const txv = (shown, key, ...args) => [shown, esNode(key, false, ...args)];
+  const tt = (en, ...args) => { const t = S.es ? esWord(en, ...args) : ''; return t ? `${en} / ${t}` : en; };
+  function applyLang(){
+    S.root.classList.toggle('th-es-off', !S.es);
+    if(S.layer) S.layer.classList.toggle('th-es-off', !S.es);
+    $$('.th-lang-btn', S.root).forEach(b => { const on = (b.dataset.es === '1') === S.es; b.classList.toggle('active', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+    const search = $('.th-search-input', S.root); if(search) search.placeholder = tt('Search tasks');
+    $$('option[data-en]', S.root).forEach(o => { o.textContent = tt(o.dataset.en); });
+  }
 
   // ---------- API ----------
   async function api(path, opts){
@@ -133,11 +154,12 @@
 
   function duePill(task){
     if(!task.due_at) return null;
-    return el('span', { class: `th-pill th-pill-due is-${dueBucket(task.due_at)}` }, svg('clock'), fmtDue(task.due_at));
+    const label = fmtDue(task.due_at);
+    return el('span', { class: `th-pill th-pill-due is-${dueBucket(task.due_at)}` }, svg('clock'), ['Today', 'Tomorrow', 'Yesterday'].includes(label) ? tx(label) : label);
   }
   function statusPill(task){
     if(task.status === 'open') return null;
-    return el('span', { class: 'th-pill th-pill-status', dataset: { status: task.status } }, task.status === 'blocked' ? svg('block') : null, STATUS_LABEL[task.status]);
+    return el('span', { class: 'th-pill th-pill-status', dataset: { status: task.status } }, task.status === 'blocked' ? svg('block') : null, tx(STATUS_LABEL[task.status]));
   }
   function checklistPill(task){
     if(!task.checklist.length) return null;
@@ -155,14 +177,14 @@
     clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, isError ? 4500 : 2200);
   }
   function needSignIn(){
-    toast('Sign in to use Tasks', true);
+    toast(tt('Sign in to use Tasks'), true);
     if(typeof window.siOpen === 'function') window.siOpen();
   }
   async function guard(fn, okMsg){
     try { const r = await fn(); if(okMsg) toast(okMsg); return r; }
     catch(e){
       if(e.status === 401) needSignIn();
-      else if(e.status === 409){ toast('Someone changed this task first. Reloaded it.', true); await refreshAll(); }
+      else if(e.status === 409){ toast(tt('Someone changed this task first. Reloaded it.'), true); await refreshAll(); }
       else toast(e.message || 'Something went wrong', true);
       return undefined;
     }
@@ -219,30 +241,31 @@
     const root = S.root;
     root.classList.add('th-root');
     const seg = el('div', { class: 'th-seg', role: 'tablist', 'aria-label': 'Tasks views' },
-      el('button', { type: 'button', class: 'th-seg-btn', role: 'tab', dataset: { view: 'board' } }, 'Board'),
-      el('button', { type: 'button', class: 'th-seg-btn', role: 'tab', dataset: { view: 'list' } }, 'List'),
-      el('button', { type: 'button', class: 'th-seg-btn', role: 'tab', dataset: { view: 'mine' } }, 'My Tasks', el('span', { class: 'th-count th-mine-count', hidden: true })),
+      el('button', { type: 'button', class: 'th-seg-btn', role: 'tab', dataset: { view: 'board' } }, tx('Board')),
+      el('button', { type: 'button', class: 'th-seg-btn', role: 'tab', dataset: { view: 'list' } }, tx('List')),
+      el('button', { type: 'button', class: 'th-seg-btn', role: 'tab', dataset: { view: 'mine' } }, tx('My Tasks'), el('span', { class: 'th-count th-mine-count', hidden: true })),
     );
     const bar = el('div', { class: 'th-bar' },
       seg,
       el('div', { class: 'th-bar-right' },
         el('label', { class: 'th-field th-board-pick' }, el('span', { class: 'th-sr' }, 'Board'), el('select', { class: 'th-board-select', 'aria-label': 'Board' })),
         el('label', { class: 'th-field th-search' }, svg('search'), el('input', { type: 'search', class: 'th-search-input', placeholder: 'Search tasks', autocomplete: 'off', 'aria-label': 'Search tasks' })),
+        el('div', { class: 'th-lang', role: 'group', 'aria-label': 'Language' }, el('button', { type: 'button', class: 'th-lang-btn', dataset: { es: '0' }, title: 'English' }, 'EN'), el('button', { type: 'button', class: 'th-lang-btn', dataset: { es: '1' }, title: 'Español', lang: 'es' }, 'ES')),
         el('button', { type: 'button', class: 'th-icon-btn th-bell', 'aria-label': 'Notifications', html: ICON.bell }, el('span', { class: 'th-bell-badge', hidden: true })),
         el('label', { class: 'th-field th-me', hidden: true }, el('span', { class: 'th-me-label' }, 'I am'), el('select', { class: 'th-me-select', 'aria-label': 'Who am I' })),
-        el('button', { type: 'button', class: 'th-btn th-btn-primary th-new', 'aria-label': 'New task' }, svg('plus'), el('span', {}, 'New task')),
+        el('button', { type: 'button', class: 'th-btn th-btn-primary th-new', 'aria-label': 'New task' }, svg('plus'), el('span', {}, tx('New task'))),
       ),
     );
     const filters = el('div', { class: 'th-filters' },
       el('select', { class: 'th-f-assignee', 'aria-label': 'Filter by person' }),
       el('select', { class: 'th-f-status', 'aria-label': 'Filter by status' },
-        el('option', { value: '' }, 'Any status'), el('option', { value: 'open' }, 'Open'), el('option', { value: 'accepted' }, 'Accepted'), el('option', { value: 'blocked' }, 'Blocked'), el('option', { value: 'done' }, 'Done')),
+        ...[['', 'Any status'], ['open', 'Open'], ['accepted', 'Accepted'], ['blocked', 'Blocked'], ['done', 'Done']].map(([v, en]) => el('option', { value: v, dataset: { en } }, en))),
       el('select', { class: 'th-f-priority', 'aria-label': 'Filter by priority' },
-        el('option', { value: '' }, 'Any priority'), el('option', { value: 'urgent' }, 'Urgent'), el('option', { value: 'high' }, 'High'), el('option', { value: 'normal' }, 'Normal'), el('option', { value: 'low' }, 'Low')),
+        ...[['', 'Any priority'], ['urgent', 'Urgent'], ['high', 'High'], ['normal', 'Normal'], ['low', 'Low']].map(([v, en]) => el('option', { value: v, dataset: { en } }, en))),
       el('select', { class: 'th-f-label', 'aria-label': 'Filter by label' }),
-      el('button', { type: 'button', class: 'th-link th-clear', hidden: true }, 'Clear'),
+      el('button', { type: 'button', class: 'th-link th-clear', hidden: true }, tx('Clear filters')),
       el('span', { class: 'th-spacer' }),
-      el('button', { type: 'button', class: 'th-link th-settings' }, svg('settings'), ' Board settings'),
+      el('button', { type: 'button', class: 'th-link th-settings' }, svg('settings'), ' ', tx('Board settings')),
     );
     root.replaceChildren(bar, filters, el('div', { class: 'th-view', 'aria-live': 'polite' }));
     // Overlays live on the body so they float over the hub's header and tabs.
@@ -259,10 +282,10 @@
     meWrap.hidden = S.host;
     if(!S.host) meSel.replaceChildren(...S.members.filter(m => m.active !== false).map(m => el('option', { value: m.id, selected: S.me && m.id === S.me.id }, m.name)));
     const bs = $('.th-board-select', S.root);
-    bs.replaceChildren(...S.boards.map(b => el('option', { value: b.id, selected: b.id === S.boardId }, b.name)), el('option', { value: '__new' }, '+ New board'));
+    bs.replaceChildren(...S.boards.map(b => el('option', { value: b.id, selected: b.id === S.boardId }, b.name)), el('option', { value: '__new' }, '+ ' + tt('New board')));
     const fa = $('.th-f-assignee', S.root);
-    fa.replaceChildren(el('option', { value: '' }, 'Everyone'), el('option', { value: '__none' }, 'Unassigned'),
-      ...(S.me ? [el('option', { value: S.me.id }, 'Me')] : []),
+    fa.replaceChildren(el('option', { value: '' }, tt('Everyone')), el('option', { value: '__none' }, tt('Unassigned')),
+      ...(S.me ? [el('option', { value: S.me.id }, tt('Me'))] : []),
       ...S.members.filter(m => m.active !== false && !(S.me && m.id === S.me.id)).map(m => el('option', { value: m.id }, m.name)));
     fa.value = S.filters.assignee;
     $$('.th-seg-btn', S.root).forEach(b => { b.classList.toggle('active', b.dataset.view === S.view); b.setAttribute('aria-selected', b.dataset.view === S.view ? 'true' : 'false'); });
@@ -270,7 +293,7 @@
   function fillLabelFilter(){
     const labels = [...new Set(S.tasks.flatMap(t => t.labels))].sort((a, b) => a.localeCompare(b));
     const fl = $('.th-f-label', S.root);
-    fl.replaceChildren(el('option', { value: '' }, 'Any label'), ...labels.map(l => el('option', { value: l }, l)));
+    fl.replaceChildren(el('option', { value: '' }, tt('Any label')), ...labels.map(l => el('option', { value: l }, l)));
     fl.value = labels.includes(S.filters.label) ? S.filters.label : '';
   }
   const activeFilterCount = () => Object.values(S.filters).filter(Boolean).length + (S.search ? 1 : 0);
@@ -302,7 +325,7 @@
 
   // -- board
   function renderBoard(){
-    if(!S.board) return empty('No boards yet. ', el('button', { type: 'button', class: 'th-link', onClick: () => openBoardModal() }, 'Create one'));
+    if(!S.board) return empty(txLine('No boards yet.'), ' ', el('button', { type: 'button', class: 'th-link', onClick: () => openBoardModal() }, tx('Create one')));
     const tasks = visibleTasks();
     const wrap = el('div', { class: 'th-board' });
     for(const col of S.board.columns){
@@ -311,7 +334,7 @@
       wrap.append(el('section', { class: 'th-col', dataset: { column: col.id, kind: col.kind } },
         el('header', { class: 'th-col-head' }, el('span', { class: 'th-col-kind' }), el('h3', { class: 'th-col-name' }, col.name), el('span', { class: `th-pill${col.kind !== 'done' && open ? ' is-count' : ''}` }, col.kind === 'done' ? inCol.length : open)),
         el('div', { class: 'th-col-body', dataset: { column: col.id } }, ...inCol.map(card)),
-        el('footer', { class: 'th-col-foot' }, el('button', { type: 'button', class: 'th-add', onClick: () => openTaskModal({ column_id: col.id }) }, svg('plus'), ' Add task')),
+        el('footer', { class: 'th-col-foot' }, el('button', { type: 'button', class: 'th-add', onClick: () => openTaskModal({ column_id: col.id }) }, svg('plus'), ' ', tx('Add task'))),
       ));
     }
     return wrap;
@@ -320,7 +343,7 @@
     const c = el('article', { class: `th-card${t.status === 'done' ? ' is-done' : ''}${t.status === 'blocked' ? ' is-blocked' : ''}`, dataset: { task: t.id, priority: t.priority }, tabindex: 0, role: 'button' },
       el('h4', { class: 'th-card-title' }, t.title),
       el('div', { class: 'th-card-meta' },
-        t.priority === 'urgent' || t.priority === 'high' ? el('span', { class: 'th-pill th-pill-prio', dataset: { priority: t.priority } }, svg('flag'), PRIORITY_LABEL[t.priority]) : null,
+        t.priority === 'urgent' || t.priority === 'high' ? el('span', { class: 'th-pill th-pill-prio', dataset: { priority: t.priority } }, svg('flag'), tx(PRIORITY_LABEL[t.priority])) : null,
         statusPill(t), duePill(t), checklistPill(t),
         ...t.labels.slice(0, 3).map(l => el('span', { class: 'th-pill th-pill-label' }, l)),
         el('span', { class: 'th-card-who' }, avatar(t.assignee_id), el('span', { class: 'th-card-name' }, t.assignee_id ? shortName(t.assignee_id) : '')),
@@ -332,25 +355,25 @@
 
   // -- list
   function renderList(){
-    if(!S.board) return empty('No board selected.');
+    if(!S.board) return empty(txLine('No board selected.'));
     const cols = [['title', 'Task'], ['status', 'Status'], ['assignee_id', 'Who'], ['column_id', 'Column'], ['due_at', 'Due'], ['priority', 'Priority'], ['labels', 'Labels']];
     const pr = { urgent: 0, high: 1, normal: 2, low: 3 };
     const key = S.sort.key;
     const val = t => key === 'assignee_id' ? nameOf(t.assignee_id) : key === 'column_id' ? (columnOf(t) || {}).name || '' : key === 'priority' ? pr[t.priority] : key === 'labels' ? t.labels.join(',') : (t[key] ?? '￿');
     const rows = visibleTasks().sort((a, b) => { const x = val(a), y = val(b); const r = x < y ? -1 : x > y ? 1 : 0; return S.sort.desc ? -r : r; });
-    if(!rows.length) return el('div', { class: 'th-list' }, empty(activeFilterCount() ? 'Nothing matches these filters.' : 'No tasks on this board yet.'));
+    if(!rows.length) return el('div', { class: 'th-list' }, empty(txLine(activeFilterCount() ? 'Nothing matches these filters.' : 'No tasks on this board yet.')));
     const table = el('table', { class: 'th-table' },
       el('thead', {}, el('tr', {}, ...cols.map(([k, label]) => el('th', {
         class: `${k === key ? 'is-sorted' : ''}${S.sort.desc && k === key ? ' is-desc' : ''}`, scope: 'col',
         onClick: () => { S.sort = { key: k, desc: k === key ? !S.sort.desc : false }; render(); },
-      }, label)))),
+      }, tx(label))))),
       el('tbody', {}, ...rows.map(t => el('tr', { class: `th-row${t.status === 'done' ? ' is-done' : ''}`, onClick: () => openTask(t.id) },
         el('td', { class: 'th-title' }, t.title),
-        el('td', {}, statusPill(t) || el('span', { class: 'th-pill' }, 'Open')),
+        el('td', {}, statusPill(t) || el('span', { class: 'th-pill' }, tx('Open'))),
         el('td', {}, el('span', { class: 'th-who' }, avatar(t.assignee_id), nameOf(t.assignee_id))),
         el('td', {}, (columnOf(t) || {}).name || ''),
-        el('td', {}, duePill(t) || el('span', { class: 'th-pill is-dim' }, 'No date')),
-        el('td', {}, el('span', { class: 'th-pill th-pill-prio', dataset: { priority: t.priority } }, PRIORITY_LABEL[t.priority])),
+        el('td', {}, duePill(t) || el('span', { class: 'th-pill is-dim' }, tx('No date'))),
+        el('td', {}, el('span', { class: 'th-pill th-pill-prio', dataset: { priority: t.priority } }, tx(PRIORITY_LABEL[t.priority]))),
         el('td', {}, el('span', { class: 'th-labels' }, ...t.labels.map(l => el('span', { class: 'th-pill th-pill-label' }, l)))),
       ))),
     );
@@ -360,24 +383,24 @@
   // -- my tasks: the Right Now card's shape (a kicker, rows that open the thing)
   function renderMine(){
     if(!S.me) return el('div', { class: 'th-card-block th-signin' },
-      el('h3', {}, 'Who’s holding the phone?'),
-      el('p', {}, 'Sign in with your clock-in PIN to see the tasks on your plate and the ones you handed off.'),
-      el('button', { type: 'button', class: 'th-btn th-btn-primary', onClick: () => needSignIn() }, 'Sign in'));
-    if(!S.mine) return empty('Loading…');
+      el('h3', {}, txLine('Who’s holding the phone?')),
+      el('p', {}, txLine('Sign in with your clock-in PIN to see the tasks on your plate and the ones you handed off.')),
+      el('button', { type: 'button', class: 'th-btn th-btn-primary', onClick: () => needSignIn() }, tx('Sign in')));
+    if(!S.mine) return empty(tx('Loading…'));
     const g = S.mine.assigned;
     const groups = [['overdue', 'Overdue'], ['today', 'Today'], ['week', 'This week'], ['later', 'Later'], ['none', 'No due date'], ['done', 'Done this week']];
     const openCount = g.overdue.length + g.today.length + g.week.length + g.later.length + g.none.length;
     const left = el('section', { class: 'th-card-block' },
-      el('header', { class: 'th-block-head' }, el('div', {}, el('div', { class: 'th-kicker' }, 'On my plate'), el('h3', {}, S.me.name)), el('span', { class: `th-pill${openCount ? ' is-count' : ''}` }, `${openCount} open`)),
+      el('header', { class: 'th-block-head' }, el('div', {}, el('div', { class: 'th-kicker' }, tx('On my plate')), el('h3', {}, S.me.name)), el('span', { class: `th-pill${openCount ? ' is-count' : ''}` }, txv(`${openCount} open`, 'N open tasks', openCount))),
       ...(openCount || g.done.length ? groups.filter(([k]) => g[k].length).flatMap(([k, label]) => [
-        el('div', { class: `th-group${k === 'overdue' ? ' is-overdue' : ''}` }, label, el('span', { class: 'th-pill' }, g[k].length)),
+        el('div', { class: `th-group${k === 'overdue' ? ' is-overdue' : ''}` }, tx(label), el('span', { class: 'th-pill' }, g[k].length)),
         ...g[k].map(t => mineRow(t, false)),
-      ]) : [empty('Nothing on your plate. Nice.')]),
+      ]) : [empty(txLine('Nothing on your plate. Nice.'))]),
     );
     const d = S.mine.delegated;
     const right = el('section', { class: 'th-card-block' },
-      el('header', { class: 'th-block-head' }, el('div', {}, el('div', { class: 'th-kicker' }, 'Handed off'), el('h3', {}, 'Delegated by me')), el('span', { class: 'th-pill' }, `${d.filter(t => t.status !== 'done').length} open`)),
-      ...(d.length ? d.map(t => mineRow(t, true)) : [empty('Assign a task to someone and it shows up here, with where it stands.')]),
+      el('header', { class: 'th-block-head' }, el('div', {}, el('div', { class: 'th-kicker' }, tx('Handed off')), el('h3', {}, txLine('Delegated by me'))), el('span', { class: 'th-pill' }, txv(`${d.filter(t => t.status !== 'done').length} open`, 'N open tasks', d.filter(t => t.status !== 'done').length))),
+      ...(d.length ? d.map(t => mineRow(t, true)) : [empty(txLine('Assign a task to someone and it shows up here, with where it stands.'))]),
     );
     return el('div', { class: 'th-mine' }, left, right);
   }
@@ -385,7 +408,7 @@
     const board = S.boards.find(b => b.id === t.board_id);
     const sub = [board ? board.name : null, delegated ? shortName(t.assignee_id) : null, t.status === 'blocked' ? `Blocked: ${t.blocked_reason}` : null].filter(Boolean).join(' · ');
     const check = el('button', { type: 'button', class: `th-check${t.status === 'done' ? ' is-done' : ''}`, 'aria-label': t.status === 'done' ? 'Reopen' : 'Mark done', title: t.status === 'done' ? 'Reopen' : 'Mark done', html: t.status === 'done' ? ICON.check : '',
-      onClick: async e => { e.stopPropagation(); await guard(() => api(`/tasks/${t.id}/${t.status === 'done' ? 'reopen' : 'complete'}`, { method: 'POST' }), t.status === 'done' ? 'Reopened' : 'Done'); await refreshAll(); } });
+      onClick: async e => { e.stopPropagation(); await guard(() => api(`/tasks/${t.id}/${t.status === 'done' ? 'reopen' : 'complete'}`, { method: 'POST' }), tt(t.status === 'done' ? 'Reopen' : 'Done')); await refreshAll(); } });
     return el('div', { class: `th-row-item is-go${t.status === 'done' ? ' is-done' : ''}`, role: 'button', tabindex: 0, onClick: () => openTask(t.id), onKeydown: e => { if(e.key === 'Enter') openTask(t.id); } },
       check,
       el('span', { class: 'th-row-title' }, t.title, el('span', { class: 'th-row-sub' }, sub)),
@@ -398,7 +421,7 @@
   async function openTask(id){
     S.openTaskId = id; S.openTask = null;
     const d = $('.th-drawer', S.layer); d.hidden = false; showScrim(true);
-    d.replaceChildren(empty('Loading…'));
+    d.replaceChildren(empty(tx('Loading…')));
     await loadOpenTask(); renderDrawer();
   }
   function closeDrawer(){
@@ -426,65 +449,66 @@
 
     const titleInput = el('input', { class: 'th-title-input', value: t.title, 'aria-label': 'Title' });
     titleInput.addEventListener('keydown', e => { if(e.key === 'Enter') titleInput.blur(); if(e.key === 'Escape'){ titleInput.value = t.title; titleInput.blur(); } });
-    titleInput.addEventListener('blur', () => { const v = titleInput.value.trim(); if(v && v !== t.title) patchTask({ title: v }, 'Title saved'); else titleInput.value = t.title; });
+    titleInput.addEventListener('blur', () => { const v = titleInput.value.trim(); if(v && v !== t.title) patchTask({ title: v }, tt('Saved')); else titleInput.value = t.title; });
 
-    const select = (label, value, options, onChange) => el('div', { class: 'th-prop' }, el('label', {}, label),
+    const select = (label, value, options, onChange) => el('div', { class: 'th-prop' }, el('label', {}, tx(label)),
       el('select', { 'aria-label': label, onChange: e => onChange(e.target.value) }, ...options.map(([v, text]) => el('option', { value: v, selected: v === (value ?? '') }, text))));
-    const dueInput = el('input', { type: 'date', value: (t.due_at || '').slice(0, 10), 'aria-label': 'Due date', onChange: e => patchTask({ due_at: e.target.value || null }, e.target.value ? 'Due date set' : 'Due date cleared') });
+    const dueInput = el('input', { type: 'date', value: (t.due_at || '').slice(0, 10), 'aria-label': 'Due date', onChange: e => patchTask({ due_at: e.target.value || null }, tt('Saved')) });
     const props = el('div', { class: 'th-props' },
-      select('Who', t.assignee_id || '', [['', 'Unassigned'], ...people.map(m => [m.id, m.name])], v => actTask('assign', { assignee_id: v || null }, v ? `Assigned to ${shortName(v)}` : 'Unassigned')),
-      el('div', { class: 'th-prop' }, el('label', {}, 'Due'), dueInput),
-      select('Priority', t.priority, Object.entries(PRIORITY_LABEL), v => patchTask({ priority: v }, 'Priority saved')),
-      select('Column', t.column_id, columns.map(c => [c.id, c.name]), async v => { await guard(() => api(`/tasks/${t.id}/move`, { method: 'POST', body: { column_id: v } }), 'Moved'); await refreshAll(); }),
+      select('Who', t.assignee_id || '', [['', tt('Unassigned')], ...people.map(m => [m.id, m.name])], v => actTask('assign', { assignee_id: v || null }, v ? tt('Assigned to X', shortName(v)).replace('Assigned to X', `Assigned to ${shortName(v)}`) : tt('Unassigned'))),
+      el('div', { class: 'th-prop' }, el('label', {}, tx('Due')), dueInput),
+      select('Priority', t.priority, Object.entries(PRIORITY_LABEL).map(([v, l]) => [v, tt(l)]), v => patchTask({ priority: v }, tt('Saved'))),
+      select('Column', t.column_id, columns.map(c => [c.id, c.name]), async v => { await guard(() => api(`/tasks/${t.id}/move`, { method: 'POST', body: { column_id: v } }), tt('Moved')); await refreshAll(); }),
     );
 
-    const bannerText = {
-      open: t.assignee_id ? `Waiting for ${isMine ? 'you' : shortName(t.assignee_id)} to accept` : 'Unassigned. Anyone can pick it up.',
-      accepted: `${isMine ? 'You are' : shortName(t.assignee_id) + ' is'} on it`,
-      blocked: `Blocked: ${t.blocked_reason}`,
-      done: `Done${t.completed_at ? ' ' + timeAgo(t.completed_at) : ''}`,
-    };
+    const who = shortName(t.assignee_id);
+    const banner = {
+      open: t.assignee_id ? (isMine ? txLine('Waiting for you to accept') : txv(`Waiting for ${who} to accept`, 'Waiting for X to accept', who)) : txLine('Unassigned. Anyone can pick it up.'),
+      accepted: isMine ? txLine('You are on it') : txv(`${who} is on it`, 'X is on it', who),
+      blocked: [`Blocked: ${t.blocked_reason}`, esNode('Blocked', true)],
+      done: [`Done${t.completed_at ? ' ' + timeAgo(t.completed_at) : ''}`, esNode('Done', true)],
+    }[t.status];
     const actions = el('div', { class: 'th-actions' });
     if(t.status !== 'done'){
-      if(t.status !== 'accepted' && (isMine || !t.assignee_id || canManage())) actions.append(el('button', { type: 'button', class: 'th-btn th-btn-primary th-btn-sm', onClick: () => actTask('accept', {}, t.assignee_id ? 'Accepted' : 'You picked it up') }, t.status === 'blocked' ? 'Unblock' : (t.assignee_id ? 'Accept' : 'Pick it up')));
-      if(t.status !== 'blocked') actions.append(el('button', { type: 'button', class: 'th-btn th-btn-sm', onClick: () => { const reason = prompt('What is blocking this task?'); if(reason && reason.trim()) actTask('block', { reason: reason.trim() }, 'Marked blocked'); } }, svg('block'), ' Blocked…'));
-      actions.append(el('button', { type: 'button', class: 'th-btn th-btn-sm th-btn-ok', onClick: () => actTask('complete', {}, 'Done') }, svg('check'), ' Complete'));
+      if(t.status !== 'accepted' && (isMine || !t.assignee_id || canManage())) actions.append(el('button', { type: 'button', class: 'th-btn th-btn-primary th-btn-sm', onClick: () => actTask('accept', {}, tt(t.assignee_id ? 'Accepted' : 'You picked it up')) }, tx(t.status === 'blocked' ? 'Unblock' : (t.assignee_id ? 'Accept' : 'Pick it up'))));
+      if(t.status !== 'blocked') actions.append(el('button', { type: 'button', class: 'th-btn th-btn-sm', onClick: () => { const reason = prompt('What is blocking this task?'); if(reason && reason.trim()) actTask('block', { reason: reason.trim() }, tt('Marked blocked')); } }, svg('block'), ' ', tx('Blocked…')));
+      actions.append(el('button', { type: 'button', class: 'th-btn th-btn-sm th-btn-ok', onClick: () => actTask('complete', {}, tt('Done')) }, svg('check'), ' ', txv('Complete', 'Mark done')));
     } else {
-      actions.append(el('button', { type: 'button', class: 'th-btn th-btn-sm', onClick: () => actTask('reopen', {}, 'Reopened') }, 'Reopen'));
+      actions.append(el('button', { type: 'button', class: 'th-btn th-btn-sm', onClick: () => actTask('reopen', {}, tt('Reopen')) }, tx('Reopen')));
     }
-    if(canManage() || (S.me && t.created_by === S.me.id)) actions.append(el('button', { type: 'button', class: 'th-btn th-btn-sm th-btn-danger', onClick: async () => { if(!confirm('Delete this task? This cannot be undone.')) return; const r = await guard(() => api(`/tasks/${t.id}`, { method: 'DELETE' }), 'Deleted'); if(r !== undefined){ closeDrawer(); await refreshAll(); } } }, 'Delete'));
+    if(canManage() || (S.me && t.created_by === S.me.id)) actions.append(el('button', { type: 'button', class: 'th-btn th-btn-sm th-btn-danger', onClick: async () => { if(!confirm('Delete this task? This cannot be undone.')) return; const r = await guard(() => api(`/tasks/${t.id}`, { method: 'DELETE' }), tt('Deleted')); if(r !== undefined){ closeDrawer(); await refreshAll(); } } }, tx('Delete')));
 
-    const desc = el('textarea', { class: 'th-textarea', placeholder: 'Details, links, or the why.', 'aria-label': 'Description' }, t.description);
-    desc.addEventListener('blur', () => { if(desc.value !== t.description) patchTask({ description: desc.value }, 'Description saved'); });
+    const desc = el('textarea', { class: 'th-textarea', placeholder: tt('Details, links, or the why.'), 'aria-label': 'Description' }, t.description);
+    desc.addEventListener('blur', () => { if(desc.value !== t.description) patchTask({ description: desc.value }, tt('Saved')); });
 
-    const labelInput = el('input', { placeholder: 'Add label', 'aria-label': 'Add label' });
-    labelInput.addEventListener('keydown', e => { if(e.key === 'Enter' && labelInput.value.trim()){ e.preventDefault(); patchTask({ labels: [...t.labels, labelInput.value.trim()] }, 'Label added'); } });
-    const labels = el('div', { class: 'th-labels-edit' }, ...t.labels.map(l => el('span', { class: 'th-pill th-pill-label' }, l, el('button', { type: 'button', class: 'th-x', 'aria-label': `Remove ${l}`, onClick: () => patchTask({ labels: t.labels.filter(x => x !== l) }, 'Label removed') }, '×'))), labelInput);
+    const labelInput = el('input', { placeholder: tt('Add label'), 'aria-label': 'Add label' });
+    labelInput.addEventListener('keydown', e => { if(e.key === 'Enter' && labelInput.value.trim()){ e.preventDefault(); patchTask({ labels: [...t.labels, labelInput.value.trim()] }, tt('Saved')); } });
+    const labels = el('div', { class: 'th-labels-edit' }, ...t.labels.map(l => el('span', { class: 'th-pill th-pill-label' }, l, el('button', { type: 'button', class: 'th-x', 'aria-label': `Remove ${l}`, onClick: () => patchTask({ labels: t.labels.filter(x => x !== l) }, tt('Saved')) }, '×'))), labelInput);
 
     const doneCount = t.checklist.filter(i => i.done).length;
-    const ckInput = el('input', { placeholder: 'Add a step', 'aria-label': 'Add checklist item' });
-    const addCk = () => { const v = ckInput.value.trim(); if(v) patchTask({ checklist: [...t.checklist, { text: v }] }, 'Step added'); };
+    const ckInput = el('input', { placeholder: tt('Add a step'), 'aria-label': 'Add checklist item' });
+    const addCk = () => { const v = ckInput.value.trim(); if(v) patchTask({ checklist: [...t.checklist, { text: v }] }, tt('Saved')); };
     ckInput.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addCk(); } });
     const checklist = el('div', {},
-      el('h4', { class: 'th-h' }, 'Checklist', t.checklist.length ? el('span', { class: `th-pill${doneCount === t.checklist.length ? ' is-ok' : ''}` }, `${doneCount}/${t.checklist.length}`) : null),
+      el('h4', { class: 'th-h' }, tx('Checklist'), t.checklist.length ? el('span', { class: `th-pill${doneCount === t.checklist.length ? ' is-ok' : ''}` }, `${doneCount}/${t.checklist.length}`) : null),
       t.checklist.length ? el('div', { class: 'th-progress' }, el('i', { style: `width:${Math.round(100 * doneCount / t.checklist.length)}%` })) : null,
       el('ul', { class: 'th-checklist' }, ...t.checklist.map(i => el('li', { class: i.done ? 'is-done' : '' },
         el('button', { type: 'button', class: `th-check${i.done ? ' is-done' : ''}`, html: i.done ? ICON.check : '', 'aria-label': i.done ? 'Undo' : 'Done', onClick: () => patchTask({ checklist: t.checklist.map(x => x.id === i.id ? Object.assign({}, x, { done: !x.done }) : x) }) }),
         el('span', {}, i.text),
         el('button', { type: 'button', class: 'th-x', 'aria-label': 'Remove step', onClick: () => patchTask({ checklist: t.checklist.filter(x => x.id !== i.id) }) }, '×'),
       ))),
-      el('div', { class: 'th-checklist-add' }, ckInput, el('button', { type: 'button', class: 'th-btn th-btn-sm', onClick: addCk }, 'Add')),
+      el('div', { class: 'th-checklist-add' }, ckInput, el('button', { type: 'button', class: 'th-btn th-btn-sm', onClick: addCk }, tx('Add'))),
     );
 
-    const commentBox = el('textarea', { class: 'th-textarea', placeholder: S.me ? `Comment as ${S.me.name}` : 'Sign in to comment', 'aria-label': 'Comment' });
+    const commentBox = el('textarea', { class: 'th-textarea', placeholder: S.me ? (S.es && esWord('Comment as X', S.me.name) ? `Comment as ${S.me.name} / ${esWord('Comment as X', S.me.name)}` : `Comment as ${S.me.name}`) : tt('Sign in to comment'), 'aria-label': 'Comment' });
     const sendComment = async () => { const v = commentBox.value.trim(); if(!v) return; const r = await guard(() => api(`/tasks/${t.id}/comments`, { method: 'POST', body: { body: v } })); if(r){ commentBox.value = ''; await refreshAll(); } };
     commentBox.addEventListener('keydown', e => { if(e.key === 'Enter' && (e.metaKey || e.ctrlKey)) sendComment(); });
     const comments = el('div', {},
-      el('h4', { class: 'th-h' }, 'Comments', el('span', { class: 'th-pill' }, t.comments.length)),
+      el('h4', { class: 'th-h' }, tx('Comments'), el('span', { class: 'th-pill' }, t.comments.length)),
       el('div', { class: 'th-comments' }, ...t.comments.map(c => el('div', { class: 'th-comment' }, avatar(c.author_id, 28), el('div', { class: 'th-comment-body' }, el('div', { class: 'th-comment-meta' }, el('b', {}, nameOf(c.author_id)), ` · ${timeAgo(c.created_at)}`), el('div', { class: 'th-comment-text' }, c.body))))),
-      el('div', { class: 'th-comment-form' }, commentBox, el('button', { type: 'button', class: 'th-btn th-btn-primary th-btn-sm', onClick: sendComment }, 'Send')),
+      el('div', { class: 'th-comment-form' }, commentBox, el('button', { type: 'button', class: 'th-btn th-btn-primary th-btn-sm', onClick: sendComment }, tx('Send'))),
     );
-    const activity = el('details', { class: 'th-activity-wrap' }, el('summary', { class: 'th-h' }, `Activity (${t.activity.length})`),
+    const activity = el('details', { class: 'th-activity-wrap' }, el('summary', { class: 'th-h' }, txv(`Activity (${t.activity.length})`, 'Activity')),
       el('ul', { class: 'th-activity' }, ...t.activity.slice().reverse().map(a => el('li', {}, el('b', {}, shortName(a.actor_id)), ' ', describeActivity(a), el('span', { class: 'th-dim' }, ` · ${timeAgo(a.created_at)}`)))));
 
     d.replaceChildren(
@@ -495,10 +519,10 @@
       ),
       el('div', { class: 'th-drawer-body' },
         titleInput,
-        el('div', { class: 'th-status-banner', dataset: { status: t.status } }, statusPill(t) || el('span', { class: 'th-pill' }, 'Open'), el('span', {}, bannerText[t.status])),
+        el('div', { class: 'th-status-banner', dataset: { status: t.status } }, statusPill(t) || el('span', { class: 'th-pill' }, tx('Open')), el('span', {}, banner)),
         actions, props,
-        el('div', {}, el('h4', { class: 'th-h' }, 'Details'), desc),
-        el('div', {}, el('h4', { class: 'th-h' }, 'Labels'), labels),
+        el('div', {}, el('h4', { class: 'th-h' }, tx('Details')), desc),
+        el('div', {}, el('h4', { class: 'th-h' }, tx('Labels')), labels),
         checklist, comments, activity,
       ),
     );
@@ -536,11 +560,11 @@
     p.style.top = (bell.bottom + 6) + 'px';
     p.style.right = Math.max(8, window.innerWidth - bell.right) + 'px';
     p.replaceChildren(
-      el('div', { class: 'th-popover-head' }, el('h3', {}, 'Notifications'), S.notifs.some(n => !n.read_at) ? el('button', { type: 'button', class: 'th-link', onClick: async () => { await guard(() => api('/notifications/read', { method: 'POST', body: {} })); await loadNotifs(); toggleNotifs(true); } }, 'Mark all read') : null),
+      el('div', { class: 'th-popover-head' }, el('h3', {}, tx('Notifications')), S.notifs.some(n => !n.read_at) ? el('button', { type: 'button', class: 'th-link', onClick: async () => { await guard(() => api('/notifications/read', { method: 'POST', body: {} })); await loadNotifs(); toggleNotifs(true); } }, tx('Mark all read')) : null),
       ...(S.notifs.length ? S.notifs.slice(0, 60).map(n => el('div', { class: `th-notif ${n.read_at ? 'is-read' : 'is-unread'}`, role: 'button', tabindex: 0, onClick: async () => {
         if(!n.read_at){ await guard(() => api('/notifications/read', { method: 'POST', body: { ids: [n.id] } })); loadNotifs(); }
         toggleNotifs(false); if(n.task_id) openTask(n.task_id);
-      } }, el('span', { class: 'th-notif-dot' }), el('div', {}, el('div', {}, n.message), el('div', { class: 'th-dim' }, timeAgo(n.created_at))))) : [empty(S.me ? 'Nothing yet.' : 'Sign in to see your notifications.')]),
+      } }, el('span', { class: 'th-notif-dot' }), el('div', {}, el('div', {}, n.message), el('div', { class: 'th-dim' }, timeAgo(n.created_at))))) : [empty(txLine(S.me ? 'Nothing yet.' : 'Sign in to see your notifications.'))]),
     );
   }
 
@@ -548,7 +572,7 @@
   function openModal(title, bodyNodes, footNodes){
     const m = $('.th-modal', S.layer); m.hidden = false; showScrim(true);
     m.replaceChildren(el('div', { class: 'th-modal-card', role: 'dialog', 'aria-modal': 'true' },
-      el('div', { class: 'th-modal-head' }, el('h3', {}, title), el('button', { type: 'button', class: 'th-x-btn', 'aria-label': 'Close', html: ICON.close, onClick: closeModal })),
+      el('div', { class: 'th-modal-head' }, el('h3', {}, tx(title)), el('button', { type: 'button', class: 'th-x-btn', 'aria-label': 'Close', html: ICON.close, onClick: closeModal })),
       el('div', { class: 'th-modal-body' }, ...bodyNodes),
       el('div', { class: 'th-modal-foot' }, ...footNodes),
     ));
@@ -561,36 +585,36 @@
     if(S.host && !S.me) return needSignIn();
     if(!S.boards.length) return openBoardModal();
     const boardId = preset.board_id || S.boardId || S.boards[0].id;
-    const title = el('input', { type: 'text', placeholder: 'What needs doing?', required: true });
+    const title = el('input', { type: 'text', placeholder: tt('What needs doing?'), required: true });
     const boardSel = el('select', {}, ...S.boards.map(b => el('option', { value: b.id, selected: b.id === boardId }, b.name)));
     const colSel = el('select', {});
     const fillCols = () => { const b = S.boards.find(x => x.id === boardSel.value); colSel.replaceChildren(...b.columns.map(c => el('option', { value: c.id, selected: c.id === preset.column_id }, c.name))); };
     fillCols(); boardSel.addEventListener('change', fillCols);
-    const who = el('select', {}, el('option', { value: '' }, 'Unassigned'), ...S.members.filter(m => m.active !== false).map(m => el('option', { value: m.id, selected: m.id === preset.assignee_id }, m.name)));
+    const who = el('select', {}, el('option', { value: '' }, tt('Unassigned')), ...S.members.filter(m => m.active !== false).map(m => el('option', { value: m.id, selected: m.id === preset.assignee_id }, m.name)));
     const due = el('input', { type: 'date' });
-    const prio = el('select', {}, ...Object.entries(PRIORITY_LABEL).map(([v, l]) => el('option', { value: v, selected: v === 'normal' }, l)));
-    const labels = el('input', { type: 'text', placeholder: 'comma, separated' });
-    const desc = el('textarea', { rows: 3, placeholder: 'Details (optional)' });
+    const prio = el('select', {}, ...Object.entries(PRIORITY_LABEL).map(([v, l]) => el('option', { value: v, selected: v === 'normal' }, tt(l))));
+    const labels = el('input', { type: 'text', placeholder: tt('comma, separated') });
+    const desc = el('textarea', { rows: 3, placeholder: tt('Details (optional)') });
     const submit = async () => {
-      if(!title.value.trim()){ title.focus(); return toast('Give the task a title', true); }
-      const r = await guard(() => api('/tasks', { method: 'POST', body: { title: title.value, board_id: boardSel.value, column_id: colSel.value, assignee_id: who.value || null, due_at: due.value || null, priority: prio.value, labels: labels.value, description: desc.value } }), who.value ? `Assigned to ${shortName(who.value)}` : 'Task created');
+      if(!title.value.trim()){ title.focus(); return toast(tt('Give the task a title'), true); }
+      const r = await guard(() => api('/tasks', { method: 'POST', body: { title: title.value, board_id: boardSel.value, column_id: colSel.value, assignee_id: who.value || null, due_at: due.value || null, priority: prio.value, labels: labels.value, description: desc.value } }), who.value ? `Assigned to ${shortName(who.value)}${S.es && esWord('Assigned to X', shortName(who.value)) ? ' / ' + esWord('Assigned to X', shortName(who.value)) : ''}` : tt('Task created'));
       if(r){ closeModal(); if(boardSel.value !== S.boardId){ S.boardId = boardSel.value; LS.set('board', S.boardId); fillHeader(); } await refreshAll(); }
     };
     title.addEventListener('keydown', e => { if(e.key === 'Enter') submit(); });
     openModal('New task', [
-      el('label', {}, 'Title', title),
-      el('div', { class: 'th-two' }, el('label', {}, 'Board', boardSel), el('label', {}, 'Column', colSel)),
-      el('div', { class: 'th-two' }, el('label', {}, 'Who', who), el('label', {}, 'Due', due)),
-      el('div', { class: 'th-two' }, el('label', {}, 'Priority', prio), el('label', {}, 'Labels', labels)),
-      el('label', {}, 'Details', desc),
-    ], [el('button', { type: 'button', class: 'th-btn', onClick: closeModal }, 'Cancel'), el('button', { type: 'button', class: 'th-btn th-btn-primary', onClick: submit }, 'Create')]);
+      el('label', {}, tx('Title'), title),
+      el('div', { class: 'th-two' }, el('label', {}, tx('Board'), boardSel), el('label', {}, tx('Column'), colSel)),
+      el('div', { class: 'th-two' }, el('label', {}, tx('Who'), who), el('label', {}, tx('Due'), due)),
+      el('div', { class: 'th-two' }, el('label', {}, tx('Priority'), prio), el('label', {}, tx('Labels'), labels)),
+      el('label', {}, tx('Details'), desc),
+    ], [el('button', { type: 'button', class: 'th-btn', onClick: closeModal }, tx('Cancel')), el('button', { type: 'button', class: 'th-btn th-btn-primary', onClick: submit }, tx('Create'))]);
   }
 
   function columnRows(list, columns){
     const KINDS = [['todo', 'To do'], ['doing', 'In progress'], ['done', 'Done']];
     const row = c => el('div', { class: 'th-col-row', dataset: { id: c.id || '' } },
-      el('input', { type: 'text', value: c.name, placeholder: 'Column name' }),
-      el('select', {}, ...KINDS.map(([v, l]) => el('option', { value: v, selected: v === c.kind }, l))),
+      el('input', { type: 'text', value: c.name, placeholder: tt('Column name') }),
+      el('select', {}, ...KINDS.map(([v, l]) => el('option', { value: v, selected: v === c.kind }, tt(l)))),
       el('button', { type: 'button', class: 'th-x-btn', 'aria-label': 'Move up', title: 'Move up', onClick: e => { const r = e.currentTarget.closest('.th-col-row'); if(r.previousElementSibling) r.previousElementSibling.before(r); } }, '↑'),
       el('button', { type: 'button', class: 'th-x-btn', 'aria-label': 'Move down', title: 'Move down', onClick: e => { const r = e.currentTarget.closest('.th-col-row'); if(r.nextElementSibling) r.nextElementSibling.after(r); } }, '↓'),
       el('button', { type: 'button', class: 'th-x-btn', 'aria-label': 'Remove column', title: 'Remove', html: ICON.close, onClick: e => e.currentTarget.closest('.th-col-row').remove() }),
@@ -602,17 +626,17 @@
 
   function openBoardModal(){
     if(S.host && !S.me) return needSignIn();
-    const name = el('input', { type: 'text', placeholder: 'Board name' });
-    const desc = el('input', { type: 'text', placeholder: 'What goes on this board? (optional)' });
+    const name = el('input', { type: 'text', placeholder: tt('Name') });
+    const desc = el('input', { type: 'text', placeholder: tt('Description') });
     const list = el('div', { class: 'th-col-list' });
     const addRow = columnRows(list, [{ name: 'To Do', kind: 'todo' }, { name: 'In Progress', kind: 'doing' }, { name: 'Done', kind: 'done' }]);
     const submit = async () => {
-      if(!name.value.trim()){ name.focus(); return toast('Name the board', true); }
-      const b = await guard(() => api('/boards', { method: 'POST', body: { name: name.value, description: desc.value, columns: readColumnRows(list) } }), 'Board created');
+      if(!name.value.trim()){ name.focus(); return toast(tt('Name the board'), true); }
+      const b = await guard(() => api('/boards', { method: 'POST', body: { name: name.value, description: desc.value, columns: readColumnRows(list) } }), tt('Board created'));
       if(b){ closeModal(); S.boards.push(b); S.boardId = b.id; LS.set('board', b.id); fillHeader(); await refreshAll(); }
     };
-    openModal('New board', [el('label', {}, 'Name', name), el('label', {}, 'Description', desc), el('label', {}, 'Columns', list), el('button', { type: 'button', class: 'th-link th-start', onClick: addRow }, '+ Add column')],
-      [el('button', { type: 'button', class: 'th-btn', onClick: closeModal }, 'Cancel'), el('button', { type: 'button', class: 'th-btn th-btn-primary', onClick: submit }, 'Create board')]);
+    openModal('New board', [el('label', {}, tx('Name'), name), el('label', {}, tx('Description'), desc), el('label', {}, tx('Columns'), list), el('button', { type: 'button', class: 'th-link th-start', onClick: addRow }, '+ ', tx('Add column'))],
+      [el('button', { type: 'button', class: 'th-btn', onClick: closeModal }, tx('Cancel')), el('button', { type: 'button', class: 'th-btn th-btn-primary', onClick: submit }, tx('Create board'))]);
   }
 
   function openBoardSettings(){
@@ -624,7 +648,7 @@
     const addRow = columnRows(list, b.columns);
     const submit = async () => {
       const rows = readColumnRows(list);
-      if(!rows.length) return toast('Keep at least one column', true);
+      if(!rows.length) return toast(tt('Keep at least one column'), true);
       const ok = await guard(async () => {
         if(name.value.trim() !== b.name || desc.value !== b.description) await api(`/boards/${b.id}`, { method: 'PATCH', body: { name: name.value, description: desc.value } });
         const keep = new Set(rows.filter(r => r.id).map(r => r.id));
@@ -637,19 +661,19 @@
         }
         for(const [i, r] of rows.entries()) await api(`/boards/${b.id}/columns/${r.id}`, { method: 'PATCH', body: { order: i } });
         return true;
-      }, 'Board saved');
+      }, tt('Board saved'));
       if(!ok) return;
       closeModal();
       S.boards = await api('/boards'); fillHeader(); await refreshAll();
     };
     const archive = async () => {
       if(!confirm(`Archive “${b.name}”? Its tasks stay saved but the board leaves the list.`)) return;
-      const r = await guard(() => api(`/boards/${b.id}`, { method: 'PATCH', body: { archived: true } }), 'Board archived');
+      const r = await guard(() => api(`/boards/${b.id}`, { method: 'PATCH', body: { archived: true } }), tt('Board archived'));
       if(r === undefined) return;
       closeModal(); S.boards = await api('/boards'); S.boardId = (S.boards[0] || {}).id || null; LS.set('board', S.boardId || ''); fillHeader(); await refreshAll();
     };
-    openModal('Board settings', [el('label', {}, 'Name', name), el('label', {}, 'Description', desc), el('label', {}, 'Columns', list), el('button', { type: 'button', class: 'th-link th-start', onClick: addRow }, '+ Add column')],
-      [el('button', { type: 'button', class: 'th-btn th-btn-danger th-left', onClick: archive }, 'Archive board'), el('button', { type: 'button', class: 'th-btn', onClick: closeModal }, 'Cancel'), el('button', { type: 'button', class: 'th-btn th-btn-primary', onClick: submit }, 'Save')]);
+    openModal('Board settings', [el('label', {}, tx('Name'), name), el('label', {}, tx('Description'), desc), el('label', {}, tx('Columns'), list), el('button', { type: 'button', class: 'th-link th-start', onClick: addRow }, '+ ', tx('Add column'))],
+      [el('button', { type: 'button', class: 'th-btn th-btn-danger th-left', onClick: archive }, tx('Archive board')), el('button', { type: 'button', class: 'th-btn', onClick: closeModal }, tx('Cancel')), el('button', { type: 'button', class: 'th-btn th-btn-primary', onClick: submit }, tx('Save'))]);
   }
 
   // ---------- drag and drop: a mouse drags at once, a finger after a hold
@@ -752,6 +776,7 @@
     });
     $('.th-me-select', root).addEventListener('change', async e => { S.me = member(e.target.value); LS.set('me', S.me.id); toast(`You are now ${S.me.name}`); fillHeader(); await refreshAll(); });
     $('.th-new', root).addEventListener('click', () => openTaskModal());
+    $$('.th-lang-btn', root).forEach(b => b.addEventListener('click', () => { S.es = b.dataset.es === '1'; LS.set('es', S.es ? '1' : '0'); applyLang(); fillHeader(); render(); }));
     $('.th-settings', root).addEventListener('click', openBoardSettings);
     $('.th-bell', root).addEventListener('click', async () => { if(S.me) await loadNotifs().catch(() => {}); toggleNotifs(); });
     let searchTimer;
@@ -781,6 +806,7 @@
     try {
       await bootstrap();
       S.mounted = true;
+      applyLang();
       fillHeader();
       wire();
       await Promise.all([loadBoard(), loadMine().catch(() => {}), loadNotifs().catch(() => {})]);

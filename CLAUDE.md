@@ -58,8 +58,11 @@ The Tasks tab (`taskhub/`, `static/js/taskhub.js`, `static/css/taskhub.css`;
 a person and a due date, assign → accept → blocked / done with a note to the
 other side. Its data is its own Firebase tree (`taskhub/<table>/<id>`), not a
 saved-state section, so it never touches `/api/state/sync` or Set Ups; who
-someone is comes from the hub's session (app.py `_taskhub_me`). Tests:
-`tests/test_taskhub.py` (rules and API) and `tests/test_tasks_tab.py` (wiring).
+someone is comes from the hub's session (app.py `_taskhub_me`). Spanish is a
+per-device EN / ES switch on the tab (not a BOH side): its phrases live in the
+glossary's Tasks section and go through `tx` / `tt` in taskhub.js. Tests:
+`tests/test_taskhub.py` (rules and API) and `tests/test_tasks_tab.py` (wiring,
+and that every phrase the tab asks for is in the glossary).
 
 ## Deploying
 
