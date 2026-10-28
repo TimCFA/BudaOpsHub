@@ -330,6 +330,8 @@ const ES = {
   'More tickets': 'Más tickets en Tareas',
   'Your PEA': 'Tu PEA',
   'Latest ratings per position': 'Últimas calificaciones por posición',
+  'PTO left this year': 'PTO que te queda este año',
+  'Your level': 'Tu nivel',
   'Your shift': 'Tu turno',
   'Your break': 'Tu descanso',
   'Waste today': 'Desperdicio de hoy',

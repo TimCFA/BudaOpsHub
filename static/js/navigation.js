@@ -47,7 +47,7 @@ function activateView(view){
   if(view === 'timers' && typeof tmActivate === 'function') tmActivate();   // timers.js
   if(typeof tmFullSync === 'function') tmFullSync();                        // full screen is the Timers page's only
   if(view === 'directors' && typeof renderDirectorsView === 'function') renderDirectorsView();
-  if(view === 'headcount'){ renderHeadcountView(); hcLoad(true); }
+  if(view === 'headcount'){ renderHeadcountView(); hcLoad(true); if(typeof apLoad === 'function' && hcAllowed()) apLoad(); }   // team-extras.js: levels, PTO, uniform credit
   if(view === 'forms' && typeof renderForms === 'function') renderForms();
   if(view === 'roles' && typeof renderRoles === 'function') renderRoles();
   if(view === 'manage' && typeof refreshManage === 'function'){
