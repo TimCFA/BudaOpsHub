@@ -28,7 +28,6 @@ const ES = {
   'Off today': 'No trabaja hoy',
   'N spots to fix': n => `${n} ${n === 1 ? 'puesto' : 'puestos'} por arreglar`,
   'Fill N open': n => `Llenar ${n}`,
-  'N open': n => `${n} por cubrir`,
   'N placed': n => `${n} ${n === 1 ? 'asignado' : 'asignados'}`,
   'Lead': 'Líder',
   'Choose': 'Elegir',
