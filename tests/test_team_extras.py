@@ -217,6 +217,19 @@ class Credit(Base):
         self.as_(manager=True)                                                                  # the shared PIN has no name
         self.assertEqual(self.send().status_code, 401)
 
+    def test_the_owner_is_the_backup(self):
+        """Tim, Oct 28 2026: the Admin Team approves uniform credit, Tim is the
+        backup. Another director can't."""
+        self.as_(self.director, 'director')
+        rid = self.send().get_json()['credit']['requests'][0]['id']
+        self.as_('Dana Example', 'director')
+        self.assertEqual(self.c.post('/api/team/credit/decide', json={'id': rid, 'decision': 'approved'}).status_code, 403)
+        self.as_('Dana Example', 'director', owner=True)
+        self.assertTrue(self.extras()['canDecide'])
+        self.assertEqual(self.c.post('/api/team/credit/decide', json={'id': rid, 'decision': 'approved'}).status_code, 200)
+        self.as_(self.director, 'director')
+        self.assertEqual(self.c.get('/api/me/extras').get_json()['credit']['requests'][0]['decidedBy'], 'Dana Example')
+
     def test_never_the_operator(self):
         """Tim, Oct 28 2026: the Operator is left off the uniform credit (and PTO)."""
         self.as_('Ash Admin', 'admin')
