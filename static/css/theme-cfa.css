@@ -218,7 +218,10 @@ body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="z
 .overlay{background:rgba(28,27,25,0.38);backdrop-filter:none;-webkit-backdrop-filter:none;}
 .su-pick .sheet{border-radius:22px 22px 0 0;padding:14px 18px calc(16px + env(safe-area-inset-bottom));max-width:520px;animation:su-pick-in .18s ease-out;will-change:transform;}
 @keyframes su-pick-in{from{transform:translateY(24px);}to{transform:translateY(0);}}
-@media (min-width:720px){ .su-pick{align-items:center;} .su-pick .sheet{border-radius:22px;padding-bottom:18px;} }
+/* On a tablet the picker sits a fixed way down from the top, not centered: a
+   keyboard bar coming or going changes the screen's height, and a centered
+   sheet moved under a finger mid-tap (Tim, Oct 28 2026). */
+@media (min-width:720px){ .su-pick{align-items:flex-start;padding-top:56px;} .su-pick .sheet{border-radius:22px;padding-bottom:18px;max-height:calc(100% - 80px);} }
 .su-pick-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;}
 .su-pick-head::before{content:"";position:absolute;left:50%;top:6px;width:40px;height:4px;margin-left:-20px;border-radius:999px;background:var(--cfa-soft);}
 .su-pick .sheet{position:relative;--su-crushing:#2E7D45;--su-rise:#C47A00;--su-notyet:#AF272F;--su-bg:var(--cfa-light);--su-ink:var(--text-primary);}
