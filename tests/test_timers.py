@@ -252,7 +252,7 @@ class Page(unittest.TestCase):
         self.assertIn('id="timersRoot"', html)
         self.assertIn('<script src="/static/js/timers.js"></script>', html)
         self.assertIn('/static/css/timers.css', html)
-        self.assertIn('data-views="zonereset timers foodsafety safecount"', html)
+        self.assertIn('data-views="zonereset timers foodsafety safecount prepboard"', html)
         self.assertIn("view === 'timers' && typeof tmActivate === 'function'", self.read('static', 'js', 'navigation.js'))
         lm = self.read('static', 'js', 'launch-mode.js')
         self.assertIn("{view: 'timers', label: 'Timers'", lm)

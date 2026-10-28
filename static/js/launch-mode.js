@@ -1,9 +1,10 @@
 // ===== LAUNCH MODE =====
 // While the team is getting started, the site shows only Home and the
-// essentials: Set Ups, Schedule, Waste, Lists, the Prep Board, the store's
-// Calendar and Forms. The Lists tab opens Zone Reset & Walkthroughs in one
-// tap; Food Safety Walkthrough and Daily Safe Count are pills at the top of
-// each list page. The rest of Tools (Know the Numbers, the Forecast, CEM
+// essentials: Set Ups, Schedule, Waste, Lists, the store's Calendar and
+// Forms. The Lists tab opens Zone Reset & Walkthroughs in one tap; Timers,
+// Food Safety Walkthrough, Daily Safe Count and the Prep Board are pills at
+// the top of each list page (the Prep Board moved in from its own tab; Tim,
+// Oct 28 2026). On the full site the Prep Board stays under Tools. The rest of Tools (Know the Numbers, the Forecast, CEM
 // Insights) is on the full site only (Tim, Oct 27 2026). Everything else is still there:
 // a device signed in with the manager PIN (Manage tab) sees every tab again,
 // and a manager can turn launch mode off for everyone in Manage.
@@ -28,6 +29,8 @@ const LAUNCH_LISTS = [
   {view: 'timers', label: 'Timers', sub: 'Temporizadores'},
   {view: 'foodsafety', label: 'Food Safety', sub: 'Seguridad'},
   {view: 'safecount', label: 'Safe Count', sub: 'Caja Fuerte'},
+  // The simplified site only (launch: true); the full site has it in Tools.
+  {view: 'prepboard', label: 'Prep Board', sub: 'Preparación', launch: true},
 ];
 // Tools (Tim, Oct 23 2026): the pages that work the numbers for us. The
 // Forecast and CEM Insights are for the full site (managers).
@@ -51,12 +54,13 @@ let launchListPage = null;   // the page a pill asked for; the tab itself opens 
 // The pill row at the top of a list page, with the open one marked. The
 // view's cards for other pages hide on the simplified site (CSS).
 function launchSubnavRender(view){
-  const group = LAUNCH_SUBNAVS.find(g => g.some(l => l.view === view));
+  const group = LAUNCH_SUBNAVS.find(g => g.some(l => l.view === view && !(l.launch && !launchIsOn())));
   if(!group) return;
   // Safe Count and the Leader Transition List aren't for Team Members or Trainers.
   const hidden = l => (l.view === 'safecount' && typeof scHidden === 'function' && scHidden())
     || (l.page === 'leaders' && typeof ltHidden === 'function' && ltHidden())
     || (l.full && launchIsOn())
+    || (l.launch && !launchIsOn())
     || (l.leaders && typeof knPageShown === 'function' && !knPageShown());
   const here = group.filter(l => l.view === view && !hidden(l));
   if(!here.length) return;
@@ -66,6 +70,7 @@ function launchSubnavRender(view){
   if(page) root.dataset.launchPage = page; else delete root.dataset.launchPage;
   const nav = root.querySelector('[data-launch-subnav]');
   if(!nav) return;
+  nav.setAttribute('aria-label', group === LAUNCH_LISTS ? 'Lists' : group === LAUNCH_WASTE ? 'Waste' : 'Tools');
   const shown = group.filter(l => !hidden(l));
   // A device nobody signed in on: say where Leader Transition and Safe Count went.
   let hint = nav.nextElementSibling && nav.nextElementSibling.classList.contains('launch-signin-hint') ? nav.nextElementSibling : null;
