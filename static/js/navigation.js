@@ -42,6 +42,7 @@ function activateView(view){
   if(view === 'cem' && typeof renderCemTrends === 'function') renderCemTrends();
   if(view === 'knownumbers' && typeof renderKnPage === 'function') renderKnPage();
   if(view === 'calendar' && typeof renderCalendarView === 'function') renderCalendarView();
+  if(view === 'tasks' && typeof thActivate === 'function') thActivate();   // taskhub.js
   if(view === 'directors' && typeof renderDirectorsView === 'function') renderDirectorsView();
   if(view === 'headcount'){ renderHeadcountView(); hcLoad(true); }
   if(view === 'forms' && typeof renderForms === 'function') renderForms();

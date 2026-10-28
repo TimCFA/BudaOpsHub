@@ -2923,6 +2923,62 @@ def server_error(e):
 # ===== FORMS (forms_api.py; Tim, Oct 21 2026) =====
 forms_api.register(app, _client_ip)
 
+# ===== TASKS (TaskHub; Oct 27 2026) =====
+# Delegation for the leadership team: boards of tasks, each with a person, a
+# due date and a status (taskhub/, a Flask blueprint under /taskhub/api; the
+# screen is static/js/taskhub.js on the Tasks tab). Its records live in
+# Firebase under taskhub/<table>/<id>, read once on a cold start and kept in
+# memory like the saved state above; a change writes only its own record.
+# Who someone is comes from the session (ACCOUNTS): a clock-in PIN or a
+# Google director by name, the shared manager PIN as "Director". Who can be
+# given work is the PIN list plus the Directors list, so a task can only go
+# to someone who can sign in and see it.
+from taskhub import create_blueprint as _taskhub_blueprint, FirebaseBackend as _TaskhubFirebase, Store as _TaskhubStore, TaskHub as _TaskHub
+
+def _taskhub_key(name):
+    """A person's id in TaskHub: from the name as the hub matches names
+    (_turnover_key), hashed so it's safe as a Firebase key whatever the name
+    holds, and the same from a PIN, a Google account or the Directors list."""
+    return hashlib.sha256(_turnover_key(name).encode()).hexdigest()[:20]
+
+def _taskhub_me():
+    user = session.get('user') if isinstance(session.get('user'), dict) else {}
+    name = str(user.get('name') or '').strip()
+    if name:
+        role = 'director' if session.get('manager') else (user.get('role') or 'member')
+        return {'id': _taskhub_key(name), 'name': name, 'role': role}
+    if session.get('manager'):
+        return {'id': 'director', 'name': 'Director', 'role': 'director'}   # the shared PINs carry no name
+    return None
+
+def _taskhub_people():
+    seen, out = set(), []
+    def add(name, role):
+        key = _turnover_key(name)
+        if name and key not in seen:
+            seen.add(key)
+            out.append({'id': _taskhub_key(name), 'name': name, 'role': role})
+    directors = None
+    try:
+        sections = _read_sections()
+        directors = (sections.get('manager') or {}).get('directors') if sections else None
+    except Exception as e:
+        print(f'[TASKS] directors list not read: {type(e).__name__}')
+    if not isinstance(directors, list):
+        directors = [{'name': n} for n in DIRECTORS_SEED]
+    for d in directors:
+        if isinstance(d, dict):
+            add(str(d.get('name') or '').strip(), 'director')
+    director_keys = _director_names()          # once, not per PIN (_pin_role reads the list each time)
+    for rec in (_auth_lists().get('pins') or {}).values():
+        if isinstance(rec, dict):
+            name = str(rec.get('name') or '').strip()
+            add(name, 'director' if _name_key(name) in director_keys else rec.get('role'))
+    return out
+
+_taskhub = _TaskHub(_TaskhubStore(_TaskhubFirebase(lambda path: db.reference(path))), people=_taskhub_people)
+app.register_blueprint(_taskhub_blueprint(hub=_taskhub, resolve_member=_taskhub_me))
+
 # ===== START SERVER =====
 
 if __name__ == '__main__':
