@@ -94,6 +94,13 @@ class Wiring(unittest.TestCase):
         self.assertGreater(len(asked), 200)
         self.assertEqual(sorted(p for p in asked if p not in keys), [])
 
+    def test_the_phone_bar_never_covers_a_hub_pop_up(self):
+        theme = read('static', 'css', 'main.css') + read('static', 'css', 'theme-cfa.css')
+        overlay = int(re.search(r'\.overlay\{[^}]*z-index:(\d+)', theme).group(1))
+        for sel in ('.ps-nav', '.ps-fab'):
+            z = int(re.search(re.escape(sel) + r'\{position:fixed;[^}]*z-index:(\d+)', CSS).group(1))
+            self.assertLess(z, overlay, sel)
+
     def test_the_look_is_the_theme(self):
         for token in ('var(--cfa-red', 'var(--cfa-navy', 'var(--cfa-white', 'var(--font-display', 'var(--font-ui', 'html[data-theme="dark"]'):
             self.assertIn(token, CSS)
