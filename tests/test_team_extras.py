@@ -112,6 +112,19 @@ class Levels(Base):
 
 
 class Pto(Base):
+    def test_the_stores_chart_until_the_table_is_saved(self):
+        """Tim's PTO chart (Oct 28 2026): only certified levels get PTO."""
+        self.as_('Ash Admin', 'admin')
+        hours = self.extras()['ptoHours']
+        self.assertEqual({k: v for k, v in hours.items() if v}, {'cert_executive': 140.0, 'cert_director': 120.0, 'cert_lead': 80.0, 'cert_trainer': 40.0, 'cert_member': 20.0})
+        self.assertEqual(hours['member'], 0.0)
+        self.assertNotIn('operator', hours)
+        self.assertEqual(self.person('Ana Ruiz')['pto']['allowance'], 0.0)
+        self.c.post('/api/team/level', json={'name': 'Ana Ruiz', 'level': 'cert_member'})
+        self.assertEqual(self.person('Ana Ruiz')['pto']['left'], 20.0)
+        self.c.post('/api/team/pto-hours', json={'hours': {'cert_member': 24}})       # once saved, the saved table is the whole of it
+        self.assertEqual(self.extras()['ptoHours'], {'cert_member': 24.0})
+
     def test_by_level_from_january_first(self):
         self.as_('Ash Admin', 'admin')
         self.c.post('/api/team/pto-hours', json={'hours': {'member': 16, 'lead': 40, 'nonsense': 9}})

@@ -106,6 +106,7 @@ function apPtoHtml(p){
         <div><b>${apHours(t.used)}</b><span>used</span></div>
         <div class="is-left"><b>${apHours(t.left)}</b><span>left</span></div>
       </div>
+      ${t.allowance === 0 && !t.used ? `<small class="ap-sub">No PTO at this level: it starts at Certified Team Member.</small>` : ''}
       ${t.allowance === null ? `<small class="ap-sub">${p.level ? 'No hours set for this level yet: set them under PTO hours by level, at the top of Our Team.' : 'Set their level to give them PTO hours.'}</small>` : ''}
       ${t.entries.length ? `<ul class="ap-list">${t.entries.map(e => `<li><span>${escapeHtml(apDay(e.date))}</span>${escapeHtml(e.note || 'PTO')}<b>${apHours(e.hours)}</b><button type="button" class="ap-x" data-ap-pto-del="${escapeHtml(e.id)}" aria-label="Remove this PTO">${AP_ICON_X}</button></li>`).join('')}</ul>` : ''}
       ${apPtoFormHtml(p.name)}
@@ -188,7 +189,7 @@ function apRightNowRows(){
   if(!m) return rows;
   const row = (n, text, es, go, tone) => ({n, text, es: es || '', go: go || '', tone: tone || ''});
   if(m.toReview) rows.push(row(String(m.toReview), `uniform credit request${m.toReview === 1 ? '' : 's'} to review`, '', 'headcount', 'warn'));
-  if(m.pto && m.pto.allowance !== null) rows.push(row(apHours(m.pto.left).replace(' h', 'h'), `PTO left in ${m.year}${m.levelLabel ? ` · ${m.levelLabel}` : ''}`, esText('PTO left this year'), 'mine', m.pto.left ? '' : 'warn'));
+  if(m.pto && m.pto.allowance) rows.push(row(apHours(m.pto.left).replace(' h', 'h'), `PTO left in ${m.year}${m.levelLabel ? ` · ${m.levelLabel}` : ''}`, esText('PTO left this year'), 'mine', m.pto.left ? '' : 'warn'));
   else if(m.levelLabel) rows.push(row('', `Your level: ${m.levelLabel}`, esText('Your level'), 'mine', ''));
   if(m.credit) rows.push(row(apMoney(m.credit.left), `uniform credit left in ${m.year}${m.credit.pending ? `, ${apMoney(m.credit.pending)} waiting` : ''}`, '', 'credit', ''));
   return rows;

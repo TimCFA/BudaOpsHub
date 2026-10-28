@@ -5,7 +5,8 @@ and are shown on the profile from there.
 
   Level    one of LEVELS, set by a director or the Admin Team; until someone
            sets it, it follows the PIN list's role (member → Team Member ...).
-  PTO      hours a year by level (PTO_HOURS, set on Our Team), from January 1,
+  PTO      hours a year by level (PTO_DEFAULT, the store's chart, until the
+           table on Our Team is saved; then that table), from January 1,
            unused hours don't carry over. The Admin Team logs PTO taken (a
            date, hours, a note); used and left add up from those.
   Credit   directors get CREDIT_PER_YEAR a calendar year for uniforms, unused
@@ -48,6 +49,10 @@ LEVEL_LABEL = dict(LEVELS)
 FROM_ROLE = {'member': 'member', 'trainer': 'trainer', 'lead': 'lead', 'director': 'director'}
 DIRECTOR_TIER = ('director', 'cert_director', 'executive', 'cert_executive', 'operator')
 CREDIT_PER_YEAR = 500
+# The store's PTO chart (Tim, Oct 28 2026): only certified levels get PTO.
+# The Operator isn't on it, so has none set.
+PTO_DEFAULT = {'cert_executive': 140.0, 'cert_director': 120.0, 'cert_lead': 80.0, 'cert_trainer': 40.0, 'cert_member': 20.0,
+               'member': 0.0, 'trainer': 0.0, 'lead': 0.0, 'director': 0.0, 'executive': 0.0}
 
 LEVELS_PATH = 'secure/teamLevels'          # {key: {name, level, by, at}}
 PTO_HOURS_PATH = 'secure/ptoHours'         # {level: hours a year}
@@ -136,6 +141,7 @@ def register(app, *, ref, get_all, access, me, people, key_of, today, is_owner):
     def read_all():
         levels, hours, pto, credit = get_all(LEVELS_PATH, PTO_HOURS_PATH, PTO_PATH, CREDIT_PATH)
         clean = lambda d: {k: dict(v, id=k) for k, v in (d or {}).items() if isinstance(v, dict)}
+        hours = PTO_DEFAULT if hours is None else hours
         hours = {k: float(v) for k, v in (hours or {}).items() if k in LEVEL_IDS and isinstance(v, (int, float))}
         return clean(levels), hours, clean(pto), clean(credit)
 
