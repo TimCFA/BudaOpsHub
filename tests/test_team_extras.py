@@ -113,22 +113,36 @@ class Levels(Base):
 
 class Pto(Base):
     def test_the_stores_chart_until_the_table_is_saved(self):
-        """Tim's PTO chart (Oct 28 2026): only certified levels get PTO."""
+        """Tim's PTO chart (Oct 28 2026)."""
         self.as_('Ash Admin', 'admin')
-        hours = self.extras()['ptoHours']
-        self.assertEqual({k: v for k, v in hours.items() if v}, {'cert_executive': 140.0, 'cert_director': 120.0, 'cert_lead': 80.0, 'cert_trainer': 40.0, 'cert_member': 20.0})
-        self.assertEqual(hours['member'], 0.0)
-        self.assertNotIn('operator', hours)
+        self.assertEqual(self.extras()['ptoHours'], {'cert_executive': 140.0, 'cert_director': 120.0, 'cert_lead': 80.0, 'cert_trainer': 40.0, 'cert_member': 20.0})
         self.assertEqual(self.person('Ana Ruiz')['pto']['allowance'], 0.0)
         self.c.post('/api/team/level', json={'name': 'Ana Ruiz', 'level': 'cert_member'})
         self.assertEqual(self.person('Ana Ruiz')['pto']['left'], 20.0)
         self.c.post('/api/team/pto-hours', json={'hours': {'cert_member': 24}})       # once saved, the saved table is the whole of it
         self.assertEqual(self.extras()['ptoHours'], {'cert_member': 24.0})
 
+    def test_the_highest_certified_level_reached(self):
+        """Tim, Oct 28 2026: a Trainer gets a Certified Team Member's 20 until
+        certified as a Trainer (40); promoted to Team Lead it's still 40 until
+        certified as a Team Lead (80); and so on."""
+        self.as_('Ash Admin', 'admin')
+        got = []
+        for lv in ('member', 'cert_member', 'trainer', 'cert_trainer', 'lead', 'cert_lead', 'director', 'cert_director', 'executive', 'cert_executive', 'operator'):
+            self.c.post('/api/team/level', json={'name': 'Ana Ruiz', 'level': lv})
+            p = self.person('Ana Ruiz')['pto']
+            got.append((lv, p['allowance'], p['basis']))
+        self.assertEqual(got, [('member', 0.0, None), ('cert_member', 20.0, None), ('trainer', 20.0, 'Certified Team Member'), ('cert_trainer', 40.0, None),
+                               ('lead', 40.0, 'Certified Trainer'), ('cert_lead', 80.0, None), ('director', 80.0, 'Certified Team Lead'), ('cert_director', 120.0, None),
+                               ('executive', 120.0, 'Certified Director'), ('cert_executive', 140.0, None), ('operator', 140.0, 'Certified Executive')])
+        self.as_('Ana Ruiz', 'member')
+        self.assertEqual(self.c.get('/api/me/extras').get_json()['pto']['allowance'], 140.0)
+
     def test_by_level_from_january_first(self):
         self.as_('Ash Admin', 'admin')
-        self.c.post('/api/team/pto-hours', json={'hours': {'member': 16, 'lead': 40, 'nonsense': 9}})
-        self.assertEqual(self.extras()['ptoHours'], {'member': 16.0, 'lead': 40.0})
+        self.c.post('/api/team/pto-hours', json={'hours': {'cert_member': 16, 'cert_lead': 40, 'lead': 99, 'nonsense': 9}})   # only certified levels carry hours
+        self.assertEqual(self.extras()['ptoHours'], {'cert_member': 16.0, 'cert_lead': 40.0})
+        self.c.post('/api/team/level', json={'name': 'Ana Ruiz', 'level': 'trainer'})
         for date, hours in (('2026-03-02', 8), ('2026-10-01', 4.5), ('2025-12-30', 8)):     # last year's doesn't count
             self.assertEqual(self.c.post('/api/team/pto', json={'name': 'Ana Ruiz', 'date': date, 'hours': hours, 'note': 'Family'}).status_code, 200)
         pto = self.person('Ana Ruiz')['pto']
@@ -144,12 +158,13 @@ class Pto(Base):
 
     def test_a_team_member_sees_their_own(self):
         self.as_('Ash Admin', 'admin')
-        self.c.post('/api/team/pto-hours', json={'hours': {'member': 16}})
+        self.c.post('/api/team/pto-hours', json={'hours': {'cert_member': 16}})
+        self.c.post('/api/team/level', json={'name': 'Ana Ruiz', 'level': 'cert_member'})
         self.c.post('/api/team/pto', json={'name': 'Ana Ruiz', 'date': '2026-10-01', 'hours': 8})
         self.c.post('/api/team/pto', json={'name': 'Ben Cole', 'date': '2026-10-01', 'hours': 8})
         self.as_('Ana Ruiz', 'member')
         me = self.c.get('/api/me/extras').get_json()
-        self.assertEqual((me['level'], me['levelLabel'], me['pto']['used'], me['pto']['left'], len(me['pto']['entries'])), ('member', 'Team Member', 8.0, 8.0, 1))
+        self.assertEqual((me['level'], me['levelLabel'], me['pto']['used'], me['pto']['left'], len(me['pto']['entries'])), ('cert_member', 'Certified Team Member', 8.0, 8.0, 1))
         self.assertNotIn('credit', me)
         self.assertNotIn('Ben Cole', str(me))
         self.as_()
