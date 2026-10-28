@@ -288,6 +288,7 @@ const ES = {
   'Sec': 'Seg',
   'Add time': 'Agregar tiempo',
   'This week': 'Esta semana',
+  'Week of': d => `Semana del ${d}`,
   'This month': 'Este mes',
   'All time': 'Siempre',
   'N% faster': n => `${n}% más rápido`,

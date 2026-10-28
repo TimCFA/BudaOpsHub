@@ -9,6 +9,7 @@ Run: python3 -m unittest discover tests
 Runs right-now.js in node (tests/right_now_runner.js). Names are made up.
 """
 import json
+import re
 import os
 import subprocess
 import unittest
@@ -301,6 +302,34 @@ class ScheduleFind(unittest.TestCase):
     def test_no_match_says_so(self):
         got = run({'op': "c => { " + self.WEEK + " acUser = {name: 'Ana Ruiz Lopez', role: 'member'}; tsSearch = 'zzz'; " + self.RENDER + " return root.innerHTML; }"})[0]
         self.assertIn('No one by that name on this week’s schedule.', got)
+
+
+class ScheduleWeeks(unittest.TestCase):
+    """A pill for this week and for every week ahead that's scheduled (Tim,
+    Oct 28 2026: two weeks out was scheduled, the page only had two pills)."""
+    RENDER = ScheduleFind.RENDER
+
+    def test_a_pill_for_each_scheduled_week(self):
+        weeks = ("fohRoster[today] = [{name: 'Ana Ruiz Lopez', start: '12:00p', end: '8:30p'}];"
+                 "fohRoster['2026-10-27'] = [{name: 'Ana Ruiz Lopez', start: '9:00a', end: '3:00p'}];"
+                 "bohRoster['2026-11-10'] = [{name: 'Mateo Cruz', start: '5:00a', end: '1:00p'}];")       # nothing the week of Nov 2
+        got = run({'op': "c => { " + weeks + " tsOffset = 0; " + self.RENDER + " return [root.innerHTML, tsWeekOffsets()]; }"},
+                  {'op': "c => { " + weeks + " tsOffset = 3; " + self.RENDER + " return [root.innerHTML, tsOffset]; }"},
+                  {'op': "c => { " + weeks + " tsOffset = 2; " + self.RENDER + " return [root.innerHTML, tsOffset]; }"},
+                  {'op': "c => { " + weeks + " document.getElementById = () => null; tsShowDay('2026-11-10'); return tsOffset; }"})
+        page, offsets = got[0]
+        self.assertEqual(offsets, [0, 1, 3])
+        pills = re.findall(r'data-ts-week="(\d+)">([^<]+?) <span class="es" lang="es">([^<]+)</span>', page)
+        self.assertEqual(pills, [('0', 'This week', 'Esta semana'), ('1', 'Next week', 'La próxima semana'), ('3', 'Week of Nov 9', 'Semana del 9 nov')])
+        self.assertIn('Mon, Nov 9 – Sat, Nov 14', got[1][0])
+        self.assertIn('data-ts-day="2026-11-10"', got[1][0])
+        self.assertEqual(got[2][1], 0)                       # a week with nothing in it falls back to this one
+        self.assertEqual(got[3], 3)                          # Home's day links reach a later week too
+
+    def test_pills_wrap_on_a_phone(self):
+        css = read('static', 'css', 'theme-cfa.css')
+        self.assertIn('.ts-weeks{display:flex;flex-wrap:wrap;gap:6px;}', css)
+        self.assertIn('.ts-head{min-width:0;}', css)          # a grid item: without it the row widens the page
 
 
 class NobodySignedIn(unittest.TestCase):
