@@ -101,6 +101,15 @@ class Wiring(unittest.TestCase):
             z = int(re.search(re.escape(sel) + r'\{position:fixed;[^}]*z-index:(\d+)', CSS).group(1))
             self.assertLess(z, overlay, sel)
 
+    def test_a_sheet_fits_the_screen_and_keeps_its_close_button(self):
+        """94vh on an iPhone is taller than the screen with Safari's bars
+        showing, so the close button sat out of reach (Tim, Oct 28 2026)."""
+        sheet = re.search(r'\.ps-sheet\{[^}]*\}', CSS).group(0)
+        self.assertNotIn('vh', sheet)
+        self.assertIn('max-height:calc(100%', sheet)
+        self.assertNotRegex(re.search(r'@media \(min-width:700px\)\{\.ps-scrim[^\n]*', CSS).group(0), r'\d+vh')
+        self.assertIn('position:sticky;top:-8px', re.search(r'\.ps-sheethead\{[^}]*\}', CSS).group(0))
+
     def test_the_look_is_the_theme(self):
         for token in ('var(--cfa-red', 'var(--cfa-navy', 'var(--cfa-white', 'var(--font-display', 'var(--font-ui', 'html[data-theme="dark"]'):
             self.assertIn(token, CSS)
