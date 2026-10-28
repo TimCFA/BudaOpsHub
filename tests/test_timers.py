@@ -187,7 +187,11 @@ class Api(unittest.TestCase):
     def test_who_may_do_what(self):
         self.at(WED, '09:00')
         self.as_()
-        self.assertEqual(self.send('reset', timerId='restroom').status_code, 400)          # who did it?
+        # A tap on a signed-out tablet resets with nobody named (Tim, Oct 28 2026);
+        # the cycle is still the Lead Captain's from Set Ups.
+        r = self.send('reset', timerId='restroom')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.get_json()['event']['by'], '')
         self.assertEqual(self.send('handoff', timerId='restroom', to='X').status_code, 403)
         self.assertEqual(self.send('config', timers=[{'name': 'X'}]).status_code, 403)
         self.as_('Ben Cole', 'member')
@@ -262,3 +266,46 @@ class Page(unittest.TestCase):
         js = self.read('static', 'js', 'timers.js')
         self.assertIsNone(re.search('[\U0001F300-\U0001FAFF☀-➿]', js))
         self.assertEqual(set(re.findall(r"^    (\w+): '<", js[js.index('const ICONS'):js.index('};', js.index('const ICONS'))], re.M)), set(TA.ICONS))
+
+
+class FullScreen(unittest.TestCase):
+    """Tim, Oct 28 2026: on the counter iPad the case covers the screen's
+    edges and the hub's header and tabs crowd the timers. Full screen is the
+    timers alone inside a margin the case can't cover, sized to fit five in a
+    row, remembered on the device, and the Timers page's only."""
+
+    def setUp(self):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        rd = lambda *p: open(os.path.join(root, *p), encoding='utf-8').read()
+        self.js, self.css, self.nav = rd('static', 'js', 'timers.js'), rd('static', 'css', 'timers.css'), rd('static', 'js', 'navigation.js')
+
+    def test_the_button_and_the_device_remembers(self):
+        self.assertIn('data-tm-full aria-pressed="${full}"', self.js)
+        self.assertIn("LS.set('full', on ? '1' : '0');", self.js)
+        self.assertIn("if(fullOn()) window.addEventListener('load'", self.js)
+        self.assertIn("function applyFull(){ document.body.classList.toggle('tm-full', fullOn() && shown()); }", self.js)
+        self.assertIn("if(typeof tmFullSync === 'function') tmFullSync();", self.nav)        # leaving the page leaves full screen
+
+    def test_the_layout(self):
+        for rule in ('body.tm-full .hdr,body.tm-full .tabs-wrap', '--tm-case:max(36px, 4vw);', 'env(safe-area-inset-left,0px)',
+                     '--tm-size:clamp(150px, calc((100vw - 2 * max(36px, 4vw) - (var(--tm-cols, 5) - 1) * 24px) / var(--tm-cols, 5)), 240px);',
+                     'body.tm-full .tm-badge{width:calc(var(--tm-size) * .23);'):
+            self.assertIn(rule, self.css)
+        self.assertIn('style="--tm-cols:${Math.max(1, Math.min(5, c.timers.length))}"', self.js)
+
+
+class TapAndHold(unittest.TestCase):
+    """Tim, Oct 28 2026: a tap resets at once, no prompt; press and hold opens
+    the sheet to say who did it or hand the timer off."""
+
+    def test_the_page(self):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        js = open(os.path.join(root, 'static', 'js', 'timers.js'), encoding='utf-8').read()
+        self.assertIn("if(press && press.id === d.tmTimer && (press.fired || press.moved)) return;", js)
+        self.assertIn('quickReset(d.tmTimer);', js)
+        self.assertIn("resetTimer(id, S.me && S.me.name ? S.me.name : '');", js)
+        self.assertIn('const HOLD_MS = 550;', js)
+        self.assertIn("S.root.addEventListener('contextmenu'", js)
+        self.assertIn('Press and hold to say who did it or hand it off.', js)
+        css = open(os.path.join(root, 'static', 'css', 'timers.css'), encoding='utf-8').read()
+        self.assertIn('-webkit-touch-callout:none', css)
