@@ -2653,11 +2653,16 @@ body:not(.hc-allowed) .hc-only{display:none !important;}
 .ts-head h2{margin:0;font-family:var(--font-display);font-size:26px;color:var(--text-primary);}
 .ts-head h2 .es-line{font-family:var(--font-ui);font-size:13px;font-weight:500;color:var(--text-tertiary);}
 .ts-head p{margin:2px 0 10px;color:var(--text-secondary);font-size:14px;}
-.ts-weeks{display:flex;gap:6px;}
+/* As many week pills as weeks scheduled: they wrap onto a second line on a
+   phone, so every week stays in sight. */
+.ts-head{min-width:0;}
+.ts-weeks{display:flex;flex-wrap:wrap;gap:6px;}
 .ts-week,.ts-chip{border:1px solid var(--border);background:var(--cfa-white);color:var(--text-primary);border-radius:999px;padding:8px 14px;font:600 14px var(--font-ui);min-height:40px;cursor:pointer;}
 .ts-week .es,.ts-chip small{font-weight:500;color:var(--text-tertiary);margin-left:4px;}
 .ts-week.active,.ts-chip.active{background:var(--cfa-navy);border-color:var(--cfa-navy);color:#F6F1E8;}
 .ts-week.active .es,.ts-chip.active small{color:rgba(246,241,232,0.75);}
+.ts-week{white-space:nowrap;line-height:1.2;padding:6px 14px;text-align:left;}
+.ts-week .es{display:block;margin-left:0;font-size:12px;}
 .ts-card{background:var(--cfa-white);border:1px solid var(--border);border-radius:14px;padding:14px 16px;}
 .ts-card > h3,.ts-card-head h3{margin:0;font-family:var(--font-display);font-size:20px;}
 .ts-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;}

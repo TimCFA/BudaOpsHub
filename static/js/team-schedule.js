@@ -5,9 +5,11 @@
 // shifts: a team member signed in with their clock-in PIN sees their own
 // week first; anyone else finds their name. Below it, who's working each
 // day. On Sunday (the store is closed) "this week" is the one starting
-// Monday.
+// Monday. A pill for this week and one for every week ahead that has shifts
+// in (Tim, Oct 28 2026: as many weeks as are scheduled).
 
-let tsOffset = 0;          // 0 = this week, 1 = next week
+let tsOffset = 0;          // weeks from this one: 0 = this week, 1 = next week ...
+const TS_WEEKS_AHEAD = 10; // how far ahead to look for a schedule
 let tsDay = null;          // the day open under "Who's working"
 let tsSearch = '';
 const TS_NAME_KEY = 'cfaBudaScheduleName';
@@ -19,7 +21,7 @@ function tsWeek(offset){
   const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + toMonday + offset * 7);
   return Array.from({length: 6}, (_, i) => {
     const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
-    return {iso: toLocalISODate(d), short: d.toLocaleDateString('en-US', {weekday: 'short'}), date: d.toLocaleDateString('en-US', {month: 'short', day: 'numeric'}), long: d.toLocaleDateString('en-US', {weekday: 'long'})};
+    return {iso: toLocalISODate(d), es: d.toLocaleDateString('es-US', {month: 'short', day: 'numeric'}), short: d.toLocaleDateString('en-US', {weekday: 'short'}), date: d.toLocaleDateString('en-US', {month: 'short', day: 'numeric'}), long: d.toLocaleDateString('en-US', {weekday: 'long'})};
   });
 }
 
@@ -37,6 +39,19 @@ function tsShifts(iso){
 }
 
 function tsHasWeek(days){ return days.some(d => tsShifts(d.iso).length); }
+
+// This week, then each week ahead with shifts in it.
+function tsWeekOffsets(){
+  const out = [0];
+  for(let o = 1; o <= TS_WEEKS_AHEAD; o++) if(tsHasWeek(tsWeek(o))) out.push(o);
+  return out;
+}
+function tsWeekName(offset){
+  if(offset === 0) return {en: 'This week', es: esText('This week')};
+  if(offset === 1) return {en: 'Next week', es: esText('Next week')};
+  const first = tsWeek(offset)[0];
+  return {en: `Week of ${first.date}`, es: esText('Week of', first.es)};
+}
 
 // Everyone on the week's schedule, by name.
 function tsPeople(days){
@@ -280,7 +295,7 @@ function tsPersonOpen(name, from){
   const rows = tsWeekRows(days, key);
   sheet.innerHTML = `<div class="rn-evs-card" role="dialog" aria-modal="true" aria-labelledby="tsPersonName" style="--ev:var(--cfa-navy)">
       <button type="button" class="rn-evs-x" data-ts-person-close aria-label="Close">${typeof RN_ICON_X !== 'undefined' ? RN_ICON_X : '×'}</button>
-      <span class="rn-evs-kind"><i aria-hidden="true"></i>${tsOffset ? 'Next week' : 'This week'}</span>
+      <span class="rn-evs-kind"><i aria-hidden="true"></i>${escapeHtml(tsWeekName(tsOffset).en)}</span>
       <h2 id="tsPersonName">${escapeHtml(name)}</h2>
       <p class="rn-evs-when">${escapeHtml(t.text)}</p>
       <ul class="ts-days">${rows}</ul>
@@ -303,7 +318,7 @@ function tsPersonClose(){
 
 // From the Right Now card: open the Schedule tab on a day.
 function tsShowDay(iso){
-  const off = [0, 1].find(o => tsWeek(o).some(d => d.iso === iso));
+  const off = tsWeekOffsets().find(o => tsWeek(o).some(d => d.iso === iso));
   if(off === undefined) return;
   tsOffset = off;
   tsDay = iso;
@@ -315,15 +330,14 @@ function tsShowDay(iso){
 function renderTeamSchedule(){
   const root = document.getElementById('scheduleRoot');
   if(!root) return;
-  const hasNext = tsHasWeek(tsWeek(1));
-  if(tsOffset === 1 && !hasNext) tsOffset = 0;
+  const offsets = tsWeekOffsets();
+  if(!offsets.includes(tsOffset)) tsOffset = 0;
   const days = tsWeek(tsOffset);
   const people = tsPeople(days);
-  const me = tsMe(people) || tsMe(tsPeople(tsWeek(tsOffset ? 0 : 1)));
+  const me = tsMe(people) || tsMe(tsPeople(tsWeek(tsOffset ? 0 : offsets[1] || 1)));
   const range = `${days[0].short}, ${days[0].date} – ${days[5].short}, ${days[5].date}`;
-  const weeks = `<div class="ts-weeks" role="tablist">
-      <button type="button" class="ts-week${tsOffset === 0 ? ' active' : ''}" role="tab" aria-selected="${tsOffset === 0}" data-ts-week="0">This week${esSpan(esText('This week'))}</button>
-      ${hasNext ? `<button type="button" class="ts-week${tsOffset === 1 ? ' active' : ''}" role="tab" aria-selected="${tsOffset === 1}" data-ts-week="1">Next week${esSpan(esText('Next week'))}</button>` : ''}
+  const weeks = `<div class="ts-weeks" role="tablist">${offsets.map(o => { const n = tsWeekName(o);
+      return `<button type="button" class="ts-week${tsOffset === o ? ' active' : ''}" role="tab" aria-selected="${tsOffset === o}" data-ts-week="${o}">${escapeHtml(n.en)}${esSpan(n.es)}</button>`; }).join('')}
     </div>`;
   const head = `<div class="ts-head"><h2>Schedule${esLine('Schedule')}</h2><p>${escapeHtml(range)}</p>${weeks}</div>`;
   if(!people.length){
