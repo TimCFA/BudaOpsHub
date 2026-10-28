@@ -56,6 +56,7 @@ CREDIT_PER_YEAR = 500
 # Trainer gets a Certified Team Member's 20 until certified as a Trainer, and
 # a Team Member (nothing certified yet) gets none.
 CERTIFIED = tuple(k for k in LEVEL_IDS if k.startswith('cert_'))
+PTO_OFF = ('operator',)          # no PTO on the profile (Tim, Oct 28 2026)
 PTO_DEFAULT = {'cert_member': 20.0, 'cert_trainer': 40.0, 'cert_lead': 80.0, 'cert_director': 120.0, 'cert_executive': 140.0}
 
 LEVELS_PATH = 'secure/teamLevels'          # {key: {name, level, by, at}}
@@ -106,17 +107,17 @@ def pto_basis(level):
 
 def allowance_for(level, hours):
     """Hours a year at `level`: None with no level or no hours set for its basis."""
-    if not level:
+    if not level or level in PTO_OFF:
         return None
     basis = pto_basis(level)
     return 0.0 if basis is None else hours.get(basis)
 
 
 def pto_summary(entries, allowance, year, level=None):
-    basis = pto_basis(level)
+    basis = None if level in PTO_OFF else pto_basis(level)
     mine = sorted((e for e in entries if str(e.get('date', '')).startswith(year)), key=lambda e: e.get('date', ''), reverse=True)
     used = round(sum(float(e.get('hours') or 0) for e in mine), 2)
-    return {'allowance': allowance, 'used': used, 'basis': LEVEL_LABEL[basis] if basis and basis != level else None,
+    return {'allowance': allowance, 'used': used, 'basis': LEVEL_LABEL[basis] if basis and basis != level else None, 'off': level in PTO_OFF,
             'left': None if allowance is None else round(max(0.0, allowance - used), 2), 'entries': mine}
 
 

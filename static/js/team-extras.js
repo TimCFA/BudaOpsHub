@@ -100,6 +100,7 @@ function apPointsHtml(name){
 }
 function apPtoHtml(p){
   const t = p.pto, year = apData.year;
+  if(t.off) return '';           // the Operator: no PTO
   return `<div class="ap-block"><h4>PTO ${escapeHtml(year)}</h4>
       <div class="ap-stats">
         <div><b>${apHours(t.allowance)}</b><span>a year${t.basis ? ` (${escapeHtml(t.basis)})` : p.level ? ` as ${escapeHtml(apLevelLabel(p.level))}` : ''}</span></div>
