@@ -70,7 +70,7 @@ class WhoIsHolding(unittest.TestCase):
 
 
 class TeamMember(unittest.TestCase):
-    def test_their_spot_shift_break_and_waste(self):
+    def test_their_spot_and_shift_no_break_or_waste(self):
         got = run({'op': card('member', 'Ana Ruiz')})[0]
         self.assertEqual(got['title'], 'Hi, Ana')
         self.assertEqual(got['first'], 'You’re on Drinks 1 until 8:00.')
@@ -79,8 +79,8 @@ class TeamMember(unittest.TestCase):
         self.assertNotIn('Now: Drinks 1 (Dinner)', texts)            # already the first thing
         self.assertIn('Next: Host 1 (Close)', texts)
         self.assertIn('Your shift: 12:00p–8:30p', texts)
-        self.assertIn(['6:30', 'your break', 'setups:foh|2026-10-19|'], [r[:3] for r in got['rows']])
-        self.assertEqual(got['rows'][-1][1], 'waste today, limit $100')
+        # Tim, Oct 28 2026: what a team member needs, no break or waste line.
+        self.assertFalse(any('break' in t or 'waste' in t for t in texts))
         # Nothing about other people's gaps: that's the lead's.
         self.assertFalse(any('open spot' in t or 'no spot' in t for t in texts))
 
@@ -88,9 +88,9 @@ class TeamMember(unittest.TestCase):
         got = run({'op': card('member', 'Ana Ruiz', extra="breaks.foh = [{name: 'Ana Ruiz Lopez', start: 15 * 60}];")})[0]
         self.assertFalse(any(r[1] == 'your break' for r in got['rows']))
 
-    def test_on_break(self):
+    def test_on_break_still_shows_their_spot(self):
         got = run({'op': card('member', 'Ana Ruiz', extra="breakCountdowns['foh||' + today + '||Ana Ruiz Lopez'] = Date.now() + 20 * 60000;")})[0]
-        self.assertEqual(got['first'], 'On break until 5:30.')
+        self.assertEqual(got['first'], 'You’re on Drinks 1 until 8:00.')
 
     def test_their_zone_at_the_coming_handoff(self):
         got = run({'op': card('member', 'Ana Ruiz', extra="""handoff = {name: 'Dinner to Late Night (7:00pm - 8:00pm)', owners: {Restrooms: ['Ana Ruiz Lopez']}, done: {Restrooms: {checked: 1, total: 8}}};""")},
@@ -333,12 +333,39 @@ class ScheduleWeeks(unittest.TestCase):
 
 
 class NobodySignedIn(unittest.TestCase):
-    def test_the_shift_and_a_way_to_sign_in(self):
+    def test_only_a_way_to_sign_in(self):
+        """Tim, Oct 28 2026: no spots set, zones reset or waste before sign-in;
+        those are the leaders'. The day's marketing events sit above it."""
         got = run({'op': card('', '', extra="gaps['foh|Dinner'] = {open: ['Host 2'], unplaced: [], filled: 9};")})[0]
         self.assertEqual(got['first'], '')
-        self.assertEqual(got['rows'][0][:3], ['9/10', 'FOH spots set for Dinner', 'setups:foh|2026-10-19|Dinner (5:00-8:00)'])
-        self.assertEqual(got['rows'][-1][1:3], ['Sign in with your clock-in PIN to see your spot and your break', 'signin'])
-        self.assertFalse(any('Ana' in r[1] for r in got['rows']))
+        self.assertEqual(got['rows'], [['', 'Sign in with your clock-in PIN to see your spot', 'signin', '']])
+        js = read('static', 'js', 'right-now.js')
+        self.assertNotIn('see your spot and your break', js)
+
+
+class TeamEvents(unittest.TestCase):
+    """Tim, Oct 28 2026: team members (and a phone nobody signed in on) see the
+    marketing events, In store and Drive Thru; Community Outreach and the
+    samples (Food) are the leaders'. Team Leads and up see them all."""
+
+    def test_the_kinds_by_who(self):
+        op = """c => { storeEvents = [
+                    {id: 'a', kind: 'food', title: 'Community Outreach', date: '2026-10-28'},
+                    {id: 'b', kind: 'instore', title: 'Halloween Week Promo', date: '2026-10-28', end: '2026-10-31'},
+                    {id: 'c', kind: 'food', title: 'Sample: Chicken & Waffles', date: '2026-10-05', end: '2026-10-31'},
+                    {id: 'd', kind: 'drivethru', title: 'Pack the Drive Thru', date: '2026-10-29', from: '12:00', to: '13:00'}];
+                  const d = rnDay(); const t = m => m ? [m.special.map(x => x.ev.title), m.ongoing.map(e => e.title)] : null;
+                  acUser = null; launchManager = false; const nobody = rnCardFor(rnViewer(), d).team;
+                  acUser = {role: 'member', name: 'Ana Ruiz'}; const member = rnCardFor(rnViewer(), d).team;
+                  acUser = {role: 'trainer', name: 'Ana Ruiz'}; const trainer = rnCardFor(rnViewer(), d).team;
+                  acUser = {role: 'lead', name: 'Leo Park'}; const lead = !!rnCardFor(rnViewer(), d).team;
+                  return {team: t(rnEvents(d, true)), all: t(rnEvents(d, false)), nextTeam: rnEvents(d, true).next.list.map(e => e.title), nobody, member, trainer, lead}; }"""
+        got = run({'op': op, 'at': '2026-10-28T21:14:00-05:00'})[0]
+        self.assertEqual(got['team'], [['Halloween Week Promo'], []])
+        self.assertEqual(got['all'], [['Community Outreach', 'Halloween Week Promo'], ['Sample: Chicken & Waffles']])
+        self.assertEqual(got['nextTeam'], ['Pack the Drive Thru'])                       # tomorrow's Drive Thru push still shows
+        self.assertEqual((got['nobody'], got['member'], got['trainer'], got['lead']), (True, True, True, False))
+        self.assertIn("${rnEventsHtml(day, boh, !!card.team)}", read('static', 'js', 'right-now.js'))
 
 
 class PageWiring(unittest.TestCase):

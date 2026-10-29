@@ -3,10 +3,10 @@
 // (Tim). Under it, this card: what matters this minute, for whoever is
 // holding the phone. Who that is comes from the sign-in (accounts.js
 // acUser, launch-mode.js launchManager):
-//  - Team Member: their spot now, next and later today, their shift, their
-//    break, the zone they reset at the coming handoff, the tickets handed to
-//    them on the Tasks tab, their own PEA scores, the day's waste (Tim,
-//    Oct 28 2026: "what all they need to see").
+//  - Team Member: their spot now, next and later today, their shift, the
+//    zone they reset at the coming handoff, the tickets handed to them on
+//    the Tasks tab, their own PEA scores, and the day's marketing events
+//    (Tim, Oct 28 2026: "what all they need to see"; no break or waste line).
 //  - Trainer: the same, plus the open spots on their side now.
 //  - Team Lead: their side's shift: open spots, people on the floor with no
 //    spot, the handoff's zones, breaks coming up, waste, Food Safety.
@@ -18,7 +18,9 @@
 //  - Director (or the manager PIN): the whole store now, the rest of the
 //    day, the leaders on, tomorrow's Set Ups, waste, Food Safety, and the
 //    day's roster a tap away.
-//  - A phone nobody signed in on: the shift as a whole, and a way to sign in.
+//  - A phone nobody signed in on: the day's marketing events and a way to
+//    sign in (Tim, Oct 28 2026: no leader numbers before sign-in). The
+//    kitchen iPad's side keeps its prep, breaks and Food Safety.
 // It reads only what that phone already has (a team PIN never reads the
 // private sections), and every row opens the screen that fixes it. On the
 // kitchen's side the lines carry Spanish; FOH stays English.
@@ -201,7 +203,7 @@ function rnPersonCard(v, day, trainer){
       rows.push(rnRow('', `Your shift ${dayName}: ${rnShiftsText(on)}`, esText('Your shift'), ''));
       spots.forEach(x => rows.push(rnRow(rnClock(parseDaypartTimeToMinutes(x.dp.time)), `${x.slot} at ${rnShort(x.dp.name)}`, esPlace(x.slot), `setups:${x.side}|${date}|${x.dp.name}`)));
     }
-    return {side, first, rows, kicker: `${dayName}`, title: `Hi, ${first1}`};
+    return {side, first, rows, team: true, kicker: `${dayName}`, title: `Hi, ${first1}`};
   }
 
   const entry = floor.length ? floor[0].entry : null;   // breaks and spots are the floor's
@@ -210,18 +212,12 @@ function rnPersonCard(v, day, trainer){
   const offFloor = !floor.length && on.length ? on[0] : null;
   const nowSpot = spots.find(s => s.dpIndex === rnDaypartIndex(s.side, day.now) && parseDaypartTimeToMinutes(s.dp.time) <= day.now);
   const nextSpot = spots.find(s => parseDaypartTimeToMinutes(s.dp.time) > day.now);
-  const brk = entry ? breakFor(side, today, entry.name) : null;
-  const brkKey = entry ? breakKeyFor(entry.name, today, side) : '';
-  const onBreak = entry && breakCountdowns[brkKey] && breakCountdowns[brkKey] > serverNow();
-  const brkTaken = entry && !!completedBreaks[brkKey];
   const hand = side === 'foh' ? rnHandoff(today) : null;
   const myZones = hand ? hand.zones.filter(z => z.owners.some(o => names.some(n => rnSame(o, n)))) : [];
   let nowFirst = false;
 
   if(!on.length && !spots.length){
     first = {text: 'You’re not on today’s schedule.', es: esText('Not on the schedule')};
-  } else if(onBreak){
-    first = {text: `On break until ${rnClock(Math.round((breakCountdowns[brkKey] - serverNow()) / 60000) + day.now)}.`, es: esText('On break')};
   } else if(myZones.some(z => !z.done) && day.now >= hand.at - 30){
     const z = myZones.find(x => !x.done);
     first = {text: `Reset ${z.zone} for the ${hand.title} handoff (${z.checked} of ${z.total} done).`, go: `zone:${hand.name}`};
@@ -244,17 +240,13 @@ function rnPersonCard(v, day, trainer){
   spots.filter(x => x !== nextSpot && parseDaypartTimeToMinutes(x.dp.time) > day.now).forEach(x =>
     rows.push(rnRow(rnClock(parseDaypartTimeToMinutes(x.dp.time)), `Later: ${x.slot} (${rnShort(x.dp.name)})`, esText('Later spot') + (esPlace(x.slot) ? ': ' + esPlace(x.slot) : ''), `setups:${x.side}|${today}|${x.dp.name}`)));
   if(on.length) rows.push(rnRow('', `Your shift: ${rnShiftsText(on)}`, esText('Your shift'), ''));
-  // A planned break still ahead (or just due); one long past is the leader's to sort out.
-  if(brk && brk.start !== null && brk.start >= day.now - 15 && !brkTaken && !onBreak) rows.push(rnRow(rnClock(brk.start), 'your break', esText('Your break'), `setups:${side}|${today}|`, brk.start <= day.now ? 'warn' : ''));
   myZones.forEach(z => rows.push(rnRow(`${z.checked}/${z.total}`, `your zone: ${z.zone} · ${hand.title} at ${rnClock(hand.at)}`, '', `zone:${hand.name}`, z.done ? 'ok' : '')));
   rnTicketRows(day).forEach(r => rows.push(r));
   if(trainer && entry){
     const g = rnDaypartGaps(side, today, rnDaypartIndex(side, day.now));
     rows.push(rnRow(String(g.open.length), `open spot${g.open.length === 1 ? '' : 's'} on ${side.toUpperCase()} for ${rnShort(g.dp.name)}`, esText('Open spots now'), g.open.length ? `spot:${side}|${g.dp.name}|${g.open[0].slot}` : `setups:${side}|${today}|${g.dp.name}`, g.open.length ? 'bad' : 'ok'));
   }
-  const w = rnWaste();
-  rows.push(rnRow(rnMoney(w.total), `waste today, limit ${rnMoney(w.limit)}`, esText('Waste today'), 'waste', w.over ? 'bad' : w.near ? 'warn' : 'ok'));
-  return {side, first, rows, title: `Hi, ${first1}`, pea: rnMine.pea && rnMine.pea.positions && rnMine.pea.positions.length ? rnMine.pea : null};
+  return {side, first, rows, team: true, title: `Hi, ${first1}`, pea: rnMine.pea && rnMine.pea.positions && rnMine.pea.positions.length ? rnMine.pea : null};
 }
 
 // ----- Mine: my tickets and my PEA (Tim, Oct 28 2026) -----
@@ -571,27 +563,17 @@ function rnKitchenCard(day){
     rows.push(rnRow(rnMoney(w.total), `kitchen waste today${w.top ? ` · most: ${w.top.name} ${rnMoney(w.top.cost)}` : ''}`,
       [esText('Kitchen waste today'), w.top ? esText('Most wasted', w.top.name, rnMoney(w.top.cost)) : ''].filter(Boolean).join(' · '), 'waste', ''));
   }
-  rows.push(rnRow('', 'Sign in with your clock-in PIN to see your spot and your break', esText('Sign in to see your spot'), 'signin', ''));
-  return {side: 'boh', first: null, rows, title: '', sideSwitch: true};
+  rows.push(rnRow('', 'Sign in with your clock-in PIN to see your spot', esText('Sign in to see your spot'), 'signin', ''));
+  return {side: 'boh', first: null, rows, team: true, title: '', sideSwitch: true};
 }
 
-// Nobody signed in: the shift as a whole, or the kitchen's card on a kitchen iPad.
+// Nobody signed in: the day's marketing events and a way to sign in (Tim,
+// Oct 28 2026: the spots set, zones and waste are the leaders'), or the
+// kitchen's card on a kitchen iPad.
 function rnTeamCard(day){
   if(rnDeviceSide() === 'boh') return rnKitchenCard(day);
-  const rows = [];
-  if(!day.closed){
-    const g = rnDaypartGaps('foh', today, rnDaypartIndex('foh', day.now));
-    rows.push(rnRow(`${g.m.filled}/${g.m.filled + g.open.length}`, `FOH spots set for ${rnShort(g.dp.name)}`, '', `setups:foh|${today}|${g.dp.name}`, g.open.length ? 'warn' : 'ok'));
-    const hand = rnHandoff(today);
-    if(hand){
-      const done = hand.zones.filter(z => z.done).length;
-      rows.push(rnRow(`${done}/${hand.zones.length}`, `zones reset · ${hand.title} at ${rnClock(hand.at)}`, '', `zone:${hand.name}`, done === hand.zones.length ? 'ok' : ''));
-    }
-    const w = rnWaste();
-    rows.push(rnRow(rnMoney(w.total), `waste today, limit ${rnMoney(w.limit)}`, '', 'waste', w.over ? 'bad' : w.near ? 'warn' : 'ok'));
-  }
-  rows.push(rnRow('', 'Sign in with your clock-in PIN to see your spot and your break', '', 'signin', ''));
-  return {side: 'foh', first: null, rows, title: '', sideSwitch: true};
+  const rows = [rnRow('', 'Sign in with your clock-in PIN to see your spot', '', 'signin', '')];
+  return {side: 'foh', first: null, rows, team: true, title: '', sideSwitch: true};
 }
 
 // The Front / Kitchen switch on a signed-out card.
@@ -630,6 +612,10 @@ function rnCardForRole(v, day){
 // one event on its own, not the whole calendar. Leadership meetings show
 // only to managers, as on the Calendar (eventsList).
 const RN_EV_SPECIAL_DAYS = 7;          // longer than a week: "Also running"
+// What team members see (Tim, Oct 28 2026): the marketing events, In store
+// and Drive Thru (the promos, Free Breakfast Tuesday, Family Night, Pack the
+// Drive Thru). Community Outreach and the samples are leaders' only.
+const RN_TEAM_KINDS = ['instore', 'drivethru'];
 const RN_EV_SOON = 120;                // "in 45 min" within two hours
 const RN_ICON_CAL = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>';
 const RN_ICON_X = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
@@ -653,11 +639,12 @@ function rnEvWhen(ev, now, live){
 
 // The block's model: the day it's for, its special events (now first, then
 // coming up, all day, and over last), the long ones, and the next day's.
-function rnEvents(day){
+function rnEvents(day, team){
   if(typeof eventsOn !== 'function') return null;
   const live = !day.closed;
   const date = live ? today : day.next;
-  const all = eventsOn(date);
+  const on = d => eventsOn(d).filter(ev => !team || RN_TEAM_KINDS.includes(ev.kind));
+  const all = on(date);
   const order = {now: 0, soon: 1, later: 2, allday: 3, done: 4};
   const special = all.filter(rnEvSpecial).map(ev => ({ev, when: rnEvWhen(ev, day.now, live)}))
     .sort((a, b) => order[a.when.state] - order[b.when.state]);
@@ -665,7 +652,7 @@ function rnEvents(day){
   let next = null;
   if(live){
     const ids = new Set(all.map(ev => ev.id));
-    const list = eventsOn(day.next).filter(rnEvSpecial).filter(ev => !ids.has(ev.id));
+    const list = on(day.next).filter(rnEvSpecial).filter(ev => !ids.has(ev.id));
     if(list.length) next = {date: day.next, list};
   }
   if(!special.length && !ongoing.length && !next) return null;
@@ -674,8 +661,8 @@ function rnEvents(day){
 
 function rnWeekday(iso){ return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', {weekday: 'long'}); }
 
-function rnEventsHtml(day, boh){
-  const m = rnEvents(day);
+function rnEventsHtml(day, boh, team){
+  const m = rnEvents(day, team);
   if(!m) return '';
   const es = t => boh && t ? esSpan(t, false) : '';
   const tap = (ev, date) => `data-rn-ev="${escapeHtml(ev.id)}" data-rn-ev-date="${escapeHtml(date)}" role="button" tabindex="0"`;
@@ -794,7 +781,7 @@ function renderRightNow(){
       ${card.sideSwitch ? rnSideSwitchHtml() : ''}
     </div>
     <h2 class="rn-title">${escapeHtml(title)}${day.closed ? '' : ` <span class="rn-time">${escapeHtml(rnClock(day.now))}</span>`}</h2>
-    ${rnEventsHtml(day, boh)}
+    ${rnEventsHtml(day, boh, !!card.team)}
     ${card.first ? `<div class="rn-first${card.first.go ? ' is-go' : ''}"${go(card.first.go)}><b>First thing${boh ? `<span class="es" lang="es"> · ${escapeHtml(esText('First thing'))}</span>` : ''}</b><span>${escapeHtml(card.first.text)}</span>${es(card.first.es)}</div>` : ''}
     ${card.roster && card.rosterFirst ? rnRosterHtml(card.roster, card.rosterHead) : ''}
     <div class="rn-list">

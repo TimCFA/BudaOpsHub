@@ -101,7 +101,7 @@ class TodayOnTheCalendar(unittest.TestCase):
 class Wiring(unittest.TestCase):
     def test_on_every_card_under_the_title(self):
         js = read('static', 'js', 'right-now.js')
-        self.assertIn("</h2>\n    ${rnEventsHtml(day, boh)}", js)
+        self.assertIn("</h2>\n    ${rnEventsHtml(day, boh, !!card.team)}", js)
         self.assertIn("if(ev){ rnOpenEvent(ev.dataset.rnEv, ev.dataset.rnEvDate, ev); return; }", js)
         page = read('cfa-buda-ops-hub-complete.html')
         self.assertLess(page.index('/static/js/events.js'), page.index('/static/js/right-now.js'))
