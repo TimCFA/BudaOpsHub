@@ -15,7 +15,7 @@ let fmApp = null;            // the engine's form library, once mounted
 let fmInbox = null;          // the engine's inbox, once mounted
 let fmMode = 'fill';         // 'fill' | 'inbox' | 'uniforms'
 let fmFrom = 'fill';         // where Uniform orders' back button goes
-let fmUniformsIn = false;    // the Uniform order card is in the mounted library
+let fmUniformsIn = '';       // which of the Uniform order and Uniform credit cards the mounted library has
 let fmCustom = [];           // forms added in Manage (hidden ones too, for a manager)
 let fmCustomLoaded = false;
 let fmBuilder = null;        // the form open in the builder
@@ -39,8 +39,14 @@ const FM_UNIFORM_CARD = {id: 'uniform_order', title: 'Uniform order', title_es: 
 function fmDefs(){
   return [...(window.OPS_FORM_DEFINITIONS || []), ...fmCustom.filter(d => !d.hidden)];
 }
+// Directors' uniform credit (team-extras.js; Tim, Oct 28 2026): a card that
+// opens the request sheet, for a director signed in as themselves.
+const FM_CREDIT_CARD = {id: 'uniform_credit', title: 'Uniform credit', title_es: 'Crédito de uniforme', category: 'people', icon: 'shirt', audience: 'leaders',
+  blurb: 'Directors: send a receipt against your $500 a year; the admin team approves it', blurb_es: 'Directores: envía un recibo contra tus $500 al año; el equipo administrativo lo aprueba',
+  keywords: ['uniform', 'credit', 'receipt', 'director', 'crédito', 'recibo'], open: () => { if(typeof apOpenCredit === 'function') apOpenCredit(); }};
+const fmCreditShown = () => typeof apCreditShown === 'function' && apCreditShown();
 function fmLibraryDefs(){
-  return fmUniformsShown() ? [...fmDefs(), FM_UNIFORM_CARD] : fmDefs();
+  return [...fmDefs(), ...(fmUniformsShown() ? [FM_UNIFORM_CARD] : []), ...(fmCreditShown() ? [FM_CREDIT_CARD] : [])];
 }
 function fmOpenUniforms(pane){
   if(!fmUniformsShown()) return;
@@ -104,10 +110,11 @@ async function renderForms(){
     return;
   }
   if(fmMode === 'fill'){
-    // The Uniform order card comes and goes with a manager sign-in.
-    if(fmApp && fmUniformsIn !== fmUniformsShown()){ fmApp = null; fill.innerHTML = ''; fill.className = ''; }
+    // The Uniform order card comes and goes with a manager sign-in, the
+    // Uniform credit card with a director's own.
+    if(fmApp && fmUniformsIn !== `${fmUniformsShown()}|${fmCreditShown()}`){ fmApp = null; fill.innerHTML = ''; fill.className = ''; }
     if(!fmApp){
-      fmUniformsIn = fmUniformsShown();
+      fmUniformsIn = `${fmUniformsShown()}|${fmCreditShown()}`;
       fmApp = OpsForms.mount(fill, {endpoint: FM_ENDPOINT, definitions: fmLibraryDefs(), isLeader: fmIsLeader(), roster: fmRoster(), stores: FM_STORES});
     }
     else fmApp.setLeader(fmIsLeader());

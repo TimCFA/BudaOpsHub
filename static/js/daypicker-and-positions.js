@@ -527,6 +527,16 @@ document.getElementById('posModalSearch').addEventListener('input', (e)=>{
   renderPosOptionList(window.currentPosModalEligible || [], e.target.value);
 });
 
+// One tap picks a name, search box open or not (Tim, Oct 28 2026: on the
+// iPad it took two). Pressing a name used to take the focus from the search
+// box; the iPad then dropped its keyboard bar, the screen grew, the sheet
+// moved under the pointer and the press was lost. A press on a name (or any
+// button in the sheet) leaves the focus where it is; the tap still lands.
+['posModal', 'vacancyModal'].forEach(id => {
+  const m = document.getElementById(id);
+  if(m) m.addEventListener('mousedown', e => { if(e.target.closest('button') && document.activeElement && document.activeElement.matches('input[type="search"]')) e.preventDefault(); });
+});
+
 document.getElementById('posModal').addEventListener('click',(e)=>{
   if(e.target===document.getElementById('posModal')) document.getElementById('posModal').classList.remove('active');
 });

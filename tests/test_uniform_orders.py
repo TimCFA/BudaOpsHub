@@ -163,7 +163,7 @@ class Page(unittest.TestCase):
         with open(os.path.join(ROOT, 'static', 'js', 'forms.js'), encoding='utf-8') as f:
             src = f.read()
         self.assertIn("function fmUniformsShown(){ return typeof uoShown === 'function' && uoShown()", src)
-        self.assertIn("return fmUniformsShown() ? [...fmDefs(), FM_UNIFORM_CARD] : fmDefs();", src)
+        self.assertIn("return [...fmDefs(), ...(fmUniformsShown() ? [FM_UNIFORM_CARD] : []), ...(fmCreditShown() ? [FM_CREDIT_CARD] : [])];", src)
         with open(os.path.join(ROOT, 'static', 'js', 'navigation.js'), encoding='utf-8') as f:
             self.assertIn("if(view === 'uniforms'){\n    view = 'forms';", f.read())   # an old link still lands
 

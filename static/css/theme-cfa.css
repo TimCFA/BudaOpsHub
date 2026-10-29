@@ -218,7 +218,10 @@ body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="z
 .overlay{background:rgba(28,27,25,0.38);backdrop-filter:none;-webkit-backdrop-filter:none;}
 .su-pick .sheet{border-radius:22px 22px 0 0;padding:14px 18px calc(16px + env(safe-area-inset-bottom));max-width:520px;animation:su-pick-in .18s ease-out;will-change:transform;}
 @keyframes su-pick-in{from{transform:translateY(24px);}to{transform:translateY(0);}}
-@media (min-width:720px){ .su-pick{align-items:center;} .su-pick .sheet{border-radius:22px;padding-bottom:18px;} }
+/* On a tablet the picker sits a fixed way down from the top, not centered: a
+   keyboard bar coming or going changes the screen's height, and a centered
+   sheet moved under a finger mid-tap (Tim, Oct 28 2026). */
+@media (min-width:720px){ .su-pick{align-items:flex-start;padding-top:56px;} .su-pick .sheet{border-radius:22px;padding-bottom:18px;max-height:calc(100% - 80px);} }
 .su-pick-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;}
 .su-pick-head::before{content:"";position:absolute;left:50%;top:6px;width:40px;height:4px;margin-left:-20px;border-radius:999px;background:var(--cfa-soft);}
 .su-pick .sheet{position:relative;--su-crushing:#2E7D45;--su-rise:#C47A00;--su-notyet:#AF272F;--su-bg:var(--cfa-light);--su-ink:var(--text-primary);}
@@ -2650,11 +2653,16 @@ body:not(.hc-allowed) .hc-only{display:none !important;}
 .ts-head h2{margin:0;font-family:var(--font-display);font-size:26px;color:var(--text-primary);}
 .ts-head h2 .es-line{font-family:var(--font-ui);font-size:13px;font-weight:500;color:var(--text-tertiary);}
 .ts-head p{margin:2px 0 10px;color:var(--text-secondary);font-size:14px;}
-.ts-weeks{display:flex;gap:6px;}
+/* As many week pills as weeks scheduled: they wrap onto a second line on a
+   phone, so every week stays in sight. */
+.ts-head{min-width:0;}
+.ts-weeks{display:flex;flex-wrap:wrap;gap:6px;}
 .ts-week,.ts-chip{border:1px solid var(--border);background:var(--cfa-white);color:var(--text-primary);border-radius:999px;padding:8px 14px;font:600 14px var(--font-ui);min-height:40px;cursor:pointer;}
 .ts-week .es,.ts-chip small{font-weight:500;color:var(--text-tertiary);margin-left:4px;}
 .ts-week.active,.ts-chip.active{background:var(--cfa-navy);border-color:var(--cfa-navy);color:#F6F1E8;}
 .ts-week.active .es,.ts-chip.active small{color:rgba(246,241,232,0.75);}
+.ts-week{white-space:nowrap;line-height:1.2;padding:6px 14px;text-align:left;}
+.ts-week .es{display:block;margin-left:0;font-size:12px;}
 .ts-card{background:var(--cfa-white);border:1px solid var(--border);border-radius:14px;padding:14px 16px;}
 .ts-card > h3,.ts-card-head h3{margin:0;font-family:var(--font-display);font-size:20px;}
 .ts-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;}
@@ -2849,3 +2857,65 @@ body:not(.hc-allowed) .hc-only{display:none !important;}
 .rl-log li p{margin:0;font-size:14px;line-height:1.4;}
 .rl-log li small{font-size:12px;color:var(--text-secondary);}
 
+
+/* ===== Team profiles, the admin side (team-extras.js; Tim, Oct 28 2026) =====
+   Under a profile on Our Team: level, points, PTO, uniform credit, each a
+   white block with the slab serif for its heading and hero numbers; the
+   Admin Team's review panel and the request sheet in the same clothes. */
+.ap-sec{display:grid;gap:12px;margin:12px 0 18px;}
+.ap-block{background:var(--cfa-white);border:1px solid var(--border);border-radius:14px;padding:14px 16px;}
+.ap-block h4{margin:0 0 8px;font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--text-primary);}
+.ap-sub{display:block;margin-top:6px;font-size:12.5px;color:var(--text-secondary);}
+.ap-in{padding:9px 10px;border:1px solid var(--border);border-radius:10px;background:var(--cfa-white);font:inherit;font-size:15px;color:var(--text-primary);}
+.ap-grow{flex:1 1 160px;min-width:0;}
+.ap-big{display:flex;align-items:center;gap:10px;}
+.ap-big b{font-family:var(--font-display);font-size:34px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;}
+.ap-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.ap-stats > div{padding:10px;border-radius:12px;background:var(--cfa-navy);color:#fff;}
+.ap-stats b{display:block;font-family:var(--font-display);font-size:24px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums;}
+.ap-stats span{font-size:12px;color:rgba(255,255,255,.75);}
+.ap-stats > .is-left{background:#003A54;box-shadow:inset 0 -3px 0 #7BD88F;}
+.ap-list{list-style:none;margin:10px 0 0;padding:0;}
+.ap-list li{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;padding:8px 0;border-top:1px solid var(--border);font-size:14px;}
+.ap-list li:first-child{border-top:0;}
+.ap-list li > span{min-width:56px;font-size:12.5px;color:var(--text-tertiary);font-variant-numeric:tabular-nums;}
+.ap-list li > b{margin-left:auto;font-variant-numeric:tabular-nums;}
+.ap-list li i{color:var(--text-secondary);}
+.ap-st{font-style:normal;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--cfa-soft);color:var(--text-secondary);}
+.ap-st.is-approved{background:var(--ok-soft);color:var(--ok);} .ap-st.is-denied{background:#FBE3E4;color:var(--cfa-dark-red);} .ap-st.is-pending{background:#FFF0C7;color:#7A4A05;}
+.ap-rc{font-size:13px;font-weight:600;color:var(--cfa-navy);}
+.ap-x{border:0;background:none;padding:4px;color:var(--text-tertiary);cursor:pointer;}
+.ap-pto-form{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+.ap-pto-form .ap-in[type="date"]{flex:0 1 160px;} .ap-pto-form .ap-in[type="number"]{flex:0 1 90px;}
+.ap-panel{display:grid;gap:10px;margin:0 0 16px;}
+.ap-review{background:var(--cfa-white);border:2px solid var(--cfa-red);border-radius:14px;padding:12px 14px;}
+.ap-review .hc-h{display:flex;align-items:center;gap:8px;margin:0 0 6px;}
+.ap-count{min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:var(--cfa-red);color:#fff;font-family:var(--font-ui);font-size:12px;font-weight:700;display:inline-grid;place-items:center;}
+.ap-req{display:flex;gap:12px;padding:10px 0;border-top:1px solid var(--border);}
+.ap-req:first-of-type{border-top:0;}
+.ap-thumb{flex:none;width:72px;height:72px;border-radius:10px;overflow:hidden;background:var(--cfa-soft);}
+.ap-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+.ap-req-body{flex:1;min-width:0;font-size:14.5px;}
+.ap-req-body p{margin:4px 0 0;color:var(--text-secondary);}
+.ap-req-go{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+.ap-more{background:var(--cfa-white);border:1px solid var(--border);border-radius:14px;padding:10px 14px;}
+.ap-more summary{cursor:pointer;font-weight:700;}
+.ap-hours{display:grid;gap:8px;margin-top:10px;}
+.ap-hours label{display:flex;align-items:center;gap:8px;font-size:14px;}
+.ap-hours label span{flex:1;}
+.ap-hours .ap-in{width:90px;}
+body.ap-open{overflow:hidden;}
+.ap-layer{position:relative;z-index:1150;}
+.ap-scrim{position:fixed;inset:0;background:rgba(20,18,15,.5);}
+.ap-sheet{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:100%;max-width:560px;max-height:calc(100% - 12px);overflow:auto;overscroll-behavior:contain;
+  padding:14px 18px calc(22px + env(safe-area-inset-bottom,0px));border-radius:20px 20px 0 0;background:var(--cfa-bg);box-shadow:0 -10px 40px rgba(0,0,0,.25);}
+@media (min-width:700px){.ap-sheet{bottom:auto;top:50%;transform:translate(-50%,-50%);border-radius:20px;max-height:calc(100% - 48px);}}
+.ap-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;}
+.ap-head h2{margin:0;font-family:var(--font-display);font-size:25px;font-weight:700;}
+.ap-close{width:38px;height:38px;border:1px solid var(--border);border-radius:10px;background:var(--cfa-white);display:grid;place-items:center;color:var(--text-secondary);cursor:pointer;}
+.ap-sheet .ap-block{margin-top:12px;}
+.ap-credit-form{display:grid;gap:12px;margin-top:12px;}
+.ap-credit-form label{display:grid;gap:5px;font-weight:700;font-size:14px;}
+.ap-photo{display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;}
+.ap-preview{max-width:100%;max-height:260px;border-radius:10px;object-fit:contain;background:var(--cfa-soft);}
+.ap-req-go .btn,.ap-pto-form .btn,.ap-hours .btn,.ap-block > .btn{width:auto;flex:0 0 auto;}

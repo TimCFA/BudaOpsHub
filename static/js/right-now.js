@@ -602,6 +602,13 @@ function rnSideSwitchHtml(){
 }
 
 function rnCardFor(v, day){
+  const card = rnCardForRole(v, day);
+  // My level, PTO and uniform credit, and the Admin Team's requests to review
+  // (team-extras.js; Tim, Oct 28 2026). Only the signed-in person's own.
+  if(v.name && typeof apRightNowRows === 'function') card.rows = card.rows.concat(apRightNowRows());
+  return card;
+}
+function rnCardForRole(v, day){
   if(v.role === 'member') return rnPersonCard(v, day, false);
   if(v.role === 'trainer') return rnPersonCard(v, day, true);
   if(v.role === 'lead') return rnWithRoster(rnLeadCard(v, day, false), day);
@@ -839,6 +846,8 @@ function rnGo(g){
   else if(what === 'schedule' && typeof tsShowDay === 'function') tsShowDay(rest);
   else if(what === 'foodsafety'){ launchShowTab('foodsafety'); window.scrollTo({top: 0}); }
   else if(what === 'prepboard'){ launchShowTab('prepboard'); window.scrollTo({top: 0}); }
+  else if(what === 'mine' && typeof apOpenMine === 'function') apOpenMine();
+  else if(what === 'credit' && typeof apOpenCredit === 'function') apOpenCredit();
   else if(what === 'ticket' || what === 'tickets'){ launchShowTab('tasks'); window.scrollTo({top: 0}); if(what === 'ticket' && typeof psOpenTicket === 'function') psOpenTicket(rest); }
   else if(what === 'signin' && typeof siOpen === 'function') siOpen();
   else if(what === 'signin'){ launchShowTab('manage'); window.scrollTo({top: 0}); const pin = document.getElementById('pinInput'); if(pin) pin.focus(); }

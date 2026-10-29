@@ -3030,6 +3030,15 @@ def _pass_people():
 
 pass_api.register(app, me=_pass_me, people=_pass_people, ref=lambda path: db.reference(path))
 
+# ===== TEAM PROFILES, THE ADMIN SIDE (Ashley; Tim, Oct 28 2026) =====
+# Levels, PTO and directors' uniform credit (team_extras.py), kept under
+# secure/ like the profiles above, for a director or the Admin Team, and each
+# person's own for them.
+import team_extras
+team_extras.register(app, ref=lambda path: db.reference(path), get_all=_firebase_get_all, access=_turnover_access,
+                     me=_pass_me, people=_pass_people, key_of=_profile_key, today=lambda: _turnover_today(),
+                     is_owner=lambda: bool(session.get('owner')))
+
 # ===== TIMERS (Oct 28 2026) =====
 # The store's recurring task timers on the Lists tab (timers_api.py; the
 # screen is static/js/timers.js). Events kept under timers/ in Firebase, one
