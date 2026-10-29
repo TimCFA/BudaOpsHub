@@ -192,7 +192,6 @@ function apRightNowRows(){
   const row = (n, text, es, go, tone) => ({n, text, es: es || '', go: go || '', tone: tone || ''});
   if(m.toReview) rows.push(row(String(m.toReview), `uniform credit request${m.toReview === 1 ? '' : 's'} to review`, '', 'headcount', 'warn'));
   if(m.pto && m.pto.allowance) rows.push(row(apHours(m.pto.left).replace(' h', 'h'), `PTO left in ${m.year}${m.levelLabel ? ` · ${m.levelLabel}` : ''}`, esText('PTO left this year'), 'mine', m.pto.left ? '' : 'warn'));
-  else if(m.levelLabel) rows.push(row('', `Your level: ${m.levelLabel}`, esText('Your level'), 'mine', ''));
   if(m.credit) rows.push(row(apMoney(m.credit.left), `uniform credit left in ${m.year}${m.credit.pending ? `, ${apMoney(m.credit.pending)} waiting` : ''}`, '', 'credit', ''));
   return rows;
 }

@@ -79,6 +79,7 @@ class TeamMember(unittest.TestCase):
         self.assertNotIn('Now: Drinks 1 (Dinner)', texts)            # already the first thing
         self.assertIn('Next: Host 1 (Close)', texts)
         self.assertIn('Your shift: 12:00p–8:30p', texts)
+        self.assertIn(['', 'Your shift: 12:00p–8:30p', 'myweek:2026-10-19'], [r[:3] for r in got['rows']])   # opens their week on the Schedule
         # Tim, Oct 28 2026: what a team member needs, no break or waste line.
         self.assertFalse(any('break' in t or 'waste' in t for t in texts))
         # Nothing about other people's gaps: that's the lead's.
@@ -114,7 +115,7 @@ class TeamMember(unittest.TestCase):
                                      {'op': card('member', 'Jordan Testcase', setup=office), 'at': '2026-10-19T09:00:00-05:00'},
                                      {'op': card('member', 'Jordan Testcase', setup=office), 'at': '2026-10-19T12:00:00-05:00'})
         self.assertEqual(sunday['first'], 'Monday: your shift is 11:30a–2:30p (Office).')
-        self.assertEqual(sunday['rows'][0][1], 'Your shift Monday: 11:30a–2:30p (Office)')
+        self.assertEqual(sunday['rows'][0][1:3], ['Your shift Monday: 11:30a–2:30p (Office)', 'myweek:2026-10-19'])
         self.assertEqual(before['first'], 'Your shift starts at 11:30.')
         self.assertEqual(during['first'], 'Your Office shift today: 11:30a–2:30p.')
         self.assertIn('Your shift: 11:30a–2:30p (Office)', [r[1] for r in during['rows']])
@@ -325,6 +326,15 @@ class ScheduleWeeks(unittest.TestCase):
         self.assertIn('data-ts-day="2026-11-10"', got[1][0])
         self.assertEqual(got[2][1], 0)                       # a week with nothing in it falls back to this one
         self.assertEqual(got[3], 3)                          # Home's day links reach a later week too
+
+    def test_your_shift_opens_that_week(self):
+        """Tim, Oct 28 2026: "Your shift" on the Right Now card links to the
+        Schedule, to see their shifts for the whole week."""
+        weeks = ("fohRoster[today] = [{name: 'Ana Ruiz Lopez', start: '12:00p', end: '8:30p'}];"
+                 "bohRoster['2026-11-10'] = [{name: 'Mateo Cruz', start: '5:00a', end: '1:00p'}];")
+        got = run({'op': "c => { " + weeks + " window = {scrollTo(){}}; const r = []; tsShowWeek('2026-11-10'); r.push(tsOffset); tsShowWeek('2026-10-21'); r.push(tsOffset); tsShowWeek('2026-11-02'); r.push(tsOffset); return r; }"})[0]
+        self.assertEqual(got, [3, 0, 0])                      # a week with nothing in it: this week
+        self.assertIn("else if(what === 'myweek' && typeof tsShowWeek === 'function') tsShowWeek(rest);", read('static', 'js', 'right-now.js'))
 
     def test_pills_wrap_on_a_phone(self):
         css = read('static', 'css', 'theme-cfa.css')

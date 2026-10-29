@@ -327,6 +327,16 @@ function tsShowDay(iso){
   if(who) who.scrollIntoView({block: 'start'});
 }
 
+// From the Right Now card's "Your shift": the Schedule tab on that week, from
+// the top, where a signed-in team member's own week comes first.
+function tsShowWeek(iso){
+  const off = tsWeekOffsets().find(o => tsWeek(o).some(d => d.iso === iso));
+  tsOffset = off === undefined ? 0 : off;
+  tsDay = null;
+  launchShowTab('schedule');
+  window.scrollTo({top: 0});
+}
+
 function renderTeamSchedule(){
   const root = document.getElementById('scheduleRoot');
   if(!root) return;

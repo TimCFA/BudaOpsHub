@@ -200,7 +200,7 @@ function rnPersonCard(v, day, trainer){
       first = s
         ? {text: `${dayName}: ${s.slot} at ${rnShort(s.dp.name)}.`, es: esText('Next: SPOT at DP', esPlace(s.slot) || s.slot, esDaypart(s.dp.name)), go: `setups:${s.side}|${date}|${s.dp.name}`}
         : {text: `${dayName}: your shift is ${rnShiftsText(on)}.${floor.length ? ' No spot yet.' : ''}`, es: esText('Your shift starts at TIME', rnShiftText(on[0].entry))};
-      rows.push(rnRow('', `Your shift ${dayName}: ${rnShiftsText(on)}`, esText('Your shift'), ''));
+      rows.push(rnRow('', `Your shift ${dayName}: ${rnShiftsText(on)}`, esText('Your shift'), `myweek:${date}`));
       spots.forEach(x => rows.push(rnRow(rnClock(parseDaypartTimeToMinutes(x.dp.time)), `${x.slot} at ${rnShort(x.dp.name)}`, esPlace(x.slot), `setups:${x.side}|${date}|${x.dp.name}`)));
     }
     return {side, first, rows, team: true, kicker: `${dayName}`, title: `Hi, ${first1}`};
@@ -239,7 +239,8 @@ function rnPersonCard(v, day, trainer){
   // Every spot after that today, so the whole day's Set Ups are here.
   spots.filter(x => x !== nextSpot && parseDaypartTimeToMinutes(x.dp.time) > day.now).forEach(x =>
     rows.push(rnRow(rnClock(parseDaypartTimeToMinutes(x.dp.time)), `Later: ${x.slot} (${rnShort(x.dp.name)})`, esText('Later spot') + (esPlace(x.slot) ? ': ' + esPlace(x.slot) : ''), `setups:${x.side}|${today}|${x.dp.name}`)));
-  if(on.length) rows.push(rnRow('', `Your shift: ${rnShiftsText(on)}`, esText('Your shift'), ''));
+  // A tap opens the Schedule on their week (Tim, Oct 28 2026).
+  if(on.length) rows.push(rnRow('', `Your shift: ${rnShiftsText(on)}`, esText('Your shift'), `myweek:${today}`));
   myZones.forEach(z => rows.push(rnRow(`${z.checked}/${z.total}`, `your zone: ${z.zone} · ${hand.title} at ${rnClock(hand.at)}`, '', `zone:${hand.name}`, z.done ? 'ok' : '')));
   rnTicketRows(day).forEach(r => rows.push(r));
   if(trainer && entry){
@@ -831,6 +832,7 @@ function rnGo(g){
   else if(what === 'waste'){ launchShowTab('wastelog'); window.scrollTo({top: 0}); }
   else if(what === 'headcount'){ launchShowTab('headcount'); window.scrollTo({top: 0}); }
   else if(what === 'schedule' && typeof tsShowDay === 'function') tsShowDay(rest);
+  else if(what === 'myweek' && typeof tsShowWeek === 'function') tsShowWeek(rest);
   else if(what === 'foodsafety'){ launchShowTab('foodsafety'); window.scrollTo({top: 0}); }
   else if(what === 'prepboard'){ launchShowTab('prepboard'); window.scrollTo({top: 0}); }
   else if(what === 'mine' && typeof apOpenMine === 'function') apOpenMine();
