@@ -8,8 +8,11 @@
 //   on    — added
 //   off   — no longer scheduled
 //   time  — same person, different hours
-// Only imported people count; ones added by hand (source: 'manual') are the
-// leader's own changes. Past days are pruned after a week.
+// Only imported people count as added or changed; ones added by hand (source:
+// 'manual') are the leader's own changes. But anyone on the roster now, hand
+// added or not, is on: a leader who swaps two people's shifts by removing
+// and re-adding them doesn't make them "off" (Tim, Oct 29 2026: two leaders
+// in the restaurant showed as off). Past days are pruned after a week.
 //
 // Set Ups doesn't list them (Tim, Oct 26 2026: the list was "chaotic and
 // unhelpful… can't decipher the information at one glance"). The one a lead
@@ -69,10 +72,11 @@ function rosterPrunePosted(){
 function rosterDayChanges(date, side){
   const posted = (rosterPosted[date] || {})[side];
   if(!posted) return [];
-  const now = rcImported((side === 'foh' ? fohRoster : bohRoster)[date]);
+  const all = ((side === 'foh' ? fohRoster : bohRoster)[date] || []).filter(p => p && p.name);
+  const now = rcImported(all);
+  const present = new Set(all.map(rcKey));
   const before = new Map(posted.map(p => [rcKey(p), p]));
-  const after = new Map(now.map(p => [rcKey(p), p]));
-  let off = posted.filter(p => !after.has(rcKey(p)));
+  let off = posted.filter(p => !present.has(rcKey(p)));
   let on = now.filter(p => !before.has(rcKey(p)));
   const changes = [];
   // Someone off and someone on for the same hours: a swap.
