@@ -74,7 +74,7 @@ class Wiring(unittest.TestCase):
         rn = read('static', 'js', 'right-now.js')
         self.assertIn("if(rnDeviceSide() === 'boh') return rnKitchenCard(day);", rn)
         self.assertIn("${card.sideSwitch ? rnSideSwitchHtml() : ''}", rn)
-        self.assertIn("return {side: 'boh', first: null, rows, title: '', sideSwitch: true};", rn)   # Spanish shows on it
+        self.assertIn("return {side: 'boh', first: null, rows, team: true, title: '', sideSwitch: true};", rn)   # Spanish shows on it
         self.assertIn("stateLoaded.then(rnApplyDeviceSide)", rn)
         self.assertIn("['#posToggle', '#logToggle']", rn)
 
