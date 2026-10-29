@@ -70,6 +70,16 @@ class RosterChangesTest(unittest.TestCase):
         self.assertEqual(got[('swap', 'Jordan Lee')]['for'], 'Avery Stone')
         self.assertEqual(got[('time', 'Casey Brooks')]['was'], '6:00a–2:00p')
 
+    def test_re_added_by_hand_is_not_off(self):
+        """Tim, Oct 29 2026: a leader swapped two leaders' shifts by taking
+        them off and adding them back by hand with each other's hours; both
+        showed "Off today" while in the restaurant."""
+        posted = [P('Riley Stone', '5:30a', '1:00p'), P('Casey Lin', '8:00a', '4:00p'), P('Gone Today', '6:00a', '2:00p')]
+        now = [P('Riley Stone', '8:00a', '4:00p', source='manual'), P('Casey Lin', '5:30a', '1:00p', source='manual')]
+        got = run([scenario(posted, now, "posAssignments['foh||2026-10-02||Breakfast||iPOS 1'] = 'Riley Stone';")])[0]
+        self.assertEqual(got['off'], ['gone today'])
+        self.assertEqual(got['fix'], [])
+
     def test_off_and_still_placed_is_a_spot_to_fix(self):
         # Tim, Oct 26 2026: no list of changes; the spot held by someone off is what to fix.
         posted = [P('Avery Stone', '6:00a', '1:00p'), P('Riley Park', '10:30a', '3:00p'), P('Sam Swap', '4:00p', '9:00p')]
