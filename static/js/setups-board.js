@@ -326,7 +326,9 @@ function suSideSwitchHtml(section){
 
 function suChipsRowHtml(section, date){
   const fix = typeof rosterFixChipHtml === 'function' ? rosterFixChipHtml(section, date) : '';
-  return `<div class="su-chips-line">${fix}${suSideSwitchHtml(section)}</div>`;
+  // Directors and the Admin Team: arrange the positions (positions-editor.js).
+  const edit = typeof posEditChipHtml === 'function' ? posEditChipHtml() : '';
+  return `<div class="su-chips-line">${fix}${edit}${suSideSwitchHtml(section)}</div>`;
 }
 
 // A daypart's numbers, as text: {sales, goal, actual, off, ev}.

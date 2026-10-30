@@ -238,6 +238,10 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .rn-roster-ic{background:rgba(29,29,29,0.14);}
 :where(html[data-theme="dark"]) .rn-rg-h{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .su-strip-arrow:hover{color:var(--ink-dark-red);}
+:where(html[data-theme="dark"]) .su-chip-edit svg{color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .pe-row.is-dragging .pe-grip{color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .pe-del:hover{color:var(--ink-red);}
+:where(html[data-theme="dark"]) .pe-link{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .su-chip-fix{border-color:#692D39;background:#342225;color:var(--ink-dark-red);}
 :where(html[data-theme="dark"]) .su-row.is-off,:where(html[data-theme="dark"]) .su-tile.is-off{background:#2D2425;}
 :where(html[data-theme="dark"]) .su-row.is-off .su-row-name > :first-child,:where(html[data-theme="dark"]) .su-tile.is-off .su-tile-name{text-decoration-color:rgba(255,48,94,0.55);}

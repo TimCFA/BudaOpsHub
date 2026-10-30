@@ -104,7 +104,7 @@ class ChipRow(unittest.TestCase):
         board = read('static', 'js', 'setups-board.js')
         fn = block(board, 'function suChipsRowHtml(section, date){', '\n}\n')
         self.assertIn("rosterFixChipHtml(section, date)", fn)
-        self.assertIn('<div class="su-chips-line">${fix}${suSideSwitchHtml(section)}</div>', fn)
+        self.assertIn('<div class="su-chips-line">${fix}${edit}${suSideSwitchHtml(section)}</div>', fn)   # directors: Edit positions
         self.assertEqual(board.count('${suChipsRowHtml(section, date)}'), 2)     # the Set up view and Coach
         for gone in ('suDayEventChipsHtml', 'rosterChangesChipHtml', 'rosterChangesBodyHtml', 'su-chips-row', '.ev-chip'):
             self.assertNotIn(gone, board)

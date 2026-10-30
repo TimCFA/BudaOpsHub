@@ -38,6 +38,7 @@ let leaderRoster = null; // [{name, roles}] the leaders and their PEC roles (lea
 let roleBoards = {};      // each Team Lead role's week and log (roles.js)
 let safeOrders = [];          // change orders placed: [{id, placedAt, by, lines, total, expected, note, status, receivedAt, receivedBy}] (safe-order.js)
 let safeOrderSettings = {};   // {par: {'1': bills, Quarters: rolls, ...}, step: {...}}: the change order (safe-order.js)
+let positionLists = {};   // {foh: {daypart: [positions]}, boh: {...}}: a daypart directors rearranged (positions-editor.js); one left out keeps zone-reset.js's list
 let peaGoals = null;     // {team, leader}: PEAs per quarter the team and each leader aim for; null = PEA_GOALS_SEED
 let leaderFocus = {};    // {'<leader key>__2026-Q4': [focus items]}: each leader's focus for the quarter
 let teamNotes = {};      // {team member: [{text, by, ts, date, type, tags: ['iPOS:2']}]}: directors' notes on each team member (team-pea.js)

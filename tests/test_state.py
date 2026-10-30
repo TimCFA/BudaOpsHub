@@ -919,6 +919,47 @@ class ExportTest(unittest.TestCase):
         self.assertEqual(body['sections']['waste']['entries'], [old])
 
 
+class PositionListsGateTest(unittest.TestCase):
+    """Set Ups' positions per daypart (positionLists; Tim, Oct 30 2026): only
+    directors and the Admin Team (a manager session) change them; everyone
+    reads them, since every phone draws Set Ups."""
+    LIST = {'foh': {'Lunch (10:30-1:00)': ['iPOS 1 (Captain)', 'Drinks 1']}}
+
+    def setUp(self):
+        appmod.db.reference = lambda path: FakeRef(path)
+        appmod._cache.clear()
+        appmod._cache_ready = False
+        store.clear()
+        for name in appmod.STATE_SECTIONS:
+            store[f'state/{name}'] = json.dumps({})
+        store['state/manager'] = json.dumps({'positionLists': self.LIST})
+        self.c = as_lead(appmod.app.test_client())
+
+    def patch(self, ops):
+        ver = self.c.post('/api/state/load', json={}).get_json()['versions']['manager']
+        return self.c.post('/api/state/patch', json={'patches': {'manager': {'ver': ver, 'ops': ops}}})
+
+    def test_in_the_manager_section_and_manager_only(self):
+        self.assertEqual(appmod.SECTION_OF_KEY['positionLists'], 'manager')
+        self.assertIn('positionLists', appmod.MANAGER_ONLY_KEYS)
+        self.assertNotIn('manager', appmod.PRIVATE_SECTIONS)      # a team phone reads it
+
+    def test_a_team_lead_cannot_change_them(self):
+        r = self.patch([{'o': 'set', 'p': ['positionLists'], 'v': {}}])
+        self.assertIn('positionLists', r.get_json().get('managerFieldsIgnored', []))
+        self.assertEqual(section('manager')['positionLists'], self.LIST)
+        sent = json.loads(self.c.post('/api/state/load', json={}).get_json()['sections']['manager'])
+        self.assertEqual(sent['positionLists'], self.LIST)
+
+    def test_a_director_or_the_admin_team_can(self):
+        new = {'foh': {'Lunch (10:30-1:00)': ['Drinks 1', 'iPOS 1 (Captain)', 'Curbside']}}
+        with self.c.session_transaction() as sess:
+            sess['manager'] = True
+        r = self.patch([{'o': 'set', 'p': ['positionLists'], 'v': new}])
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(section('manager')['positionLists'], new)
+
+
 class EventsGateTest(unittest.TestCase):
     """The events calendar (storeEvents) is manager-only, like the scoreboards."""
 
