@@ -225,6 +225,7 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .rn::before{border:16px solid rgba(255,255,255,0.072);}
 :where(html[data-theme="dark"]) .rn-first{background:#342225;}
 :where(html[data-theme="dark"]) .rn-first b{color:var(--ink-dark-red);}
+:where(html[data-theme="dark"]) .rn-first .rn-break-left{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .rn-n.is-bad{color:var(--ink-red);}
 :where(html[data-theme="dark"]) .rn-n.is-ok{color:#78D091;}
 :where(html[data-theme="dark"]) .rn-n.is-warn{color:#FFB545;}
