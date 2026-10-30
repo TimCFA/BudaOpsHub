@@ -257,6 +257,15 @@ def read(*parts):
 
 
 class Page(unittest.TestCase):
+    def test_no_pto_on_the_home_card(self):
+        """Tim, Oct 30 2026: PTO comes off the Right Now card; the uniform
+        credit and the Admin Team's requests to review stay."""
+        js = read('static', 'js', 'team-extras.js')
+        rows = js[js.index('function apRightNowRows(){'):js.index('\n}\n', js.index('function apRightNowRows(){'))]
+        self.assertNotIn('pto', rows.lower())
+        self.assertIn('uniform credit left in', rows)
+        self.assertIn('to review', rows)
+
     def test_wired_in(self):
         page = read('cfa-buda-ops-hub-complete.html')
         self.assertLess(page.index('<script src="/static/js/headcount.js"></script>'), page.index('<script src="/static/js/team-extras.js"></script>'))

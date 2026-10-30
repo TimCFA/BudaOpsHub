@@ -68,6 +68,7 @@ const ES = {
   'In training': 'En entrenamiento',
   'Start break': 'Iniciar descanso',
   'On break': 'En descanso',
+  'On break, back at TIME': t => `En descanso, regresa a las ${t}`,
   'back at': 'regresa a las',
   'Done': 'Listo',
   'Break done': 'Descanso hecho',

@@ -89,9 +89,22 @@ class TeamMember(unittest.TestCase):
         got = run({'op': card('member', 'Ana Ruiz', extra="breaks.foh = [{name: 'Ana Ruiz Lopez', start: 15 * 60}];")})[0]
         self.assertFalse(any(r[1] == 'your break' for r in got['rows']))
 
-    def test_on_break_still_shows_their_spot(self):
-        got = run({'op': card('member', 'Ana Ruiz', extra="breakCountdowns['foh||' + today + '||Ana Ruiz Lopez'] = Date.now() + 20 * 60000;")})[0]
-        self.assertEqual(got['first'], 'You’re on Drinks 1 until 8:00.')
+    def test_on_break_the_time_left_comes_first(self):
+        """Tim, Oct 30 2026: signed in and on break, their card shows the
+        time left, counting down; their spot rows stay under it."""
+        got = run({'op': card('member', 'Ana Ruiz', extra="breakCountdowns['foh||' + today + '||Ana Ruiz Lopez'] = Date.now() + 20 * 60000;")},
+                  {'op': card('member', 'Ana Ruiz', extra="breakCountdowns['foh||' + today + '||Ana Ruiz Lopez'] = Date.now() - 60000;")},
+                  {'op': """c => { """ + SETUP + """ breakCountdowns['foh||' + today + '||Ana Ruiz Lopez'] = Date.now() + 754000;
+                       const f = rnPersonCard({role: 'member', name: 'Ana Ruiz'}, rnDay(), false).first; return [f.until > Date.now(), rnBreakHtml(f)]; }"""})
+        self.assertEqual(got[0]['first'], 'On break, back at 5:30.')
+        self.assertEqual(got[0]['firstEs'], 'En descanso, regresa a las 5:30')
+        self.assertIn('Next: Host 1 (Close)', [r[1] for r in got[0]['rows']])
+        self.assertEqual(got[1]['first'], 'You’re on Drinks 1 until 8:00.')                 # a break that's over: back to the spot
+        self.assertTrue(got[2][0])
+        self.assertRegex(got[2][1], r'^On break: <b class="rn-break-left" data-rn-break-until="\d+">12:3[34]</b> left, back at 5:2[23]\.$')
+        js = read('static', 'js', 'right-now.js')
+        self.assertIn("document.querySelectorAll('#rightNow [data-rn-break-until]')", js)     # ticks every second
+        self.assertIn('${card.first.until ? rnBreakHtml(card.first) : escapeHtml(card.first.text)}', js)
 
     def test_their_zone_at_the_coming_handoff(self):
         got = run({'op': card('member', 'Ana Ruiz', extra="""handoff = {name: 'Dinner to Late Night (7:00pm - 8:00pm)', owners: {Restrooms: ['Ana Ruiz Lopez']}, done: {Restrooms: {checked: 1, total: 8}}};""")},

@@ -7,6 +7,7 @@
 //    zone they reset at the coming handoff, the tickets handed to them on
 //    the Tasks tab, their own PEA scores, and the day's marketing events
 //    (Tim, Oct 28 2026: "what all they need to see"; no break or waste line).
+//    On break, the time left counts down first thing (Tim, Oct 30 2026).
 //  - Trainer: the same, plus the open spots on their side now.
 //  - Team Lead: their side's shift: open spots, people on the floor with no
 //    spot, the handoff's zones, breaks coming up, waste, Food Safety.
@@ -214,10 +215,17 @@ function rnPersonCard(v, day, trainer){
   const nextSpot = spots.find(s => parseDaypartTimeToMinutes(s.dp.time) > day.now);
   const hand = side === 'foh' ? rnHandoff(today) : null;
   const myZones = hand ? hand.zones.filter(z => z.owners.some(o => names.some(n => rnSame(o, n)))) : [];
+  // On break: when it ends (a leader started it on Set Ups; it reaches this
+  // phone with the next sync).
+  const brkUntil = entry ? Number(breakCountdowns[breakKeyFor(entry.name, today, side)]) || 0 : 0;
+  const onBreak = brkUntil > serverNow();
   let nowFirst = false;
 
   if(!on.length && !spots.length){
     first = {text: 'You’re not on today’s schedule.', es: esText('Not on the schedule')};
+  } else if(onBreak){
+    const back = rnClock(day.now + Math.round((brkUntil - serverNow()) / 60000));
+    first = {text: `On break, back at ${back}.`, es: esText('On break, back at TIME', back), until: brkUntil, back};
   } else if(myZones.some(z => !z.done) && day.now >= hand.at - 30){
     const z = myZones.find(x => !x.done);
     first = {text: `Reset ${z.zone} for the ${hand.title} handoff (${z.checked} of ${z.total} done).`, go: `zone:${hand.name}`};
@@ -783,7 +791,7 @@ function renderRightNow(){
     </div>
     <h2 class="rn-title">${escapeHtml(title)}${day.closed ? '' : ` <span class="rn-time">${escapeHtml(rnClock(day.now))}</span>`}</h2>
     ${rnEventsHtml(day, boh, !!card.team)}
-    ${card.first ? `<div class="rn-first${card.first.go ? ' is-go' : ''}"${go(card.first.go)}><b>First thing${boh ? `<span class="es" lang="es"> · ${escapeHtml(esText('First thing'))}</span>` : ''}</b><span>${escapeHtml(card.first.text)}</span>${es(card.first.es)}</div>` : ''}
+    ${card.first ? `<div class="rn-first${card.first.go ? ' is-go' : ''}"${go(card.first.go)}><b>First thing${boh ? `<span class="es" lang="es"> · ${escapeHtml(esText('First thing'))}</span>` : ''}</b><span>${card.first.until ? rnBreakHtml(card.first) : escapeHtml(card.first.text)}</span>${es(card.first.es)}</div>` : ''}
     ${card.roster && card.rosterFirst ? rnRosterHtml(card.roster, card.rosterHead) : ''}
     <div class="rn-list">
       ${card.rows.map(r => `<div class="rn-row${r.go ? ' is-go' : ''}"${go(r.go)}>
@@ -856,6 +864,22 @@ document.getElementById('rightNow').addEventListener('keydown', e => {
   const t = e.target.closest('[data-rn-go]');
   if(t && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); rnGo(t.dataset.rnGo); }
 });
+
+// A break's time left, counting down (the seconds tick below).
+function rnBreakLeft(until){
+  const s = Math.max(0, Math.round((until - serverNow()) / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+function rnBreakHtml(f){
+  return `On break: <b class="rn-break-left" data-rn-break-until="${Number(f.until)}">${rnBreakLeft(f.until)}</b> left, back at ${escapeHtml(f.back)}.`;
+}
+setInterval(() => {
+  const els = document.querySelectorAll('#rightNow [data-rn-break-until]');
+  if(!els.length || document.visibilityState !== 'visible') return;
+  let over = false;
+  els.forEach(el => { const until = Number(el.dataset.rnBreakUntil); el.textContent = rnBreakLeft(until); if(until <= serverNow()) over = true; });
+  if(over) renderRightNow();
+}, 1000);
 
 // The minute moves on: keep it current while Home is showing.
 setInterval(() => {

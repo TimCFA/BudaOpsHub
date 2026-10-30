@@ -708,6 +708,28 @@ class SafeCountTest(unittest.TestCase):
         lead.post('/api/safe-orders/received', json={'id': 'co-2'})  # a second tap changes nothing
         self.assertEqual(section('safeOrders')['safeOrders'][1]['receivedAt'], first)
 
+    def test_the_change_order_came_different(self):
+        """Tim, Oct 30 2026: a Team Lead marks it arrived, and when it isn't
+        what was ordered, puts in what came (per bill and coin) and a note."""
+        orders = [{'id': 'co-3', 'placedAt': '2026-10-28T15:00:00Z', 'by': 'Avery Example', 'lines': {'5': 800, 'Quarters': 100}, 'total': 900,
+                   'expected': '2026-10-30', 'status': 'ordered'}]
+        store['state/safeOrders'] = json.dumps({'safeOrders': orders})
+        appmod._cache.clear()
+        appmod._cache_ready = False
+        lead = appmod.app.test_client()
+        with lead.session_transaction() as sess:
+            sess['user'] = {'name': 'Casey Example', 'role': 'lead'}
+            sess['teamEnds'] = int(time.time()) + 3600
+        for bad in ({'Pennies': 5}, {'5': 'lots'}, {'5': -1}, {'5': 10 ** 6}, ['5']):
+            self.assertEqual(lead.post('/api/safe-orders/received', json={'id': 'co-3', 'lines': bad}).status_code, 400, bad)
+        self.assertEqual(section('safeOrders')['safeOrders'][0]['status'], 'ordered')          # a refused one changes nothing
+        r = lead.post('/api/safe-orders/received', json={'id': 'co-3', 'lines': {'5': 800, 'Quarters': 60, '1': ''}, 'note': 'Bank was short on quarters'}).get_json()
+        self.assertEqual((r['order']['receivedLines'], r['order']['receivedTotal'], r['order']['receivedNote']), ({'5': 800.0, 'Quarters': 60.0}, 860.0, 'Bank was short on quarters'))
+        saved = section('safeOrders')['safeOrders'][0]
+        self.assertEqual((saved['status'], saved['total'], saved['lines']), ('received', 900, {'5': 800, 'Quarters': 100}))   # the order as placed is kept
+        latest = lead.get('/api/safe-counts/recent').get_json()['order']
+        self.assertEqual((latest['receivedTotal'], latest['receivedNote']), (860.0, 'Bank was short on quarters'))
+
     def test_no_cross_site_access_by_default(self):
         r = self.team.post('/api/state/load', json={}, headers={'Origin': 'https://example.com'})
         self.assertNotIn('Access-Control-Allow-Origin', r.headers)
