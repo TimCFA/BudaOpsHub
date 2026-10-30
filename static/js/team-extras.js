@@ -9,9 +9,9 @@
 //
 // A director sends a request from the Uniform credit card in Forms, or from
 // their Home card: the amount, the receipt's date, a note and a photo of the
-// receipt (always). Each person sees their own level, PTO and credit on their
-// Home card (right-now.js asks apRightNowRows), never anyone else's, and not
-// their points.
+// receipt (always). A director sees their own credit on their Home card
+// (right-now.js asks apRightNowRows), never anyone else's; PTO stays off the
+// Home card (Tim, Oct 30 2026) and with leadership on Our Team.
 //
 // The server is team_extras.py; everything is HR data kept under secure/.
 // People's text reaches the page only through escapeHtml.
@@ -183,15 +183,14 @@ function apMineLoad(force){
 }
 function apCreditShown(){ return !!(apMine && apMine.credit); }
 
-// Lines for the Home card (right-now.js): my level and PTO, my uniform
-// credit, and for the Admin Team the requests waiting on them.
+// Lines for the Home card (right-now.js): my uniform credit, and for the
+// Admin Team the requests waiting on them. No PTO line (Tim, Oct 30 2026).
 function apRightNowRows(){
   apMineLoad();
   const m = apMine, rows = [];
   if(!m) return rows;
   const row = (n, text, es, go, tone) => ({n, text, es: es || '', go: go || '', tone: tone || ''});
   if(m.toReview) rows.push(row(String(m.toReview), `uniform credit request${m.toReview === 1 ? '' : 's'} to review`, '', 'headcount', 'warn'));
-  if(m.pto && m.pto.allowance) rows.push(row(apHours(m.pto.left).replace(' h', 'h'), `PTO left in ${m.year}${m.levelLabel ? ` · ${m.levelLabel}` : ''}`, esText('PTO left this year'), 'mine', m.pto.left ? '' : 'warn'));
   if(m.credit) rows.push(row(apMoney(m.credit.left), `uniform credit left in ${m.year}${m.credit.pending ? `, ${apMoney(m.credit.pending)} waiting` : ''}`, '', 'credit', ''));
   return rows;
 }
