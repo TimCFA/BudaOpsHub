@@ -2674,6 +2674,21 @@ body:not(.hc-allowed) .hc-only{display:none !important;}
 .so-status.is-in .so-status-t b{color:var(--ok);}
 .so-status .so-lines{margin:0;}
 .so-arrived{justify-self:start;width:auto !important;min-height:44px;}
+/* It arrived: all of it, or what came (safe-order.js soArriveHtml; Tim, Oct 30 2026). */
+.so-arrive{display:grid;gap:8px;padding-top:4px;border-top:1px solid #BFD3E0;}
+.so-arrive-q{margin:4px 0 0;font-weight:700;font-size:15px;color:var(--text-primary);}
+.so-arrive .so-go{display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+.so-arrive .so-go .btn{width:auto;min-height:44px;}
+.so-arrive-row{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.so-arrive-row span{display:grid;font-weight:600;font-size:16px;}
+.so-arrive-row small{font-weight:500;font-size:12px;color:var(--text-secondary);}
+.so-arrive-row input{width:120px;min-height:44px;font-size:18px;text-align:right;font-variant-numeric:tabular-nums;}
+.so-arrive-sum{margin:0;font-weight:600;color:var(--cfa-navy);}
+.so-arrive .so-lead{display:grid;gap:4px;font-size:14px;}
+.so-arrive .so-lead input{width:100%;min-height:44px;}
+.so-status.is-short{border-left-color:var(--warn,#C47A00);background:#FFF7E8;}
+.so-status.is-short .so-status-t b{color:#8A5300;}
+.so-status .so-lines b small{font-family:var(--font-ui);font-size:12px;font-weight:500;color:var(--text-secondary);}
 .so-place{display:grid;gap:8px;margin-top:8px;padding:12px;border:1px dashed var(--border);border-radius:12px;}
 .so-place input[type="text"]{width:100%;}
 
