@@ -1986,6 +1986,39 @@ body.rn-evs-on{overflow:hidden;}
   .su-strip .foh-boh-toggle{display:none;}
 }
 .su-rowchip{flex:none;display:inline-flex;flex-direction:row;align-items:center;gap:6px;min-height:36px;padding:6px 12px;border-radius:999px;border:1px solid var(--border);background:var(--cfa-white);font-family:var(--font-ui);font-size:12.5px;font-weight:600;color:var(--text-primary);cursor:pointer;white-space:nowrap;}
+/* Edit positions (positions-editor.js; Tim, Oct 30 2026): directors and the
+   Admin Team drag a daypart's positions into order, add and take off. */
+.su-chip-edit svg{color:var(--cfa-navy);}
+.pe-sheet{max-width:560px;display:flex;flex-direction:column;max-height:calc(100% - 24px - env(safe-area-inset-top));overflow:hidden;}
+.pe-sheet > *{flex:none;}
+.pe-sheet .pe-list{flex:1 1 auto;min-height:120px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:2px 2px 4px;margin:0 -2px;}
+.pe-dps{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 10px;}
+.pe-dp{border:1px solid var(--border);background:var(--cfa-white);color:var(--text-primary);border-radius:999px;padding:7px 12px;font:600 13px var(--font-ui);min-height:36px;cursor:pointer;position:relative;}
+.pe-dp.is-on{background:var(--cfa-navy);border-color:var(--cfa-navy);color:#F6F1E8;}
+.pe-dp.is-changed::after{content:"";position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--cfa-red);}
+.pe-note{margin:0 0 8px;font-size:13px;color:var(--text-secondary);}
+.pe-note-grip svg{width:15px;height:15px;vertical-align:-3px;color:var(--text-tertiary);}
+.pe-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;}
+.pe-row{display:flex;align-items:center;gap:10px;background:var(--cfa-white);border:1px solid var(--border);border-radius:14px;padding:6px 8px 6px 4px;min-height:48px;transition:transform .15s ease;}
+.pe-row.is-dragging{transition:none;position:relative;z-index:2;box-shadow:0 10px 24px rgba(28,27,25,.18);border-color:var(--cfa-navy);}
+.pe-grip{flex:none;display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:10px;color:var(--text-tertiary);cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;}
+.pe-grip:focus-visible{outline:2px solid var(--cfa-navy);outline-offset:1px;}
+.pe-row.is-dragging .pe-grip{cursor:grabbing;color:var(--cfa-navy);}
+.pe-num{flex:none;width:24px;text-align:right;font:700 15px var(--font-display);color:var(--text-tertiary);}
+.pe-name{flex:1;min-width:0;font:600 15px var(--font-ui);color:var(--text-primary);display:flex;flex-direction:column;}
+.pe-name small{font-weight:500;font-size:12px;color:var(--text-tertiary);}
+.pe-del{flex:none;width:36px;height:36px;border:0;border-radius:10px;background:none;color:var(--text-tertiary);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.pe-del:hover{color:var(--cfa-red);background:var(--cfa-light);}
+.pe-add{display:flex;gap:8px;margin:12px 0 4px;}
+.pe-input{flex:1;min-width:0;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font:500 15px var(--font-ui);background:var(--cfa-white);color:var(--text-primary);}
+.pe-add .su-btn-line{border-radius:999px;min-height:42px;padding:0 18px;}
+.pe-foot{display:flex;align-items:center;gap:8px;margin-top:12px;}
+.pe-foot > :first-child{margin-right:auto;}
+.pe-foot .su-btn-line{border-radius:999px;min-height:42px;padding:0 16px;}
+.pe-link{border:0;background:none;color:var(--cfa-navy);font:600 13px var(--font-ui);text-decoration:underline;cursor:pointer;padding:6px 0;}
+.pe-save{border:0;border-radius:999px;min-height:42px;padding:0 20px;background:var(--cfa-red);color:#fff;font:700 15px var(--font-ui);cursor:pointer;}
+.pe-save[disabled]{opacity:.45;cursor:default;}
+@media (prefers-reduced-motion:reduce){.pe-row{transition:none;}}
 .su-chip-fix{margin:0 0 12px;border-color:#EDB3BE;background:#FDECEF;color:var(--cfa-dark-red);font-weight:700;}
 .su-chip-fix .es-line{display:block;font-size:10.5px;font-weight:500;}
 .su-chip-fix > span{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15;}

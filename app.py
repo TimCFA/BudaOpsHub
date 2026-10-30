@@ -70,6 +70,7 @@ MANAGER_ONLY_KEYS = {
     'deletedProductIds', 'productFixesVersion', 'productCategoryOrder',
     'lxPillars', 'lxMetrics', 'lxLastUpdated', 'lxQuarters',
     'gxData', 'txData', 'homeData', 'storeEvents', 'directors', 'leaderRoster', 'peaGoals',
+    'positionLists',   # Set Ups' positions per daypart: directors and the Admin Team (Tim, Oct 30 2026)
     'peaRatings', 'peaNameAliases',
     'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData',
     'launchMode', 'safeOrderSettings', 'safeOrders',
@@ -152,7 +153,8 @@ STATE_SECTIONS = {
     'manager': ['wasteTarget', 'safeTarget', 'products', 'deletedProductIds', 'productFixesVersion',
                 'productCategoryOrder', 'lxPillars', 'lxMetrics', 'lxLastUpdated', 'gxData', 'txData',
                 'homeData', 'dataUploadLog', 'dataUploadSettings', 'productivityProfiles', 'reportData',
-                'launchMode', 'storeEvents', 'directors', 'leaderRoster', 'peaGoals', 'safeOrderSettings'],
+                'launchMode', 'storeEvents', 'directors', 'leaderRoster', 'peaGoals', 'safeOrderSettings',
+                'positionLists'],
     'pea': ['peaRatings', 'peaNameAliases'],
     'rosters': ['fohRoster', 'bohRoster', 'rosterPosted', 'truckShifts', 'adminShifts'],
     'setups': ['posAssignments', 'posVacancyFlags', 'setupDayTypes', 'lastUpdated',

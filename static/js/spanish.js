@@ -26,6 +26,7 @@ const ES = {
   'Next Week': 'Próxima semana',
   'Shift changes': 'Cambios de turno',
   'Off today': 'No trabaja hoy',
+  'Edit positions': 'Editar puestos',
   'N spots to fix': n => `${n} ${n === 1 ? 'puesto' : 'puestos'} por arreglar`,
   'Fill N open': n => `Llenar ${n}`,
   'N placed': n => `${n} ${n === 1 ? 'asignado' : 'asignados'}`,
