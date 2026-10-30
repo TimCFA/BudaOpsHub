@@ -259,8 +259,11 @@ document.getElementById('safeOrderRoot').addEventListener('click', async e => {
 // arrived. While it's on its way, the next order counts it as coming in.
 // safeOrders lives in its own private section; a Team Lead gets the latest
 // with their counts (/api/safe-counts/recent) and marks it arrived through
-// /api/safe-orders/received.
+// /api/safe-orders/received. If it isn't what was ordered, they put in what
+// came, per bill and coin, and a note (Tim, Oct 30 2026); the banner then
+// says it came short (or over) and by what.
 let soPlacing = false;        // the "Mark as ordered" form open
+let soArriving = null;        // {id, custom}: "It arrived" tapped, choosing all or a different amount
 let safeOrderLead = null;     // a Team Lead's copy of the latest order (scLoadToday)
 
 function soLatestOrder(list){
@@ -301,7 +304,13 @@ function soStatusHtml(o, canMark){
   if(o.status === 'received'){
     const days = o.receivedAt ? (Date.now() - o.receivedAt) / SO_DAY_MS : 99;
     if(days > 7) return '';
-    return `<div class="so-status is-in"><div class="so-status-t"><b>Last change order arrived ${escapeHtml(soDayText(toLocalISODate(new Date(o.receivedAt))))}</b><small>${placed}${o.receivedBy ? ` · marked arrived by ${escapeHtml(o.receivedBy)}` : ''}</small></div></div>`;
+    const diff = soReceivedDiff(o);
+    const day = escapeHtml(soDayText(toLocalISODate(new Date(o.receivedAt))));
+    return `<div class="so-status is-in${diff ? ' is-short' : ''}"><div class="so-status-t">
+        <b>${!diff ? `Last change order arrived ${day}` : Number(o.receivedTotal) !== Number(o.total) ? `Last change order arrived ${day}: ${soMoney(o.receivedTotal)} of ${soMoney(o.total || 0)} ordered` : `Last change order arrived ${day}, not as ordered`}</b>
+        <small>${placed}${o.receivedBy ? ` · marked arrived by ${escapeHtml(o.receivedBy)}` : ''}</small>
+        ${o.receivedNote ? `<small class="so-status-note">${escapeHtml(o.receivedNote)}</small>` : ''}
+      </div>${diff ? `<ul class="so-lines">${diff}</ul>` : ''}</div>`;
   }
   const late = o.expected && o.expected < today;
   return `<div class="so-status ${late ? 'is-late' : ''}">
@@ -311,9 +320,61 @@ function soStatusHtml(o, canMark){
       ${o.note ? `<small class="so-status-note">${escapeHtml(o.note)}</small>` : ''}
     </div>
     ${lines ? `<ul class="so-lines">${lines}</ul>` : ''}
-    ${canMark ? `<button type="button" class="btn btn-ghost so-arrived" data-so-arrived="${escapeHtml(o.id)}">It arrived</button>` : ''}
+    ${canMark ? soArriveHtml(o) : ''}
   </div>`;
 }
+
+// The ordered lines, bills then coin, smallest first: [[key, item, dollars]].
+function soOrderedLines(o){
+  const rank = k => { const i = SO_ITEMS.findIndex(x => x.key === k); return i === -1 ? 99 : i; };
+  return Object.entries(o.lines || {}).filter(([, v]) => v > 0).sort((a, b) => rank(a[0]) - rank(b[0]))
+    .map(([k, v]) => [k, SO_ITEMS.find(i => i.key === k) || {key: k, label: k}, Number(v)]);
+}
+// What came that wasn't what was ordered, line by line ('' when it all came).
+function soReceivedDiff(o){
+  if(!o.receivedLines) return '';
+  const keys = [...new Set([...Object.keys(o.lines || {}), ...Object.keys(o.receivedLines)])];
+  return SO_ITEMS.filter(i => keys.includes(i.key)).map(i => {
+    const want = Number((o.lines || {})[i.key]) || 0, got = Number(o.receivedLines[i.key]) || 0;
+    return want === got ? '' : `<li><span>${escapeHtml(i.label)}</span><b>${soMoney(got)} <small>of ${soMoney(want)}</small></b></li>`;
+  }).join('');
+}
+
+// "It arrived": all of it, or what came if it's different.
+function soArriveHtml(o){
+  const id = escapeHtml(o.id);
+  if(!soArriving || soArriving.id !== o.id) return `<button type="button" class="btn btn-ghost so-arrived" data-so-arrived="${id}">It arrived</button>`;
+  if(!soArriving.custom) return `<div class="so-arrive">
+      <p class="so-arrive-q">Did all of it come?</p>
+      <div class="so-go">
+        <button type="button" class="btn btn-primary" data-so-all="${id}">Yes, all ${soMoney(o.total || 0)}</button>
+        <button type="button" class="btn btn-ghost" data-so-diff="${id}">A different amount</button>
+        <button type="button" class="ld-link" data-so-arrive-cancel>Cancel</button>
+      </div>
+    </div>`;
+  return `<div class="so-arrive" data-so-form="${id}">
+      <p class="so-arrive-q">What came, in dollars</p>
+      ${soOrderedLines(o).map(([k, item, v]) => `<label class="so-arrive-row"><span>${escapeHtml(item.label)}<small>ordered ${soMoney(v)}</small></span>
+        <input type="number" inputmode="decimal" min="0" step="1" data-so-got="${escapeHtml(k)}" value="${v}" aria-label="${escapeHtml(item.label)} that came"></label>`).join('')}
+      <p class="so-arrive-sum" data-so-sum>${soArriveSumText(o)}</p>
+      <label class="so-lead">What was different? <input type="text" data-so-got-note maxlength="140" placeholder="Optional, e.g. the bank was out of quarters"></label>
+      <div class="so-go">
+        <button type="button" class="btn btn-primary" data-so-arrive-save="${id}">Save what came</button>
+        <button type="button" class="ld-link" data-so-arrive-cancel>Cancel</button>
+      </div>
+    </div>`;
+}
+function soArriveGot(){
+  const lines = {};
+  document.querySelectorAll('#safecountView [data-so-got]').forEach(inp => { const n = Math.round(Number(inp.value) * 100) / 100; lines[inp.dataset.soGot] = n > 0 ? n : 0; });
+  return lines;
+}
+function soArriveSumText(o){
+  const got = document.querySelector('#safecountView [data-so-got]') ? Object.values(soArriveGot()).reduce((s, v) => s + v, 0) : Number(o.total) || 0;
+  const want = Number(o.total) || 0;
+  return got === want ? `${soMoney(got)}, the whole order` : `${soMoney(got)} of ${soMoney(want)} ordered: ${got < want ? soMoney(want - got) + ' short' : soMoney(got - want) + ' over'}`;
+}
+function soArriveOrder(id){ return [...(safeOrders || []), safeOrderLead].find(o => o && o.id === id) || null; }
 
 function soPlaceFormHtml(total){
   const lead = soLeadDays(safeOrderSettings || {});
@@ -333,21 +394,41 @@ function renderSafeOrderStatus(){
   root.innerHTML = !manager && typeof scIsLead === 'function' && scIsLead() ? soStatusHtml(safeOrderLead, true) : '';
 }
 
-async function soMarkArrived(id){
+async function soMarkArrived(id, got){
   try{
-    const res = await fetch(`${API_BASE}/api/safe-orders/received`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id})});
+    const res = await fetch(`${API_BASE}/api/safe-orders/received`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(Object.assign({id}, got || {}))});
     const data = await res.json().catch(() => ({}));
     if(!res.ok) throw new Error(data.error || 'Couldn’t mark it arrived. Try again.');
     const apply = o => { if(o && o.id === id) Object.assign(o, data.order); };
     (safeOrders || []).forEach(apply);
     apply(safeOrderLead);
+    soArriving = null;
     renderSafeOrder(); renderSafeOrderStatus();
-    showToast('Change order marked arrived');
+    showToast(data.order && data.order.receivedLines && data.order.receivedTotal !== soArriveTotal(id) ? 'Change order marked arrived, with what came' : 'Change order marked arrived');
     if(typeof syncState === 'function') syncState();
   }catch(err){ showToast(err.message); }
 }
 
+function soArriveTotal(id){ const o = soArriveOrder(id); return o ? Number(o.total) || 0 : 0; }
+function soArriveRender(){ renderSafeOrder(); renderSafeOrderStatus(); }
+
 document.getElementById('safecountView').addEventListener('click', e => {
-  const b = e.target.closest && e.target.closest('[data-so-arrived]');
-  if(b){ b.disabled = true; soMarkArrived(b.dataset.soArrived); }
+  const t = e.target.closest && e.target.closest('button');
+  if(!t) return;
+  const d = t.dataset;
+  if(d.soArrived){ soArriving = {id: d.soArrived, custom: false}; soArriveRender(); }
+  else if(d.soAll){ t.disabled = true; soMarkArrived(d.soAll); }
+  else if(d.soDiff){ soArriving = {id: d.soDiff, custom: true}; soArriveRender(); const first = document.querySelector('#safecountView [data-so-got]'); if(first) first.select(); }
+  else if(t.hasAttribute('data-so-arrive-cancel')){ soArriving = null; soArriveRender(); }
+  else if(d.soArriveSave){
+    const note = document.querySelector('#safecountView [data-so-got-note]');
+    t.disabled = true;
+    soMarkArrived(d.soArriveSave, {lines: soArriveGot(), note: note ? note.value.trim().slice(0, 140) : ''});
+  }
+});
+// The total under the amounts follows what's typed.
+document.getElementById('safecountView').addEventListener('input', e => {
+  if(!e.target.matches || !e.target.matches('[data-so-got]')) return;
+  const form = e.target.closest('[data-so-form]'), sum = form && form.querySelector('[data-so-sum]'), o = form && soArriveOrder(form.dataset.soForm);
+  if(sum && o) sum.textContent = soArriveSumText(o);
 });

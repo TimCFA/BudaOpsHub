@@ -2395,15 +2395,40 @@ def _safe_order_latest(sections):
     if not orders:
         return None
     o = max(orders, key=lambda x: str(x.get('placedAt')))
-    keep = ('id', 'placedAt', 'by', 'lines', 'total', 'expected', 'note', 'status', 'receivedAt', 'receivedBy')
-    return {k: o.get(k) for k in keep if k in o}
+    return {k: o.get(k) for k in SAFE_ORDER_SHOWN if k in o}
+
+SAFE_ORDER_SHOWN = ('id', 'placedAt', 'by', 'lines', 'total', 'expected', 'note', 'status', 'receivedAt', 'receivedBy',
+                    'receivedLines', 'receivedTotal', 'receivedNote')
+# The bills and coin rolls an order can hold (safe-order.js SO_ITEMS).
+SAFE_ORDER_ITEMS = ('1', '5', '10', '20', '50', '100', 'Nickels', 'Dimes', 'Quarters')
+SAFE_ORDER_MAX = 100000
 
 @app.route('/api/safe-orders/received', methods=['POST'])
 def safe_order_received():
     user = session.get('user') or {}
     if not session.get('manager') and user.get('role') != 'lead':
         return jsonify({'error': 'Team Leads and directors only.'}), 403
-    order_id = str((request.get_json(silent=True) or {}).get('id') or '')
+    body = request.get_json(silent=True) or {}
+    order_id = str(body.get('id') or '')
+    # What came, when it isn't what was ordered (Tim, Oct 30 2026): dollars
+    # per bill and coin, and a note. Left out, it all came.
+    got = body.get('lines')
+    if got is not None:
+        if not isinstance(got, dict) or any(k not in SAFE_ORDER_ITEMS for k in got):
+            return jsonify({'error': 'Those amounts don’t look right. Reload and try again.'}), 400
+        try:
+            got = {k: round(float(v), 2) for k, v in got.items() if v not in (None, '')}
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Amounts in dollars, please.'}), 400
+        if any(v < 0 or v > SAFE_ORDER_MAX for v in got.values()):
+            return jsonify({'error': 'Amounts in dollars, please.'}), 400
+        got = {k: v for k, v in got.items() if v > 0}
+    note = str(body.get('note') or '').strip()[:140]
+    try:
+        _ensure_cache()        # just after a restart, the first thing a phone does may be this
+    except Exception as e:
+        print(f'[SAFE ORDER] not read: {type(e).__name__}')
+        return jsonify({'error': 'Couldn’t reach the server. Try again in a moment.'}), 503
     with _state_lock:
         entry = _cache.get('safeOrders')
         data = dict(entry['data']) if entry and isinstance(entry.get('data'), dict) else {}
@@ -2414,8 +2439,12 @@ def safe_order_received():
         if hit.get('status') != 'received':
             hit.update({'status': 'received', 'receivedAt': int(time.time() * 1000),
                         'receivedBy': str(user.get('name') or ('Director' if session.get('manager') else ''))[:80]})
+            if got is not None:
+                hit.update({'receivedLines': got, 'receivedTotal': round(sum(got.values()), 2)})
+            if note:
+                hit['receivedNote'] = note
             _write_section('safeOrders', dict(data, safeOrders=orders))
-    return jsonify({'success': True, 'order': {k: hit.get(k) for k in ('id', 'status', 'receivedAt', 'receivedBy')}})
+    return jsonify({'success': True, 'order': {k: hit.get(k) for k in ('id', 'status', 'receivedAt', 'receivedBy', 'receivedLines', 'receivedTotal', 'receivedNote') if k in hit}})
 
 # Waste by day, for the team's waste scoreboard (Tim, Oct 18 2026). A team
 # device is sent two days of waste entries (WASTE_TEAM_WINDOW_MS), so its
