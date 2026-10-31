@@ -100,6 +100,7 @@ function siDraw(){
   const signedIn = siIdentity.name
     ? `<p class="si-who">Signed in as <b>${escapeHtml(siIdentity.name)}</b>${roleLabel ? ` · ${escapeHtml(roleLabel)}` : ''}</p>
        ${siIdentity.device ? '<p class="si-hint">After 10 minutes without a tap, this goes back to being the shared device.</p>' : ''}
+       <button type="button" class="btn btn-primary si-me" data-si-me>Open my page</button>
        <button type="button" class="btn btn-ghost si-out" data-si-out>Sign out</button>`
     : '';
   // Signed in but this needs someone else (a Team Lead): their PIN right here.
@@ -147,6 +148,7 @@ document.addEventListener('submit', e => {
 document.addEventListener('click', e => {
   if(e.target.closest('[data-si-close]') || e.target.id === 'siSheet'){ siClose(); return; }
   if(e.target.closest('[data-si-out]')){ acSignOut(); return; }
+  if(e.target.closest('[data-si-me]')){ siClose(); if(typeof mpOpenMine === 'function') mpOpenMine(); return; }
   const go = e.target.closest('[data-si-open]');
   if(go){ siOpen(); return; }
 });

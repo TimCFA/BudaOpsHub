@@ -29,6 +29,16 @@ their own (/api/me/extras, which never carries anyone else's).
   POST /api/team/credit/decide           {id, decision: approved | denied, note}: Admin Team
   GET  /api/team/credit/receipt/<id>     the photo
   GET  /api/me/extras                    the signed-in person's own
+  GET  /api/me/page                      the signed-in person's own page (me-page.js)
+  GET  /api/team/page?name=              someone's page (directors, Admin Team)
+  POST /api/me/goals                     {text}: my career goals, in my words
+  POST /api/team/steps                   {name, step, done | start}: a next-level step (directors, Admin Team)
+
+The Me page (Tim, Oct 30 2026): each person sees their own level, hire date
+and birthday, their PEA, their next level (the 360 Evaluation Process: the
+steps to certified pay, NEXT_LEVEL), their permit, PTO, orders and career
+goals (their own words, GOALS_PATH); directors and the Admin Team open
+anyone's and tick the steps (STEPS_PATH). Never contact details.
 """
 import base64
 import re
@@ -64,6 +74,29 @@ PTO_HOURS_PATH = 'secure/ptoHours'         # {level: hours a year}
 PTO_PATH = 'secure/pto'                    # {id: {name, key, date, hours, note, by, at}}
 CREDIT_PATH = 'secure/uniformCredit'       # {id: {name, key, amount, date, note, status, by, at, decidedBy, decidedAt, decisionNote}}
 RECEIPTS_PATH = 'secure/uniformReceipts'   # {id: data URL}
+STEPS_PATH = 'secure/teamSteps'            # {key: {pathway: {done, by, at}, trial: {start, done, by, at}, coaching: {done, by, at}}}
+GOALS_PATH = 'secure/teamGoals'            # {key: {name, text, at}}
+GOALS_MAX = 600
+
+# The 360 Evaluation Process (Tim, Oct 30 2026): the steps to certified pay
+# at each level, and what a certified person needs for the next role. To
+# move to a new role you must be certified in your current one. Step 1 is
+# Pathway, step 2 the skill assessment (the PEA bar the hub checks itself,
+# or a trial a leader runs), step 3 the coaching evaluation with a leader,
+# step 4 certified pay.
+NEXT_LEVEL = {
+    'member':        {'target': 'cert_member',   'how': 'certify', 'pathway': 'New Hire and Certified Team Member (FOH or BOH) in Pathway',
+                      'skill': 'On the Rise in all your PEAs within 30 days', 'auto': 'rise'},
+    'cert_member':   {'target': 'trainer',       'how': 'promote', 'pathway': 'Trainer Certified in Pathway',
+                      'skill': 'Crushing It on all your PEA roles', 'auto': 'crushing', 'trial': '30-day Trainer trial'},
+    'trainer':       {'target': 'cert_trainer',  'how': 'certify', 'pathway': 'Trainer Certified in Pathway', 'trial': '30-day Trainer trial'},
+    'cert_trainer':  {'target': 'lead',          'how': 'promote', 'pathway': 'Team Leader Certified in Pathway', 'trial': '1-quarter Team Leader trial'},
+    'lead':          {'target': 'cert_lead',     'how': 'certify', 'pathway': 'Team Leader Certified in Pathway', 'trial': '1-quarter Team Leader trial'},
+    'cert_lead':     {'target': 'director',      'how': 'promote', 'pathway': 'Director Certified in Pathway', 'trial': '2-quarter Director trial'},
+    'director':      {'target': 'cert_director', 'how': 'certify', 'pathway': 'Director Certified in Pathway', 'trial': '2-quarter Director trial'},
+    'cert_director': {'target': 'executive',     'how': 'promote', 'pathway': 'Executive Certified in Pathway', 'trial': 'Executive trial, no timeframe'},
+    'executive':     {'target': 'cert_executive', 'how': 'certify', 'pathway': 'Executive Certified in Pathway', 'trial': 'Executive trial, no timeframe'},
+}
 
 MAX_RECEIPT = 1_400_000                    # characters of a data: URL (the page shrinks photos to well under)
 RECEIPT_RE = re.compile(r'^data:image/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$')
@@ -82,6 +115,29 @@ def _name(v):
 
 def _note(v, cap=400):
     return re.sub(r'[ \t]+', ' ', str(v or '')).strip()[:cap]
+
+
+def next_level(level, steps, pea):
+    """The 360 steps for someone at `level`: {target, targetLabel, how, items:
+    [{key, label, done, auto, when, by, start}]}, or None at the top."""
+    n = NEXT_LEVEL.get(level)
+    if not n:
+        return None
+    steps = steps if isinstance(steps, dict) else {}
+    positions = (pea or {}).get('positions') or []
+    items = [{'key': 'pathway', 'label': n['pathway'], 'done': bool((steps.get('pathway') or {}).get('done')),
+              'when': (steps.get('pathway') or {}).get('at'), 'by': (steps.get('pathway') or {}).get('by')}]
+    if n.get('auto'):
+        ok = bool(positions) and all(p.get('tier') == 'crushing' or (n['auto'] == 'rise' and p.get('tier') == 'rise') for p in positions)
+        items.append({'key': 'pea', 'label': n['skill'], 'done': ok, 'auto': True,
+                      'note': f'{sum(1 for p in positions if p.get("tier") == "crushing" or (n["auto"] == "rise" and p.get("tier") == "rise"))} of {len(positions)} positions there' if positions else 'No PEA ratings yet'})
+    if n.get('trial'):
+        t = steps.get('trial') or {}
+        items.append({'key': 'trial', 'label': n['trial'], 'done': bool(t.get('done')), 'start': t.get('start') or '', 'when': t.get('at'), 'by': t.get('by')})
+    c = steps.get('coaching') or {}
+    items.append({'key': 'coaching', 'label': 'Coaching evaluation with your leader', 'done': bool(c.get('done')), 'when': c.get('at'), 'by': c.get('by')})
+    return {'target': n['target'], 'targetLabel': LEVEL_LABEL[n['target']], 'how': n['how'], 'items': items,
+            'complete': all(i['done'] for i in items)}
 
 
 def _num(v, lo, hi):
@@ -133,11 +189,14 @@ def _public(r):
     return {k: r.get(k) for k in ('id', 'name', 'amount', 'date', 'note', 'status', 'at', 'decidedBy', 'decidedAt', 'decisionNote', 'hasReceipt')}
 
 
-def register(app, *, ref, get_all, access, me, people, key_of, today, is_owner):
+def register(app, *, ref, get_all, access, me, people, key_of, today, is_owner, profile_of=None, pea_of=None, orders_of=None):
     """`access()` is a director or the Admin Team; `me()` the signed-in
     person ({name, role}) or None; `people()` the PIN list and the Directors
     list ({name, role}); `key_of(name)` a Firebase-safe key for a name;
-    `today()` the store's date (YYYY-MM-DD); `is_owner()` the account owner."""
+    `today()` the store's date (YYYY-MM-DD); `is_owner()` the account owner.
+    For the Me page: `profile_of(key)` the Our Team profile (hire date,
+    birthday, permit), `pea_of(name)` their PEA scores (pea_mine.py),
+    `orders_of(name)` their uniform orders."""
 
     def no_store(resp):
         resp.headers['Cache-Control'] = 'no-store'
@@ -320,6 +379,86 @@ def register(app, *, ref, get_all, access, me, people, key_of, today, is_owner):
         if not m:
             return jsonify({'error': 'No receipt'}), 404
         return Response(base64.b64decode(m.group(2)), mimetype=f'image/{m.group(1)}', headers={'Cache-Control': 'private, max-age=3600'})
+
+    # ----- The Me page (Tim, Oct 30 2026) -----
+    def page_for(name, role, own):
+        levels, hours, pto, credit = read_all()
+        steps, goals = get_all(STEPS_PATH, GOALS_PATH)
+        k, year = key_of(name), today()[:4]
+        mine = next((x for x in everyone(levels) if x['key'] == k), None)
+        lv = mine['level'] if mine else level_of(levels.get(k), role)
+        prof = (profile_of(k) if profile_of else None) or {}
+        prof = prof if isinstance(prof, dict) else {}
+        pea = pea_of(name) if pea_of else {'name': None, 'positions': []}
+        my_steps = (steps or {}).get(k) if isinstance(steps, dict) else None
+        goal = (goals or {}).get(k) if isinstance(goals, dict) else None
+        orders = []
+        for o in (orders_of(name) if orders_of else []) or []:
+            lines = o.get('lines') if isinstance(o.get('lines'), list) else []
+            qty = sum(int(l.get('qty') or 1) for l in lines if isinstance(l, dict)) or len(lines)
+            orders.append({'at': o.get('at'), 'status': o.get('status') or 'new', 'items': qty})
+        out = {'name': name, 'role': mine['role'] if mine else (role or ''), 'level': lv, 'levelLabel': LEVEL_LABEL.get(lv, ''), 'year': year, 'own': own,
+               'canEdit': bool(access()), 'hireDate': prof.get('hireDate') or '', 'birthday': prof.get('birthday') or '', 'permitExpires': prof.get('permitExpires') or '',
+               'pea': pea, 'next': next_level(lv, my_steps, pea), 'goals': {'text': (goal or {}).get('text') or '', 'at': (goal or {}).get('at')},
+               'orders': sorted(orders, key=lambda o: str(o.get('at') or ''), reverse=True)[:6],
+               'pto': pto_summary([e for e in pto.values() if e.get('key') == k], allowance_for(lv, hours), year, lv)}
+        if (mine and mine['director']) or lv in DIRECTOR_TIER:
+            out['credit'] = credit_summary([r for r in credit.values() if r.get('key') == k], year)
+        return out
+
+    @app.route('/api/me/page')
+    def my_page():
+        p = me()
+        if not p or p.get('id') == 'director':
+            return no_store(jsonify({'name': None}))
+        return no_store(jsonify(page_for(p['name'], p.get('role'), True)))
+
+    @app.route('/api/team/page')
+    def team_page():
+        need_access()
+        name = _name(request.args.get('name'))
+        if not name:
+            raise Refused('Whose page?')
+        p = me()
+        return no_store(jsonify(page_for(name, '', bool(p and _name(p.get('name')).lower() == name.lower()))))
+
+    @app.route('/api/me/goals', methods=['POST'])
+    def my_goals():
+        p = me()
+        if not p or p.get('id') == 'director':
+            raise Refused('Sign in as yourself to write your goals.', 401)
+        text = _note((request.get_json(silent=True) or {}).get('text'), GOALS_MAX)
+        r = ref(f'{GOALS_PATH}/{key_of(p["name"])}')
+        if text:
+            r.set({'name': p['name'], 'text': text, 'at': int(time.time())})
+        else:
+            r.delete()
+        return no_store(jsonify(page_for(p['name'], p.get('role'), True)))
+
+    @app.route('/api/team/steps', methods=['POST'])
+    def team_steps():
+        need_access()
+        b = request.get_json(silent=True) or {}
+        name, step = _name(b.get('name')), b.get('step')
+        if not name:
+            raise Refused('Whose step?')
+        if step not in ('pathway', 'trial', 'coaching'):
+            raise Refused('Which step?')
+        r = ref(f'{STEPS_PATH}/{key_of(name)}')            # one record a person: their three steps
+        mine = r.get()
+        mine = dict(mine) if isinstance(mine, dict) else {}
+        cur = dict(mine.get(step) or {}) if isinstance(mine.get(step), dict) else {}
+        if 'start' in b:
+            start = str(b.get('start') or '')
+            if start and not DATE_RE.match(start):
+                raise Refused('A date for the trial start, please.')
+            cur['start'] = start
+        if 'done' in b:
+            cur['done'] = bool(b.get('done'))
+        cur.update({'by': by_name(), 'at': int(time.time())})
+        mine[step] = cur
+        r.set(mine)
+        return no_store(jsonify(page_for(name, '', False)))
 
     @app.route('/api/me/extras')
     def my_extras():
