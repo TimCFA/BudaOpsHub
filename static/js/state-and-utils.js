@@ -107,7 +107,11 @@ function beginEditInitials(){
 const initialsBadgeEl = document.getElementById('initialsBadge');
 if(initialsBadgeEl){
   renderInitialsBadge();
-  initialsBadgeEl.addEventListener('click', () => { if(typeof siOpen === 'function') siOpen(); });
+  // Signed in as a person: their own page (me-page.js; Tim, Oct 30 2026); else the sign-in sheet.
+  initialsBadgeEl.addEventListener('click', () => {
+    if(typeof siIdentity !== 'undefined' && siIdentity && siIdentity.name && typeof mpOpenMine === 'function') mpOpenMine();
+    else if(typeof siOpen === 'function') siOpen();
+  });
 }
 
 // ----- Who has left (Tim, Oct 25 2026) -----

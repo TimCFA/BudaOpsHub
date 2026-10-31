@@ -207,6 +207,7 @@ function hcProfileHtml(){
       ${p.by ? `<p class="hc-note">Last saved by ${escapeHtml(p.by)}${p.at ? ` · ${escapeHtml(new Date(p.at * 1000).toLocaleDateString('en-US', {month: 'short', day: 'numeric'}))}` : ''}</p>` : ''}
       <div class="hc-form-go">
         <button type="submit" class="btn btn-primary" ${hcBusy ? 'disabled' : ''}>Save</button>
+        ${p.isNew ? '' : `<button type="button" class="btn btn-ghost" data-mp-open-for="${escapeHtml(p.name)}">Open their page</button>`}
         <button type="button" class="btn btn-ghost" data-hc-profile-close>Close</button>
       </div>
     </form>`;

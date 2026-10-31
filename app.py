@@ -3095,7 +3095,12 @@ pass_api.register(app, me=_pass_me, people=_pass_people, ref=lambda path: db.ref
 import team_extras
 team_extras.register(app, ref=lambda path: db.reference(path), get_all=_firebase_get_all, access=_turnover_access,
                      me=_pass_me, people=_pass_people, key_of=_profile_key, today=lambda: _turnover_today(),
-                     is_owner=lambda: bool(session.get('owner')))
+                     is_owner=lambda: bool(session.get('owner')),
+                     # The Me page (Tim, Oct 30 2026): the Our Team profile, their own PEA, their uniform orders.
+                     profile_of=lambda key: db.reference(f'{PROFILES_PATH}/{key}').get(),
+                     pea_of=lambda name: pea_mine.scores_for((_read_sections() or {}).get('pea'), name),
+                     orders_of=lambda name: [o for o in (((_read_sections() or {}).get('orders') or {}).get('uniformOrders') or [])
+                                             if isinstance(o, dict) and _turnover_key(o.get('name')) == _turnover_key(name)])
 
 # ===== TIMERS (Oct 28 2026) =====
 # The store's recurring task timers on the Lists tab (timers_api.py; the

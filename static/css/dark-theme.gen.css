@@ -356,3 +356,7 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .ap-st.is-denied{background:#3B2021;color:var(--ink-dark-red);}
 :where(html[data-theme="dark"]) .ap-st.is-pending{background:#433A23;color:#FCBD61;}
 :where(html[data-theme="dark"]) .ap-rc{color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .mp-warn{color:#FFBD59 !important;}
+:where(html[data-theme="dark"]) .mp-bad{color:var(--ink-red) !important;}
+:where(html[data-theme="dark"]) .mp-link{color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .mp-steps li.is-done{border-color:#336440;background:#263128;}
