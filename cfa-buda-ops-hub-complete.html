@@ -61,14 +61,13 @@
     <div class="tabs" role="tablist">
       <button type="button" class="tab active" role="tab" aria-selected="true" aria-controls="homeView" data-view="home">Home <span class="sub"><i>Inicio</i></span></button>
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="positionsView" data-view="positions">Set Ups <span class="sub"><i>Configuración</i></span></button>
-      <!-- The team's shifts for the week (team-schedule.js; Tim, Oct 25 2026). -->
-      <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="scheduleView" data-view="schedule">Schedule <span class="sub"><i>Horario</i></span></button>
 
-      <!-- Launch mode (launch-mode.js): Home plus the team's essentials. -->
-      <!-- Waste logging, with the waste scoreboard as a pill at the top of the page (launch-mode.js). -->
-      <button type="button" class="tab launch-only" role="tab" aria-selected="false" aria-controls="wastelogView" data-view="wastelog" data-views="wastelog scoreboard">Waste <span class="sub"><i>Desperdicio</i></span></button>
+      <!-- Launch mode (launch-mode.js): Home plus the team's essentials, in Tim's order (Oct 30 2026):
+           Home, Set Ups, Lists, Waste, Calendar, Schedule, Tasks, Forms, Manage. -->
       <!-- One tap opens Zone Resets; the other lists are pills at the top of the page (launch-mode.js). -->
       <button type="button" class="tab launch-only" role="tab" aria-selected="false" aria-controls="zoneresetView" data-view="zonereset" data-views="zonereset timers foodsafety safecount prepboard">Lists <span class="sub"><i>Listas</i></span></button>
+      <!-- Waste logging, with the waste scoreboard as a pill at the top of the page (launch-mode.js). -->
+      <button type="button" class="tab launch-only" role="tab" aria-selected="false" aria-controls="wastelogView" data-view="wastelog" data-views="wastelog scoreboard">Waste <span class="sub"><i>Desperdicio</i></span></button>
       <!-- Roles (roles.js; Tim, Oct 27 2026): a place for each Team Lead role. Team Leads and up only (rlSyncTab). -->
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="rolesView" data-view="roles" style="display:none">Roles <span class="sub"><i>Roles</i></span></button>
 
@@ -100,6 +99,8 @@
 
       <button type="button" class="tab full-only" role="tab" aria-selected="false" aria-controls="scoreboardView" data-view="scoreboard">Scoreboard <span class="sub"><i>Tableros</i></span></button>
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="calendarView" data-view="calendar">Calendar <span class="sub"><i>Calendario</i></span></button>
+      <!-- The team's shifts for the week (team-schedule.js; Tim, Oct 25 2026). -->
+      <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="scheduleView" data-view="schedule">Schedule <span class="sub"><i>Horario</i></span></button>
       <!-- Tasks: The Pass (pass_api.py, static/js/pass.js): tickets handed from a leader to one owner, said back, checked in, turned in and verified. The count is what's waiting on whoever is signed in. -->
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="tasksView" data-view="tasks">Tasks<span class="ps-tab-badge" id="tasksTabBadge" hidden></span> <span class="sub"><i>Tareas</i></span></button>
       <!-- Forms (forms.js; Tim, Oct 21 2026): everyone fills them out; Submissions for directors, managers and the Admin Team. -->
