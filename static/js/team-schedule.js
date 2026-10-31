@@ -33,7 +33,7 @@ function tsShifts(iso){
     let src;
     try{ src = get(); }catch(e){ src = null; }
     const list = src && Array.isArray(src[iso]) ? src[iso] : [];
-    list.forEach(p => { if(p && p.name) out.push({name: p.name, key: dirKey(p.name), side, start: p.start, end: p.end, blocks: Array.isArray(p.blocks) && p.blocks.length ? p.blocks : null}); });
+    list.forEach(p => { if(p && p.name && !(typeof teamHasLeft === 'function' && teamHasLeft(p.name, iso))) out.push({name: p.name, key: dirKey(p.name), side, start: p.start, end: p.end, blocks: Array.isArray(p.blocks) && p.blocks.length ? p.blocks : null}); });   // not someone who left (state-and-utils.js)
   });
   return out;
 }

@@ -665,7 +665,7 @@ function peaSuggestedNames(rosterName, peaNames){
 function renderPeaNameMatching(){
   const root = document.getElementById('peaNameMatchRoot');
   if(!root) return;
-  const peaNames = Object.keys(peaStrengthByPerson()).sort((a, b) => a.localeCompare(b));
+  const peaNames = Object.keys(peaStrengthByPerson()).filter(n => !(typeof teamHasLeft === 'function' && teamHasLeft(n))).sort((a, b) => a.localeCompare(b));   // not who has left
   if(!peaNames.length){ root.innerHTML = '<p class="pea-muted">Upload PEA ratings first.</p>'; return; }
   // The PIN list's names, once fetched, count as real people too.
   if(typeof tmPinNames !== 'undefined' && !tmPinNames && typeof teamNamesLoad === 'function' && !renderPeaNameMatching.asked){

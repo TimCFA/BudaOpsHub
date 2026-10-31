@@ -264,7 +264,8 @@ function renderTrainerTrial(){
   const root = document.getElementById('trainerTrialRoot');
   if(!root) return;
 
-  if(trainerTrainees.length === 0){
+  const ttTrainees = trainerTrainees.filter(t => !(typeof teamHasLeft === 'function' && teamHasLeft(t.name)));   // not who has left
+  if(ttTrainees.length === 0){
     root.innerHTML = `
       <div class="trial-root" data-theme="trainer">
         <div class="trial-masthead">
@@ -281,8 +282,8 @@ function renderTrainerTrial(){
     return;
   }
 
-  if(!trainerTrainees.some(t => t.id === ttActiveId)) ttActiveId = trainerTrainees[0].id;
-  const activeTrainee = trainerTrainees.find(t => t.id === ttActiveId);
+  if(!ttTrainees.some(t => t.id === ttActiveId)) ttActiveId = ttTrainees[0].id;
+  const activeTrainee = ttTrainees.find(t => t.id === ttActiveId);
   const progress = trainerProgress[ttActiveId] || {};
 
   let html = `
@@ -294,7 +295,7 @@ function renderTrainerTrial(){
       </div>
 
       <div class="trial-trainee-tabs">
-        ${trainerTrainees.map(t => `<button class="trial-trainee-tab ${t.id===ttActiveId?'active':''}" data-tt-select-trainee="${t.id}">👤 ${escapeHtml(t.name)}</button>`).join('')}
+        ${ttTrainees.map(t => `<button class="trial-trainee-tab ${t.id===ttActiveId?'active':''}" data-tt-select-trainee="${t.id}">👤 ${escapeHtml(t.name)}</button>`).join('')}
         <button class="trial-add-trainee-btn" data-tt-open-add-modal>+ Add trainee</button>
       </div>
 
