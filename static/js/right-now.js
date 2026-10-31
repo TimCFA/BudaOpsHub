@@ -406,7 +406,7 @@ const RN_ROSTER_GROUPS = [['foh', 'FOH'], ['boh', 'BOH'], ['truck', 'Truck'], ['
 function rnRosterList(key, date){
   const src = key === 'foh' ? fohRoster : key === 'boh' ? bohRoster
     : key === 'truck' ? (typeof truckShifts !== 'undefined' ? truckShifts : {}) : (typeof adminShifts !== 'undefined' ? adminShifts : {});
-  return Array.isArray(src[date]) ? src[date].filter(p => p && p.name) : [];
+  return Array.isArray(src[date]) ? src[date].filter(p => p && p.name && !(typeof teamHasLeft === 'function' && teamHasLeft(p.name, date))) : [];   // not someone who left
 }
 
 function rnDayRoster(date, now){

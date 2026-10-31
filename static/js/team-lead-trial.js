@@ -290,7 +290,8 @@ function renderTeamLeadTrial(){
   const root = document.getElementById('teamLeadTrialRoot');
   if(!root) return;
 
-  if(teamLeadTrainees.length === 0){
+  const tlTrainees = teamLeadTrainees.filter(t => !(typeof teamHasLeft === 'function' && teamHasLeft(t.name)));   // not who has left
+  if(tlTrainees.length === 0){
     root.innerHTML = `
       <div class="trial-root" data-theme="teamlead">
         <div class="trial-masthead">
@@ -307,8 +308,8 @@ function renderTeamLeadTrial(){
     return;
   }
 
-  if(!teamLeadTrainees.some(t => t.id === tlActiveId)) tlActiveId = teamLeadTrainees[0].id;
-  const activeTrainee = teamLeadTrainees.find(t => t.id === tlActiveId);
+  if(!tlTrainees.some(t => t.id === tlActiveId)) tlActiveId = tlTrainees[0].id;
+  const activeTrainee = tlTrainees.find(t => t.id === tlActiveId);
   const progress = teamLeadProgress[tlActiveId] || {};
 
   let html = `
@@ -320,7 +321,7 @@ function renderTeamLeadTrial(){
       </div>
 
       <div class="trial-trainee-tabs">
-        ${teamLeadTrainees.map(t => `<button class="trial-trainee-tab ${t.id===tlActiveId?'active':''}" data-tl-select-trainee="${t.id}">👤 ${escapeHtml(t.name)}</button>`).join('')}
+        ${tlTrainees.map(t => `<button class="trial-trainee-tab ${t.id===tlActiveId?'active':''}" data-tl-select-trainee="${t.id}">👤 ${escapeHtml(t.name)}</button>`).join('')}
         <button class="trial-add-trainee-btn" data-tl-open-add-modal>+ Add trainee</button>
       </div>
 

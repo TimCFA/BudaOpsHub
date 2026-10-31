@@ -121,6 +121,7 @@ if(initialsBadgeEl){
 let teamLeftList = [];     // [{name, lastDay}]
 function teamLeftSet(list){
   teamLeftList = (Array.isArray(list) ? list : []).map(x => typeof x === 'string' ? {name: x, lastDay: ''} : x).filter(x => x && x.name);
+  teamLeftSweep();
 }
 function teamHasLeft(name, iso){
   if(!name || !teamLeftList.length) return false;
@@ -130,6 +131,31 @@ function teamHasLeft(name, iso){
     return xk === k || (typeof rnSame === 'function' && rnSame(x.name, name));
   });
   return !!hit && (!hit.lastDay || (iso || today) > hit.lastDay);
+}
+
+// Off the schedule for good (Tim, Oct 30 2026: once their last day has
+// passed they come off nearly everything). The device that logged the
+// departure took them off the days after their last day then
+// (headcount.js hcTakeOffSchedule); this does the same on every device that
+// may save Set Ups, whenever the list of who left arrives, so a shift or
+// spot that came back (a HotSchedules sync, a departure logged another way)
+// goes too. Nothing to do most of the time; one save when there is.
+let teamLeftSwept = '';
+function teamLeftSweep(){
+  if(typeof stateLoaded === 'undefined' || typeof hcTakeOffSchedule !== 'function') return;
+  const gone = teamLeftList.filter(x => x.lastDay && x.lastDay < today);
+  const key = gone.map(x => x.name + '|' + x.lastDay).sort().join(',');
+  if(!gone.length || key === teamLeftSwept) return;
+  stateLoaded.then(() => {
+    if(!(typeof siLeadOrUp === 'function' && siLeadOrUp())) return;   // a Team Member's phone can't save Set Ups
+    if(key === teamLeftSwept) return;
+    teamLeftSwept = key;
+    let shifts = 0, spots = 0;
+    gone.forEach(x => { const r = hcTakeOffSchedule(x.name, x.lastDay); shifts += r.shifts; spots += r.spots; });
+    if(!shifts && !spots) return;
+    saveState();
+    if(typeof stateRerender === 'function') stateRerender();
+  });
 }
 
 // ----- The phone's keyboard (Tim, Oct 25 2026) -----

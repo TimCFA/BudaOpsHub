@@ -606,16 +606,31 @@ function hcLeavingHtml(s){
     </section>`;
 }
 
+// Who has rotated off in the last 12 months (Tim, Oct 30 2026): their
+// name, when they were hired (the profile's hire date) and their last day.
+// The rest of what was logged (why, rehire) opens with Edit; older ones stay
+// on file behind "Show older".
 function hcDeparturesHtml(s){
   const list = s.logged.slice().sort((a, b) => hcWhen(b).localeCompare(hcWhen(a)) || (b.at || 0) - (a.at || 0));
-  if(!list.length) return `<section class="hc-card"><h3 class="hc-h">Recent departures</h3><p class="hc-note">None logged yet.</p></section>`;
-  const shown = hcShowAll ? list : list.slice(0, 12);
+  if(!list.length) return `<section class="hc-card"><h3 class="hc-h">Rotated off <span>last 12 months</span></h3><p class="hc-note">None logged yet.</p></section>`;
+  const since = hcAddDays(today, -365);
+  const year = list.filter(d => hcWhen(d) >= since), older = list.length - year.length;
+  const shown = hcShowAll ? list : year;
   return `
     <section class="hc-card">
-      <h3 class="hc-h">Recent departures</h3>
-      ${shown.map(d => hcDepHtml(d, false)).join('')}
-      ${list.length > shown.length ? `<button type="button" class="ld-link hc-more" data-hc-all>Show all ${list.length}</button>` : ''}
+      <h3 class="hc-h">Rotated off <span>${hcShowAll ? 'all' : 'last 12 months'} · ${shown.length}</span></h3>
+      ${shown.length ? `<div class="hc-off-head"><span>Name</span><span>Hired</span><span>Left</span><span></span></div>${shown.map(hcOffRowHtml).join('')}` : '<p class="hc-note">Nobody in the last 12 months.</p>'}
+      ${older && !hcShowAll ? `<button type="button" class="ld-link hc-more" data-hc-all>Show ${older} older</button>` : ''}
     </section>`;
+}
+function hcOffRowHtml(d){
+  const p = hcProfileFor(d.name);
+  return `<div class="hc-off-row">
+      <span class="hc-off-name"><b>${escapeHtml(d.name)}</b><small>${escapeHtml([HC_ROLE_LABELS[d.role] || '', hcTypeLabel(d.type)].filter(Boolean).join(' · '))}</small></span>
+      <span class="hc-off-date">${p && p.hireDate ? escapeHtml(hcDate(p.hireDate)) : '<i>not on file</i>'}</span>
+      <span class="hc-off-date">${escapeHtml(hcDate(d.lastDay))}</span>
+      <button type="button" class="ld-link" data-hc-edit="${escapeHtml(d.id)}">Edit</button>
+    </div>`;
 }
 
 // Why people leave over the last year: the types, most first.

@@ -2143,6 +2143,15 @@ body.rn-evs-on{overflow:hidden;}
 .hc-row-main small,.hc-dep-foot{font-size:12.5px;color:var(--text-tertiary);}
 .hc-row-go{display:flex;align-items:center;gap:12px;}
 .hc-dep{padding:10px 0;border-top:1px solid var(--border);}
+/* Rotated off (headcount.js hcDeparturesHtml; Tim, Oct 30 2026): name, hired, left. */
+.hc-off-head,.hc-off-row{display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);}
+.hc-off-head{font-family:var(--font-ui);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-tertiary);padding-top:4px;}
+.hc-off-name{display:grid;min-width:0;}
+.hc-off-name b{font-size:15px;}
+.hc-off-name small{font-size:12px;color:var(--text-tertiary);}
+.hc-off-date{font-size:13px;font-variant-numeric:tabular-nums;color:var(--text-secondary);white-space:nowrap;}
+.hc-off-date i{color:var(--text-tertiary);font-style:italic;}
+@media (max-width:480px){.hc-off-head span:nth-child(2),.hc-off-row .hc-off-date:first-of-type{display:none;}}
 .hc-dep:first-of-type{border-top:0;}
 .hc-dep-top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;font-size:15px;}
 .hc-dep-date{margin-left:auto;font-size:13px;font-variant-numeric:tabular-nums;color:var(--text-secondary);}
