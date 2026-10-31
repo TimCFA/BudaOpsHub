@@ -195,8 +195,8 @@ function apRightNowRows(){
   return rows;
 }
 
-// ----- sheets: my profile, and a uniform credit request -----
-function apOpenMine(){ apMineLoad(true); apSheet = {kind: 'mine'}; apDraw(); }
+// ----- sheet: a uniform credit request (my own page is me-page.js; PTO shows
+// there and nowhere else a team member goes: Tim, Oct 31 2026) -----
 function apOpenCredit(){ apMineLoad(true); apSheet = {kind: 'credit', amount: '', date: today, note: '', photo: null}; apDraw(); }
 function apClose(){ apSheet = null; apDraw(); }
 function apDraw(){
@@ -206,22 +206,8 @@ function apDraw(){
   document.body.classList.toggle('ap-open', !!apSheet);
   if(!apSheet){ layer.innerHTML = ''; return; }
   const m = apMine;
-  const body = apSheet.kind === 'credit' ? apCreditSheet(m) : apMineSheet(m);
+  const body = apCreditSheet(m);
   layer.innerHTML = `<div class="ap-scrim" data-ap-close></div><div class="ap-sheet" role="dialog" aria-modal="true" aria-labelledby="apTitle">${body}</div>`;
-}
-function apMineSheet(m){
-  if(!m) return `<div class="ap-head"><h2 id="apTitle">Your profile</h2><button type="button" class="ap-close" data-ap-close aria-label="Close">${AP_ICON_X}</button></div><p class="hc-note">Loading…</p>`;
-  const t = m.pto;
-  return `<div class="ap-head"><h2 id="apTitle">${escapeHtml(m.name)}</h2><button type="button" class="ap-close" data-ap-close aria-label="Close">${AP_ICON_X}</button></div>
-    <p class="ap-sub">${m.levelLabel ? `Level: <b>${escapeHtml(m.levelLabel)}</b>` : 'No level set yet.'}</p>
-    <div class="ap-block"><h4>PTO ${escapeHtml(m.year)}</h4>
-      <div class="ap-stats"><div><b>${apHours(t.allowance)}</b><span>a year</span></div><div><b>${apHours(t.used)}</b><span>used</span></div><div class="is-left"><b>${apHours(t.left)}</b><span>left</span></div></div>
-      ${t.entries.length ? `<ul class="ap-list">${t.entries.map(e => `<li><span>${escapeHtml(apDay(e.date))}</span>${escapeHtml(e.note || 'PTO')}<b>${apHours(e.hours)}</b></li>`).join('')}</ul>` : ''}
-      <small class="ap-sub">Resets January 1; unused hours don’t carry over. The admin team logs PTO taken.</small></div>
-    ${m.credit ? `<div class="ap-block"><h4>Uniform credit ${escapeHtml(m.year)}</h4>
-      <div class="ap-stats"><div><b>${apMoney(m.credit.perYear)}</b><span>a year</span></div><div><b>${apMoney(m.credit.used)}</b><span>approved</span></div><div class="is-left"><b>${apMoney(m.credit.left)}</b><span>left</span></div></div>
-      ${m.credit.requests.length ? `<ul class="ap-list">${m.credit.requests.map(apRequestLine).join('')}</ul>` : ''}
-      <button type="button" class="btn btn-primary" data-ap-credit-open>Send a receipt</button></div>` : ''}`;
 }
 function apCreditSheet(m){
   const f = apSheet, left = m && m.credit ? m.credit.left : null;
@@ -281,8 +267,9 @@ document.addEventListener('submit', async e => {
       const d = await apCall('/api/team/credit', {amount: f.amount.value, date: f.date.value, note: f.note.value, receipt: apSheet.photo});
       apMine = d && d.name ? d : apMine; apMineAt = Date.now();
       showToast('Sent to the admin team');
-      apSheet = {kind: 'mine'};
+      apSheet = null;
       if(typeof renderRightNow === 'function') renderRightNow();
+      if(typeof mpOpenMine === 'function') mpOpenMine();      // back to my page, the request now on it
     } catch(err){ showToast(err.message); }
     finally { apBusy = false; apDraw(); }
   }

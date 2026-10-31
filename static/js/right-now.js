@@ -854,7 +854,7 @@ function rnGo(g){
   else if(what === 'myweek' && typeof tsShowWeek === 'function') tsShowWeek(rest);
   else if(what === 'foodsafety'){ launchShowTab('foodsafety'); window.scrollTo({top: 0}); }
   else if(what === 'prepboard'){ launchShowTab('prepboard'); window.scrollTo({top: 0}); }
-  else if(what === 'mine' && typeof apOpenMine === 'function') apOpenMine();
+  else if(what === 'mine' && typeof mpOpenMine === 'function') mpOpenMine();
   else if(what === 'credit' && typeof apOpenCredit === 'function') apOpenCredit();
   else if(what === 'ticket' || what === 'tickets'){ launchShowTab('tasks'); window.scrollTo({top: 0}); if(what === 'ticket' && typeof psOpenTicket === 'function') psOpenTicket(rest); }
   else if(what === 'signin' && typeof siOpen === 'function') siOpen();
