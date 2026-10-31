@@ -159,7 +159,8 @@ function hcMarkIcon([kind, cls, words]){
 }
 
 function hcTeamHtml(){
-  const team = (hcData && hcData.team) || [];
+  // Not someone who left (Tim, Oct 30 2026): off this list, on Rotated off.
+  const team = ((hcData && hcData.team) || []).filter(t => !(typeof teamHasLeft === 'function' && teamHasLeft(t.name)));
   if(!team.length) return '';
   const others = (hcData.profiles || []).filter(p => !team.some(t => hcKey(t.name) === hcKey(p.name)) && !(typeof teamHasLeft === 'function' && teamHasLeft(p.name)));
   const row = (name, role, p) => {

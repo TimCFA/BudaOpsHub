@@ -144,7 +144,7 @@ class TeamMember(unittest.TestCase):
     def test_after_close_it_looks_at_the_next_day(self):
         # Saturday night: the next open day is Monday.
         got = run({'op': card('member', 'Ana Ruiz', setup=SETUP.replace('today]', 'mon]').replace("'||Dinner", "'||Dinner").replace("+ today +", "+ mon +"),
-                              extra="") .replace('{ ', "{ const mon = '2026-10-19'; ", 1), 'at': '2026-10-17T22:30:00-05:00'})[0]
+                              extra="") .replace('{ ', "{ const mon = '2026-10-19'; ", 1), 'at': '2026-10-17T23:30:00-05:00'})[0]   # Saturday closes at 11 (Tim, Oct 30 2026)
         self.assertEqual(got['kicker'], 'Monday')
         self.assertEqual(got['first'], 'Monday: Drinks 1 at Dinner.')
 
@@ -353,6 +353,18 @@ class ScheduleWeeks(unittest.TestCase):
         css = read('static', 'css', 'theme-cfa.css')
         self.assertIn('.ts-weeks{display:flex;flex-wrap:wrap;gap:6px;}', css)
         self.assertIn('.ts-head{min-width:0;}', css)          # a grid item: without it the row widens the page
+
+
+class StoreHours(unittest.TestCase):
+    """The store closes at 11 on Friday and Saturday, 10 the other days (Tim,
+    Oct 30 2026: a team member on break at 10:45 on a Friday saw Saturday)."""
+
+    def test_friday_and_saturday_run_to_eleven(self):
+        got = run({'op': 'c => [rnDay().closed, rnDay().closeAt]', 'at': '2026-10-23T22:30:00-05:00'},    # Friday
+                  {'op': 'c => [rnDay().closed, rnDay().closeAt]', 'at': '2026-10-24T22:59:00-05:00'},    # Saturday
+                  {'op': 'c => [rnDay().closed, rnDay().closeAt]', 'at': '2026-10-24T23:00:00-05:00'},
+                  {'op': 'c => [rnDay().closed, rnDay().closeAt]', 'at': '2026-10-22T22:30:00-05:00'})    # Thursday
+        self.assertEqual(got, [[False, 1380], [False, 1380], [True, 1380], [True, 1320]])
 
 
 class NobodySignedIn(unittest.TestCase):
