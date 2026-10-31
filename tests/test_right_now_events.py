@@ -19,7 +19,7 @@ THU_6PM = '2026-10-22T18:00:00-05:00'
 THU_8PM = '2026-10-22T20:00:00-05:00'
 THU_6AM = '2026-10-22T06:00:00-05:00'
 THU_11PM = '2026-10-22T22:30:00-05:00'
-SAT_11PM = '2026-10-24T22:30:00-05:00'
+SAT_11PM = '2026-10-24T23:30:00-05:00'
 
 EVENTS = """storeEvents = [
   {id: 'fam', kind: 'instore', title: 'Family Night', detail: 'Pumpkins & Play', date: '2026-10-22', from: '17:00', to: '19:00', notes: ['Paint pumpkins', 'Ops Team: OE']},

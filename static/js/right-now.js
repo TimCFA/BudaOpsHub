@@ -71,11 +71,22 @@ function rnAddDays(iso, n){
 // The store's day: open Monday to Saturday from the first daypart to the end
 // of Close. Before it opens, the first daypart is "next"; after it closes
 // (and on Sunday) the card looks at the next open day.
+// The store closes at 11 on Friday and Saturday, 10 the other days (CLAUDE.md;
+// Tim, Oct 23 2026). The last daypart (Close) ends at 10 whatever the day, so
+// the card asked it and called Friday over at 10 (Tim, Oct 30 2026: a team
+// member on break at 10:45 saw Saturday instead).
+const RN_LATE_DAYS = [5, 6];          // Date.getDay(): Friday, Saturday
+const RN_LATE_CLOSE = 23 * 60;
+function rnCloseAt(dow){
+  const last = daypartTimeWindow(fohDayparts, fohDayparts.length - 1).endMin;
+  return RN_LATE_DAYS.includes(dow) ? Math.max(last, RN_LATE_CLOSE) : last;
+}
 function rnDay(){
   const now = rnNowMins();
-  const sunday = new Date().getDay() === 0;
+  const dow = new Date().getDay();
+  const sunday = dow === 0;
   const last = fohDayparts[fohDayparts.length - 1];
-  const closeAt = daypartTimeWindow(fohDayparts, fohDayparts.length - 1).endMin;
+  const closeAt = rnCloseAt(dow);
   const closed = sunday || now >= closeAt;
   let next = rnAddDays(today, 1);
   if(new Date(next + 'T12:00:00').getDay() === 0) next = rnAddDays(next, 1);

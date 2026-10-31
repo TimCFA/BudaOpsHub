@@ -403,6 +403,36 @@ class DepartedEverywhere(FixedDayTest):
         self.owner.delete('/api/team/departures', json={'id': did})
         self.assertEqual(appmod.app.test_client().post('/api/manager/login', json={'pin': '123456'}).get_json()['name'], 'Jordan Testcase')
 
+    def test_logged_under_another_spelling_still_takes_the_pin(self):
+        """Tim, Oct 30 2026: a departure logged as "Jordan Alex Testcase" left
+        Jordan Testcase's PIN, and Jordan, on Our Team's list."""
+        self.upload(TEAM)
+        r = self.log({'name': 'Jordan Alex Testcase'})
+        self.assertEqual(appmod.app.test_client().post('/api/manager/login', json={'pin': '123456'}).status_code, 401)
+        self.assertNotIn('Jordan Testcase', [t['name'] for t in r.get_json()['team']])
+        self.assertEqual([d['name'] for d in r.get_json()['departed']], ['Jordan Alex Testcase'])
+
+    def test_a_stale_pin_comes_off_on_the_next_load_and_a_rehire_stays(self):
+        """A departure logged before, under another spelling, left the PIN on:
+        the next signed-in page load takes it off. A PIN put on file after
+        the departure was logged is a rehire, and stays."""
+        self.upload(TEAM)
+        for v in store['secure/teamPins'].values():
+            v['addedAt'] = 1000
+        store[appmod.TURNOVER_PATH] = {'departures': {
+            'abc123def456': {'name': 'Jordan Alex Testcase', 'lastDay': '2026-10-25', 'type': 'quit', 'rehire': 'unsure', 'status': 'logged', 'source': 'manual', 'noticed': '2026-10-26', 'at': 2000},
+            'abc123def457': {'name': 'Riley Sample', 'lastDay': '2026-10-20', 'type': 'quit', 'rehire': 'yes', 'status': 'logged', 'source': 'manual', 'noticed': '2026-10-21', 'at': 500}}}
+        appmod._auth_read()
+        names = self.login('345678').get('/api/team/names').get_json()          # any signed-in page load
+        self.assertNotIn('Jordan Testcase', [n['name'] for n in names['names']])
+        self.assertIn('Riley Sample', [n['name'] for n in names['names']])      # the PIN came after the departure: rehired
+        self.assertEqual([d['name'] for d in names['departed']], ['Jordan Alex Testcase'])
+        self.assertEqual(appmod.app.test_client().post('/api/manager/login', json={'pin': '123456'}).status_code, 401)
+        self.assertEqual(appmod.app.test_client().post('/api/manager/login', json={'pin': '234567'}).status_code, 200)
+        team = [t['name'] for t in self.get().get_json()['team']]
+        self.assertNotIn('Jordan Testcase', team)
+        self.assertIn('Riley Sample', team)
+
     def test_every_list_leaves_them_out(self):
         for f, line in [('daypicker-and-positions.js', ".filter(p => !(typeof teamHasLeft === 'function' && teamHasLeft(p.name)))"),
                         ('team-schedule.js', "!onDay(t.name) && !(typeof teamHasLeft === 'function' && teamHasLeft(t.name))"),
@@ -415,7 +445,8 @@ class DepartedEverywhere(FixedDayTest):
                         ('uniform-orders.js', "!(typeof teamHasLeft === 'function' && teamHasLeft(n))"),
                         ('weekly-roster-import.js', "teamHasLeft(p.name, dateISO)"),
                         ('headcount.js', "const off = typeof launchManager !== 'undefined' && launchManager ? hcTakeOffSchedule(f.name, f.lastDay)"),
-                        ('headcount.js', "teamLeftSet(data.departed);")]:
+                        ('headcount.js', "teamLeftSet(data.departed);"),
+                        ('headcount.js', "const team = ((hcData && hcData.team) || []).filter(t => !(typeof teamHasLeft === 'function' && teamHasLeft(t.name)));")]:   # Our Team's own list (Tim, Oct 30 2026)
             self.assertIn(line, read('static', 'js', f), f)
 
 
