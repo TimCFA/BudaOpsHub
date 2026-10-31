@@ -171,6 +171,22 @@ class Page(unittest.TestCase):
         for sel in ('.mp-sheet{', '.mp-sheet:not(.is-boh) .es{display:none;}', '.mp-steps li.is-done{'):
             self.assertIn(sel, read('static', 'css', 'theme-cfa.css'))
 
+    def test_pto_shows_on_the_me_page_only(self):
+        """Tim, Oct 31 2026: a team member sees their PTO on their Me page and
+        nowhere else. The old "Your profile" sheet (team-extras.js) is gone;
+        the Right Now card's "mine" link and a sent receipt open the Me page."""
+        te = read('static', 'js', 'team-extras.js')
+        self.assertNotIn('apMineSheet', te)
+        self.assertNotIn("kind: 'mine'", te)
+        self.assertIn("if(typeof mpOpenMine === 'function') mpOpenMine();", te)
+        rn = read('static', 'js', 'right-now.js')
+        self.assertIn("else if(what === 'mine' && typeof mpOpenMine === 'function') mpOpenMine();", rn)
+        self.assertNotIn('apOpenMine', rn)
+        for f in ('right-now.js', 'sign-in.js', 'zone-reset.js', 'state-and-utils.js', 'pass.js', 'team-schedule.js'):
+            js = read('static', 'js', f)
+            self.assertNotRegex(js, r"(?i)pto[^\n]*<", f"PTO drawn in {f}")
+        self.assertIn("if(d.pto && d.pto.allowance && !d.pto.off) items.push(`<li><b>PTO ", read('static', 'js', 'me-page.js'))
+
     def test_the_persons_words_are_escaped_and_nothing_is_contact_info(self):
         js = read('static', 'js', 'me-page.js')
         for field in ('d.name', 'goals', 'it.label', 'p.position', 'd.levelLabel'):
