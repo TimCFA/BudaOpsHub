@@ -42,67 +42,53 @@ html[data-theme="dark"] .tm-root,html[data-theme="dark"] .tm-layer{--tm-heat:#E8
 .tm-range{margin:0 0 14px;}
 .tm-h{font-family:var(--tm-display);font-size:18px;margin:22px 2px 12px;}
 
-/* ----- the timer cards ----- */
-.tm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(184px,1fr));gap:14px;}
-.tm-tile{--tm-c:var(--tm-navy);--tm-pct:0;position:relative;display:block;width:100%;border:1px solid transparent;padding:0;background:var(--tm-card);border-radius:20px;box-shadow:var(--tm-shadow);cursor:pointer;color:var(--tm-ink);font:inherit;text-align:center;-webkit-tap-highlight-color:transparent;transition:background .3s,border-color .3s,transform .15s;}
-.tm-face{display:flex;flex-direction:column;align-items:center;padding:10px 10px 12px;}
-.tm-top{display:flex;align-items:center;gap:7px;width:100%;min-height:28px;}
-.tm-badge{flex:none;width:28px;height:28px;border-radius:9px;background:var(--tm-navy-soft);display:flex;align-items:center;justify-content:center;color:var(--tm-c);transition:background .3s;}
-.tm-ic{width:17px;height:17px;}
+/* ----- the round timers (Tim, Oct 28 2026; his preference again Nov 4) -----
+   A ring that empties as the cycle runs, in the timer's own colour
+   (--tm-hue, set on the tile from its Setup colour) so Restrooms, Lot Sweep
+   and the rest tell apart at a glance. The state shows in the label, the
+   face and a halo around the ring: amber label when due soon, a red halo and
+   blush face when overdue, a pulsing dark-red one once it's a miss. Every
+   size comes from --tm-size, so the same rules draw the tablet page, a phone
+   and the full screen. */
+.tm-now{--tm-size:210px;}
+.tm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--tm-size),1fr));gap:20px;justify-items:center;}
+.tm-tile{--tm-hue:var(--tm-navy);--tm-c:var(--tm-hue);position:relative;width:var(--tm-size);height:var(--tm-size);border:0;padding:0;background:none;border-radius:50%;cursor:pointer;color:var(--tm-ink);font:inherit;-webkit-tap-highlight-color:transparent;}
+.tm-ring{position:absolute;inset:0;border-radius:50%;background:var(--tm-track);transition:box-shadow .3s;}
+.tm-face{position:absolute;inset:calc(var(--tm-size) * .058);border-radius:50%;background:var(--tm-card);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 calc(var(--tm-size) * .08);transition:background .3s;}
+.tm-time{font-family:var(--tm-display);font-size:calc(var(--tm-size) * .215);font-weight:600;line-height:1;font-variant-numeric:tabular-nums;}
+.tm-time.is-wide{font-size:calc(var(--tm-size) * .185);}
+.tm-time.is-long{font-size:calc(var(--tm-size) * .165);}
+.tm-status{font-size:calc(var(--tm-size) * .06);font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-top:calc(var(--tm-size) * .03);color:var(--tm-muted);}
+.tm-rule{width:64%;height:1px;background:var(--tm-line);margin:calc(var(--tm-size) * .045) 0 calc(var(--tm-size) * .035);}
+.tm-name{font-size:calc(var(--tm-size) * .083);font-weight:700;line-height:1.15;}
+.tm-owner{font-size:calc(var(--tm-size) * .064);color:var(--tm-faint);margin-top:calc(var(--tm-size) * .015);min-height:1.2em;}
+.tm-badge{position:absolute;top:0;right:0;width:calc(var(--tm-size) * .26);height:calc(var(--tm-size) * .26);border-radius:50%;background:var(--tm-card);display:flex;align-items:center;justify-content:center;color:var(--tm-hue);box-shadow:0 0 0 calc(var(--tm-size) * .016) var(--tm-hue);}
+.tm-ic{width:calc(var(--tm-size) * .135);height:calc(var(--tm-size) * .135);}
 .tm-ic-sm{width:18px;height:18px;vertical-align:-4px;}
 .tm-ic-lg{width:40px;height:40px;color:var(--tm-navy);flex:none;}
-.tm-name{flex:1;min-width:0;text-align:left;font-size:13.5px;font-weight:700;line-height:1.15;}
-/* The dial: a thin ring that empties clockwise as the cycle runs. --tm-pct
-   is how much is left, 0-100 (timers.js paintTiles). */
-.tm-dial{position:relative;width:150px;height:150px;margin:8px 0 6px;display:flex;align-items:center;justify-content:center;}
-.tm-ring{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg);overflow:visible;}
-.tm-ring circle{fill:none;stroke-width:5.5;}
-.tm-ring-track{stroke:var(--tm-track);}
-.tm-ring-bar{stroke:var(--tm-c);stroke-linecap:round;stroke-dasharray:var(--tm-pct) 100;transition:stroke-dasharray .6s linear,stroke .3s;}
-.tm-time{font-family:var(--tm-display);font-size:42px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
-.tm-time.is-wide{font-size:36px;}
-.tm-time.is-long{font-size:32px;}
-.tm-status{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--tm-muted);}
-.tm-status::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;}
-.tm-rule{display:none;}
-.tm-owner{font-size:12.5px;color:var(--tm-faint);margin-top:3px;min-height:15px;}
 .tm-tile.is-ok .tm-status{color:var(--tm-ok);}
-.tm-tile.is-soon{--tm-c:var(--tm-heat);}
-.tm-tile.is-soon .tm-badge{background:var(--tm-heat-soft);}
 .tm-tile.is-soon .tm-status{color:var(--tm-heat);}
-.tm-tile.is-late{--tm-c:var(--tm-red);background:var(--tm-red-soft);border-color:var(--tm-red);}
-.tm-tile.is-late .tm-badge{background:var(--tm-card);}
-.tm-tile.is-late .tm-status{color:var(--tm-red);}
-.tm-tile.is-missed{--tm-c:var(--tm-dark-red);background:var(--tm-red-soft);border-color:var(--tm-dark-red);animation:tm-pulse 1.4s ease-in-out infinite;}
-.tm-tile.is-missed .tm-badge{background:var(--tm-card);}
-.tm-tile.is-missed .tm-status{color:var(--tm-dark-red);}
-.tm-tile.is-missed .tm-time{color:var(--tm-dark-red);}
-.tm-tile.is-late .tm-ring-track,.tm-tile.is-missed .tm-ring-track{stroke:rgba(221,0,49,.14);}
-.tm-tile.is-off,.tm-tile.is-new{--tm-c:var(--tm-faint);}
+.tm-tile.is-late .tm-ring{box-shadow:0 0 0 calc(var(--tm-size) * .018) var(--tm-card),0 0 0 calc(var(--tm-size) * .034) var(--tm-red);}
+.tm-tile.is-late .tm-face{background:var(--tm-red-soft);}
+.tm-tile.is-late .tm-status,.tm-tile.is-late .tm-time{color:var(--tm-red);}
+.tm-tile.is-missed{animation:tm-pulse 1.4s ease-in-out infinite;}
+.tm-tile.is-missed .tm-ring{box-shadow:0 0 0 calc(var(--tm-size) * .018) var(--tm-card),0 0 0 calc(var(--tm-size) * .034) var(--tm-dark-red);}
+.tm-tile.is-missed .tm-face{background:var(--tm-red-soft);}
+.tm-tile.is-missed .tm-status,.tm-tile.is-missed .tm-time{color:var(--tm-dark-red);}
 .tm-tile.is-off .tm-time,.tm-tile.is-new .tm-time{color:var(--tm-faint);}
-.tm-tile.is-off .tm-ring-bar,.tm-tile.is-new .tm-ring-bar{opacity:0;}      /* no dot at the top of an empty dial */
-.tm-tile.is-new .tm-time{font-family:var(--font-ui,'Figtree',system-ui,sans-serif);font-size:17px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;}
-/* Paused: the clock stands still and the dial goes to dashes. */
-.tm-tile.is-paused{--tm-c:var(--tm-muted);background:var(--tm-ground);}
-.tm-tile.is-paused .tm-badge{background:var(--tm-soft);}
-.tm-tile.is-paused .tm-ring-bar{stroke-dasharray:2.4 2.4;stroke-linecap:butt;opacity:.75;}
-.tm-tile.is-paused .tm-time{color:var(--tm-muted);}
-.tm-tile.is-paused .tm-status{color:var(--tm-muted);}
-.tm-tile.is-paused .tm-owner{color:var(--tm-muted);}
+/* Paused: the clock stands still, the ring goes to stripes in its colour. */
+.tm-tile.is-paused .tm-ring{background:repeating-linear-gradient(135deg,var(--tm-hue) 0 8px,var(--tm-track) 8px 16px);opacity:.8;}
+.tm-tile.is-paused .tm-time,.tm-tile.is-paused .tm-status,.tm-tile.is-paused .tm-owner{color:var(--tm-muted);}
 .tm-chip .tm-ic-sm{width:14px;height:14px;vertical-align:-2px;}
-@keyframes tm-pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.025);}}
+@keyframes tm-pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.03);}}
 @media (prefers-reduced-motion:reduce){.tm-tile.is-missed{animation:none;}}
 
-/* ----- counters: circles (Tim, Nov 4 2026: keep them round) in the same
-   clothes as the timer cards, a navy ring with the name, the count and
-   round -/+ inside; --tm-csize sizes everything in one. ----- */
-.tm-grid-c{justify-items:center;}
-.tm-counter{--tm-csize:190px;width:var(--tm-csize);height:var(--tm-csize);border-radius:50%;background:var(--tm-card);box-shadow:inset 0 0 0 calc(var(--tm-csize) * .055) var(--tm-navy),var(--tm-shadow);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 calc(var(--tm-csize) * .1);box-sizing:border-box;}
-.tm-counter-name{font-size:calc(var(--tm-csize) * .078);font-weight:700;text-align:center;line-height:1.1;}
-.tm-counter-row{display:flex;align-items:center;gap:calc(var(--tm-csize) * .03);margin-bottom:calc(var(--tm-csize) * .03);}
-.tm-step{width:calc(var(--tm-csize) * .2);height:calc(var(--tm-csize) * .2);border:1px solid var(--tm-line);border-radius:50%;background:var(--tm-ground);font:inherit;font-size:calc(var(--tm-csize) * .13);line-height:1;color:var(--tm-red);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0 0 2px;}
-.tm-step:active{background:var(--tm-soft);}
-.tm-count-val{border:0;background:none;font-family:var(--tm-display);font-size:calc(var(--tm-csize) * .3);font-weight:600;min-width:calc(var(--tm-csize) * .36);color:var(--tm-ink);cursor:pointer;font-variant-numeric:tabular-nums;padding:0;line-height:1;}
+/* ----- counters: the same circles, a navy ring, - count + inside ----- */
+.tm-counter{width:var(--tm-size);height:var(--tm-size);border-radius:50%;background:var(--tm-card);box-shadow:inset 0 0 0 calc(var(--tm-size) * .058) var(--tm-navy);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 calc(var(--tm-size) * .1);box-sizing:border-box;}
+.tm-counter-row{display:flex;align-items:center;gap:calc(var(--tm-size) * .02);}
+.tm-step{width:calc(var(--tm-size) * .22);height:calc(var(--tm-size) * .22);border:0;background:none;font:inherit;font-size:calc(var(--tm-size) * .19);line-height:1;color:var(--tm-red);cursor:pointer;padding:0;}
+.tm-count-val{border:0;background:none;font-family:var(--tm-display);font-size:calc(var(--tm-size) * .29);font-weight:600;min-width:calc(var(--tm-size) * .4);color:var(--tm-ink);cursor:pointer;font-variant-numeric:tabular-nums;padding:0;line-height:1;}
+.tm-counter-name{font-size:calc(var(--tm-size) * .083);font-weight:700;border-top:1px solid var(--tm-line);padding-top:calc(var(--tm-size) * .03);margin-top:calc(var(--tm-size) * .02);}
 
 /* ----- sheet ----- */
 .tm-layer{position:fixed;inset:0;z-index:1200;display:flex;align-items:flex-end;justify-content:center;}
@@ -155,6 +141,9 @@ html[data-theme="dark"] .tm-root,html[data-theme="dark"] .tm-layer{--tm-heat:#E8
 .tm-pill.missed{background:var(--tm-red-soft);color:var(--tm-dark-red);}
 
 /* ----- setup ----- */
+.tm-swatches{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:8px;padding:2px 0 8px 42px;}
+.tm-sw{width:30px;height:30px;border-radius:50%;border:0;background:var(--sw);cursor:pointer;box-shadow:inset 0 0 0 2px rgba(255,255,255,.55);padding:0;}
+.tm-sw.on{box-shadow:0 0 0 2px var(--tm-card),0 0 0 4px var(--tm-ink);}
 .tm-set{display:grid;grid-template-columns:34px minmax(120px,1.6fr) minmax(110px,1fr) 90px 90px 36px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--tm-line);}
 .tm-set-head{font-size:11.5px;color:var(--tm-faint);font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
 .tm-set-c{grid-template-columns:1fr 36px;}
@@ -167,13 +156,8 @@ html[data-theme="dark"] .tm-root,html[data-theme="dark"] .tm-layer{--tm-heat:#E8
 .tm-days .tm-k{width:100%;}
 
 @media (max-width:640px){
+  .tm-now{--tm-size:clamp(140px,calc((100vw - 44px) / 2),190px);}
   .tm-grid{grid-template-columns:repeat(2,1fr);gap:12px;}
-  .tm-face{padding:9px 8px 11px;}
-  .tm-dial{width:126px;height:126px;margin:6px 0 4px;}
-  .tm-time{font-size:35px;}.tm-time.is-wide{font-size:30px;}.tm-time.is-long{font-size:27px;}
-  .tm-name{font-size:13.5px;}.tm-status{font-size:10.5px;}
-  .tm-badge{width:26px;height:26px;border-radius:8px;}.tm-ic{width:16px;height:16px;}
-  .tm-counter{--tm-csize:156px;}
   .tm-seg{width:100%;}.tm-seg button{flex:1;padding:8px 6px;}
   .tm-set:not(.tm-set-c){grid-template-columns:22px minmax(0,1fr) 58px 58px 26px;gap:6px;}
   .tm-set .tm-input{padding:9px 8px;}
@@ -202,36 +186,23 @@ body.tm-full #timersView{
   padding:calc(var(--tm-case) + env(safe-area-inset-top,0px)) calc(var(--tm-case) + env(safe-area-inset-right,0px)) calc(var(--tm-case) + env(safe-area-inset-bottom,0px)) calc(var(--tm-case) + env(safe-area-inset-left,0px));
 }
 body.tm-full .tm-now{
-  --tm-w:calc((100vw - 2 * max(36px, 4vw) - (var(--tm-cols, 5) - 1) * 20px) / var(--tm-cols, 5));
-  --tm-h:calc((100vh - 2 * max(36px, 4vw) - 100px) / (var(--tm-rows, 1) * 1.38 + var(--tm-crow, 0) * .95));
+  --tm-w:calc((100vw - 2 * max(36px, 4vw) - (var(--tm-cols, 5) - 1) * 18px) / var(--tm-cols, 5));
+  --tm-h:calc((100vh - 2 * max(36px, 4vw) - 96px - (var(--tm-rows, 1) + var(--tm-crow, 0)) * 18px) / (var(--tm-rows, 1) + var(--tm-crow, 0)));
   --tm-size:clamp(150px, min(var(--tm-w), var(--tm-h)), 480px);
 }
-body.tm-full .tm-grid{grid-template-columns:repeat(auto-fill,minmax(var(--tm-size),1fr));gap:20px;}
+body.tm-full .tm-grid{gap:18px;}
 body.tm-full .tm-h,body.tm-full .tm-hint{display:none;}
-body.tm-full .tm-grid-c{margin-top:20px;}
+body.tm-full .tm-grid-c{margin-top:18px;}
 body.tm-full .tm-head{margin-bottom:16px;}
-body.tm-full .tm-counter{--tm-csize:calc(var(--tm-size) * .92);}
 body.tm-full .tm-full-btn{background:var(--tm-navy);border-color:var(--tm-navy);color:#fff;}
-/* What's inside a card grows and shrinks with it, so five across on the
-   iPad and two on a phone both read from across the counter. */
-body.tm-full .tm-face{padding:calc(var(--tm-size) * .04) calc(var(--tm-size) * .04) calc(var(--tm-size) * .05);}
-body.tm-full .tm-top{min-height:calc(var(--tm-size) * .17);gap:calc(var(--tm-size) * .03);}
-body.tm-full .tm-dial{width:calc(var(--tm-size) * .9);height:calc(var(--tm-size) * .9);margin:calc(var(--tm-size) * .03) 0 calc(var(--tm-size) * .03);}
-body.tm-full .tm-time{font-size:calc(var(--tm-size) * .27);}
-body.tm-full .tm-time.is-wide{font-size:calc(var(--tm-size) * .23);}
-body.tm-full .tm-time.is-long{font-size:calc(var(--tm-size) * .2);}
-body.tm-full .tm-name{font-size:calc(var(--tm-size) * .072);}
-body.tm-full .tm-badge{width:calc(var(--tm-size) * .17);height:calc(var(--tm-size) * .17);border-radius:calc(var(--tm-size) * .055);}
-body.tm-full .tm-ic{width:calc(var(--tm-size) * .1);height:calc(var(--tm-size) * .1);}
-body.tm-full .tm-status{font-size:calc(var(--tm-size) * .062);}
-body.tm-full .tm-owner{font-size:calc(var(--tm-size) * .065);margin-top:calc(var(--tm-size) * .015);}
 
 /* Tap to pause, double tap to reset, press and hold for the sheet (Tim,
    Oct 28 2026): no text selection or callout on a long press, a squeeze
-   while it's held and a ring of colour when a tap landed. */
+   while it's held and a flash when a tap landed. */
 .tm-tile{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation;}
-.tm-tile.is-holding{transform:scale(.96);}
-.tm-tile.is-tapped{animation:tm-tap .6s ease-out;}
-@keyframes tm-tap{0%{box-shadow:0 0 0 0 var(--tm-c),var(--tm-shadow);}40%{box-shadow:0 0 0 10px transparent,var(--tm-shadow);}100%{box-shadow:var(--tm-shadow);}}
-@media (prefers-reduced-motion:reduce){.tm-tile.is-holding{transform:none;}.tm-tile.is-tapped{animation:none;}}
+.tm-tile .tm-face{transition:background .3s,transform .55s ease-out;}
+.tm-tile.is-holding .tm-face{transform:scale(.94);}
+.tm-tile.is-tapped .tm-face{animation:tm-tap .6s ease-out;}
+@keyframes tm-tap{0%{box-shadow:0 0 0 0 var(--tm-hue);}40%{box-shadow:0 0 0 10px transparent;}100%{box-shadow:0 0 0 0 transparent;}}
+@media (prefers-reduced-motion:reduce){.tm-tile.is-holding .tm-face{transform:none;}.tm-tile.is-tapped .tm-face{animation:none;}}
 .tm-hint{margin:18px 4px 0;font-size:13.5px;color:var(--tm-muted);}
