@@ -93,14 +93,16 @@ html[data-theme="dark"] .tm-root,html[data-theme="dark"] .tm-layer{--tm-heat:#E8
 @keyframes tm-pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.025);}}
 @media (prefers-reduced-motion:reduce){.tm-tile.is-missed{animation:none;}}
 
-/* ----- counters ----- */
-.tm-counter{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 10px 12px;border:1px solid transparent;border-radius:20px;background:var(--tm-card);box-shadow:var(--tm-shadow);}
-.tm-counter-name{order:-1;width:100%;text-align:left;font-size:13.5px;font-weight:700;min-height:28px;display:flex;align-items:center;}
-.tm-counter-row{display:flex;align-items:center;gap:10px;margin:8px 0 2px;}
-.tm-step{width:44px;height:44px;border:1px solid var(--tm-line);border-radius:50%;background:var(--tm-ground);font:inherit;font-size:26px;line-height:1;color:var(--tm-red);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0 0 2px;}
+/* ----- counters: circles (Tim, Nov 4 2026: keep them round) in the same
+   clothes as the timer cards, a navy ring with the name, the count and
+   round -/+ inside; --tm-csize sizes everything in one. ----- */
+.tm-grid-c{justify-items:center;}
+.tm-counter{--tm-csize:190px;width:var(--tm-csize);height:var(--tm-csize);border-radius:50%;background:var(--tm-card);box-shadow:inset 0 0 0 calc(var(--tm-csize) * .055) var(--tm-navy),var(--tm-shadow);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 calc(var(--tm-csize) * .1);box-sizing:border-box;}
+.tm-counter-name{font-size:calc(var(--tm-csize) * .078);font-weight:700;text-align:center;line-height:1.1;}
+.tm-counter-row{display:flex;align-items:center;gap:calc(var(--tm-csize) * .03);margin-bottom:calc(var(--tm-csize) * .03);}
+.tm-step{width:calc(var(--tm-csize) * .2);height:calc(var(--tm-csize) * .2);border:1px solid var(--tm-line);border-radius:50%;background:var(--tm-ground);font:inherit;font-size:calc(var(--tm-csize) * .13);line-height:1;color:var(--tm-red);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0 0 2px;}
 .tm-step:active{background:var(--tm-soft);}
-.tm-count-val{border:0;background:none;font-family:var(--tm-display);font-size:54px;font-weight:600;min-width:64px;color:var(--tm-ink);cursor:pointer;font-variant-numeric:tabular-nums;padding:0;}
-.tm-sound{display:flex;gap:8px;align-items:center;margin:14px 4px 0;font-size:13.5px;color:var(--tm-muted);}
+.tm-count-val{border:0;background:none;font-family:var(--tm-display);font-size:calc(var(--tm-csize) * .3);font-weight:600;min-width:calc(var(--tm-csize) * .36);color:var(--tm-ink);cursor:pointer;font-variant-numeric:tabular-nums;padding:0;line-height:1;}
 
 /* ----- sheet ----- */
 .tm-layer{position:fixed;inset:0;z-index:1200;display:flex;align-items:flex-end;justify-content:center;}
@@ -171,11 +173,7 @@ html[data-theme="dark"] .tm-root,html[data-theme="dark"] .tm-layer{--tm-heat:#E8
   .tm-time{font-size:35px;}.tm-time.is-wide{font-size:30px;}.tm-time.is-long{font-size:27px;}
   .tm-name{font-size:13.5px;}.tm-status{font-size:10.5px;}
   .tm-badge{width:26px;height:26px;border-radius:8px;}.tm-ic{width:16px;height:16px;}
-  .tm-counter{padding:12px 8px 14px;}
-  .tm-counter-name{padding-left:2px;}
-  .tm-counter-row{gap:4px;}
-  .tm-step{width:40px;height:40px;font-size:24px;}
-  .tm-count-val{font-size:38px;min-width:48px;}
+  .tm-counter{--tm-csize:156px;}
   .tm-seg{width:100%;}.tm-seg button{flex:1;padding:8px 6px;}
   .tm-set:not(.tm-set-c){grid-template-columns:22px minmax(0,1fr) 58px 58px 26px;gap:6px;}
   .tm-set .tm-input{padding:9px 8px;}
@@ -188,8 +186,12 @@ html[data-theme="dark"] .tm-root,html[data-theme="dark"] .tm-layer{--tm-heat:#E8
    The counter iPad sits in a case whose frame covers the screen's edges, and
    the hub's header, tabs and pills took the top of it. In full screen the
    page is the timers alone: everything sits inside --tm-case, a margin the
-   frame can't cover, and the cards size themselves so a row of five fits
-   the width (--tm-cols, set on the grid). */
+   frame can't cover, and the cards size themselves to the screen: as wide
+   as a row of them allows (--tm-cols, five at most) and as tall as the
+   rows of timers plus the counters allow (--tm-rows, --tm-crow), whichever
+   is smaller, so four timers and two counters fill an iPad on its side
+   with the biggest numbers that fit (Tim, Nov 4 2026). The hint and the
+   Counters heading go. */
 .tm-full-btn{align-self:center;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:8px 14px;border:1px solid var(--tm-line);border-radius:999px;background:var(--tm-card);color:var(--tm-ink);font:inherit;font-size:14px;font-weight:700;cursor:pointer;}
 body.tm-full .hdr,body.tm-full .tabs-wrap,body.tm-full #timersView > [data-launch-subnav],body.tm-full #timersView > .launch-signin-hint{display:none !important;}
 body.tm-full{background:var(--cfa-bg,#F6F1E8);}
@@ -199,24 +201,30 @@ body.tm-full #timersView{
   box-sizing:border-box;min-height:100vh;min-height:100dvh;
   padding:calc(var(--tm-case) + env(safe-area-inset-top,0px)) calc(var(--tm-case) + env(safe-area-inset-right,0px)) calc(var(--tm-case) + env(safe-area-inset-bottom,0px)) calc(var(--tm-case) + env(safe-area-inset-left,0px));
 }
-body.tm-full .tm-grid{
-  --tm-size:clamp(150px, calc((100vw - 2 * max(36px, 4vw) - (var(--tm-cols, 5) - 1) * 24px) / var(--tm-cols, 5)), 240px);
-  grid-template-columns:repeat(auto-fill,minmax(var(--tm-size),1fr));gap:24px;
+body.tm-full .tm-now{
+  --tm-w:calc((100vw - 2 * max(36px, 4vw) - (var(--tm-cols, 5) - 1) * 20px) / var(--tm-cols, 5));
+  --tm-h:calc((100vh - 2 * max(36px, 4vw) - 100px) / (var(--tm-rows, 1) * 1.38 + var(--tm-crow, 0) * .95));
+  --tm-size:clamp(150px, min(var(--tm-w), var(--tm-h)), 480px);
 }
+body.tm-full .tm-grid{grid-template-columns:repeat(auto-fill,minmax(var(--tm-size),1fr));gap:20px;}
+body.tm-full .tm-h,body.tm-full .tm-hint{display:none;}
+body.tm-full .tm-grid-c{margin-top:20px;}
+body.tm-full .tm-head{margin-bottom:16px;}
+body.tm-full .tm-counter{--tm-csize:calc(var(--tm-size) * .92);}
 body.tm-full .tm-full-btn{background:var(--tm-navy);border-color:var(--tm-navy);color:#fff;}
 /* What's inside a card grows and shrinks with it, so five across on the
    iPad and two on a phone both read from across the counter. */
-body.tm-full .tm-face{padding:calc(var(--tm-size) * .05) calc(var(--tm-size) * .05) calc(var(--tm-size) * .06);}
-body.tm-full .tm-dial{width:calc(var(--tm-size) * .76);height:calc(var(--tm-size) * .76);margin:calc(var(--tm-size) * .04) 0 calc(var(--tm-size) * .03);}
-body.tm-full .tm-time{font-size:calc(var(--tm-size) * .215);}
-body.tm-full .tm-time.is-wide{font-size:calc(var(--tm-size) * .185);}
-body.tm-full .tm-time.is-long{font-size:calc(var(--tm-size) * .165);}
-body.tm-full .tm-name{font-size:calc(var(--tm-size) * .07);}
-body.tm-full .tm-badge{width:calc(var(--tm-size) * .23);height:calc(var(--tm-size) * .23);border-radius:calc(var(--tm-size) * .07);}
-body.tm-full .tm-ic{width:calc(var(--tm-size) * .115);height:calc(var(--tm-size) * .115);}
-body.tm-full .tm-status{font-size:calc(var(--tm-size) * .06);}
-body.tm-full .tm-owner{font-size:calc(var(--tm-size) * .065);}
-body.tm-full .tm-count-val{font-size:calc(var(--tm-size) * .28);}
+body.tm-full .tm-face{padding:calc(var(--tm-size) * .04) calc(var(--tm-size) * .04) calc(var(--tm-size) * .05);}
+body.tm-full .tm-top{min-height:calc(var(--tm-size) * .17);gap:calc(var(--tm-size) * .03);}
+body.tm-full .tm-dial{width:calc(var(--tm-size) * .9);height:calc(var(--tm-size) * .9);margin:calc(var(--tm-size) * .03) 0 calc(var(--tm-size) * .03);}
+body.tm-full .tm-time{font-size:calc(var(--tm-size) * .27);}
+body.tm-full .tm-time.is-wide{font-size:calc(var(--tm-size) * .23);}
+body.tm-full .tm-time.is-long{font-size:calc(var(--tm-size) * .2);}
+body.tm-full .tm-name{font-size:calc(var(--tm-size) * .072);}
+body.tm-full .tm-badge{width:calc(var(--tm-size) * .17);height:calc(var(--tm-size) * .17);border-radius:calc(var(--tm-size) * .055);}
+body.tm-full .tm-ic{width:calc(var(--tm-size) * .1);height:calc(var(--tm-size) * .1);}
+body.tm-full .tm-status{font-size:calc(var(--tm-size) * .062);}
+body.tm-full .tm-owner{font-size:calc(var(--tm-size) * .065);margin-top:calc(var(--tm-size) * .015);}
 
 /* Tap to pause, double tap to reset, press and hold for the sheet (Tim,
    Oct 28 2026): no text selection or callout on a long press, a squeeze
