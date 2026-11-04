@@ -429,6 +429,13 @@ class FullScreen(unittest.TestCase):
             self.assertIn(rule, self.css)
         self.assertIn('style="--tm-cols:${Math.max(1, Math.min(5, c.timers.length))}"', self.js)
         self.assertIn('style="--tm-cols:${cols};--tm-rows:${Math.ceil(c.timers.length / cols)};--tm-crow:${c.counters.length ? 1 : 0}"', self.js)
+        # Tim, Nov 4 2026: the iPad's bottom third sat empty. Full screen puts the timers and counters in one grid and
+        # tries every number of columns, keeping the one whose circles come out biggest.
+        self.assertIn('function fitTiles(){', self.js)
+        self.assertIn('for(let cols = 1; cols <= n; cols++){', self.js)
+        self.assertIn("grid.style.gridTemplateColumns = `repeat(${best.cols}, ${size}px)`;", self.js)
+        self.assertIn("if(S.tab === 'now'){ paintTiles(); fitTiles(); }", self.js)
+        self.assertIn("window.addEventListener('resize', () => { if(shown()) fitTiles(); });", self.js)
         self.assertNotIn('data-tm-sound', self.js)                                   # the beep switch lives in Manage > Settings
         self.assertIn("const beepToggle = document.getElementById('timersBeepToggle');", self.js)
         html = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cfa-buda-ops-hub-complete.html'), encoding='utf-8').read()
