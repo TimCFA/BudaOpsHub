@@ -476,7 +476,7 @@ class Look(unittest.TestCase):
                      '.tm-tile.is-paused .tm-ring-bar{stroke-dasharray:2.4 2.4;',
                      '.tm-tile.is-off .tm-ring-bar,.tm-tile.is-new .tm-ring-bar{opacity:0;}',
                      '.tm-status::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;}',
-                     'body.tm-full .tm-dial{width:calc(var(--tm-size) * .62);',
+                     'body.tm-full .tm-dial{width:calc(var(--tm-size) * .76);',
                      '--tm-dark-red:#E8636E;'):                                    # readable on the dark theme
             self.assertIn(rule, self.css)
         self.assertIsNone(re.search('[\U0001F300-\U0001FAFF]', self.css + self.js))     # line icons, never emoji

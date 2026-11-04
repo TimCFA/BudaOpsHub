@@ -269,6 +269,7 @@
       } else {
         time.textContent = fmtLeft(st.left);
         time.classList.toggle('is-long', Math.abs(st.left) >= 3600000);
+        time.classList.toggle('is-wide', time.textContent.length >= 6);      // "+20:05" keeps clear of the dial
         const pct = st.left > 0 ? Math.max(0, Math.min(1, st.left / (t.interval * MIN))) : 1;
         el.style.setProperty('--tm-pct', (pct * 100).toFixed(1));
       }
