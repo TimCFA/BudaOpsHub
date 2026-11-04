@@ -448,3 +448,39 @@ class TapAndHold(unittest.TestCase):
         self.assertIn('Tap to pause, tap again to resume. Double tap when it’s done. Press and hold to say who did it or hand it off.', js)
         css = open(os.path.join(root, 'static', 'css', 'timers.css'), encoding='utf-8').read()
         self.assertIn('-webkit-touch-callout:none', css)
+
+
+class Look(unittest.TestCase):
+    """Nov 4 2026 (Tim: "more aesthetically pleasing"): each timer is a card
+    with the icon and name on top, a thin dial that empties as the cycle runs
+    (--tm-pct, 0-100, on the tile) around the time, and the status under it.
+    Overdue and missed cards blush red; a paused dial goes to dashes."""
+
+    def setUp(self):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        rd = lambda *p: open(os.path.join(root, *p), encoding='utf-8').read()
+        self.js, self.css = rd('static', 'js', 'timers.js'), rd('static', 'css', 'timers.css')
+
+    def test_the_card(self):
+        tile = self.js[self.js.index('function tileHtml(t){'):self.js.index('function counterHtml(c){')]
+        self.assertIn('<span class="tm-top"><span class="tm-badge">${icon(t.icon)}</span><span class="tm-name">${h(t.name)}</span></span>', tile)
+        self.assertIn('<svg class="tm-ring" viewBox="0 0 100 100" aria-hidden="true"><circle class="tm-ring-track" cx="50" cy="50" r="45" pathLength="100"/><circle class="tm-ring-bar" cx="50" cy="50" r="45" pathLength="100"/></svg><span class="tm-time"></span>', tile)
+        self.assertNotIn('conic-gradient', self.js)
+        paint = self.js[self.js.index('function paintTiles(){'):self.js.index('/* ---------- the timer sheet')]
+        self.assertIn("el.style.setProperty('--tm-pct', (pct * 100).toFixed(1));", paint)
+        self.assertIn("el.style.setProperty('--tm-pct', 0);", paint)
+
+    def test_the_look(self):
+        for rule in ('.tm-ring-bar{stroke:var(--tm-c);stroke-linecap:round;stroke-dasharray:var(--tm-pct) 100;',
+                     '.tm-tile.is-late{--tm-c:var(--tm-red);background:var(--tm-red-soft);border-color:var(--tm-red);}',
+                     '.tm-tile.is-paused .tm-ring-bar{stroke-dasharray:2.4 2.4;',
+                     '.tm-tile.is-off .tm-ring-bar,.tm-tile.is-new .tm-ring-bar{opacity:0;}',
+                     '.tm-status::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;}',
+                     'body.tm-full .tm-dial{width:calc(var(--tm-size) * .76);',
+                     '--tm-dark-red:#E8636E;'):                                    # readable on the dark theme
+            self.assertIn(rule, self.css)
+        self.assertIsNone(re.search('[\U0001F300-\U0001FAFF]', self.css + self.js))     # line icons, never emoji
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -194,11 +194,14 @@
   /* ---------- Now ---------- */
   const STATUS = {ok: 'On track', soon: 'Due soon', late: 'Overdue', missed: 'Missed', off: 'Closed', new: 'Not started', paused: 'Paused'};
   function tileHtml(t){
+    // A card: the icon and name on top, the dial (a ring that empties as the
+    // cycle runs, --tm-pct) around the time, the status and owner under it.
     return `<button type="button" class="tm-tile" data-tm-timer="${h(t.id)}">
-      <span class="tm-ring"></span>
-      <span class="tm-face"><span class="tm-time"></span><span class="tm-status"></span><span class="tm-rule"></span>
-        <span class="tm-name">${h(t.name)}</span><span class="tm-owner"></span></span>
-      <span class="tm-badge">${icon(t.icon)}</span>
+      <span class="tm-face">
+        <span class="tm-top"><span class="tm-badge">${icon(t.icon)}</span><span class="tm-name">${h(t.name)}</span></span>
+        <span class="tm-dial"><svg class="tm-ring" viewBox="0 0 100 100" aria-hidden="true"><circle class="tm-ring-track" cx="50" cy="50" r="45" pathLength="100"/><circle class="tm-ring-bar" cx="50" cy="50" r="45" pathLength="100"/></svg><span class="tm-time"></span></span>
+        <span class="tm-status"></span><span class="tm-owner"></span>
+      </span>
     </button>`;
   }
   function counterHtml(c){
@@ -257,20 +260,20 @@
       if(!el) return;
       const st = cycle(t);
       el.className = 'tm-tile is-' + st.cls;
-      const time = el.querySelector('.tm-time'), ring = el.querySelector('.tm-ring');
+      const time = el.querySelector('.tm-time');
       el.querySelector('.tm-status').textContent = STATUS[st.cls];
       if(st.cls === 'off' || st.cls === 'new'){
         time.textContent = st.cls === 'new' ? 'Tap' : '—';
         time.classList.remove('is-long');
-        ring.style.background = '';
+        el.style.setProperty('--tm-pct', 0);
       } else {
         time.textContent = fmtLeft(st.left);
         time.classList.toggle('is-long', Math.abs(st.left) >= 3600000);
+        time.classList.toggle('is-wide', time.textContent.length >= 6);      // "+20:05" keeps clear of the dial
         const pct = st.left > 0 ? Math.max(0, Math.min(1, st.left / (t.interval * MIN))) : 1;
-        ring.style.background = st.left > 0 ? `conic-gradient(var(--tm-c) ${pct * 360}deg, var(--tm-track) 0)` : 'var(--tm-c)';
+        el.style.setProperty('--tm-pct', (pct * 100).toFixed(1));
       }
       if(st.cls === 'paused'){
-        ring.style.background = 'var(--tm-c)';
         el.querySelector('.tm-owner').textContent = st.rest ? 'Tap to resume' : `Back at ${fmtTime(st.until)}`;
       } else {
         const o = st.cls === 'off' ? '' : ownerNow(t.id);
