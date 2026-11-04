@@ -29,6 +29,7 @@ class Times(unittest.TestCase):
         self.assertEqual(self.t('Christmas Eve 6AM-4PM'), ['06:00', '16:00'])
         self.assertEqual(self.t("New Year's Day 10:30AM-4PM"), ['10:30', '16:00'])
         self.assertEqual(self.t('Receipt Day 11-8'), ['11:00', '20:00'])      # store hours
+        self.assertEqual(self.t('Receipt Day 1Mam-8pm'), ['11:00', '20:00'])   # bold "11am" misread (Canva's PNG, Nov 2026)
 
     def test_not_times(self):
         self.assertIsNone(self.t('MLG: 3ct strips w/Spicy CFA Sauce | Nov 16-21'))
@@ -46,6 +47,11 @@ class Events(unittest.TestCase):
                          {'kind': 'drivethru', 'title': '12 Days of Christmas', 'detail': 'Medium Waffle Fries'})
         two = self.ev('Build-Your-Own Thank You Card (Arts & Crafts Event) 11-12 PM & 6-7 PM', 'instore')
         self.assertEqual((two['title'], two['from'], two['to'], two['detail']), ('Build-Your-Own Thank You Card (Arts & Crafts Event)', '11:00', '12:00', '11-12 PM & 6-7 PM'))
+        # Words after a time in the middle of the square are the detail.
+        self.assertEqual(self.ev('West Buda 1 Year Bday! 5-8 PM event Free cookie (all day)', 'instore'),
+                         {'kind': 'instore', 'from': '17:00', 'to': '20:00', 'title': 'West Buda 1 Year Bday!', 'detail': 'event Free cookie (all day)'})
+        self.assertEqual(self.ev('Receipt Day 1Mam-8pm All Drive Thru only', 'note'),
+                         {'kind': 'note', 'from': '11:00', 'to': '20:00', 'title': 'Receipt Day', 'detail': 'All Drive Thru only'})
 
     def test_black_closings_are_heads_ups_not_social_posts(self):
         self.assertEqual(self.ev('Thanksgiving CLOSED', 'social')['kind'], 'note')
@@ -64,6 +70,8 @@ class Panel(unittest.TestCase):
         {'x0': 20, 'text': '1. Internal Calendar'}, {'x0': 20, 'text': '2.Guest Facing Calendar'},
         {'x0': 20, 'text': '5. Individual event fliers in'}, {'x0': 34, 'text': 'restaurant'},
         {'x0': 10, 'text': 'Notes'},
+        {'x0': 12, 'text': 'West Buda 1 Year Birthday'}, {'x0': 12, 'text': 'Celebration'},   # a heading that wrapped
+        {'x0': 23, 'text': '« See notes in event breakdown'}, {'x0': 39, 'text': 'below!'},
         {'x0': 12, 'text': 'Cow Bingo'},
         {'x0': 23, 'text': '« Social blurb: “Join us in the'}, {'x0': 39, 'text': 'dining room for fun.”'},
         {'x0': 23, 'text': 's Ops Team: OE'},
@@ -76,14 +84,15 @@ class Panel(unittest.TestCase):
     def test_checklist_and_notes(self):
         got = run('c => eviPanelFromLines(c.lines)', lines=self.LINES)
         self.assertEqual(got['checklist'], ['Internal Calendar', 'Guest Facing Calendar', 'Individual event fliers in restaurant'])
-        self.assertEqual([n['heading'] for n in got['notes']], ['Cow Bingo', 'Fall Festival', 'Pajamas, Pals, & S’mores'])
-        self.assertEqual(got['notes'][0]['items'], ['Social blurb: "Join us in the dining room for fun."', 'Ops Team: OE'])
-        self.assertEqual(got['notes'][1]['items'], ['Admin Logistics: Supplies + promotions'])
+        self.assertEqual([n['heading'] for n in got['notes']], ['West Buda 1 Year Birthday Celebration', 'Cow Bingo', 'Fall Festival', 'Pajamas, Pals, & S’mores'])
+        self.assertEqual(got['notes'][0]['items'], ['See notes in event breakdown below!'])
+        self.assertEqual(got['notes'][1]['items'], ['Social blurb: "Join us in the dining room for fun."', 'Ops Team: OE'])
+        self.assertEqual(got['notes'][2]['items'], ['Admin Logistics: Supplies + promotions'])
 
     def test_notes_go_on_the_events_they_name(self):
         got = run("""c => { const evs = [{title: 'Cow Bingo'}, {title: 'Cow Bingo'}, {title: '[TBD] Fall Festival'}, {title: 'No School'}];
             const left = eviAttachNotes(evs, eviPanelFromLines(c.lines).notes); return [evs.map(e => (e.notes || []).length), left]; }""", lines=self.LINES)
-        self.assertEqual(got, [[2, 2, 1, 0], ['Pajamas, Pals, & S’mores']])
+        self.assertEqual(got, [[2, 2, 1, 0], ['West Buda 1 Year Birthday Celebration', 'Pajamas, Pals, & S’mores']])
 
 
 class Dates(unittest.TestCase):
@@ -125,6 +134,10 @@ class Page(unittest.TestCase):
         events = page[page.index('data-manage-tab="calendar"'):].split('</section>')[0]   # Manage → Calendar (Tim, Oct 21 2026)
         self.assertLess(events.index('id="eventsImportRoot"'), events.index('id="eventsManageRoot"'))
         self.assertLess(page.index('/static/js/events.js'), page.index('/static/js/events-import.js'))
+        with open(os.path.join(ROOT, 'static', 'js', 'events-import.js'), encoding='utf-8') as f:
+            src = f.read()
+        self.assertIn('.zip', src[src.index('data-evi-file') - 120:src.index('data-evi-file')])   # Canva's download is a zip
+        self.assertIn('duLoadJsZip', src)
 
     def test_library_pinned_and_loaded_only_when_used(self):
         with open(os.path.join(ROOT, 'static', 'js', 'events-import.js'), encoding='utf-8') as f:
