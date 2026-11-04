@@ -1316,11 +1316,12 @@ def _pins_of(pins, name, since=None):
     """The PIN list's records for a name, under any spelling (_same_person:
     "Ana Diaz" / "Ana Maria Diaz"; Tim, Oct 30 2026: a departure logged
     under another spelling left the PIN, and them, on Our Team). With
-    `since`, only PINs put on file after that time (a rehire)."""
+    `since`, only PINs put on file after that time (a rehire). Times are whole
+    seconds, so a PIN stamped in the same second as the departure was there first."""
     out = {}
     for k, v in (pins or {}).items():
         if isinstance(v, dict) and v.get('name') and _same_person(v.get('name'), name):
-            if since is None or (v.get('addedAt') or 0) >= since:
+            if since is None or (v.get('addedAt') or 0) > since:
                 out[k] = v
     return out
 
@@ -1330,7 +1331,7 @@ def _pin_due(d, today, pins):
     if not (isinstance(d, dict) and d.get('status') == 'logged' and (d.get('lastDay') or '') < today):
         return False
     at = d.get('at') or 0
-    return any((v.get('addedAt') or 0) < at for v in _pins_of(pins, d.get('name')).values())
+    return any((v.get('addedAt') or 0) <= at for v in _pins_of(pins, d.get('name')).values())
 
 def _notice_due(d, today):
     return isinstance(d, dict) and d.get('status') == 'logged' and bool(d.get('notice')) and (d.get('lastDay') or '') < today
@@ -1360,7 +1361,7 @@ def _departures_sweep(data):
             stash = dict(d.get('pin') or {}) if isinstance(d.get('pin'), dict) else {}
             at = d.get('at') or 0
             for k, v in _pins_of(pins, d.get('name')).items():
-                if k not in stash and (v.get('addedAt') or 0) < at:
+                if k not in stash and (v.get('addedAt') or 0) <= at:
                     db.reference(f'{TEAM_PINS_PATH}/{k}').delete()
                     pins.pop(k, None)
                     stash[k] = v
