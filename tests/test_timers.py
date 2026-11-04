@@ -427,7 +427,7 @@ class FullScreen(unittest.TestCase):
                      '--tm-h:calc((100vh - 2 * max(36px, 4vw) - 96px - (var(--tm-rows, 1) + var(--tm-crow, 0)) * 18px) / (var(--tm-rows, 1) + var(--tm-crow, 0)));',
                      '--tm-size:clamp(150px, min(var(--tm-w), var(--tm-h)), 480px);'):
             self.assertIn(rule, self.css)
-        self.assertIn('style="--tm-cols:${Math.max(1, Math.min(5, c.timers.length))}"', self.js)
+        self.assertIn('const cols = Math.max(1, Math.min(5, c.timers.length));', self.js)
         self.assertIn('style="--tm-cols:${cols};--tm-rows:${Math.ceil(c.timers.length / cols)};--tm-crow:${c.counters.length ? 1 : 0}"', self.js)
         # Tim, Nov 4 2026: the iPad's bottom third sat empty. Full screen puts the timers and counters in one grid and
         # tries every number of columns, keeping the one whose circles come out biggest.
