@@ -423,10 +423,15 @@ class FullScreen(unittest.TestCase):
 
     def test_the_layout(self):
         for rule in ('body.tm-full .hdr,body.tm-full .tabs-wrap', '--tm-case:max(36px, 4vw);', 'env(safe-area-inset-left,0px)',
-                     '--tm-size:clamp(150px, calc((100vw - 2 * max(36px, 4vw) - (var(--tm-cols, 5) - 1) * 24px) / var(--tm-cols, 5)), 240px);',
-                     'body.tm-full .tm-badge{width:calc(var(--tm-size) * .23);'):
+                     '--tm-w:calc((100vw - 2 * max(36px, 4vw) - (var(--tm-cols, 5) - 1) * 20px) / var(--tm-cols, 5));',
+                     '--tm-h:calc((100vh - 2 * max(36px, 4vw) - 108px) / (var(--tm-rows, 1) * 1.38 + var(--tm-crow, 0) * .95));',
+                     '--tm-size:clamp(150px, min(var(--tm-w), var(--tm-h)), 480px);',
+                     'body.tm-full .tm-badge{width:calc(var(--tm-size) * .17);',
+                     'body.tm-full .tm-counter{--tm-csize:calc(var(--tm-size) * .92);}'):
             self.assertIn(rule, self.css)
         self.assertIn('style="--tm-cols:${Math.max(1, Math.min(5, c.timers.length))}"', self.js)
+        self.assertIn('style="--tm-cols:${cols};--tm-rows:${Math.ceil(c.timers.length / cols)};--tm-crow:${c.counters.length ? 1 : 0}"', self.js)
+        self.assertIn("${full ? soundHtml() : ''}", self.js)                        # the beep switch in the head, full screen only
 
 
 class TapAndHold(unittest.TestCase):
@@ -476,7 +481,8 @@ class Look(unittest.TestCase):
                      '.tm-tile.is-paused .tm-ring-bar{stroke-dasharray:2.4 2.4;',
                      '.tm-tile.is-off .tm-ring-bar,.tm-tile.is-new .tm-ring-bar{opacity:0;}',
                      '.tm-status::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;}',
-                     'body.tm-full .tm-dial{width:calc(var(--tm-size) * .76);',
+                     'body.tm-full .tm-dial{width:calc(var(--tm-size) * .9);',
+                     '.tm-counter{--tm-csize:190px;width:var(--tm-csize);height:var(--tm-csize);border-radius:50%;',
                      '--tm-dark-red:#E8636E;'):                                    # readable on the dark theme
             self.assertIn(rule, self.css)
         self.assertIsNone(re.search('[\U0001F300-\U0001FAFF]', self.css + self.js))     # line icons, never emoji

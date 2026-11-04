@@ -242,15 +242,24 @@
       </div>
       <div class="tm-seg" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" aria-selected="${S.tab === k}" class="${S.tab === k ? 'on' : ''}" data-tm-tab="${k}">${l}</button>`).join('')}</div>
       <button type="button" class="tm-full-btn" data-tm-full aria-pressed="${full}">${full ? FULL_ICON.off : FULL_ICON.on}<span>${full ? 'Exit full screen' : 'Full screen'}</span></button>
+      ${full ? soundHtml() : ''}
     </div>`;
   }
+  function soundHtml(){
+    return `<label class="tm-sound"><input type="checkbox" data-tm-sound ${S.sound ? 'checked' : ''}> Beep on this device when a timer goes overdue</label>`;
+  }
+  // Full screen sizes the tiles to the screen (timers.css): how many across
+  // (--tm-cols, five at most), how many rows of timers and whether a row of
+  // counters sits under them (--tm-rows, --tm-crow), so a row of four timers
+  // and the counters fill an iPad on its side (Tim, Nov 4 2026).
   function renderNow(){
-    const c = S.config;
-    return headHtml() + `
+    const c = S.config, full = fullOn();
+    const cols = Math.max(1, Math.min(5, c.timers.length));
+    return headHtml() + `<div class="tm-now" style="--tm-cols:${cols};--tm-rows:${Math.ceil(c.timers.length / cols)};--tm-crow:${c.counters.length ? 1 : 0}">
       <div class="tm-grid" id="tmGrid" style="--tm-cols:${Math.max(1, Math.min(5, c.timers.length))}" data-ids="${h(c.timers.map(t => t.id).join())}">${c.timers.map(tileHtml).join('')}</div>
-      ${c.counters.length ? `<h3 class="tm-h">Counters</h3><div class="tm-grid">${c.counters.map(counterHtml).join('')}</div>` : ''}
+      ${c.counters.length ? `<h3 class="tm-h">Counters</h3><div class="tm-grid tm-grid-c">${c.counters.map(counterHtml).join('')}</div>` : ''}
       <p class="tm-hint">Tap to pause, tap again to resume. Double tap when it’s done. Press and hold to say who did it or hand it off.</p>
-      <label class="tm-sound"><input type="checkbox" data-tm-sound ${S.sound ? 'checked' : ''}> Beep on this device when a timer goes overdue</label>`;
+      ${full ? '' : soundHtml()}</div>`;
   }
   function paintTiles(){
     const grid = document.getElementById('tmGrid');
