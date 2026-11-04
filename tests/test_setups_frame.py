@@ -182,7 +182,7 @@ class DaypartCards(unittest.TestCase):
         self.assertIn('<span class="su-chip-fill">${suDaypartFillText(section, date, dp, i)}</span>', chips)
         self.assertNotIn('filled}/${onShift}', chips)
         css = read('static', 'css', 'theme-cfa.css')
-        self.assertIn('.su-dp .su-dp-fill.is-short{background:#FBE3E4;color:var(--cfa-dark-red);}', css)
+        self.assertIn('.su-dp .su-dp-fill.is-short{background:var(--bad-fill);color:var(--cfa-dark-red);}', css)
 
     def test_arrival_redraw_waits_for_open_sheets(self):
         """The half-minute arrival check looked for `.modal.active`, a class

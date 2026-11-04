@@ -579,7 +579,7 @@ function suZonesHtml(m){
     const count = z.key === 'extra' && !filled ? 'when staffing allows' : `${filled} placed${needed ? ` · ${needed} needed` : ''}`;
     const leaders = z.tiles.filter(t => t.leaderRole).map(t => `<span class="su-zone-leader" title="${escapeHtml(t.leaderRole)}">${escapeHtml(suDisplayName(t.names[0]))} · ${t.leaderRole === 'Team Lead' ? 'TL' : 'Trainer'}</span>`).join('');
     return `
-      <section class="su-zone" aria-label="${escapeHtml(z.name)}">
+      <section class="su-zone su-z-${z.key}" aria-label="${escapeHtml(z.name)}">
         <div class="su-zone-head"><h3>${escapeHtml(z.name)}</h3><span>${count}</span></div>
         ${leaders ? `<div class="su-zone-leaders">${leaders}</div>` : ''}
         ${shown.length ? `<div class="su-tiles">${shown.map(suTileHtml).join('')}</div>` : ''}

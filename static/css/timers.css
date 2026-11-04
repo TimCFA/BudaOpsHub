@@ -18,17 +18,17 @@
   --tm-red:var(--cfa-red,#DD0031);
   --tm-dark-red:var(--cfa-dark-red,#AF272F);
   --tm-navy:var(--cfa-navy,#004F71);
-  --tm-ok:var(--ok,#2E7D45);
-  --tm-heat:#B26B00;
-  --tm-red-soft:#FBE3E4;
-  --tm-heat-soft:#FFF3DC;
-  --tm-navy-soft:#E3EDF2;
+  --tm-ok:var(--ok,var(--good));
+  --tm-heat:var(--warn);
+  --tm-red-soft:var(--bad-fill);
+  --tm-heat-soft:var(--warn-fill);
+  --tm-navy-soft:var(--info-fill);
   --tm-track:#E9E2D6;
   --tm-shadow:0 1px 2px rgba(28,27,25,.06),0 8px 24px -12px rgba(28,27,25,.22);
   --tm-display:var(--font-display,'Zilla Slab',Georgia,serif);
   font-family:var(--font-ui,'Figtree',system-ui,sans-serif);color:var(--tm-ink);
 }
-html[data-theme="dark"] .tm-root,html[data-theme="dark"] .tm-layer{--tm-heat:#E8B45A;--tm-dark-red:#E8636E;--tm-red-soft:#3B1E22;--tm-heat-soft:#3A2E14;--tm-navy-soft:#1B3240;--tm-track:#2C3036;--tm-shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);}
+html[data-theme="dark"] .tm-root,html[data-theme="dark"] .tm-layer{--tm-dark-red:#E8636E;--tm-track:#2C3036;--tm-shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);}
 
 /* ----- head: the Lead Captain, and Now / Scoreboard / Setup ----- */
 .tm-head{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;margin-bottom:14px;}
@@ -135,7 +135,7 @@ html[data-theme="dark"] .tm-root,html[data-theme="dark"] .tm-layer{--tm-heat:#E8
 .tm-kpi{background:var(--tm-navy);color:#F6F1E8;border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;}
 .tm-kpi span{font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.8;}
 .tm-kpi b{font-family:var(--tm-display);font-size:30px;font-weight:700;}
-.tm-kpi b.ok{color:#9FD9AE;}.tm-kpi b.warn{color:#F3C76A;}.tm-kpi b.bad{color:#FF9AA6;}
+.tm-kpi b.ok{color:var(--good-bright);}.tm-kpi b.warn{color:var(--warn-bright);}.tm-kpi b.bad{color:var(--bad-bright);}
 .tm-card{background:var(--tm-card);border:1px solid var(--tm-line);border-radius:var(--radius,14px);padding:14px 16px;margin-top:14px;}
 .tm-card h3{margin:0 0 8px;font-family:var(--tm-display);font-size:19px;}
 .tm-table-wrap{overflow-x:auto;}
@@ -151,7 +151,7 @@ html[data-theme="dark"] .tm-root,html[data-theme="dark"] .tm-layer{--tm-heat:#E8
 .tm-score{display:inline-block;width:32px;text-align:right;}
 .tm-pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700;}
 .tm-pill.ontime{background:var(--ok-soft,#E5F1E8);color:var(--tm-ok);}
-.tm-pill.late{background:#FFF0C7;color:#8A5300;}
+.tm-pill.late{background:var(--warn-fill);color:var(--warn-ink);}
 .tm-pill.missed{background:var(--tm-red-soft);color:var(--tm-dark-red);}
 
 /* ----- setup ----- */

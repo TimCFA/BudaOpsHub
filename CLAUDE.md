@@ -51,6 +51,17 @@ grotesque body (Figtree); both fonts stand in for Caecilia and Apercu until the
 brand fonts are licensed (swap `--font-display` / `--font-ui`). Line icons (inline
 SVG), never emoji. New components go in the theme's conventions.
 
+Colour has three jobs, kept apart so a page sorts itself at a glance (Tim, Nov 4
+2026): brand (red acts and limits, navy sums up and labels sections), status and
+identity. Status is the token set at the top of theme-cfa.css: `--good`,
+`--warn`, `--bad`, `--info`, `--off`, each with `-ink` (text on the page),
+`-fill` and `-line` (a washed card and its edge) and `-bright` (text on navy).
+Never type a new green, amber or pink hex into a stylesheet or a script; use
+the token, and dark.css already carries its dark value (a rule on the tokens
+needs no dark twin). Identity colours are the zones (`--zone-*`, one colour a
+zone on both sides of the house and in Coach) and the daypart skies (`.su-col-*`).
+Cards share `--card-shadow`; section labels in small caps are navy (`--eyebrow`).
+
 ## Tasks
 
 The Tasks tab is the Pass (`pass_api.py`, `static/js/pass-engine.js`,
