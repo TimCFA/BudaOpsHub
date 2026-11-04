@@ -47,7 +47,8 @@ html[data-theme="dark"] .tm-root,html[data-theme="dark"] .tm-layer{--tm-heat:#E8
    (--tm-hue, set on the tile from its Setup colour) so Restrooms, Lot Sweep
    and the rest tell apart at a glance. The state shows in the label, the
    face and a halo around the ring: amber label when due soon, a red halo and
-   blush face when overdue, a pulsing dark-red one once it's a miss. Every
+   a solid red face with white writing when overdue (Tim, Nov 4 2026), a
+   pulsing dark-red one once it's a miss. Every
    size comes from --tm-size, so the same rules draw the tablet page, a phone
    and the full screen. */
 .tm-now{--tm-size:210px;}
@@ -69,12 +70,13 @@ html[data-theme="dark"] .tm-root,html[data-theme="dark"] .tm-layer{--tm-heat:#E8
 .tm-tile.is-ok .tm-status{color:var(--tm-ok);}
 .tm-tile.is-soon .tm-status{color:var(--tm-heat);}
 .tm-tile.is-late .tm-ring{box-shadow:0 0 0 calc(var(--tm-size) * .018) var(--tm-card),0 0 0 calc(var(--tm-size) * .034) var(--tm-red);}
-.tm-tile.is-late .tm-face{background:var(--tm-red-soft);}
-.tm-tile.is-late .tm-status,.tm-tile.is-late .tm-time{color:var(--tm-red);}
+.tm-tile.is-late .tm-face{background:var(--tm-red);color:#fff;}
+.tm-tile.is-late .tm-status,.tm-tile.is-late .tm-time,.tm-tile.is-late .tm-name,.tm-tile.is-late .tm-owner{color:#fff;}
+.tm-tile.is-late .tm-rule,.tm-tile.is-missed .tm-rule{background:rgba(255,255,255,.4);}
 .tm-tile.is-missed{animation:tm-pulse 1.4s ease-in-out infinite;}
 .tm-tile.is-missed .tm-ring{box-shadow:0 0 0 calc(var(--tm-size) * .018) var(--tm-card),0 0 0 calc(var(--tm-size) * .034) var(--tm-dark-red);}
-.tm-tile.is-missed .tm-face{background:var(--tm-red-soft);}
-.tm-tile.is-missed .tm-status,.tm-tile.is-missed .tm-time{color:var(--tm-dark-red);}
+.tm-tile.is-missed .tm-face{background:#AF272F;color:#fff;}
+.tm-tile.is-missed .tm-status,.tm-tile.is-missed .tm-time,.tm-tile.is-missed .tm-name,.tm-tile.is-missed .tm-owner{color:#fff;}
 .tm-tile.is-off .tm-time,.tm-tile.is-new .tm-time{color:var(--tm-faint);}
 /* Paused: the clock stands still, the ring goes to stripes in its colour. */
 .tm-tile.is-paused .tm-ring{background:repeating-linear-gradient(135deg,var(--tm-hue) 0 8px,var(--tm-track) 8px 16px);opacity:.8;}

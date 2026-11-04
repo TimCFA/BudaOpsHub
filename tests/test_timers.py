@@ -479,6 +479,8 @@ class Look(unittest.TestCase):
     def test_the_look(self):
         for rule in ('.tm-tile{--tm-hue:var(--tm-navy);--tm-c:var(--tm-hue);position:relative;width:var(--tm-size);height:var(--tm-size);',
                      '.tm-tile.is-late .tm-ring{box-shadow:',
+                     '.tm-tile.is-late .tm-face{background:var(--tm-red);color:#fff;}',                 # overdue: the inside goes red
+                     '.tm-tile.is-missed .tm-face{background:#AF272F;color:#fff;}',
                      '.tm-tile.is-paused .tm-ring{background:repeating-linear-gradient(135deg,var(--tm-hue) 0 8px,var(--tm-track) 8px 16px);',
                      '.tm-counter{width:var(--tm-size);height:var(--tm-size);border-radius:50%;',
                      '.tm-now{--tm-size:210px;}',
