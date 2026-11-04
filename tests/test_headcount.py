@@ -10,6 +10,7 @@ Firebase is a dict. Names are made up.
 import os
 import re
 import sys
+import types
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -81,6 +82,15 @@ class HeadcountTest(unittest.TestCase):
         store['secure/teamPins'] = {}
         store['secure/teamProfiles'] = {}
         appmod.app.config['SESSION_COOKIE_SECURE'] = False
+        # The hub stamps PINs and departures in whole seconds, and "a PIN put on
+        # file after the departure" is a rehire. The tests write both within one
+        # second, so they say which came first by moving the app's clock on
+        # (self.skew), never by sleeping.
+        real_time, self.skew = appmod.time, 0
+        shim = types.SimpleNamespace(**{k: getattr(real_time, k) for k in dir(real_time) if not k.startswith('_')})
+        shim.time = lambda: real_time.time() + self.skew
+        appmod.time = shim
+        self.addCleanup(setattr, appmod, 'time', real_time)
         self.owner = appmod.app.test_client()
         with self.owner.session_transaction() as sess:
             sess['manager'] = True
@@ -363,6 +373,7 @@ class FixedDayTest(HeadcountTest):
         self.addCleanup(setattr, appmod, '_turnover_today', real)
 
     def log(self, body, c=None):
+        self.skew += 5                                                           # logged after the PINs were put on file
         return (c or self.owner).post('/api/team/departures', json=dict({'lastDay': '2026-10-25', 'type': 'quit', 'rehire': 'unsure'}, **body))
 
 
@@ -394,6 +405,7 @@ class DepartedEverywhere(FixedDayTest):
         r = self.upload(TEAM)                                                    # the store's report still has them
         self.assertTrue(any(x.startswith('Jordan Testcase: logged as left') for x in r.get_json()['skipped']))
         self.assertEqual(appmod.app.test_client().post('/api/manager/login', json={'pin': '123456'}).status_code, 401)
+        self.skew += 5                                                           # rehired after they left
         self.owner.post('/api/team/pin', json={'name': 'Jordan Testcase', 'pin': '121212', 'role': 'member'})   # rehired
         self.assertEqual(self.get().get_json()['departed'], [])
 
