@@ -270,11 +270,40 @@
   function renderNow(){
     const c = S.config, full = fullOn();
     const cols = Math.max(1, Math.min(5, c.timers.length));
+    const timers = c.timers.map((t, i) => tileHtml(t, i)).join(''), counters = c.counters.map(counterHtml).join('');
+    // Full screen is one grid, timers then counters, so fitTiles can lay all
+    // of them out in whatever rows and columns give the biggest circles.
     return headHtml() + `<div class="tm-now" style="--tm-cols:${cols};--tm-rows:${Math.ceil(c.timers.length / cols)};--tm-crow:${c.counters.length ? 1 : 0}">
-      <div class="tm-grid" id="tmGrid" style="--tm-cols:${Math.max(1, Math.min(5, c.timers.length))}" data-ids="${h(c.timers.map(t => t.id).join())}">${c.timers.map((t, i) => tileHtml(t, i)).join('')}</div>
-      ${c.counters.length ? `<h3 class="tm-h">Counters</h3><div class="tm-grid tm-grid-c">${c.counters.map(counterHtml).join('')}</div>` : ''}
-      <p class="tm-hint">Tap to pause, tap again to resume. Double tap when it’s done. Press and hold to say who did it or hand it off.</p></div>`;
+      ${full ? `<div class="tm-grid" id="tmGrid" style="--tm-cols:${cols}" data-ids="${h(c.timers.map(t => t.id).join())}">${timers}${counters}</div>` : `
+      <div class="tm-grid" id="tmGrid" style="--tm-cols:${cols}" data-ids="${h(c.timers.map(t => t.id).join())}">${timers}</div>
+      ${c.counters.length ? `<h3 class="tm-h">Counters</h3><div class="tm-grid tm-grid-c">${counters}</div>` : ''}
+      <p class="tm-hint">Tap to pause, tap again to resume. Double tap when it’s done. Press and hold to say who did it or hand it off.</p>`}</div>`;
   }
+  // Full screen (Tim, Nov 4 2026: the iPad's bottom third sat empty): try
+  // every number of columns for the timers and counters together and keep the
+  // one whose circles come out biggest inside the screen's free area.
+  const FIT_GAP = 26, FIT_MIN = 120, FIT_MAX = 520;
+  function fitTiles(){
+    const now = S.root && S.root.querySelector('.tm-now'), grid = now && now.querySelector('#tmGrid');
+    if(!grid || !fullOn() || S.tab !== 'now') return;
+    const view = document.getElementById('timersView'), pad = view ? parseFloat(getComputedStyle(view).paddingBottom) || 0 : 0;
+    const box = now.getBoundingClientRect(), n = grid.children.length;
+    const W = box.width, H = window.innerHeight - box.top - pad;
+    if(!n || W < 100 || H < 100) return;
+    let best = {size: 0, cols: 1};
+    for(let cols = 1; cols <= n; cols++){
+      const rows = Math.ceil(n / cols);
+      const size = Math.min((W - (cols - 1) * FIT_GAP) / cols, (H - (rows - 1) * FIT_GAP) / rows);
+      if(size > best.size + 1) best = {size, cols};
+    }
+    const size = Math.max(FIT_MIN, Math.min(FIT_MAX, Math.floor(best.size * .97)));       // a little room for the halo
+    now.style.setProperty('--tm-size', size + 'px');
+    grid.style.gridTemplateColumns = `repeat(${best.cols}, ${size}px)`;
+    grid.style.justifyContent = 'center';
+    grid.style.gap = FIT_GAP + 'px';
+  }
+  window.addEventListener('resize', () => { if(shown()) fitTiles(); });
+  window.addEventListener('orientationchange', () => setTimeout(() => { if(shown()) fitTiles(); }, 250));
   function paintTiles(){
     const grid = document.getElementById('tmGrid');
     if(!grid || !S.config) return;
@@ -574,7 +603,7 @@
     if(S.status === 'loading'){ S.root.innerHTML = '<p class="tm-empty">Loading the timers…</p>'; return; }
     if(S.status === 'error'){ S.root.innerHTML = `<p class="tm-empty">${h(S.error)} <button type="button" class="tm-btn ghost" data-tm-retry>Try again</button></p>`; return; }
     S.root.innerHTML = S.tab === 'stats' ? renderStats() : S.tab === 'setup' ? renderSetup() : renderNow();
-    if(S.tab === 'now') paintTiles();
+    if(S.tab === 'now'){ paintTiles(); fitTiles(); }
   }
 
   /* ---------- events ---------- */
