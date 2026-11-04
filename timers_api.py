@@ -73,12 +73,14 @@ FOH_DAYPARTS = [
     ('Close (8:00-10:00)', '20:00'),
 ]
 ICONS = ('restroom', 'broom', 'slide', 'table', 'trash', 'cup', 'spray', 'window', 'clock')
+# Each timer's own ring colour on the tablet (Tim, Nov 4 2026); timers.js COLORS has the shades.
+COLORS = ('red', 'green', 'blue', 'orange', 'purple', 'teal', 'pink', 'gold', 'navy', 'brown')
 DEFAULT_CONFIG = {
     'timers': [
-        {'id': 'restroom', 'name': 'Restrooms', 'icon': 'restroom', 'interval': 30, 'grace': 10},
-        {'id': 'lot', 'name': 'Lot Sweep', 'icon': 'broom', 'interval': 120, 'grace': 15},
-        {'id': 'playground', 'name': 'Playground Clean Up', 'icon': 'slide', 'interval': 120, 'grace': 15},
-        {'id': 'dining', 'name': 'Dining Room Touch', 'icon': 'table', 'interval': 45, 'grace': 10},
+        {'id': 'restroom', 'name': 'Restrooms', 'icon': 'restroom', 'interval': 30, 'grace': 10, 'color': 'red'},
+        {'id': 'lot', 'name': 'Lot Sweep', 'icon': 'broom', 'interval': 120, 'grace': 15, 'color': 'green'},
+        {'id': 'playground', 'name': 'Playground Clean Up', 'icon': 'slide', 'interval': 120, 'grace': 15, 'color': 'blue'},
+        {'id': 'dining', 'name': 'Dining Room Touch', 'icon': 'table', 'interval': 45, 'grace': 10, 'color': 'purple'},
     ],
     'counters': [
         {'id': 'cookie', 'name': 'Cookie'},
@@ -359,7 +361,8 @@ def clean_config(d):
             continue
         seen.add(tid)
         timers.append({'id': tid, 'name': name, 'icon': t.get('icon') if t.get('icon') in ICONS else 'clock',
-                       'interval': _int(t.get('interval'), 5, 24 * 60, 60), 'grace': _int(t.get('grace'), 0, 240, 10)})
+                       'interval': _int(t.get('interval'), 5, 24 * 60, 60), 'grace': _int(t.get('grace'), 0, 240, 10),
+                       'color': t.get('color') if t.get('color') in COLORS else ''})
     for c in (d.get('counters') if isinstance(d.get('counters'), list) else [])[:12]:
         if not isinstance(c, dict):
             continue

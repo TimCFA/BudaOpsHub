@@ -33,6 +33,13 @@
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   };
   const ICON_NAMES = {restroom: 'Restroom', broom: 'Broom', slide: 'Playground', table: 'Table', trash: 'Trash', cup: 'Cup', spray: 'Spray', window: 'Window', clock: 'Clock'};
+  // Each timer has its own colour (Tim, Nov 4 2026) so they tell apart at a
+  // glance. Set in Setup; a timer saved before colours existed gets one by its
+  // id or its place in the list.
+  const COLORS = {red: '#DD0031', green: '#2E8B3E', blue: '#1D6FD1', orange: '#E07B00', purple: '#7B3FB4', teal: '#0E8F8F', pink: '#D6307A', gold: '#B8900A', navy: '#004F71', brown: '#8A5A2B'};
+  const COLOR_NAMES = Object.keys(COLORS);
+  const COLOR_BY_ID = {restroom: 'red', lot: 'green', playground: 'blue', dining: 'purple'};
+  const colorKey = (t, i) => COLORS[t.color] ? t.color : (COLOR_BY_ID[t.id] || COLOR_NAMES[(i || 0) % COLOR_NAMES.length]);
   const LS = {
     get: (k, d) => { try { const v = localStorage.getItem('timers.' + k); return v === null ? d : v; } catch (e) { return d; } },
     set: (k, v) => { try { localStorage.setItem('timers.' + k, v); } catch (e) {} },
@@ -200,15 +207,12 @@
 
   /* ---------- Now ---------- */
   const STATUS = {ok: 'On track', soon: 'Due soon', late: 'Overdue', missed: 'Missed', off: 'Closed', new: 'Not started', paused: 'Paused'};
-  function tileHtml(t){
-    // A card: the icon and name on top, the dial (a ring that empties as the
-    // cycle runs, --tm-pct) around the time, the status and owner under it.
-    return `<button type="button" class="tm-tile" data-tm-timer="${h(t.id)}">
-      <span class="tm-face">
-        <span class="tm-top"><span class="tm-badge">${icon(t.icon)}</span><span class="tm-name">${h(t.name)}</span></span>
-        <span class="tm-dial"><svg class="tm-ring" viewBox="0 0 100 100" aria-hidden="true"><circle class="tm-ring-track" cx="50" cy="50" r="45" pathLength="100"/><circle class="tm-ring-bar" cx="50" cy="50" r="45" pathLength="100"/></svg><span class="tm-time"></span></span>
-        <span class="tm-status"></span><span class="tm-owner"></span>
-      </span>
+  function tileHtml(t, i){
+    return `<button type="button" class="tm-tile" data-tm-timer="${h(t.id)}" style="--tm-hue:${COLORS[colorKey(t, i)]}">
+      <span class="tm-ring"></span>
+      <span class="tm-face"><span class="tm-time"></span><span class="tm-status"></span><span class="tm-rule"></span>
+        <span class="tm-name">${h(t.name)}</span><span class="tm-owner"></span></span>
+      <span class="tm-badge">${icon(t.icon)}</span>
     </button>`;
   }
   function counterHtml(c){
@@ -259,7 +263,7 @@
     const c = S.config, full = fullOn();
     const cols = Math.max(1, Math.min(5, c.timers.length));
     return headHtml() + `<div class="tm-now" style="--tm-cols:${cols};--tm-rows:${Math.ceil(c.timers.length / cols)};--tm-crow:${c.counters.length ? 1 : 0}">
-      <div class="tm-grid" id="tmGrid" style="--tm-cols:${Math.max(1, Math.min(5, c.timers.length))}" data-ids="${h(c.timers.map(t => t.id).join())}">${c.timers.map(tileHtml).join('')}</div>
+      <div class="tm-grid" id="tmGrid" style="--tm-cols:${Math.max(1, Math.min(5, c.timers.length))}" data-ids="${h(c.timers.map(t => t.id).join())}">${c.timers.map((t, i) => tileHtml(t, i)).join('')}</div>
       ${c.counters.length ? `<h3 class="tm-h">Counters</h3><div class="tm-grid tm-grid-c">${c.counters.map(counterHtml).join('')}</div>` : ''}
       <p class="tm-hint">Tap to pause, tap again to resume. Double tap when it’s done. Press and hold to say who did it or hand it off.</p></div>`;
   }
@@ -271,20 +275,21 @@
       if(!el) return;
       const st = cycle(t);
       el.className = 'tm-tile is-' + st.cls;
-      const time = el.querySelector('.tm-time');
+      const time = el.querySelector('.tm-time'), ring = el.querySelector('.tm-ring');
       el.querySelector('.tm-status').textContent = STATUS[st.cls];
       if(st.cls === 'off' || st.cls === 'new'){
         time.textContent = st.cls === 'new' ? 'Tap' : '—';
-        time.classList.remove('is-long');
-        el.style.setProperty('--tm-pct', 0);
+        time.classList.remove('is-long', 'is-wide');
+        ring.style.background = '';
       } else {
         time.textContent = fmtLeft(st.left);
         time.classList.toggle('is-long', Math.abs(st.left) >= 3600000);
-        time.classList.toggle('is-wide', time.textContent.length >= 6);      // "+20:05" keeps clear of the dial
+        time.classList.toggle('is-wide', time.textContent.length >= 6);      // "+20:05" keeps clear of the badge
         const pct = st.left > 0 ? Math.max(0, Math.min(1, st.left / (t.interval * MIN))) : 1;
-        el.style.setProperty('--tm-pct', (pct * 100).toFixed(1));
+        ring.style.background = st.left > 0 ? `conic-gradient(var(--tm-hue) ${pct * 360}deg, var(--tm-track) 0)` : 'var(--tm-hue)';
       }
       if(st.cls === 'paused'){
+        ring.style.background = '';
         el.querySelector('.tm-owner').textContent = st.rest ? 'Tap to resume' : `Back at ${fmtTime(st.until)}`;
       } else {
         const o = st.cls === 'off' ? '' : ownerNow(t.id);
@@ -521,19 +526,21 @@
   function renderSetup(){
     if(!isLead()) { S.tab = 'now'; return renderNow(); }
     const c = S.draft || (S.draft = JSON.parse(JSON.stringify(S.config)));
+    c.timers.forEach((t, i) => { t.color = colorKey(t, i); });
     const iconSel = (v, i) => `<select class="tm-input" data-tm-f="icon" data-i="${i}">${Object.keys(ICONS).map(k => `<option value="${k}" ${k === v ? 'selected' : ''}>${ICON_NAMES[k]}</option>`).join('')}</select>`;
     return headHtml() + `
       <section class="tm-card"><h3>Timers</h3>
         <div class="tm-set tm-set-head"><span></span><span>Name</span><span>Icon</span><span>Every (min)</span><span>Grace (min)</span><span></span></div>
         ${c.timers.map((t, i) => `<div class="tm-set">
-          <span class="tm-set-ic">${icon(t.icon)}</span>
+          <span class="tm-set-ic" style="color:${COLORS[colorKey(t, i)]}">${icon(t.icon)}</span>
           <input class="tm-input" data-tm-f="name" data-i="${i}" value="${h(t.name)}" maxlength="40">
           ${iconSel(t.icon, i)}
           <input class="tm-input" type="number" min="5" data-tm-f="interval" data-i="${i}" value="${t.interval}">
           <input class="tm-input" type="number" min="0" data-tm-f="grace" data-i="${i}" value="${t.grace}">
-          <button type="button" class="tm-x" data-tm-del="timers" data-i="${i}" aria-label="Remove ${h(t.name)}">×</button></div>`).join('')}
+          <button type="button" class="tm-x" data-tm-del="timers" data-i="${i}" aria-label="Remove ${h(t.name)}">×</button>
+          <div class="tm-swatches" role="radiogroup" aria-label="Colour for ${h(t.name)}">${COLOR_NAMES.map(k => `<button type="button" class="tm-sw${k === colorKey(t, i) ? ' on' : ''}" style="--sw:${COLORS[k]}" data-tm-color="${k}" data-i="${i}" role="radio" aria-checked="${k === colorKey(t, i)}" aria-label="${k}"></button>`).join('')}</div></div>`).join('')}
         <button type="button" class="tm-btn ghost" data-tm-add="timers">Add a timer</button>
-        <p class="tm-note"><b>Every</b> is how often it has to be done. <b>Grace</b> is how long it can sit overdue before it's a miss.</p>
+        <p class="tm-note"><b>Colour</b> is the timer's ring on the tablet. <b>Every</b> is how often it has to be done. <b>Grace</b> is how long it can sit overdue before it's a miss.</p>
       </section>
       <section class="tm-card"><h3>Counters</h3>
         ${c.counters.map((x, i) => `<div class="tm-set tm-set-c"><input class="tm-input" data-tm-c="name" data-i="${i}" value="${h(x.name)}" maxlength="30">
@@ -600,10 +607,11 @@
     }
     else if(d.tmAdd){
       const c = S.draft;
-      if(d.tmAdd === 'timers') c.timers.push({id: '', name: 'New timer', icon: 'clock', interval: 60, grace: 10});
+      if(d.tmAdd === 'timers') c.timers.push({id: '', name: 'New timer', icon: 'clock', interval: 60, grace: 10, color: COLOR_NAMES[c.timers.length % COLOR_NAMES.length]});
       else c.counters.push({id: '', name: 'New counter'});
       render();
     }
+    else if(d.tmColor){ S.draft.timers[+d.i].color = d.tmColor; render(); }
     else if(d.tmDel){ S.draft[d.tmDel].splice(+d.i, 1); render(); }
     else if(d.tmDiscard !== undefined){ S.draft = null; render(); }
     else if(d.tmSave !== undefined){

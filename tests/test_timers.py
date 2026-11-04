@@ -209,7 +209,7 @@ class Api(unittest.TestCase):
                                         {'name': ''}], counters=[], hours={'open': '6:00', 'close': '22:00'})
         self.assertEqual(r.status_code, 200)
         cfg = self.state()['config']
-        self.assertEqual(cfg['timers'], [{'id': 'lot', 'name': 'Lot Sweep', 'icon': 'clock', 'interval': 5, 'grace': 240}])
+        self.assertEqual(cfg['timers'], [{'id': 'lot', 'name': 'Lot Sweep', 'icon': 'clock', 'interval': 5, 'grace': 240, 'color': ''}])
         self.assertEqual(cfg['hours']['open'], '06:00')
         self.assertEqual(self.send('config', timers=[]).status_code, 400)
         self.assertEqual(self.send('config', timers=[{'name': 'A'}], hours={'open': '22:00', 'close': '06:00'}).status_code, 400)
@@ -423,11 +423,9 @@ class FullScreen(unittest.TestCase):
 
     def test_the_layout(self):
         for rule in ('body.tm-full .hdr,body.tm-full .tabs-wrap', '--tm-case:max(36px, 4vw);', 'env(safe-area-inset-left,0px)',
-                     '--tm-w:calc((100vw - 2 * max(36px, 4vw) - (var(--tm-cols, 5) - 1) * 20px) / var(--tm-cols, 5));',
-                     '--tm-h:calc((100vh - 2 * max(36px, 4vw) - 100px) / (var(--tm-rows, 1) * 1.38 + var(--tm-crow, 0) * .95));',
-                     '--tm-size:clamp(150px, min(var(--tm-w), var(--tm-h)), 480px);',
-                     'body.tm-full .tm-badge{width:calc(var(--tm-size) * .17);',
-                     'body.tm-full .tm-counter{--tm-csize:calc(var(--tm-size) * .92);}'):
+                     '--tm-w:calc((100vw - 2 * max(36px, 4vw) - (var(--tm-cols, 5) - 1) * 18px) / var(--tm-cols, 5));',
+                     '--tm-h:calc((100vh - 2 * max(36px, 4vw) - 96px - (var(--tm-rows, 1) + var(--tm-crow, 0)) * 18px) / (var(--tm-rows, 1) + var(--tm-crow, 0)));',
+                     '--tm-size:clamp(150px, min(var(--tm-w), var(--tm-h)), 480px);'):
             self.assertIn(rule, self.css)
         self.assertIn('style="--tm-cols:${Math.max(1, Math.min(5, c.timers.length))}"', self.js)
         self.assertIn('style="--tm-cols:${cols};--tm-rows:${Math.ceil(c.timers.length / cols)};--tm-crow:${c.counters.length ? 1 : 0}"', self.js)
@@ -459,37 +457,55 @@ class TapAndHold(unittest.TestCase):
 
 
 class Look(unittest.TestCase):
-    """Nov 4 2026 (Tim: "more aesthetically pleasing"): each timer is a card
-    with the icon and name on top, a thin dial that empties as the cycle runs
-    (--tm-pct, 0-100, on the tile) around the time, and the status under it.
-    Overdue and missed cards blush red; a paused dial goes to dashes."""
+    """Nov 4 2026 (Tim: the round timers back, each in its own colour and as
+    big as the iPad allows): a round tile whose ring (--tm-hue, from the
+    timer's colour) empties as the cycle runs; the state shows in the label,
+    the face and a halo; every size comes from --tm-size."""
 
     def setUp(self):
         root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         rd = lambda *p: open(os.path.join(root, *p), encoding='utf-8').read()
         self.js, self.css = rd('static', 'js', 'timers.js'), rd('static', 'css', 'timers.css')
 
-    def test_the_card(self):
-        tile = self.js[self.js.index('function tileHtml(t){'):self.js.index('function counterHtml(c){')]
-        self.assertIn('<span class="tm-top"><span class="tm-badge">${icon(t.icon)}</span><span class="tm-name">${h(t.name)}</span></span>', tile)
-        self.assertIn('<svg class="tm-ring" viewBox="0 0 100 100" aria-hidden="true"><circle class="tm-ring-track" cx="50" cy="50" r="45" pathLength="100"/><circle class="tm-ring-bar" cx="50" cy="50" r="45" pathLength="100"/></svg><span class="tm-time"></span>', tile)
-        self.assertNotIn('conic-gradient', self.js)
+    def test_the_round_tile(self):
+        tile = self.js[self.js.index('function tileHtml(t, i){'):self.js.index('function counterHtml(c){')]
+        self.assertIn('style="--tm-hue:${COLORS[colorKey(t, i)]}"', tile)
+        self.assertIn('<span class="tm-ring"></span>', tile)
+        self.assertIn('<span class="tm-badge">${icon(t.icon)}</span>', tile)
         paint = self.js[self.js.index('function paintTiles(){'):self.js.index('/* ---------- the timer sheet')]
-        self.assertIn("el.style.setProperty('--tm-pct', (pct * 100).toFixed(1));", paint)
-        self.assertIn("el.style.setProperty('--tm-pct', 0);", paint)
+        self.assertIn('conic-gradient(var(--tm-hue) ${pct * 360}deg, var(--tm-track) 0)', paint)
+        self.assertNotIn('tm-pct', self.js)
 
     def test_the_look(self):
-        for rule in ('.tm-ring-bar{stroke:var(--tm-c);stroke-linecap:round;stroke-dasharray:var(--tm-pct) 100;',
-                     '.tm-tile.is-late{--tm-c:var(--tm-red);background:var(--tm-red-soft);border-color:var(--tm-red);}',
-                     '.tm-tile.is-paused .tm-ring-bar{stroke-dasharray:2.4 2.4;',
-                     '.tm-tile.is-off .tm-ring-bar,.tm-tile.is-new .tm-ring-bar{opacity:0;}',
-                     '.tm-status::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;}',
-                     'body.tm-full .tm-dial{width:calc(var(--tm-size) * .9);',
-                     '.tm-counter{--tm-csize:190px;width:var(--tm-csize);height:var(--tm-csize);border-radius:50%;',
+        for rule in ('.tm-tile{--tm-hue:var(--tm-navy);--tm-c:var(--tm-hue);position:relative;width:var(--tm-size);height:var(--tm-size);',
+                     '.tm-tile.is-late .tm-ring{box-shadow:',
+                     '.tm-tile.is-paused .tm-ring{background:repeating-linear-gradient(135deg,var(--tm-hue) 0 8px,var(--tm-track) 8px 16px);',
+                     '.tm-counter{width:var(--tm-size);height:var(--tm-size);border-radius:50%;',
+                     '.tm-now{--tm-size:210px;}',
                      '--tm-dark-red:#E8636E;'):                                    # readable on the dark theme
             self.assertIn(rule, self.css)
         self.assertIsNone(re.search('[\U0001F300-\U0001FAFF]', self.css + self.js))     # line icons, never emoji
 
+
+class Colors(unittest.TestCase):
+    """Each timer has its own ring colour (Tim, Nov 4 2026): saved with the
+    timers, a name the server knows or nothing, and every timer gets one on
+    the page whether or not it was saved with one."""
+
+    def test_the_server_keeps_a_known_colour_only(self):
+        cfg = TA.clean_config({'timers': [{'name': 'A', 'color': 'teal'}, {'name': 'B', 'color': 'javascript:1'}, {'name': 'C'}]})
+        self.assertEqual([t['color'] for t in cfg['timers']], ['teal', '', ''])
+        self.assertEqual([t['color'] for t in TA.DEFAULT_CONFIG['timers']], ['red', 'green', 'blue', 'purple'])
+        self.assertTrue(all(t['color'] in TA.COLORS for t in TA.DEFAULT_CONFIG['timers']))
+
+    def test_the_page_has_the_same_shades_and_a_picker(self):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        js = open(os.path.join(root, 'static', 'js', 'timers.js'), encoding='utf-8').read()
+        for name in TA.COLORS:
+            self.assertRegex(js, name + r": '#[0-9A-Fa-f]{6}'")
+        self.assertIn("const COLOR_BY_ID = {restroom: 'red', lot: 'green', playground: 'blue', dining: 'purple'};", js)   # a timer saved before colours
+        self.assertIn('data-tm-color="${k}"', js)
+        self.assertIn("else if(d.tmColor){ S.draft.timers[+d.i].color = d.tmColor; render(); }", js)
 
 if __name__ == '__main__':
     unittest.main()
