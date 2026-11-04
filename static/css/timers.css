@@ -103,7 +103,6 @@ html[data-theme="dark"] .tm-root,html[data-theme="dark"] .tm-layer{--tm-heat:#E8
 .tm-step{width:calc(var(--tm-csize) * .2);height:calc(var(--tm-csize) * .2);border:1px solid var(--tm-line);border-radius:50%;background:var(--tm-ground);font:inherit;font-size:calc(var(--tm-csize) * .13);line-height:1;color:var(--tm-red);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0 0 2px;}
 .tm-step:active{background:var(--tm-soft);}
 .tm-count-val{border:0;background:none;font-family:var(--tm-display);font-size:calc(var(--tm-csize) * .3);font-weight:600;min-width:calc(var(--tm-csize) * .36);color:var(--tm-ink);cursor:pointer;font-variant-numeric:tabular-nums;padding:0;line-height:1;}
-.tm-sound{display:flex;gap:8px;align-items:center;margin:14px 4px 0;font-size:13.5px;color:var(--tm-muted);}
 
 /* ----- sheet ----- */
 .tm-layer{position:fixed;inset:0;z-index:1200;display:flex;align-items:flex-end;justify-content:center;}
@@ -192,7 +191,7 @@ html[data-theme="dark"] .tm-root,html[data-theme="dark"] .tm-layer{--tm-heat:#E8
    rows of timers plus the counters allow (--tm-rows, --tm-crow), whichever
    is smaller, so four timers and two counters fill an iPad on its side
    with the biggest numbers that fit (Tim, Nov 4 2026). The hint and the
-   Counters heading go; the beep switch moves into the head. */
+   Counters heading go. */
 .tm-full-btn{align-self:center;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:8px 14px;border:1px solid var(--tm-line);border-radius:999px;background:var(--tm-card);color:var(--tm-ink);font:inherit;font-size:14px;font-weight:700;cursor:pointer;}
 body.tm-full .hdr,body.tm-full .tabs-wrap,body.tm-full #timersView > [data-launch-subnav],body.tm-full #timersView > .launch-signin-hint{display:none !important;}
 body.tm-full{background:var(--cfa-bg,#F6F1E8);}
@@ -204,14 +203,13 @@ body.tm-full #timersView{
 }
 body.tm-full .tm-now{
   --tm-w:calc((100vw - 2 * max(36px, 4vw) - (var(--tm-cols, 5) - 1) * 20px) / var(--tm-cols, 5));
-  --tm-h:calc((100vh - 2 * max(36px, 4vw) - 108px) / (var(--tm-rows, 1) * 1.38 + var(--tm-crow, 0) * .95));
+  --tm-h:calc((100vh - 2 * max(36px, 4vw) - 100px) / (var(--tm-rows, 1) * 1.38 + var(--tm-crow, 0) * .95));
   --tm-size:clamp(150px, min(var(--tm-w), var(--tm-h)), 480px);
 }
 body.tm-full .tm-grid{grid-template-columns:repeat(auto-fill,minmax(var(--tm-size),1fr));gap:20px;}
 body.tm-full .tm-h,body.tm-full .tm-hint{display:none;}
 body.tm-full .tm-grid-c{margin-top:20px;}
 body.tm-full .tm-head{margin-bottom:16px;}
-body.tm-full .tm-head .tm-sound{align-self:center;margin:0 0 0 auto;font-size:13px;white-space:nowrap;}
 body.tm-full .tm-counter{--tm-csize:calc(var(--tm-size) * .92);}
 body.tm-full .tm-full-btn{background:var(--tm-navy);border-color:var(--tm-navy);color:#fff;}
 /* What's inside a card grows and shrinks with it, so five across on the

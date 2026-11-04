@@ -424,14 +424,17 @@ class FullScreen(unittest.TestCase):
     def test_the_layout(self):
         for rule in ('body.tm-full .hdr,body.tm-full .tabs-wrap', '--tm-case:max(36px, 4vw);', 'env(safe-area-inset-left,0px)',
                      '--tm-w:calc((100vw - 2 * max(36px, 4vw) - (var(--tm-cols, 5) - 1) * 20px) / var(--tm-cols, 5));',
-                     '--tm-h:calc((100vh - 2 * max(36px, 4vw) - 108px) / (var(--tm-rows, 1) * 1.38 + var(--tm-crow, 0) * .95));',
+                     '--tm-h:calc((100vh - 2 * max(36px, 4vw) - 100px) / (var(--tm-rows, 1) * 1.38 + var(--tm-crow, 0) * .95));',
                      '--tm-size:clamp(150px, min(var(--tm-w), var(--tm-h)), 480px);',
                      'body.tm-full .tm-badge{width:calc(var(--tm-size) * .17);',
                      'body.tm-full .tm-counter{--tm-csize:calc(var(--tm-size) * .92);}'):
             self.assertIn(rule, self.css)
         self.assertIn('style="--tm-cols:${Math.max(1, Math.min(5, c.timers.length))}"', self.js)
         self.assertIn('style="--tm-cols:${cols};--tm-rows:${Math.ceil(c.timers.length / cols)};--tm-crow:${c.counters.length ? 1 : 0}"', self.js)
-        self.assertIn("${full ? soundHtml() : ''}", self.js)                        # the beep switch in the head, full screen only
+        self.assertNotIn('data-tm-sound', self.js)                                   # the beep switch lives in Manage > Settings
+        self.assertIn("const beepToggle = document.getElementById('timersBeepToggle');", self.js)
+        html = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cfa-buda-ops-hub-complete.html'), encoding='utf-8').read()
+        self.assertIn('<input type="checkbox" id="timersBeepToggle" checked>', html[html.index('data-manage-tab="settings"'):html.index('data-manage-tab="health"')])
 
 
 class TapAndHold(unittest.TestCase):
