@@ -504,6 +504,7 @@ class Colors(unittest.TestCase):
         for name in TA.COLORS:
             self.assertRegex(js, name + r": '#[0-9A-Fa-f]{6}'")
         self.assertIn("const COLOR_BY_ID = {restroom: 'red', lot: 'green', playground: 'blue', dining: 'purple'};", js)   # a timer saved before colours
+        self.assertIn('return COLOR_NAMES.find(k => !taken.has(k)) || COLOR_NAMES[(i || 0) % COLOR_NAMES.length];', js)   # no two share one by accident
         self.assertIn('data-tm-color="${k}"', js)
         self.assertIn("else if(d.tmColor){ S.draft.timers[+d.i].color = d.tmColor; render(); }", js)
 

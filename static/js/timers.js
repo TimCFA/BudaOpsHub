@@ -39,7 +39,15 @@
   const COLORS = {red: '#DD0031', green: '#2E8B3E', blue: '#1D6FD1', orange: '#E07B00', purple: '#7B3FB4', teal: '#0E8F8F', pink: '#D6307A', gold: '#B8900A', navy: '#004F71', brown: '#8A5A2B'};
   const COLOR_NAMES = Object.keys(COLORS);
   const COLOR_BY_ID = {restroom: 'red', lot: 'green', playground: 'blue', dining: 'purple'};
-  const colorKey = (t, i) => COLORS[t.color] ? t.color : (COLOR_BY_ID[t.id] || COLOR_NAMES[(i || 0) % COLOR_NAMES.length]);
+  // A timer with no colour of its own takes its id's, else the first one nobody
+  // else in the list is using, so two timers never share a colour by accident.
+  const colorKey = (t, i) => {
+    if(COLORS[t.color]) return t.color;
+    if(COLOR_BY_ID[t.id]) return COLOR_BY_ID[t.id];
+    const list = ((S.draft || S.config || {}).timers) || [];
+    const taken = new Set(list.filter(x => x !== t).map(x => COLORS[x.color] ? x.color : COLOR_BY_ID[x.id]).filter(Boolean));
+    return COLOR_NAMES.find(k => !taken.has(k)) || COLOR_NAMES[(i || 0) % COLOR_NAMES.length];
+  };
   const LS = {
     get: (k, d) => { try { const v = localStorage.getItem('timers.' + k); return v === null ? d : v; } catch (e) { return d; } },
     set: (k, v) => { try { localStorage.setItem('timers.' + k, v); } catch (e) {} },
