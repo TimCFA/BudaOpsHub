@@ -174,7 +174,7 @@ function renderZoneResetCard(){
       </div>`;
     }).join('')}</div>` : '';
     return `
-      <div class="zone-acc-item ${open ? 'open' : ''} ${done ? 'done' : ''} ${none && !done ? 'is-unowned' : ''}" data-zone="${escapeHtml(zone)}">
+      <div class="zone-acc-item ${open ? 'open' : ''} ${done ? 'done' : ''} ${checked && !done ? 'is-part' : ''} ${none && !done ? 'is-unowned' : ''}" data-zone="${escapeHtml(zone)}">
         <button type="button" class="zone-acc-head" aria-expanded="${open}">
           <span class="zone-acc-icon">${ZONE_ICONS[zone] || ''}</span>
           <span class="zone-acc-name">${escapeHtml(zone)}${none ? '<span class="zone-acc-who is-none">No one yet · tap to pick</span>' : owners.all.length ? `<span class="zone-acc-who">${escapeHtml(owners.all.map(suDisplayName).join(', '))}</span>` : ''}</span>

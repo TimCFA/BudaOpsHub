@@ -205,7 +205,8 @@ function suDaypartFillText(section, date, dp, i, count){
 // today, or any daypart of a past day) shows its open count in grey.
 function suDaypartFillHtml(section, date, dp, i){
   const count = suDaypartOpenCount(section, date, dp, i);
-  return `<span class="su-dp-fill ${count.open && !suDaypartIsOver(section, date, dp) ? 'is-short' : ''}">${suDaypartFillText(section, date, dp, i, count)}</span>`;
+  const full = count.onShift && !count.open && count.filled >= count.onShift;   // every spot placed: green
+  return `<span class="su-dp-fill ${count.open && !suDaypartIsOver(section, date, dp) ? 'is-short' : full ? 'is-full' : ''}">${suDaypartFillText(section, date, dp, i, count)}</span>`;
 }
 
 // Where this daypart sits against the clock: its index and today's.

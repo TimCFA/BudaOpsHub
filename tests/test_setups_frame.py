@@ -174,7 +174,7 @@ class DaypartCards(unittest.TestCase):
         # Tim, Oct 27 2026: assigned / on shift again, not "1 open"; red while short.
         self.assertIn("return onShift ? `${filled}/${onShift}` : filled ? `${filled} placed${esLine('N placed', filled)}` : '—';", text)
         self.assertNotIn(" open${esLine('N open'", board)
-        self.assertIn("""`<span class="su-dp-fill ${count.open && !suDaypartIsOver(section, date, dp) ? 'is-short' : ''}">""", board)
+        self.assertIn("""`<span class="su-dp-fill ${count.open && !suDaypartIsOver(section, date, dp) ? 'is-short' : full ? 'is-full' : ''}">""", board)
         over = block(board, 'function suDaypartIsOver(section, date, dp){', '\n}\n')
         self.assertIn("if(date < today) return true;", over)
         self.assertIn("return date === today && i < nowIdx;", over)

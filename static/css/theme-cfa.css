@@ -15,13 +15,13 @@
   --cfa-dark-red:#AF272F;
   --cfa-navy:#004F71;
   --cfa-white:#FFFEFC;        /* cards */
-  --cfa-bg:#F3ECE1;           /* ground */
+  --cfa-bg:#EFE8DB;           /* ground */
   --cfa-light:#FBF8F2;
   --cfa-soft:#EBE4D8;         /* segmented controls, quiet fills */
   --text-primary:#1C1B19;
   --text-secondary:#5F5A52;
   --text-tertiary:#7C766C;
-  --border:#DDD3C3;
+  --border:#D9CFBF;
   --radius:14px;
   /* Status: one hue a meaning, and every shade of it comes from here
      (Tim, Nov 4 2026: too many near-colours made the pages hard to read at
@@ -3107,3 +3107,47 @@ body.mp-on{overflow:hidden;}
 .su-z-secondary,.su-row.su-z-secondary{--zc:var(--zone-secondary);} .su-z-raw,.su-row.su-z-raw{--zc:var(--zone-raw);} .su-z-extra{--zc:var(--zone-extra);}
 .su-sheet-list .su-row-rank,#allDayparts .su-sheet-list .su-row-rank{color:var(--zc);}
 .su-zone-head h3{color:var(--zc,var(--text-primary));}
+
+/* ----- Colour that carries meaning at a glance (Tim, Nov 5 2026: the first
+   pass only tidied the shades; nothing looked different) ----- */
+
+/* Dayparts: every card wears its sky all the time, with a solid rail in the
+   same light, so a column of dayparts reads as a day: dawn, gold morning,
+   blue midday, apricot afternoon, lavender evening, night. The same cards
+   on Zone Reset and the Leader Transition List share it. */
+.su-dp{--dp:#4A90C8;} .su-col-eb{--dp:#E08A4E;} .su-col-b{--dp:#D9A520;} .su-col-l,.su-col-t{--dp:#4A90C8;}
+.su-col-a{--dp:#D9823A;} .su-col-d{--dp:#8C6FC9;} .su-col-c{--dp:#2B3A52;}
+.su-dp .su-dp-banner{border-left:5px solid var(--dp);}
+.su-dp .su-dp-head{background:var(--sky);border-radius:15px;}
+.su-dp.is-open .su-dp-head{border-radius:14px 14px 0 0;}
+.su-dp .su-dp-art{background:var(--cfa-white);box-shadow:inset 0 0 0 1px rgba(28,27,25,0.06);}
+.su-col-c .su-dp-head{color:#F6F1E8;}
+.su-col-c .su-dp-head .su-dp-time,.su-col-c .su-dp-head .su-dp-chev{color:rgba(246,241,232,0.8);}
+.su-col-c .su-dp-head .su-dp-fill{background:rgba(255,255,255,0.16);color:#F6F1E8;}
+.su-dp .su-dp-head .su-dp-fill.is-short,.su-col-c .su-dp-head .su-dp-fill.is-short{background:var(--bad);color:#fff;}
+.su-dp .su-dp-head .su-dp-fill.is-full,.su-col-c .su-dp-head .su-dp-fill.is-full{background:var(--good);color:#fff;}
+.su-dp.is-open .su-dp-fill{background:var(--cfa-white);color:var(--text-primary);}
+
+/* Right Now: each count is a tile filled with its status, not a coloured
+   digit, so the row's state is seen before it's read. */
+.rn-n{min-width:48px;height:38px;padding:0 9px;border-radius:10px;display:inline-grid;place-items:center;font-size:18px;background:var(--off-fill);color:var(--text-primary);}
+.rn-n.is-ok{background:var(--good-fill);color:var(--good-ink);}
+.rn-n.is-warn{background:var(--warn-fill);color:var(--warn-ink);}
+.rn-n.is-bad{background:var(--bad);color:#fff;}
+.rn-n.rn-n-dot{background:transparent;}
+
+/* Zone Reset: the zone's icon tile and count show how far along it is:
+   grey not started, amber part way, green done, red with nobody on it. */
+.zone-acc-count{padding:2px 9px;border-radius:999px;background:var(--off-fill);color:var(--text-secondary);font-weight:600;}
+.zone-acc-item.is-part .zone-acc-icon{background:var(--warn-fill);color:var(--warn-ink);}
+.zone-acc-item.is-part .zone-acc-count{background:var(--warn-fill);color:var(--warn-ink);}
+.zone-acc-item.is-part .zone-acc-fill{background:var(--warn);}
+.zone-acc-item.done .zone-acc-count{background:var(--good);color:#fff;}
+.zone-acc-item.is-unowned .zone-acc-count{background:var(--bad-fill);color:var(--bad-ink);}
+.zone-acc-item.is-unowned .zone-acc-icon{background:var(--bad);color:#fff;}
+
+/* Home: the vision, mission and values cards wear a navy band (navy sums
+   up); the leadership wins wear red (people and action). */
+.home-vmv-card:nth-child(n){border-top:5px solid var(--cfa-navy);}
+.home-win-card:nth-child(n){border-top:5px solid var(--cfa-red);}
+.su-col-c .su-dp-head .zr-dp-lead,.su-col-c .su-dp-head .zr-dp-lead.is-none,.su-col-c .su-dp-head .su-dp-k{color:rgba(246,241,232,0.78);}
