@@ -367,6 +367,36 @@ function evShowDayPanel(){
 
 // ----- Manage → Events Calendar: the only place events change -----
 
+// Clearing a month to read its calendar in again from scratch (Tim, Nov 5
+// 2026): the events that start in it go, whatever put them there. A run
+// that began the month before stays with that month, and leadership
+// meetings stay (they're typed in, not read from the calendar). Undo puts
+// them back until the page is left.
+function evMonthClearList(ym){
+  const first = ym + '-01', last = evMonthEnd(ym);
+  const all = Array.isArray(storeEvents) ? storeEvents : EVENTS_SEED;
+  return all.filter(ev => ev.date >= first && ev.date <= last && ev.kind !== 'meeting');
+}
+let evCleared = null;   // {ym, events}: the month just cleared, for Undo
+function evClearMonth(ym){
+  const gone = evMonthClearList(ym);
+  if(!gone.length) return 0;
+  evEnsureOwnList();
+  const ids = new Set(gone.map(ev => ev.id));
+  storeEvents = storeEvents.filter(ev => !ids.has(ev.id));
+  evCleared = {ym, events: JSON.parse(JSON.stringify(gone))};
+  return gone.length;
+}
+function evUndoClear(){
+  if(!evCleared) return 0;
+  evEnsureOwnList();
+  const have = new Set(storeEvents.map(ev => ev.id));
+  const back = evCleared.events.filter(ev => !have.has(ev.id));
+  storeEvents = storeEvents.concat(back);
+  evCleared = null;
+  return back.length;
+}
+
 function renderEventsManage(){
   const root = document.getElementById('eventsManageRoot');
   if(!root) return;
@@ -381,7 +411,9 @@ function renderEventsManage(){
       <b>${escapeHtml(evMonthLabel(evManageMonth))}</b>
       <button type="button" class="btn btn-ghost ev-m-step" data-ev-month="1" aria-label="Next month">›</button>
       <button type="button" class="btn btn-primary ev-m-add" data-ev-edit="new">+ Add event</button>
+      ${evMonthClearList(evManageMonth).length ? '<button type="button" class="btn btn-ghost ev-m-clear" data-ev-clear>Clear month</button>' : ''}
     </div>
+    ${evCleared && evCleared.ym === evManageMonth ? `<div class="ev-m-undo" role="status"><span>Cleared ${evCleared.events.length} event${evCleared.events.length === 1 ? '' : 's'} from ${escapeHtml(evMonthLabel(evCleared.ym))}. Read the calendar in again above, or put them back.</span><button type="button" class="btn btn-ghost" data-ev-undo>Undo</button></div>` : ''}
     ${editing ? evFormHtml(editing) : ''}
     ${list.length ? `<ul class="ev-m-list">${list.map(ev => `
       <li class="ev-m-row">
@@ -497,6 +529,18 @@ document.addEventListener('click', e => {
   const edit = t.closest('[data-ev-edit]');
   if(edit){ evEditId = edit.dataset.evEdit; renderEventsManage(); const f = document.getElementById('evTitle'); if(f) f.focus(); return; }
   if(t.closest('[data-ev-cancel]')){ evEditId = null; renderEventsManage(); return; }
+  if(t.closest('[data-ev-clear]')){
+    const ym = evManageMonth, n = evMonthClearList(ym).length;
+    if(!n || !confirm(`Clear all ${n} event${n === 1 ? '' : 's'} that start in ${evMonthLabel(ym)}, to start this month's calendar from scratch?\n\nLeadership meetings stay, and so does anything that started the month before. You can undo right after.`)) return;
+    evClearMonth(ym);
+    evAfterChange(`${evMonthLabel(ym)} cleared`, ym + '-01');
+    return;
+  }
+  if(t.closest('[data-ev-undo]')){
+    const ym = evCleared && evCleared.ym, n = evUndoClear();
+    evAfterChange(`${n} event${n === 1 ? '' : 's'} put back`, ym ? ym + '-01' : null);
+    return;
+  }
   if(t.closest('[data-ev-delete]')){
     const ev = eventsList().find(x => x.id === evEditId);
     if(!ev || !confirm(`Delete "${ev.title}" (${ev.date}${ev.end ? ` to ${ev.end}` : ''}) from the calendar?`)) return;

@@ -112,6 +112,39 @@ class CalendarPage(unittest.TestCase):
             rn = f.read()
         self.assertIn('.concat(Array.isArray(ev.details) ? ev.details : [])', rn[rn.index('function rnEventSheetHtml'):])
 
+    def test_clear_a_month_and_undo(self):
+        # Manage → Calendar → Clear month (Tim, Nov 5 2026): what starts in the
+        # month goes; a run from the month before and meetings stay; Undo puts
+        # everything back.
+        got = run("""c => {
+            storeEvents = [
+              {id: 'goal', kind: 'goal', title: 'Monthly Goals', date: '2026-11-01', end: '2026-11-30'},
+              {id: 'bingo', kind: 'instore', title: 'Cow Bingo', date: '2026-11-19'},
+              {id: 'campaign', kind: 'note', title: 'Holiday Campaign', date: '2026-11-16', end: '2027-01-23'},
+              {id: 'oct-run', kind: 'app', title: 'October run', date: '2026-10-28', end: '2026-11-03'},
+              {id: 'meet', kind: 'meeting', title: 'Leadership meeting', date: '2026-11-10'},
+              {id: 'dec', kind: 'instore', title: 'December event', date: '2026-12-05'}];
+            const listed = evMonthClearList('2026-11').map(e => e.id);
+            const n = evClearMonth('2026-11');
+            const left = storeEvents.map(e => e.id);
+            const again = evClearMonth('2026-11');
+            const back = evUndoClear();
+            return [listed, n, left, again, back, storeEvents.map(e => e.id).sort(), evUndoClear()]; }""")[0]
+        self.assertEqual(got[0], ['goal', 'bingo', 'campaign'])
+        self.assertEqual(got[1], 3)
+        self.assertEqual(got[2], ['oct-run', 'meet', 'dec'])
+        self.assertEqual(got[3], 0)   # nothing left to clear: Undo still has the three
+        self.assertEqual(got[4], 3)
+        self.assertEqual(got[5], ['bingo', 'campaign', 'dec', 'goal', 'meet', 'oct-run'])
+        self.assertEqual(got[6], 0)
+
+    def test_clearing_the_typed_in_calendar_keeps_the_rest_of_it(self):
+        # Before anyone saved a calendar the typed-in one shows; clearing
+        # October keeps the September 30 outreach.
+        got = run("c => { storeEvents = null; const all = EVENTS_SEED.length; const n = evClearMonth('2026-10'); return [all - n, storeEvents.length, storeEvents.every(e => !e.date.startsWith('2026-10'))]; }")[0]
+        self.assertEqual(got[0], got[1])
+        self.assertTrue(got[2])
+
     def test_set_ups_chips_need_a_manager_session(self):
         got = run("c => { const a = evCalendarShown(); launchManager = false; const b = evCalendarShown(); launchManager = true; return [a, b, evCalendarShown()]; }")[0]
         self.assertEqual(got, [True, False, True])
