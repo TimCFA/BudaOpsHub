@@ -134,6 +134,7 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .cal-ev.is-note{color:#C6C2BD !important;}
 :where(html[data-theme="dark"]) .cal-box{border:1px solid #403C36;}
 :where(html[data-theme="dark"]) .cal-dayp-more summary{color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .ev-m-clear{color:var(--ink-dark-red) !important;}
 :where(html[data-theme="dark"]) .kn-cal-events{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .ev-m-kn{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .ev-delete{color:var(--ink-dark-red) !important;}
