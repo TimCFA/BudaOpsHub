@@ -19,6 +19,10 @@
 //      events they're headed with).
 // The words are read on the device with Tesseract.js (open source OCR),
 // loaded only when a manager picks an image; nothing is sent anywhere.
+// Canva downloads a design of several pages as a zip (the calendar page and
+// the events page, one PNG each; Tim's November 2026 calendar, Nov 4 2026),
+// so a zip is taken as it comes: the page the grid is found on is the one
+// read (upload-bundle.js's zip reader).
 // Reading isn't perfect, which is why every event can be fixed or left out
 // before it's added.
 
@@ -61,9 +65,13 @@ function eviInkOf(r, g, b, tight){
 // "6-7 PM", "3pm-6pm", "11-12 PM & 6-7 PM", "6AM-4PM", "10:30AM-4PM",
 // "11-8" (no am/pm: store hours, so a start of 5-11 is morning and an end
 // of 1-10 evening) → {from, to, text} with 24-hour 'HH:MM', or null.
+// OCR's slip on a bold time: "11am" reads as "1Mam" (the second 1 and the
+// a run into an M). Applied to the text before it's parsed, and to the text
+// an event is made from, so the time is found in it.
+const eviFixTimeSlips = s => String(s || '').replace(/\b1?M(?=[ap]m\b)/g, '11');
 function eviParseTime(text){
   const re = /(\d{1,2})(?::(\d{2}))?\s*(am|pm|a|p)?\s*[-–—]\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm|a|p)?\b/i;
-  const m = String(text || '').match(re);
+  const m = eviFixTimeSlips(text).match(re);
   if(!m) return null;
   let [sh, sm, smer, eh, em, emer] = [+m[1], +(m[2] || 0), (m[3] || '').toLowerCase()[0], +m[4], +(m[5] || 0), (m[6] || '').toLowerCase()[0]];
   if(sh > 12 || eh > 12 || sm > 59 || em > 59 || sh === 0 || eh === 0) return null;
@@ -103,14 +111,19 @@ function eviCleanText(s, partial){
 // Christmas: / Medium Waffle Fries" → title and detail; black "Thanksgiving
 // CLOSED" or store hours read as a heads-up, not a social post.
 function eviEventFromText(text, kind){
-  let t = eviCleanText(text);
+  let t = eviFixTimeSlips(eviCleanText(text));
   if(!t || !/[a-z]/i.test(t)) return null;
   const ev = {kind};
   const time = eviParseTime(t);
   if(time){
     ev.from = time.from; ev.to = time.to;
+    const at = t.indexOf(time.text);
     const rest = t.replace(time.text, '').replace(/\s*[&+]\s*\d{1,2}(:\d{2})?\s*(am|pm|a|p)?\s*[-–—]\s*\d{1,2}(:\d{2})?\s*(am|pm|a|p)?\b/i, extra => { ev.timeNote = (time.text + extra).replace(/\s+/g, ' ').trim(); return ''; });
-    t = eviCleanText(rest);
+    // Words after a time in the middle ("West Buda 1 Year Bday! / 5-8 PM
+    // event / Free cookie (all day)") are the detail, not the name.
+    const before = eviCleanText(rest.slice(0, at)), after = eviCleanText(rest.slice(at));
+    if(/[a-z]/i.test(before) && /[a-z]/i.test(after)){ t = before; ev.after = after; }
+    else t = eviCleanText(rest);
     if(ev.timeNote) ev.timeNote = `${time.text.trim()}${ev.timeNote.slice(time.text.trim().length)}`;
   }
   const colon = t.indexOf(':');
@@ -118,8 +131,9 @@ function eviEventFromText(text, kind){
     ev.title = eviCleanText(t.slice(0, colon));
     ev.detail = eviCleanText(t.slice(colon + 1));
   } else ev.title = t;
-  if(ev.timeNote) ev.detail = [ev.detail, ev.timeNote].filter(Boolean).join(' · ');
-  delete ev.timeNote;
+  const detail = [ev.detail, ev.after, ev.timeNote].filter(Boolean).join(' · ');
+  if(detail) ev.detail = detail; else delete ev.detail;
+  delete ev.after; delete ev.timeNote;
   if(kind === 'social' && /\bclosed\b|\beve\b|new year|christmas day|thanksgiving/i.test(ev.title)) ev.kind = 'note';
   if(!ev.title) return null;
   return ev;
@@ -149,7 +163,14 @@ function eviPanelFromLines(lines){
     body.forEach(l => {
       const off = l.x0 - left;
       const isBullet = bullet.test(l.text) || (off >= 6 && off < 20);
-      if(off < 6 && !bullet.test(l.text)){ notes.push({heading: l.text.replace(/:$/, '').trim(), items: []}); return; }
+      if(off < 6 && !bullet.test(l.text)){
+        // A heading that wrapped ("West Buda 1 Year Birthday / Celebration")
+        // goes on the one above when that one has no items yet.
+        const n = notes[notes.length - 1];
+        if(n && !n.items.length) n.heading += ' ' + l.text.replace(/:$/, '').trim();
+        else notes.push({heading: l.text.replace(/:$/, '').trim(), items: []});
+        return;
+      }
       const n = notes[notes.length - 1];
       if(!n) return;
       const text = l.text.replace(bullet, '').trim();
@@ -297,6 +318,24 @@ function eviLoadImage(file){
   });
 }
 
+// The images a picked file holds: the file itself, or the pages of the zip
+// Canva downloads (a page named "Calendar" first, then the rest in order).
+async function eviPagesOf(file){
+  if(!/\.zip$/i.test(file.name || '') && !/zip/i.test(file.type || '')) return [file];
+  if(typeof duLoadJsZip !== 'function') throw new Error('The zip reader isn’t on this page. Unzip the download and pick the calendar’s PNG.');
+  const JSZip = await duLoadJsZip();
+  const zip = await JSZip.loadAsync(await file.arrayBuffer());
+  const pages = Object.values(zip.files).filter(e => !e.dir && !/(^|\/)(__MACOSX|\.)/.test(e.name) && /\.(png|jpe?g|webp)$/i.test(e.name));
+  if(!pages.length) throw new Error('That zip has no PNG or JPG in it. Use Canva’s download of the calendar.');
+  pages.sort((a, b) => /calendar/i.test(b.name) - /calendar/i.test(a.name));
+  const out = [];
+  for(const e of pages.slice(0, 6)){
+    const blob = await e.async('blob');
+    out.push(new File([blob], e.name.split('/').pop(), {type: /png$/i.test(e.name) ? 'image/png' : /webp$/i.test(e.name) ? 'image/webp' : 'image/jpeg'}));
+  }
+  return out;
+}
+
 // The grid's lines: rows and columns of the template's gray rule. `light`:
 // a screenshot of the calendar rather than the template's PNG draws the rule
 // lighter (and scaling it up lightens it more), so a second look takes paler
@@ -329,11 +368,17 @@ function eviFindGrid(data, W, H, light){
   }
   if(!best) return null;
   const h = rows.length > 2 ? Math.min(...rows.slice(1).map((r, i) => r - rows[i])) : (best[1] - best[0]) * 0.85;
-  // A bottom rule drawn lighter than the rest: add it when the last row is short.
+  // A bottom rule drawn lighter than the rest (Canva's PNG draws the last
+  // one paler): look for it a row's height below the last, taking paler
+  // gray, and keep going while one is there (the template has seven).
+  const isPale = (r, g, b) => Math.abs(r - g) < 16 && Math.abs(g - b) < 16 && r > 85 && r < 222;
+  const ruleAt = y => { let n = 0, total = 0; for(let x = best[0] + 4; x < best[7] - 4; x += 4){ total++; if(isPale(...px(x, y))) n++; } return n > total * 0.7; };
   while(rows.length < 7 && rows[rows.length - 1] + h < H - 20){
-    const next = rows[rows.length - 1] + h;
-    if(rows.length >= 6) break;
-    rows.push(Math.round(next));
+    const next = Math.round(rows[rows.length - 1] + h);
+    let found = null;
+    for(let d = 0; d <= 5 && found == null; d++){ if(ruleAt(next + d)) found = next + d; else if(d && ruleAt(next - d)) found = next - d; }
+    if(found == null){ if(rows.length >= 6) break; found = next; }
+    rows.push(found);
   }
   return {cols: best, rows};
 }
@@ -373,15 +418,26 @@ function eviIsType(r, g, b){
 // type there (digits sit 1-2 px apart; the next word is further off), no
 // wider than two digits.
 function eviBlankDayNumber(pg, data, W, x0, y0){
-  // The number's color: its first dark pixel (coral on weekends, slate on
-  // weekdays); a word touching it in another color is left alone.
+  // The number's color: the darkest pixel where it sits (coral on
+  // weekends, slate on weekdays); the first dark pixel met is a soft edge
+  // the core isn't near. A word touching it in another color is left alone.
   let tone = null;
+  for(let y = y0 + 2; y < y0 + 26; y++) for(let x = x0 + 1; x < x0 + 14; x++){
+    const i = (y * W + x) * 4, lo = Math.min(data[i], data[i + 1], data[i + 2]);
+    if(lo <= 170 && (!tone || lo < Math.min(...tone))) tone = [data[i], data[i + 1], data[i + 2]];
+  }
+  if(!tone) return;
   const near = (i, t) => (data[i] - t[0]) ** 2 + (data[i + 1] - t[1]) ** 2 + (data[i + 2] - t[2]) ** 2 < 70 * 70;
+  // The number's soft edge: its color faded toward the paper (the same
+  // tone, lighter). Left in place, the edge reads as "25>" for "23".
+  const fadeOf = (i, t) => {
+    const k = Math.max(0, Math.min(1, (255 - Math.min(data[i], data[i + 1], data[i + 2])) / (255 - Math.min(...t))));
+    return [0, 1, 2].every(c => Math.abs(data[i + c] - (255 - k * (255 - t[c]))) < 28);
+  };
   const inkCol = x => {
     for(let y = y0 + 2; y < y0 + 26; y++){
       const i = (y * W + x) * 4;
       if(Math.min(data[i], data[i + 1], data[i + 2]) > 170) continue;
-      if(!tone) tone = [data[i], data[i + 1], data[i + 2]];
       if(near(i, tone)) return true;
     }
     return false;
@@ -391,12 +447,12 @@ function eviBlankDayNumber(pg, data, W, x0, y0){
     if(inkCol(x) && (start >= 0 || x < x0 + 14)){ if(start < 0) start = x; end = x; gap = 0; }
     else if(start >= 0 && ++gap > 4) break;
   }
-  if(start < 0 || !tone) return;
+  if(start < 0) return;
   end = Math.min(end, start + 22);   // two digits at most
   const img = pg.getImageData(start - 1, y0 + 1, end - start + 3, 26);
   for(let y = y0 + 1; y < y0 + 27; y++) for(let x = start - 1; x <= end + 1; x++){
     const i = (y * W + x) * 4;
-    if(Math.min(data[i], data[i + 1], data[i + 2]) > 245 || !near(i, tone) && Math.min(data[i], data[i + 1], data[i + 2]) < 200) continue;
+    if(Math.min(data[i], data[i + 1], data[i + 2]) > 245 || !near(i, tone) && !fadeOf(i, tone) && Math.min(data[i], data[i + 1], data[i + 2]) < 200) continue;
     data[i] = data[i + 1] = data[i + 2] = 255;
     const j = ((y - y0 - 1) * img.width + (x - start + 1)) * 4;
     img.data[j] = img.data[j + 1] = img.data[j + 2] = 255;
@@ -408,7 +464,7 @@ async function eviRead(worker, canvas, psm){
   await worker.setParameters({tessedit_pageseg_mode: String(psm)});
   const {data} = await worker.recognize(canvas, {}, {blocks: true});
   const lines = [];
-  (data.blocks || []).forEach(b => (b.paragraphs || []).forEach(p => (p.lines || []).forEach(l => lines.push({text: l.text, conf: l.confidence, ...l.bbox}))));
+  (data.blocks || []).forEach(b => (b.paragraphs || []).forEach(p => (p.lines || []).forEach(l => lines.push({text: l.text, conf: l.confidence, ...l.bbox, words: (l.words || []).map(w => ({text: w.text, ...w.bbox}))}))));
   return lines;
 }
 
@@ -432,17 +488,22 @@ function eviLineInk(data, W, box){
 async function eviReadCalendar(file, progress){
   const say = typeof progress === 'function' ? progress : () => {};
   say('Opening the image…');
-  const img = await eviLoadImage(file);
-  const scale = EVI_WIDTH / img.naturalWidth;
-  const W = EVI_WIDTH, H = Math.round(img.naturalHeight * scale);
-  const page = document.createElement('canvas');
-  page.width = W; page.height = H;
-  const pg = page.getContext('2d');
-  pg.fillStyle = '#fff'; pg.fillRect(0, 0, W, H);
-  pg.drawImage(img, 0, 0, W, H);
-  let data = pg.getImageData(0, 0, W, H).data;
-  const grid = eviFindGrid(data, W, H) || eviFindGrid(data, W, H, true);
-  if(!grid) throw new Error('Couldn’t find the calendar grid. Use the month’s calendar page (the PNG of the template), not the events page.');
+  const pages = await eviPagesOf(file);
+  let page, pg, data, grid, W, H;
+  for(const p of pages){
+    const img = await eviLoadImage(p);
+    const scale = EVI_WIDTH / img.naturalWidth;
+    W = EVI_WIDTH; H = Math.round(img.naturalHeight * scale);
+    page = document.createElement('canvas');
+    page.width = W; page.height = H;
+    pg = page.getContext('2d', {willReadFrequently: true});
+    pg.fillStyle = '#fff'; pg.fillRect(0, 0, W, H);
+    pg.drawImage(img, 0, 0, W, H);
+    data = pg.getImageData(0, 0, W, H).data;
+    grid = eviFindGrid(data, W, H) || eviFindGrid(data, W, H, true);
+    if(grid) break;
+  }
+  if(!grid) throw new Error(pages.length > 1 ? 'Couldn’t find the calendar grid on any page of that zip. Use Canva’s download of the month’s calendar.' : 'Couldn’t find the calendar grid. Use the month’s calendar page (the PNG of the template), not the events page.');
   const {cols, rows} = grid;
   const colW = (cols[7] - cols[0]) / 7;
 
@@ -517,6 +578,12 @@ async function eviReadCalendar(file, progress){
         if(ink < 30 && !(r === 0 && c === 0)) continue;
         const cell = eviCrop(page, x0, y0, w, h, eviIsType, EVI_SCALE);
         const rawLines = await eviRead(worker, cell, 6);
+        // The Sunday crop reaches into Monday: a word that starts past the
+        // line between them is Monday's ("Receipt Day B" from "Begin").
+        if(c === 0) rawLines.forEach(l => {
+          const keep = (l.words || []).filter(wd => x0 + wd.x0 / EVI_SCALE < cols[1] + 2);
+          if(keep.length && keep.length < (l.words || []).length){ l.text = keep.map(wd => wd.text).join(' ') + '\n'; l.x1 = Math.max(...keep.map(wd => wd.x1)); }
+        });
         // A line read with little confidence gets a second, closer look on
         // its own (small bold times like "3pm-6pm").
         for(const l of rawLines){
@@ -597,8 +664,8 @@ let eviState = null;   // {status, month, found, list: [{ev, on}], unmatchedNote
 function eviPanelHtml(){
   if(!eviState) return `
     <div class="evi-pick">
-      <label class="btn btn-ghost evi-pick-btn">Read a calendar image<input type="file" accept="image/png,image/jpeg,image/webp" data-evi-file hidden></label>
-      <span>The month's calendar page (PNG or JPG). You check every event before it's added.</span>
+      <label class="btn btn-ghost evi-pick-btn">Read a calendar image<input type="file" accept="image/png,image/jpeg,image/webp,.zip,application/zip" data-evi-file hidden></label>
+      <span>The month's calendar page (PNG or JPG), or the zip Canva downloads. You check every event before it's added.</span>
     </div>`;
   if(eviState.status === 'reading') return `<div class="evi-box" role="status" aria-live="polite"><b>Reading the calendar…</b><span>${escapeHtml(eviState.step || '')}</span></div>`;
   if(eviState.status === 'error') return `<div class="evi-box is-error" role="alert"><b>${escapeHtml(eviState.error)}</b><button type="button" class="btn btn-ghost" data-evi-cancel>OK</button></div>`;

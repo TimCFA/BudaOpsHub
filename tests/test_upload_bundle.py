@@ -144,7 +144,7 @@ process.stdout.write(JSON.stringify(vm.runInContext(`(() => {
 
     def test_a_screenshot_calendar_gets_a_second_look(self):
         evi = read('static', 'js', 'events-import.js')
-        self.assertIn('const grid = eviFindGrid(data, W, H) || eviFindGrid(data, W, H, true);', evi)
+        self.assertIn('grid = eviFindGrid(data, W, H) || eviFindGrid(data, W, H, true);', evi)
         self.assertIn('r < (light ? 222 : 175)', evi)
 
 
