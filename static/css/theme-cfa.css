@@ -1053,6 +1053,9 @@ body:not(.is-manager) .manager-only{display:none !important;}
 .cal-dayp-main b{display:block;font-size:15px;}
 .cal-dayp-main small{display:block;color:var(--text-secondary);font-size:13px;}
 .cal-dayp-main ul{margin:4px 0 0;padding-left:18px;color:var(--text-secondary);font-size:13px;}
+/* The events page's details, folded under the event (events.js). */
+.cal-dayp-more{margin-top:6px;font-size:13px;}
+.cal-dayp-more summary{cursor:pointer;font-weight:700;color:var(--cfa-navy);}
 .cal-dayp-month{margin:12px 0 0;padding-top:10px;border-top:1px dashed var(--border);font-size:13px;color:var(--text-secondary);}
 @media (max-width:1000px){
   .cal-body{grid-template-columns:minmax(0,1fr);}

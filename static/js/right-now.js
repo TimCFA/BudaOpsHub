@@ -713,7 +713,8 @@ function rnEventSheetHtml(ev, date, boh){
   const when = rnEvWhen(ev, rnNowMins(), live);
   const dayText = new Date(date + 'T12:00:00').toLocaleDateString('en-US', {weekday: 'long', month: 'long', day: 'numeric'});
   const runs = ev.end && ev.end !== ev.date ? evWhenText(ev).split(' · ')[0] : '';
-  const notes = Array.isArray(ev.notes) ? ev.notes : [];
+  // The calendar's notes, then the events page's details (events.js).
+  const notes = (Array.isArray(ev.notes) ? ev.notes : []).concat(Array.isArray(ev.details) ? ev.details : []);
   return `<div class="rn-evs-card" role="dialog" aria-modal="true" aria-labelledby="rnEvsTitle" style="--ev:${k.color}">
       <button type="button" class="rn-evs-x" data-rn-evs-close aria-label="Close">${RN_ICON_X}</button>
       <span class="rn-evs-kind"><i aria-hidden="true"></i>${escapeHtml(k.label)}</span>

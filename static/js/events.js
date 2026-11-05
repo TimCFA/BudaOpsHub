@@ -9,7 +9,7 @@
 // storeEvents in the manager section: every device is sent it, only a
 // manager session changes it (app.py MANAGER_ONLY_KEYS).
 //
-// An event: {id, title, detail, kind, date, end, days, from, to, notes}
+// An event: {id, title, detail, kind, date, end, days, from, to, notes, details}
 //   date / end  'YYYY-MM-DD', end inclusive (a one-day event has no end)
 //   days        weekdays it runs on within date..end (0 = Sunday), or none
 //               for every day
@@ -17,7 +17,10 @@
 //   kind        the calendar's color key (EVENT_KINDS); 'note' is a
 //               heads-up, and 'goal' / 'checklist' belong to the month (the
 //               goals box and the Pre-Checklist), never a day
-//   notes       bullet lines
+//   notes       bullet lines (the calendar's Notes box)
+//   details     lines from the events page (When, Where, What, Materials,
+//               the social post, Labor Needs; events-import.js): on the
+//               day and Right Now's sheet, not in the Notes box
 //   kn          true / false: counts as a Know the Numbers special event,
 //               when a manager overrode the rule (evCountsForNumbers)
 
@@ -307,6 +310,7 @@ function evDayPanelHtml(){
             ${ev.detail ? `<small>${escapeHtml(ev.detail)}</small>` : ''}
             <small>${escapeHtml(evWhenText(ev))}</small>
             ${Array.isArray(ev.notes) && ev.notes.length ? `<ul>${ev.notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : ''}
+            ${Array.isArray(ev.details) && ev.details.length ? `<details class="cal-dayp-more"><summary>More from the events page</summary><ul>${ev.details.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul></details>` : ''}
           </div>
         </li>`).join('')}</ul>` : `<p class="ev-empty">${evWeekday(calDay) === 0 ? 'Closed Sunday. ' : ''}Nothing on the calendar this day.</p>`}
       ${evCalendarShown() ? '<p class="cal-dayp-month">To add or change events: Manage → Events Calendar.</p>' : ''}
@@ -406,6 +410,7 @@ function evFormHtml(ev){
       <label class="ev-kn"><input type="checkbox" id="evKn" ${evCountsForNumbers(ev.id === 'new' ? {...ev, kn: undefined} : ev) ? 'checked' : ''} ${typeof ev.kn === 'boolean' ? 'data-touched="1"' : ''}><span><b>Special event in Know the Numbers</b> — shows on Set Ups' numbers line, counts toward Game Day and the forecast's unusual days. On by itself for In-Store, Drive Thru and App events of a week or less.</span></label>
       <label class="ev-kn"><input type="checkbox" id="evAttn" ${ev.attn ? 'checked' : ''}><span><b>Needs a director</b> — shows under Needs attention on the Directors page (meetings always do).</span></label>
       <div class="field"><label for="evNotes">Notes (one per line)</label><textarea id="evNotes" rows="4" maxlength="2000">${escapeHtml((ev.notes || []).join('\n'))}</textarea></div>
+      <div class="field"><label for="evDetails">From the events page (one per line)</label><textarea id="evDetails" rows="4" maxlength="8000">${escapeHtml((ev.details || []).join('\n'))}</textarea></div>
       <div class="ev-form-actions">
         <button type="submit" class="btn btn-primary">Save</button>
         <button type="button" class="btn btn-ghost" data-ev-cancel="1">Cancel</button>
@@ -432,6 +437,8 @@ function evReadForm(form){
   if(from) { ev.from = from; ev.to = to; }
   const notes = val('evNotes').split('\n').map(s => s.trim()).filter(Boolean);
   if(notes.length) ev.notes = notes;
+  const details = val('evDetails').split('\n').map(s => s.trim()).filter(Boolean);
+  if(details.length) ev.details = details;
   // Kept only when it differs from the rule, so the rule still decides
   // after a change of type or dates.
   const kn = document.getElementById('evKn');
