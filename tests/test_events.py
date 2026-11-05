@@ -94,6 +94,24 @@ class CalendarPage(unittest.TestCase):
         got = run("c => evNotesForMonth('2026-10').map(e => e.title)")[0]
         self.assertEqual(got, ['Free Breakfast Tuesday', 'Pack the Drive Thru', 'Family Night: Pumpkins & Play', 'Halloween Week Promo'])
 
+    def test_events_page_details_fold_under_the_day_not_the_notes_box(self):
+        # The events page's lines (events-import.js) show on the day, folded,
+        # and stay out of the month's Notes box (Nov 5 2026).
+        got = run("""c => { storeEvents = [{id: 'a', kind: 'instore', title: 'Cow Bingo', date: '2026-11-19', from: '18:00', to: '19:00',
+            details: ['Where: Dining Room', 'Labor Needs: 2 Team Members']}];
+            calDay = '2026-11-19'; return [evDayPanelHtml(), evNotesForMonth('2026-11').length]; }""")[0]
+        self.assertIn('<details class="cal-dayp-more"><summary>More from the events page</summary><ul><li>Where: Dining Room</li><li>Labor Needs: 2 Team Members</li></ul></details>', got[0])
+        self.assertEqual(got[1], 0)
+
+    def test_the_event_form_keeps_the_details(self):
+        with open(os.path.join(ROOT, 'static', 'js', 'events.js'), encoding='utf-8') as f:
+            src = f.read()
+        self.assertIn('id="evDetails"', src[src.index('function evFormHtml'):src.index('function evReadForm')])
+        self.assertIn("val('evDetails')", src[src.index('function evReadForm'):src.index('function evAfterChange')])
+        with open(os.path.join(ROOT, 'static', 'js', 'right-now.js'), encoding='utf-8') as f:
+            rn = f.read()
+        self.assertIn('.concat(Array.isArray(ev.details) ? ev.details : [])', rn[rn.index('function rnEventSheetHtml'):])
+
     def test_set_ups_chips_need_a_manager_session(self):
         got = run("c => { const a = evCalendarShown(); launchManager = false; const b = evCalendarShown(); launchManager = true; return [a, b, evCalendarShown()]; }")[0]
         self.assertEqual(got, [True, False, True])
