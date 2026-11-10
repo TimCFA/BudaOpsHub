@@ -11,7 +11,7 @@ import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import app as appmod  # noqa: E402
 import levelset_sync as ls  # noqa: E402
-from werkzeug.security import generate_password_hash  # noqa: E402
+from fast_pin_hash import generate_password_hash  # noqa: E402
 
 
 

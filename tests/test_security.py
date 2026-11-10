@@ -9,7 +9,7 @@ import sys
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from werkzeug.security import generate_password_hash  # noqa: E402
+from fast_pin_hash import generate_password_hash  # noqa: E402
 
 import app as appmod  # noqa: E402
 
