@@ -72,6 +72,9 @@ async function checkManagerStatus(){
     mgrStatusTimer = setTimeout(checkManagerStatus, Math.min(30000, 2000 * 2 ** mgrStatusTries++));
     return;
   }
+  // The answer is used once every script has run (they're deferred, and this
+  // file is in the first group): what it shows and hides lives in the rest.
+  if(typeof hubScriptsRan !== 'undefined') await hubScriptsRan;
   mgrStatusKnown = true;
   try{
     const {isManager, isDirector, directorPinSet} = status;
@@ -500,6 +503,7 @@ document.getElementById('btnDownloadTodayCsv').addEventListener('click', ()=>{
     await loadState();
   } finally {
     resolveStateLoaded();
+    document.body.classList.remove('hub-warming');   // early-paint.js: the page can be used now
   }
   renderGrid();
   renderTape();

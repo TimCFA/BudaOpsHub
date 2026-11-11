@@ -233,8 +233,7 @@ window.addEventListener('message', e=>{
 });
 window.addEventListener('hashchange', hsSyncStart);
 // After every script has run (Manage, launch mode and the roster preview).
-if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hsSyncStart);
-else hsSyncStart();
+hubScriptsRan.then(hsSyncStart);
 
 // --- Install box in Data Uploads (roster row) --------------------------------
 

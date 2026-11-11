@@ -85,7 +85,7 @@ class Wiring(unittest.TestCase):
         # A zip of only PDFs (Smart Shop from Ops Hub) keeps its old reader.
         self.assertIn("if(!entries.length || entries.every(e => /\\.pdf$/i.test(e.name))) return null;", ub)
         self.assertIn("const DU_JSZIP = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';", ub)
-        self.assertIn('<script src="/static/js/data-uploads.js"></script>\n<script src="/static/js/upload-bundle.js"></script>', read('cfa-buda-ops-hub-complete.html'))
+        self.assertIn('<script src="/static/js/data-uploads.js" defer></script>\n<script src="/static/js/upload-bundle.js" defer></script>', read('cfa-buda-ops-hub-complete.html'))
 
     def test_the_next_roster_opens_when_one_is_saved_or_skipped(self):
         wr = read('static', 'js', 'weekly-roster-import.js')

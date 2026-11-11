@@ -84,7 +84,7 @@ class Wiring(unittest.TestCase):
         self.assertIn('positionLists, pointsRecords', storage)
         self.assertIn("if(typeof posApplyLists === 'function') posApplyLists();", storage)
         page = read('cfa-buda-ops-hub-complete.html')
-        self.assertIn('<script src="/static/js/zone-reset.js"></script>\n<script src="/static/js/positions-editor.js"></script>', page)
+        self.assertIn('<script src="/static/js/zone-reset.js" defer></script>\n<script src="/static/js/positions-editor.js" defer></script>', page)
         self.assertLess(page.index('/static/js/positions-editor.js'), page.index('/static/js/storage.js'))
 
     def test_the_chip_sits_on_set_ups_and_speaks_spanish(self):

@@ -84,7 +84,7 @@ class Wiring(unittest.TestCase):
         head = page.split('</head>')[0]
         self.assertIn("if(localStorage.getItem('cfaBudaTheme')==='dark'){document.documentElement.dataset.theme='dark';", head)
         self.assertIn('id="hdrTheme"', page)
-        self.assertIn('<script src="/static/js/theme.js"></script>', page)
+        self.assertIn('<script src="/static/js/theme.js" defer></script>', page)
         js = read('static', 'js', 'theme.js')
         self.assertIn("const THEME_KEY = 'cfaBudaTheme';", js)
         self.assertFalse(re.search(r'[\U0001F300-\U0001FAFF]', js + read('static', 'css', 'dark.css')))   # line icons, never emoji

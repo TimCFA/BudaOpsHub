@@ -389,7 +389,7 @@ class Page(unittest.TestCase):
         html = self.read('cfa-buda-ops-hub-complete.html')
         self.assertIn('id="timersView"', html)
         self.assertIn('id="timersRoot"', html)
-        self.assertIn('<script src="/static/js/timers.js"></script>', html)
+        self.assertIn('<script src="/static/js/timers.js" defer></script>', html)
         self.assertIn('/static/css/timers.css', html)
         self.assertIn('data-views="zonereset timers foodsafety safecount prepboard"', html)
         self.assertIn("view === 'timers' && typeof tmActivate === 'function'", self.read('static', 'js', 'navigation.js'))

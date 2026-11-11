@@ -303,15 +303,6 @@ function wasteCountModal(id){
   view.addEventListener('input', e => { if(e.target.id === 'wasteSearch'){ wasteQuery = e.target.value; renderGrid(); } });
 })();
 
-function showToast(msg){
-  const t = document.querySelector('.toast') || document.createElement('div');
-  t.className = 'toast';
-  t.textContent = msg;
-  if(!document.querySelector('.toast')) document.body.appendChild(t);
-  t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'), 1800);
-}
-
 const RECENT_ENTRIES_WINDOW_MS = 15 * 60 * 1000;
 
 function renderTape(){

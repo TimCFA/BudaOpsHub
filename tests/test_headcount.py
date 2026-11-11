@@ -318,7 +318,7 @@ class HeadcountTest(unittest.TestCase):
         self.assertIn("hcData = hcAllowed() ? data : null;", js)
         self.assertIn("if(typeof hcSyncTab === 'function') hcSyncTab();", read('static', 'js', 'fohoe-and-safecount.js'))
         self.assertIn('body:not(.hc-allowed) .hc-only{display:none !important;}', read('static', 'css', 'theme-cfa.css'))
-        self.assertIn('<script src="/static/js/headcount.js"></script>', page)
+        self.assertIn('<script src="/static/js/headcount.js" defer></script>', page)
         nav = read('static', 'js', 'navigation.js')
         self.assertIn("if(view === 'headcount' && !(typeof hcAllowed === 'function' && hcAllowed())) view = 'home';", nav)
         self.assertRegex(read('static', 'js', 'launch-mode.js'), r"const LAUNCH_VIEWS = \[[^\]]*'headcount'")

@@ -37,7 +37,7 @@ class Roles(unittest.TestCase):
         page = read('cfa-buda-ops-hub-complete.html')
         self.assertIn('aria-controls="rolesView" data-view="roles" style="display:none">Roles', page)
         self.assertIn('<div id="rolesRoot" class="rl-page"></div>', page)
-        self.assertIn('<script src="/static/js/leaders.js"></script>\n<script src="/static/js/roles.js"></script>', page)
+        self.assertIn('<script src="/static/js/leaders.js" defer></script>\n<script src="/static/js/roles.js" defer></script>', page)
         js = read('static', 'js', 'roles.js')
         self.assertIn("function rlShown(){ return typeof siLeadOrUp === 'function' && siLeadOrUp(); }", js)
         nav = read('static', 'js', 'navigation.js')

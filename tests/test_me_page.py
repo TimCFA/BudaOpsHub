@@ -160,7 +160,7 @@ class Ladder(unittest.TestCase):
 class Page(unittest.TestCase):
     def test_wired_in(self):
         page = read('cfa-buda-ops-hub-complete.html')
-        self.assertIn('<script src="/static/js/team-extras.js"></script>\n<script src="/static/js/me-page.js"></script>', page)
+        self.assertIn('<script src="/static/js/team-extras.js" defer></script>\n<script src="/static/js/me-page.js" defer></script>', page)
         su = read('static', 'js', 'state-and-utils.js')
         self.assertIn("siIdentity && siIdentity.name && typeof mpOpenMine === 'function') mpOpenMine();", su)   # the name at the top
         self.assertIn('data-si-me', read('static', 'js', 'sign-in.js'))
