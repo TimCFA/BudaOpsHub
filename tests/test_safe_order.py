@@ -168,7 +168,7 @@ class Wiring(unittest.TestCase):
         self.assertIn("if(typeof launchManager === 'undefined' || !launchManager){ root.innerHTML = ''; return; }", js)
         page = read('cfa-buda-ops-hub-complete.html')
         self.assertIn('<div id="safeOrderRoot"></div>', page)
-        self.assertIn('<script src="/static/js/fohoe-and-safecount.js"></script>\n<script src="/static/js/safe-order.js"></script>', page)
+        self.assertIn('<script src="/static/js/fohoe-and-safecount.js" defer></script>\n<script src="/static/js/safe-order.js" defer></script>', page)
         self.assertIn("if(typeof renderSafeOrder === 'function') renderSafeOrder();", read('static', 'js', 'fohoe-and-safecount.js'))
         css = read('static', 'css', 'theme-cfa.css')
         self.assertIn('#safeOrderRoot:empty{display:none;}', css)

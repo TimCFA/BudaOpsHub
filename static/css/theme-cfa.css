@@ -3053,3 +3053,13 @@ body.mp-on{overflow:hidden;}
 .mp-foot{display:flex;align-items:center;gap:14px;margin-top:16px;}
 .mp-foot .btn{width:auto;}
 .si-me{margin-bottom:8px;}
+
+/* ===== The first seconds of a load (early-paint.js; Tim, Nov 11 2026) =====
+   Home and Set Ups are drawn from the saved data while the rest of the hub
+   is still coming down. Until it has, they're for looking at: only the Home
+   and Set Ups tabs take a tap, and a small pill says the rest is loading. */
+body.hub-warming .app{pointer-events:none;}
+body.hub-warming .tabs .tab[data-view="home"],body.hub-warming .tabs .tab[data-view="positions"]{pointer-events:auto;}
+body.hub-warming .tabs .tab:not([data-view="home"]):not([data-view="positions"]),body.hub-warming .tabs .tab-group{opacity:.45;}
+body.hub-warming::after{content:"Loading the rest… · Cargando…";position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:1500;padding:8px 14px;border-radius:999px;background:var(--cfa-navy);color:#F6F1E8;font:600 13px var(--font-ui);box-shadow:0 4px 14px rgba(0,0,0,.2);pointer-events:none;white-space:nowrap;}
+.si-google-go{display:block;margin:14px auto 0;min-height:36px;}

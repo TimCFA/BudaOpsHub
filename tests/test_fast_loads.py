@@ -47,7 +47,7 @@ class Stamped(unittest.TestCase):
             self.assertNotIn('immutable', self.c.get(url).headers.get('Cache-Control', ''), url)   # unstamped or stale: asked again
 
     def test_the_file_on_disk_is_unchanged(self):
-        self.assertIn('<script src="/static/js/storage.js"></script>', read('cfa-buda-ops-hub-complete.html'))
+        self.assertIn('<script src="/static/js/storage.js" defer></script>', read('cfa-buda-ops-hub-complete.html'))
 
 
 class Deferred(unittest.TestCase):

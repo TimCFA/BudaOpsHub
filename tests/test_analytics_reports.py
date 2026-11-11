@@ -183,7 +183,7 @@ class Wiring(unittest.TestCase):
         self.assertIn("opsPdf: 2, productivity: 3, salesQuarter: 3, roster: 4};", du)    # after the PDFs that date them
         self.assertIn("if(dash && dash.kind === 'dailyDetail'){ job.kind = 'labor'; text = await anFileDailyDetail(job.file, dash.rows); }", du)
         self.assertIn("else if(dash && dash.kind === 'salesData'){ job.kind = 'sales'; text = await rpFileSales(job.file, dash.sales); }", du)
-        self.assertIn('<script src="/static/js/kn-actuals.js"></script>\n<script src="/static/js/analytics-reports.js"></script>',
+        self.assertIn('<script src="/static/js/kn-actuals.js" defer></script>\n<script src="/static/js/analytics-reports.js" defer></script>',
                       read('cfa-buda-ops-hub-complete.html'))
 
 

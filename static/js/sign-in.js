@@ -18,6 +18,7 @@ const SI_MEMBER_SECTIONS = ['waste', 'ops', 'prep', 'prepLive', 'prepTimes', 'hi
 const SI_DEVICE_EXTRA_KEYS = ['zoneChecklistState', 'zoneChecklistHistory', 'prepMade', 'prepTimes', 'prepTimers'];
 let siReason = '';
 let siBusy = false;
+let siGoogle = false;     // "Director? Sign in with Google" was tapped: its button shows
 let siDevices = null;     // Manage: the shared devices, once loaded
 
 function siSignedIn(){ return !!(siIdentity.name || (typeof launchManager !== 'undefined' && launchManager)); }
@@ -91,6 +92,7 @@ function siClose(){
   const sheet = document.getElementById('siSheet');
   if(sheet) sheet.classList.remove('active');
   siReason = '';
+  siGoogle = false;
 }
 function siDraw(){
   const body = document.getElementById('siBody');
@@ -113,9 +115,12 @@ function siDraw(){
       <input id="siPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off">
       <button type="submit" class="btn btn-primary" ${siBusy ? 'disabled' : ''}>Sign in</button>
       <p class="si-hint">Your 6-digit clock-in PIN.</p>
-    </form>${!handOver && typeof acGoogleClientId !== 'undefined' && acGoogleClientId ? `
-    <div class="ac-or"><span>or</span></div><div id="siGoogleBtn" class="ac-google"></div><p class="si-hint">Directors: your store Google account.</p>` : ''}`}`;
-  if(typeof acMountGoogle === 'function') acMountGoogle();
+    </form>${!handOver && typeof acGoogleClientId !== 'undefined' && acGoogleClientId ? (siGoogle ? `
+    <div class="ac-or"><span>or</span></div><div id="siGoogleBtn" class="ac-google"></div><p class="si-hint">Directors: your store Google account.</p>` : `
+    <button type="button" class="ld-link si-google-go" data-si-google>Director? Sign in with Google</button>`) : ''}`}`;
+  // The PIN comes first (Tim, Nov 11 2026): Google's button, and its script,
+  // only once a director asks for it.
+  if(siGoogle && typeof acMountGoogle === 'function') acMountGoogle();
 }
 
 async function siSignIn(pin){
@@ -149,6 +154,7 @@ document.addEventListener('click', e => {
   if(e.target.closest('[data-si-close]') || e.target.id === 'siSheet'){ siClose(); return; }
   if(e.target.closest('[data-si-out]')){ acSignOut(); return; }
   if(e.target.closest('[data-si-me]')){ siClose(); if(typeof mpOpenMine === 'function') mpOpenMine(); return; }
+  if(e.target.closest('[data-si-google]')){ siGoogle = true; siDraw(); return; }
   const go = e.target.closest('[data-si-open]');
   if(go){ siOpen(); return; }
 });
