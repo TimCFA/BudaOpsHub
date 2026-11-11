@@ -950,6 +950,7 @@ document.addEventListener('keydown', e=>{
 // them. Notes and resets stay with the spot; a coverage flag clears, as it
 // does when the picker places someone.
 const SU_DRAG_HOLD_MS = 350;
+const SU_DRAG_LIFT = 38;     // how far above the fingertip the floating name rides, px
 let suDrag = null;          // {slot, x0, y0, x, y, pointerId, mouse, active, timer, ghost, over, raf, scroller}
 let suDragEndedAt = 0;
 
@@ -961,14 +962,32 @@ function suDragKey(slot){
 
 const suFirstNames = v => suSplitNames(v).map(n => n.split(/\s+/)[0]).join('/');
 
-// A spot under the finger in the same card (a name moves within its own
-// daypart, even with other cards open).
+// The spot at a point, in the same card (a name moves within its own
+// daypart, even with other cards open): the tile, 'source' for the spot the
+// name came from, or null where there's no spot.
 function suDragTileAt(x, y){
   const el = document.elementFromPoint(x, y);
   const tile = el && el.closest('#allDayparts [data-su-tile]');
-  if(!tile || tile.dataset.suTile === suDrag.slot) return null;
+  if(!tile) return null;
+  if(tile.dataset.suTile === suDrag.slot) return 'source';
   const card = tile.closest('[data-su-card]');
   return !suDrag.card || (card && card.dataset.suCard === suDrag.card) ? tile : null;
+}
+// Where the name would land. With a finger it's the spot under the floating
+// name, which sits above the fingertip so it can be seen (Tim, Nov 11 2026:
+// a drag "swapped random different positions": the spot under the fingertip
+// took the name, a row below the one the floating name was put on). Where
+// the floating name is over no spot (the last row at the bottom of the
+// screen), the spot under the fingertip. A mouse aims with its pointer.
+function suDragTarget(){
+  const d = suDrag;
+  let hit = null;
+  if(!d.mouse && d.ghost){
+    const r = d.ghost.getBoundingClientRect();
+    hit = suDragTileAt(r.left + r.width / 2, r.top + r.height / 2);
+  }
+  if(!hit) hit = suDragTileAt(d.x, d.y);
+  return hit === 'source' ? null : hit;
 }
 
 function suDragStart(){
@@ -991,11 +1010,15 @@ function suDragStart(){
 
 function suDragMove(){
   const d = suDrag;
-  d.ghost.style.transform = `translate(${Math.round(d.x - 24)}px, ${Math.round(d.y - 56)}px)`;
+  // The floating name starts under the fingertip and lifts above it as the
+  // finger moves away, so a hold that doesn't go anywhere stays on its own
+  // spot and a real drag can be seen above the finger.
+  const lift = d.mouse ? SU_DRAG_LIFT : Math.min(SU_DRAG_LIFT, Math.hypot(d.x - d.x0, d.y - d.y0));
+  d.ghost.style.transform = `translate(${Math.round(d.x - 24)}px, ${Math.round(d.y - 18 - lift)}px)`;
   // Marked afresh each move: a sync can redraw the list mid-drag.
   const source = [...document.querySelectorAll('#allDayparts [data-su-tile]')].find(t => t.dataset.suTile === d.slot);
   if(source) source.classList.add('is-drag-source');
-  const over = suDragTileAt(d.x, d.y);
+  const over = suDragTarget();
   if(over === d.over) return;
   if(d.over) d.over.classList.remove('is-drop-target');
   if(over) over.classList.add('is-drop-target');
