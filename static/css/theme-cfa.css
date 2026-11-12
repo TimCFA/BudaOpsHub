@@ -3063,3 +3063,129 @@ body.hub-warming .tabs .tab[data-view="home"],body.hub-warming .tabs .tab[data-v
 body.hub-warming .tabs .tab:not([data-view="home"]):not([data-view="positions"]),body.hub-warming .tabs .tab-group{opacity:.45;}
 body.hub-warming::after{content:"Loading the rest… · Cargando…";position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:1500;padding:8px 14px;border-radius:999px;background:var(--cfa-navy);color:#F6F1E8;font:600 13px var(--font-ui);box-shadow:0 4px 14px rgba(0,0,0,.2);pointer-events:none;white-space:nowrap;}
 .si-google-go{display:block;margin:14px auto 0;min-height:36px;}
+/* ===== Header: one row, no clock (Tim, Nov 11 2026) =====
+   The phone's own clock covers it. The element stays (storage.js writes the
+   time into it) so nothing that reads it breaks. */
+.clock{display:none;}
+.hdr{flex-wrap:nowrap;gap:10px;}
+.hdr-title{gap:8px;min-width:0;}
+.hdr-title h1{white-space:nowrap;}
+.hdr-meta{gap:8px !important;flex-shrink:0;}
+.hdr-waste{min-height:44px;white-space:nowrap;}
+#initialsBadge{min-height:44px;box-sizing:border-box;display:inline-flex !important;flex-direction:column;justify-content:center;line-height:1.15;}
+@media (max-width:520px){
+  .hdr-meta{width:auto;}
+  .hdr-title h1{font-size:24px;}
+  .hdr-title .location{font-size:13px;}
+  .hdr-waste{padding:6px 10px;gap:6px;}
+  .hdr-waste .hw-tube{width:30px;}
+  #hdrWasteOf{display:none;}   /* the red mark on the tube is the limit */
+  #initialsBadge{padding:5px 10px !important;font-size:12.5px !important;}
+}
+@media (max-width:380px){
+  .hdr-title h1{font-size:21px;}
+  .hdr-waste .hw-tube{display:none;}
+}
+
+/* ===== Bottom tab bar on touch screens (Tim, Nov 12 2026; bottom-nav.js) =====
+   Phones and every tablet get Home, Set Ups, Lists, Waste and More in thumb
+   reach; a computer (a mouse) keeps the tab row up top. Decided by touch,
+   not width, so a big counter tablet on its side still gets the bar.
+   --bnav-h is how much of the screen's bottom the bar takes: everything
+   else pinned there (the Set Ups toolbar, toasts, the update banner) sits
+   above it. Pop-ups (.overlay is 50) cover the bar. */
+:root{--bnav-h:0px;}
+.bnav,.bnav-scrim{display:none;}
+@media (hover:none) and (pointer:coarse){
+  :root{--bnav-h:calc(72px + env(safe-area-inset-bottom,0px));}
+  .tabs-wrap{display:none;}
+  .hdr .hdr-theme{display:none;}
+  .app{padding-bottom:calc(60px + var(--bnav-h));}
+  .toast{bottom:calc(24px + var(--bnav-h));}
+  .su-toolbar{bottom:calc(16px + var(--bnav-h));}
+  .update-banner{bottom:calc(16px + var(--bnav-h));}
+  body.tm-full{--bnav-h:0px;}
+  body.tm-full .bnav{display:none;}
+  /* The first seconds of a load (early-paint.js): only Home and Set Ups take a tap, as up top. */
+  body.hub-warming .bnav-btn:not([data-bnav="home"]):not([data-bnav="positions"]){pointer-events:none;opacity:.45;}
+  body.hub-warming::after{bottom:calc(14px + var(--bnav-h));}
+
+  .bnav{display:flex;align-items:stretch;position:fixed;left:0;right:0;bottom:0;z-index:45;padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));background:var(--cfa-white);border-top:1px solid var(--border);}
+  .bnav-btn{flex:1;min-width:0;min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:0;padding:0;background:transparent;color:var(--text-secondary);font-family:var(--font-ui);cursor:pointer;-webkit-tap-highlight-color:transparent;}
+  .bnav-ic{position:relative;width:52px;height:28px;border-radius:999px;display:flex;align-items:center;justify-content:center;}
+  .bnav-lb{font-size:12px;font-weight:600;line-height:1.2;color:var(--text-primary);}
+  .bnav-es{font-family:var(--font-display);font-style:italic;font-size:11px;line-height:1;}
+  .bnav-btn.active{color:var(--cfa-dark-red);}
+  .bnav-btn.active .bnav-ic{background:#FBE3E4;}
+  .bnav-btn.active .bnav-lb{font-weight:700;color:var(--cfa-dark-red);}
+  .bnav-dot{position:absolute;top:2px;right:10px;width:9px;height:9px;border-radius:999px;background:var(--cfa-red);border:2px solid var(--cfa-white);}
+  .bnav-dot[hidden]{display:none;}
+  .bnav-btn:focus-visible,.bnav-row:focus-visible,.bnav-x:focus-visible{outline:2px solid var(--cfa-navy);outline-offset:-2px;border-radius:12px;}
+
+  .bnav-scrim{display:flex;position:fixed;inset:0;z-index:44;align-items:flex-end;justify-content:center;background:rgba(20,18,15,.5);padding-bottom:var(--bnav-h);}
+  .bnav-scrim[hidden]{display:none;}
+  .bnav-sheet{width:100%;max-width:560px;max-height:calc(100% - 24px - env(safe-area-inset-top,0px));overflow:auto;overscroll-behavior:contain;background:var(--cfa-bg);border-radius:22px 22px 0 0;padding:6px 16px 14px;box-sizing:border-box;}
+  .bnav-sheet-head{display:flex;align-items:center;justify-content:space-between;padding:8px 2px 6px;}
+  .bnav-sheet-head h3{margin:0;font-family:var(--font-display);font-weight:700;font-size:22px;color:var(--text-primary);}
+  .bnav-x{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:999px;background:transparent;color:var(--text-primary);cursor:pointer;}
+  .bnav-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+  .bnav-group{grid-column:1 / -1;margin:8px 2px 0;font-family:var(--font-ui);font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-secondary);}
+  .bnav-row{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;min-height:52px;padding:8px 14px;border:1px solid var(--border);border-radius:14px;background:var(--cfa-white);color:var(--text-primary);font-family:var(--font-ui);text-align:left;cursor:pointer;}
+  .bnav-row-lb{display:inline-flex;align-items:center;gap:7px;font-size:14.5px;font-weight:700;line-height:1.2;}
+  .bnav-row-es{font-family:var(--font-display);font-style:italic;font-size:12px;color:var(--text-secondary);}
+  .bnav-row.active{background:var(--text-primary);border-color:var(--text-primary);color:#F6F1E8;}
+  .bnav-row.active .bnav-row-es{color:rgba(246,241,232,0.75);}
+  .bnav-badge{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--cfa-red);color:#fff;font-size:11px;font-weight:700;display:inline-grid;place-items:center;}
+}
+
+/* ===== Set Ups and Lists: the Nov 2026 refresh (Tim, Nov 12 2026) =====
+   Looks only; what a tap does and what is saved are unchanged.
+   One meaning a colour: ink is "selected", red is "now" and "needs
+   someone", navy is stats, green is done. So the picked day is ink, and
+   the open daypart is a calm white card (no red ring, no sky wash; the
+   sky stays on its swatch). Positions and zones are rows inside that one
+   card, not a card each, and a spot's zone colour moves from a stripe
+   down the left edge to its number badge. */
+.su-strip .day-pill.active{background:var(--text-primary);border-color:var(--text-primary);}
+.su-strip .day-pill.active small{color:rgba(246,241,232,0.82);} .su-strip .day-pill.active b{color:#F6F1E8;}
+
+.su-dp.is-open .su-dp-banner{border-color:var(--border);box-shadow:none;}
+.su-dp.is-open .su-dp-head{background:transparent;}
+.su-col-c.is-open .su-dp-head{color:var(--text-primary);}
+.su-col-c.is-open .su-dp-head .su-dp-time,.su-col-c.is-open .su-dp-head .su-dp-chev{color:var(--text-secondary);}
+.su-dp.is-open .su-dp-fill:not(.is-short){background:var(--cfa-soft);}
+#allDayparts .su-dp.is-open,.zr-dp-list .su-dp.is-open{border-radius:16px;box-shadow:0 6px 18px rgba(28,27,25,0.07);}
+
+/* Set Ups: the banner and its positions read as one card */
+#allDayparts .su-dp.is-open .su-dp-banner{border-radius:16px 16px 0 0;}
+#allDayparts .su-dp.is-open .su-dp-body{padding-top:0;gap:0;}
+#allDayparts .su-dp.is-open .su-sheet-table{gap:0;}
+#allDayparts .su-sheet-zone.su-sheet-list{background:var(--cfa-white);border:1px solid var(--border);border-top:0;border-radius:0 0 16px 16px;padding:2px 0;gap:0;overflow:hidden;}
+#allDayparts .su-sheet-list .su-rowwrap{background:transparent;border:0;border-radius:0;}
+#allDayparts .su-sheet-list .su-rowwrap + .su-rowwrap{border-top:1px solid #EFE9DE;}
+#allDayparts .su-sheet-list .su-row{box-shadow:none;min-height:50px;padding:6px 8px 6px 14px;}
+#allDayparts .su-sheet-list .su-row-rank{display:inline-flex;align-items:center;justify-content:center;width:26px;min-width:26px;height:26px;margin-right:10px;border-radius:999px;background:var(--cfa-soft);background:color-mix(in srgb,var(--zc) 22%,var(--cfa-white));color:var(--text-primary);font-size:12.5px;font-weight:700;vertical-align:0;}
+#allDayparts .su-sheet-list .su-row-slot{font-size:15px;font-weight:600;}
+.su-row-choose{display:inline-block;padding:6px 12px;border:1.5px dashed var(--cfa-dark-red);border-radius:999px;font-size:13px;color:var(--cfa-dark-red);}
+
+/* Lists: the pills are one row (they scroll sideways when there are many) */
+.launch-subnav[aria-label="Lists"]{display:flex;grid-template-columns:none;gap:2px;padding:4px;margin-bottom:14px;border-radius:18px;background:var(--cfa-soft);overflow-x:auto;scrollbar-width:none;}
+.launch-subnav[aria-label="Lists"]::-webkit-scrollbar{display:none;}
+.launch-subnav[aria-label="Lists"][hidden]{display:none;}
+.launch-subnav[aria-label="Lists"] .launch-pill{flex:1 0 auto;align-items:center;text-align:center;min-height:48px;padding:6px 5px;border:0;border-radius:14px;background:transparent;font-size:12.5px;white-space:nowrap;}
+.launch-subnav[aria-label="Lists"] .launch-pill span{font-size:10.5px;color:var(--text-secondary);}
+.launch-subnav[aria-label="Lists"] .launch-pill.active{background:var(--text-primary);color:#F6F1E8;}
+.launch-subnav[aria-label="Lists"] .launch-pill.active span{color:rgba(246,241,232,0.75);}
+
+/* Zone Reset: the open handoff and its zones are one card; a finished zone
+   shows a green check where its icon was */
+.zr-dp-list .su-dp.is-open .su-dp-banner{border-radius:16px 16px 0 0;}
+.zr-dp-list .su-dp.is-open .su-dp-head{border-radius:16px 16px 0 0;}
+.zr-dp-list .su-dp.is-open .zr-dp-body{padding:0;}
+.zr-dp-body .zone-acc{gap:0;background:var(--cfa-white);border:1px solid var(--border);border-top:0;border-radius:0 0 16px 16px;overflow:hidden;}
+.zr-dp-body .zone-acc-item{border:0;border-radius:0;}
+.zr-dp-body .zone-acc-item + .zone-acc-item{border-top:1px solid #EFE9DE;}
+.zr-dp-body .zone-acc-item.open .zone-acc-head{background:var(--cfa-light);}
+.zr-dp-body .zone-acc-icon{border-radius:999px;}
+.zr-dp-body .zone-acc-item.done .zone-acc-icon svg{display:none;}
+.zr-dp-body .zone-acc-item.done .zone-acc-icon::after{content:"";width:17px;height:17px;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E") center/contain no-repeat;}

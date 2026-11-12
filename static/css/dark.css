@@ -64,3 +64,16 @@ html[data-theme="dark"] .fs-chip.done .fs-chip-name,html[data-theme="dark"] .fs-
 html[data-theme="dark"] .tguide-toggle{filter:brightness(1.7);}
 /* Forms: the engine's date pickers and selects follow the dark page. */
 html[data-theme="dark"] .fm-page .of-root,html[data-theme="dark"] .of-toast{--of-scheme:dark;--of-warn:#E6A23C;--of-accent:#E8213F;}
+
+/* Ink means "selected" (theme-cfa.css, the Nov 2026 refresh). In the dark the
+   ink pill is the light one, so what's written on it goes dark: the picked
+   day and the FOH / BOH switch on Set Ups, the open Lists pill, and the open
+   page in the bottom bar's More sheet. */
+html[data-theme="dark"] .su-strip .day-pill.active small,
+html[data-theme="dark"] .su-strip .day-pill.active b,
+html[data-theme="dark"] .su-side-opt.is-on,
+html[data-theme="dark"] .su-side-opt.is-on i,
+html[data-theme="dark"] .launch-subnav[aria-label="Lists"] .launch-pill.active,
+html[data-theme="dark"] .launch-subnav[aria-label="Lists"] .launch-pill.active span,
+html[data-theme="dark"] .bnav-row.active,
+html[data-theme="dark"] .bnav-row.active .bnav-row-es{color:#121418;}
