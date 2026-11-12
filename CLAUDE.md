@@ -51,6 +51,27 @@ grotesque body (Figtree); both fonts stand in for Caecilia and Apercu until the
 brand fonts are licensed (swap `--font-display` / `--font-ui`). Line icons (inline
 SVG), never emoji. New components go in the theme's conventions.
 
+## Tab bar and header
+
+On a touch screen (phones and every tablet) the tabs are a bar at the bottom:
+Home, Set Ups, Lists, Waste and More, which lists every other tab the top row
+would show, then dark mode (`static/js/bottom-nav.js`, "Bottom tab bar" in
+theme-cfa.css; Tim, Nov 12 2026). A computer keeps the tab row at the top. It
+goes by touch (`hover:none` and `pointer:coarse`), not width, so a counter
+tablet on its side still gets the bar. The bar has no navigation of its own:
+each button presses its tab in the top row. Anything else pinned to the
+bottom of the screen sits above it with `var(--bnav-h)`; on Tasks the Pass's
+own views go back to a row at the top, so there is never a second bar. The
+header has no clock and is one row where it fits; on a phone the badge and
+the waste chip, which keeps its own look (Tim, Nov 12 2026), sit on a second
+row.
+
+One meaning a colour (the Nov 2026 refresh): ink is "selected", red is "now"
+and "needs someone", navy is stats, green is done. On Set Ups and Lists the
+open daypart or handoff is one white card with its positions or zones as rows
+inside; a spot's zone colour is on its number badge. Home and the Waste
+logger keep their own look (Tim's call). Tests: `tests/test_bottom_nav.py`.
+
 ## Tasks
 
 The Tasks tab is the Pass (`pass_api.py`, `static/js/pass-engine.js`,

@@ -362,3 +362,13 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .mp-bad{color:var(--ink-red) !important;}
 :where(html[data-theme="dark"]) .mp-link{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .mp-steps li.is-done{border-color:#336440;background:#263128;}
+@media (hover:none) and (pointer:coarse){
+  :where(html[data-theme="dark"]) .bnav-btn.active{color:var(--ink-dark-red);}
+  :where(html[data-theme="dark"]) .bnav-btn.active .bnav-ic{background:#3B2021;}
+  :where(html[data-theme="dark"]) .bnav-btn.active .bnav-lb{color:var(--ink-dark-red);}
+  :where(html[data-theme="dark"]) .bnav-row.active{color:var(--cfa-bg);}
+}
+:where(html[data-theme="dark"]) #allDayparts .su-sheet-list .su-rowwrap + .su-rowwrap{border-top:1px solid #37342F;}
+:where(html[data-theme="dark"]) .su-row-choose{color:var(--ink-dark-red);}
+:where(html[data-theme="dark"]) .launch-subnav[aria-label="Lists"] .launch-pill.active{color:var(--cfa-bg);}
+:where(html[data-theme="dark"]) .zr-dp-body .zone-acc-item + .zone-acc-item{border-top:1px solid #37342F;}
