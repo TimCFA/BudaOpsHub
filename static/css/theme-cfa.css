@@ -3065,26 +3065,21 @@ body.hub-warming::after{content:"Loading the rest… · Cargando…";position:fi
 .si-google-go{display:block;margin:14px auto 0;min-height:36px;}
 /* ===== Header: one row, no clock (Tim, Nov 11 2026) =====
    The phone's own clock covers it. The element stays (storage.js writes the
-   time into it) so nothing that reads it breaks. */
+   time into it) so nothing that reads it breaks. The waste chip is as it
+   always was (Tim, Nov 12 2026): where the title, the badge and the chip
+   don't fit one row (a narrow phone that isn't signed in), the badge and
+   the chip drop to a second row rather than the chip shrinking. */
 .clock{display:none;}
-.hdr{flex-wrap:nowrap;gap:10px;}
+.hdr{gap:10px;}
 .hdr-title{gap:8px;min-width:0;}
 .hdr-title h1{white-space:nowrap;}
-.hdr-meta{gap:8px !important;flex-shrink:0;}
-.hdr-waste{min-height:44px;white-space:nowrap;}
+.hdr-meta{gap:8px !important;}
 #initialsBadge{min-height:44px;box-sizing:border-box;display:inline-flex !important;flex-direction:column;justify-content:center;line-height:1.15;}
 @media (max-width:520px){
   .hdr-meta{width:auto;}
   .hdr-title h1{font-size:24px;}
   .hdr-title .location{font-size:13px;}
-  .hdr-waste{padding:6px 10px;gap:6px;}
-  .hdr-waste .hw-tube{width:30px;}
-  #hdrWasteOf{display:none;}   /* the red mark on the tube is the limit */
   #initialsBadge{padding:5px 10px !important;font-size:12.5px !important;}
-}
-@media (max-width:380px){
-  .hdr-title h1{font-size:21px;}
-  .hdr-waste .hw-tube{display:none;}
 }
 
 /* ===== Bottom tab bar on touch screens (Tim, Nov 12 2026; bottom-nav.js) =====

@@ -62,7 +62,9 @@ tablet on its side still gets the bar. The bar has no navigation of its own:
 each button presses its tab in the top row. Anything else pinned to the
 bottom of the screen sits above it with `var(--bnav-h)`; on Tasks the Pass's
 own views go back to a row at the top, so there is never a second bar. The
-header is one row with no clock.
+header has no clock and is one row where it fits; on a phone the badge and
+the waste chip, which keeps its own look (Tim, Nov 12 2026), sit on a second
+row.
 
 One meaning a colour (the Nov 2026 refresh): ink is "selected", red is "now"
 and "needs someone", navy is stats, green is done. On Set Ups and Lists the
