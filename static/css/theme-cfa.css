@@ -3184,3 +3184,14 @@ body.hub-warming::after{content:"Loading the rest… · Cargando…";position:fi
 .zr-dp-body .zone-acc-icon{border-radius:999px;}
 .zr-dp-body .zone-acc-item.done .zone-acc-icon svg{display:none;}
 .zr-dp-body .zone-acc-item.done .zone-acc-icon::after{content:"";width:17px;height:17px;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E") center/contain no-repeat;}
+
+/* ===== Set Ups on a computer: the name beside its position (Tim, Nov 13 2026) =====
+   On a wide screen the name sat at the far right of the row, a screen's
+   width from the position it belongs to, and the eye lost the line. With a
+   mouse and room to spare, the position takes a fixed column and the name
+   starts right after it, so the names line up in one column down the list.
+   Phones and tablets (touch) keep the name at the right edge, in thumb reach. */
+@media (hover:hover) and (pointer:fine) and (min-width:900px){
+  #allDayparts .su-sheet-list .su-row{grid-template-columns:300px minmax(0,1fr);gap:20px;}
+  #allDayparts .su-sheet-list .su-row-name{justify-content:flex-start;text-align:left;max-width:none;}
+}
