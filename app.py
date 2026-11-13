@@ -28,6 +28,7 @@ from permit_sheet import read_permit_sheet, PermitSheetError
 from analytics_pdf import read_analytics_pdf, AnalyticsPdfError
 from event_fixes import fix_events, add_mens_outerwear
 import forms_api
+from js_trim import trim_js
 import pea_mine
 from reports_parser import parse_report_file, ReportParseError
 import levelset_sync
@@ -549,14 +550,62 @@ _STAMP_RE = re.compile(r'((?:src|href)="(/static/[^"?#]+\.(?:js|css)))"')
 _STAMPS = {}
 
 def _file_stamp(path):
-    """A short fingerprint of a /static/... file's contents."""
+    """A short fingerprint of a /static/... file's contents (and, for a
+    script, of the trimming it's sent with: _TRIM_VERSION)."""
     if path not in _STAMPS:
         try:
             with open(path.lstrip('/'), 'rb') as f:
-                _STAMPS[path] = hashlib.sha256(f.read()).hexdigest()[:12]
+                data = f.read()
+            if path.endswith('.js'):
+                data += _TRIM_VERSION
+            _STAMPS[path] = hashlib.sha256(data).hexdigest()[:12]
         except OSError:
             _STAMPS[path] = None
     return _STAMPS[path]
+
+# Scripts go out trimmed (js_trim.py; Tim, Nov 13 2026): comments,
+# indentation and blank lines removed, about a sixth less to download on a
+# first load, the program unchanged (tests/test_js_trim.py parses every
+# script both ways). The files on disk keep every note. If trimming ever
+# raises, the file is sent as written. Bump _TRIM_VERSION when js_trim.py
+# changes what it produces, so browsers fetch the new copies.
+_TRIM_VERSION = b'trim1'
+_TRIMMED = {}
+
+def _trimmed_script(path):
+    """The bytes to send for static/<path> (a .js file), or None if it
+    isn't there."""
+    full = os.path.join(app.static_folder, path)
+    try:
+        mtime = os.path.getmtime(full)
+    except OSError:
+        return None
+    hit = _TRIMMED.get(path)
+    if hit and hit[0] == mtime:
+        return hit[1]
+    with open(full, encoding='utf-8') as f:
+        src = f.read()
+    try:
+        out = trim_js(src)
+    except Exception as e:
+        print(f'[TRIM] {path} sent as written: {type(e).__name__}: {e}')
+        out = src
+    data = out.encode('utf-8')
+    _TRIMMED[path] = (mtime, data)
+    return data
+
+def static_trimmed(filename):
+    """Static files; a script is sent trimmed. Takes the place of Flask's
+    own static view (below), which is still what sends everything else."""
+    if filename.endswith('.js'):
+        full = os.path.realpath(os.path.join(app.static_folder, filename))
+        if full.startswith(os.path.realpath(app.static_folder) + os.sep):
+            data = _trimmed_script(filename)
+            if data is not None:
+                return Response(data, mimetype='text/javascript')
+    return app.send_static_file(filename)
+
+app.view_functions['static'] = static_trimmed
 
 def _page_html():
     if BUILD not in _PAGE_HTML:
