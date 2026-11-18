@@ -3161,6 +3161,16 @@ def _timers_setups():
 timers_api.register(app, me=_pass_me, setups=_timers_setups, ref=lambda path: db.reference(path),
                     tz=levelset_sync.STORE_TZ)
 
+# ===== HUDDLE (Nov 18 2026) =====
+# The pre-huddle and post-huddle for each daypart and the store's focus for
+# the month and the week (huddle_api.py; the screen is static/js/huddle.js).
+# Events kept under huddle/ in Firebase, one record per event. The Lead
+# Captain and who a goal can be given to come from Set Ups.
+import huddle_api
+
+huddle_api.register(app, me=_pass_me, setups=_timers_setups, ref=lambda path: db.reference(path),
+                    tz=levelset_sync.STORE_TZ)
+
 # ===== START SERVER =====
 
 if __name__ == '__main__':

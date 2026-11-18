@@ -117,6 +117,30 @@ signed-out device names who did it); Team Leads and up hand off and change
 the timers. FOH only, so English only. `FOH_DAYPARTS` in timers_api.py must
 match `fohDayparts` in zone-reset.js (tests/test_timers.py checks).
 
+## Huddle
+
+The Huddle page under Lists (OE on the full site), beside Leader Transition,
+is the pre-huddle and post-huddle for each daypart and the store's focus for
+the month and the week (`huddle_api.py`, `static/js/huddle.js`,
+`static/css/huddle.css`; Tim, Nov 18 2026). Team Leads and up, enforced by
+the server; directors set the focuses. The pre-huddle is Tim's Team Lead
+Pre-Shift Card (why I'm here, the ONE priority, up to three goals: PEC area,
+leadership, the system I'll run, each tied to a focus with a tap; who I'll
+develop); the post-huddle closes it (each goal hit / partly / missed, one
+recognition, one thing for the next leader). One huddle per day and daypart
+on the four Know the Numbers dayparts (`DAYPARTS` in huddle_api.py must match
+`numbersDayparts` in know-numbers.js; tests/test_huddle.py checks); the Lead
+Captain and the names offered come from Set Ups. The pre-huddle opens 30
+minutes before the daypart (`PRE_OPENS_MIN`), the post once it has started,
+and both only on their own day. The rules live on the server only: the page
+draws what `/api/huddle/state` sends. Events live under
+`huddle/events/<id>` in Firebase, one record each (a save again is a new
+record; the latest stands), never a saved-state section, so it never touches
+`/api/state/sync`. The look is Know the Numbers' (the `knp-` classes). FOH
+only so far, so English only; BOH comes with its Spanish. The defaults
+(four dayparts, 30 minutes, three goals, who sees it) were the build's, not
+Tim's decisions, until he confirms them. Tests: `tests/test_huddle.py`.
+
 ## Deploying
 
 Merging to `main` deploys to Render and restarts the server for about a

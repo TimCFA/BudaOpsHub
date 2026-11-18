@@ -1,0 +1,376 @@
+// ===== HUDDLE (Tim, Nov 18 2026) =====
+// The pre-huddle and post-huddle for each daypart, and the store's focus for
+// the month and the week, on the Lists tab beside Leader Transition. Team
+// Leads and up.
+//
+// The look is Know the Numbers' (kn-page.js; the knp- classes in
+// theme-cfa.css): a week of days, then one card per daypart with one big
+// thing on it: the shift's ONE priority, and once it's closed, how many of
+// its goals were hit. The focus sits above them in a navy band.
+//
+// The pre-huddle is Tim's Team Lead Pre-Shift Card: why are you here today,
+// your ONE priority, up to three goals you can check when the shift ends
+// (my PEC area, my own leadership, the system I'll make sure runs), each
+// tied to the week's or the month's focus with a tap, and who you'll
+// develop. The post-huddle closes it: each goal hit, partly or missed and
+// why, one recognition, one thing for the next leader.
+//
+// The rules live on the server (huddle_api.py): when each opens, who may
+// write, what a huddle holds. This page draws what the server sends and
+// posts what was filled in; the quick picks come from the server too.
+// FOH for now, so English only (CLAUDE.md, Spanish). Line icons, never
+// emoji. People's text only reaches the page through h().
+(function(){
+  'use strict';
+  const API = '/api/huddle';
+  const POLL_MS = 30000;
+  const KINDS = [
+    {kind: 'pec', label: 'My PEC area', hint: 'One goal for the area you own'},
+    {kind: 'lead', label: 'My leadership', hint: 'One thing you will do as a leader'},
+    {kind: 'system', label: 'The system I’ll make sure runs', hint: 'Pick one, or write your own'},
+  ];
+  const KIND_SHORT = {pec: 'PEC area', lead: 'Leadership', system: 'System'};
+  const RESULTS = [['hit', 'Hit'], ['partly', 'Partly'], ['missed', 'Missed']];
+  const ICONS = {
+    check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+    flag: '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>',
+    pencil: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
+    star: '<path d="m12 3 2.7 5.6 6.1.8-4.5 4.3 1.1 6.1L12 16.9l-5.4 2.9 1.1-6.1-4.5-4.3 6.1-.8z"/>',
+    hand: '<path d="M4 12h13"/><path d="m12 6 6 6-6 6"/>',
+    person: '<circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/>',
+  };
+
+  const S = {root: null, status: 'loading', error: '', data: null, date: null, offset: 0, form: null, busy: false, poll: null, seq: 0};
+
+  /* ---------- helpers ---------- */
+  const h = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  const icon = k => `<svg class="hd-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k]}</svg>`;
+  const now = () => Date.now() + S.offset;
+  const shortName = n => String(n).replace(/\s*\(.*$/, '');
+  const timeText = n => { const m = String(n).match(/\(([^)]+)\)/); return m ? m[1].replace('-', '–') : ''; };
+  // Times read in the store's time zone, whatever the device is set to.
+  function fmtTime(ms){
+    const o = {hour: 'numeric', minute: '2-digit'};
+    try { return new Date(ms).toLocaleTimeString('en-US', {...o, timeZone: (S.data && S.data.tz) || undefined}); } catch (e) { return new Date(ms).toLocaleTimeString('en-US', o); }
+  }
+  const atNoon = iso => new Date(iso + 'T12:00:00');
+  const addDays = (iso, n) => { const d = atNoon(iso); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const dayLabel = (iso, opts) => atNoon(iso).toLocaleDateString('en-US', opts || {weekday: 'short', month: 'short', day: 'numeric'});
+  function toast(msg){ if(typeof showToast === 'function') showToast(msg); }
+  function shown(){ const v = document.getElementById('huddleView'); return !!(v && v.classList.contains('active')); }
+
+  /* ---------- server ---------- */
+  async function api(path, opts = {}){
+    const r = await fetch(API + path, {method: opts.method || 'GET', credentials: 'same-origin', cache: 'no-store',
+      headers: opts.body ? {'Content-Type': 'application/json'} : {}, body: opts.body ? JSON.stringify(opts.body) : undefined});
+    let d = {};
+    try { d = await r.json(); } catch (e) {}
+    if(!r.ok){ const err = new Error(d.error || 'The Huddle couldn’t reach the server. Try again in a moment.'); err.status = r.status; throw err; }
+    return d;
+  }
+  function take(d){
+    S.data = d;
+    S.offset = d.serverTime - Date.now();
+    S.status = 'ready';
+    S.error = '';
+  }
+  async function load(){
+    const seq = ++S.seq;
+    try {
+      const d = await api('/state' + (S.date ? '?date=' + encodeURIComponent(S.date) : ''));
+      if(seq !== S.seq) return;                 // a newer ask is on its way
+      take(d);
+    } catch (e) {
+      if(seq !== S.seq) return;
+      S.status = e.status === 403 ? 'locked' : (S.data ? 'ready' : 'error');
+      S.error = e.message;
+    }
+    if(!S.form) render();                       // never redraw under someone typing
+  }
+  async function send(type, data, done){
+    if(S.busy) return;
+    S.busy = true;
+    paintBusy();
+    try {
+      take(await api('/events', {method: 'POST', body: {type, data}}));
+      S.form = null;
+      toast(done);
+    } catch (e) {
+      S.busy = false;
+      paintBusy();
+      const box = S.root.querySelector('.hd-error');
+      if(box){ box.textContent = e.message; box.hidden = false; box.scrollIntoView({block: 'nearest'}); } else toast(e.message);
+      return;
+    }
+    S.busy = false;
+    render();
+  }
+  function paintBusy(){
+    S.root.querySelectorAll('[data-hd-save]').forEach(b => { b.disabled = S.busy; });
+  }
+
+  /* ---------- the focus band ---------- */
+  function periodLabel(scope){
+    const d = S.data;
+    if(scope === 'month') return atNoon(d.month + '-01').toLocaleDateString('en-US', {month: 'long'});
+    return `${dayLabel(d.week, {month: 'short', day: 'numeric'})} – ${dayLabel(addDays(d.week, 5), {month: 'short', day: 'numeric'})}`;
+  }
+  function focusOpen(scope){
+    const d = S.data;                           // this week or month, or one ahead
+    return scope === 'month' ? d.month >= d.today.slice(0, 7) : addDays(d.week, 6) >= d.today;
+  }
+  function pillarTitles(){
+    try { return (typeof lxPillars !== 'undefined' && Array.isArray(lxPillars) ? lxPillars : []).map(p => p && p.title).filter(Boolean); } catch (e) { return []; }
+  }
+  function focusFormHtml(scope){
+    const f = S.data.focus[scope] || {};
+    const tags = pillarTitles();
+    if(f.tag && !tags.includes(f.tag)) tags.push(f.tag);
+    return `
+      <form class="hd-focus-form" data-hd-form="focus" data-hd-scope="${scope}">
+        <label class="hd-field"><span>The ONE focus for ${scope === 'week' ? 'the week' : 'the month'}</span><input type="text" data-hd-f="text" maxlength="120" value="${h(f.text)}" placeholder="${scope === 'week' ? 'Sub 3-minute drive-thru' : 'Every guest feels known'}"></label>
+        <label class="hd-field"><span>Why it matters, in one line</span><input type="text" data-hd-f="why" maxlength="160" value="${h(f.why)}"></label>
+        ${tags.length ? `<label class="hd-field"><span>Scoreboard pillar (optional)</span><select data-hd-f="tag"><option value="">None</option>${tags.map(t => `<option ${t === f.tag ? 'selected' : ''}>${h(t)}</option>`).join('')}</select></label>` : ''}
+        <p class="hd-error" hidden></p>
+        <div class="hd-actions"><button type="submit" class="hd-btn is-light" data-hd-save>Save the focus</button><button type="button" class="hd-link is-light" data-hd-cancel>Cancel</button></div>
+        <p class="hd-form-note">Leave the focus empty and save to clear it.</p>
+      </form>`;
+  }
+  function focusHtml(scope){
+    const d = S.data, f = d.focus[scope];
+    const editing = S.form && S.form.kind === 'focus' && S.form.scope === scope;
+    const canSet = d.me.canFocus && focusOpen(scope);
+    return `
+      <div class="hd-focus-col">
+        <div class="hd-focus-k"><span>${scope === 'week' ? 'This week' : 'This month'} · ${h(periodLabel(scope))}</span>${canSet && !editing ? `<button type="button" class="hd-focus-set" data-hd-focus-edit="${scope}">${icon('pencil')}${f ? 'Change' : 'Set'}</button>` : ''}</div>
+        ${editing ? focusFormHtml(scope) : f
+          ? `<b class="hd-focus-text">${h(f.text)}</b>${f.why ? `<p class="hd-focus-why">${h(f.why)}</p>` : ''}${f.tag ? `<span class="hd-focus-tag">${h(f.tag)}</span>` : ''}`
+          : `<p class="hd-focus-none">${canSet ? 'No focus yet. Set one so every huddle aims at it.' : 'No focus set yet. A director sets it.'}</p>`}
+      </div>`;
+  }
+
+  /* ---------- a daypart's card ---------- */
+  function phase(dp){
+    const d = S.data, n = now();
+    if(d.date !== d.today) return d.date < d.today ? 'past' : 'ahead';
+    if(dp.post) return 'closed';
+    if(dp.pre) return n >= dp.end ? 'due' : n >= dp.start ? 'running' : 'set';
+    return n >= dp.preOpens ? (n >= dp.start ? 'late' : 'open') : 'ahead';
+  }
+  function goalHtml(g, pre, post){
+    const r = post && post.results && post.results[g.id];
+    const label = r ? (RESULTS.find(x => x[0] === r.result) || [])[1] : '';
+    return `
+      <li class="hd-goal ${r ? 'is-' + h(r.result) : ''}">
+        <span class="hd-goal-k">${KIND_SHORT[g.kind] || 'Goal'}</span>
+        <span class="hd-goal-text">${h(g.text)}${g.target ? ` <b class="hd-target">${h(g.target)}</b>` : ''}</span>
+        <span class="hd-goal-meta">${g.owner && g.owner !== pre.by ? `<span class="hd-chip">${icon('person')}${h(g.owner)}</span>` : ''}${g.focus ? `<span class="hd-chip is-focus">${icon('flag')}${g.focus === 'week' ? 'Week' : 'Month'} focus</span>` : ''}${r ? `<span class="hd-result is-${h(r.result)}">${h(label)}</span>` : ''}</span>
+        ${r && r.why ? `<span class="hd-goal-why">${h(r.why)}</span>` : ''}
+      </li>`;
+  }
+  function planHtml(dp){
+    const pre = dp.pre, post = dp.post;
+    return `
+      <p class="hd-purpose"><span class="knp-k">Why I’m here</span>${h(pre.purpose)}</p>
+      <ul class="hd-goals">${pre.goals.map(g => goalHtml(g, pre, post)).join('')}</ul>
+      ${pre.develop ? `<p class="hd-line">${icon('person')}<span><b>Developing ${h(pre.develop.who)}</b>${pre.develop.skill ? `: ${h(pre.develop.skill)}` : ''}${pre.develop.pea ? ' <span class="hd-chip">PEA today</span>' : ''}</span></p>` : ''}
+      ${post && post.recognition ? `<p class="hd-line is-win">${icon('star')}<span><b>${h(post.recognition.who)}</b> won the shift${post.recognition.what ? `: ${h(post.recognition.what)}` : ''}</span></p>` : ''}
+      ${post && post.handoff ? `<p class="hd-line">${icon('hand')}<span><b>For the next leader:</b> ${h(post.handoff)}</span></p>` : ''}
+      <p class="hd-by">Set by ${h(pre.by)} at ${h(fmtTime(pre.first || pre.at))}${post ? ` · closed by ${h(post.by)} at ${h(fmtTime(post.at))}` : ''}</p>`;
+  }
+  function heroHtml(dp, ph){
+    if(dp.score){
+      const all = dp.score.hit === dp.score.goals;
+      return `<div class="knp-hero hd-hero ${all ? 'is-done' : ''}"><b>${dp.score.hit}/${dp.score.goals}</b><span>goals hit${dp.score.partly ? ` · ${dp.score.partly} partly` : ''}<br>priority: ${h(dp.pre.priority)}</span></div>`;
+    }
+    if(dp.pre) return `<div class="knp-hero hd-hero is-words"><b>${h(dp.pre.priority)}</b><span>the ONE<br>priority</span></div>`;
+    const none = ph === 'past' ? 'No huddle was set for this daypart.'
+      : ph === 'ahead' ? (S.data.date === S.data.today ? `The pre-huddle opens at ${fmtTime(dp.preOpens)}, ${S.data.preOpensMin} minutes before the daypart.` : 'The pre-huddle opens on the day.')
+      : ph === 'late' ? 'No pre-huddle yet. It can still be filled in today.'
+      : 'Two minutes before the shift: your purpose, your ONE priority, your goals.';
+    return `<div class="knp-hero hd-hero"><span class="knp-none">${none}</span></div>`;
+  }
+  function actionsHtml(dp, ph){
+    const key = h(dp.name);
+    if(ph === 'open' || ph === 'late') return `<div class="hd-actions"><button type="button" class="hd-btn" data-hd-open="pre" data-hd-dp="${key}">Start the pre-huddle</button></div>`;
+    if(ph === 'set') return `<div class="hd-actions"><button type="button" class="hd-link" data-hd-open="pre" data-hd-dp="${key}">${icon('pencil')}Change it</button></div>`;
+    if(ph === 'running' || ph === 'due') return `<div class="hd-actions"><button type="button" class="hd-btn ${ph === 'due' ? '' : 'is-quiet'}" data-hd-open="post" data-hd-dp="${key}">${ph === 'due' ? 'Close the shift: post-huddle' : 'Post-huddle'}</button><button type="button" class="hd-link" data-hd-open="pre" data-hd-dp="${key}">${icon('pencil')}Change it</button></div>`;
+    if(ph === 'closed') return `<div class="hd-actions"><button type="button" class="hd-link" data-hd-open="post" data-hd-dp="${key}">${icon('pencil')}Change the post-huddle</button></div>`;
+    return '';
+  }
+  function cardHtml(dp){
+    const d = S.data, n = now(), ph = phase(dp);
+    const isNow = d.date === d.today && n >= dp.start && n < dp.end;
+    const form = S.form && S.form.daypart === dp.name ? S.form.kind : null;
+    const badge = ph === 'closed' || (ph === 'past' && dp.post) ? `<span class="hd-done">${icon('check')}Closed</span>`
+      : ph === 'due' ? '<span class="knp-now">Close it</span>' : isNow ? '<span class="knp-now">now</span>' : '';
+    return `
+      <section class="knp-card hd-card ${isNow ? 'is-now' : ''} ${dp.post ? 'is-closed' : ''}">
+        <div class="knp-head"><h3>${h(shortName(dp.name))} <span>${h(timeText(dp.name))}</span></h3>${badge}</div>
+        <p class="hd-lead"><span class="knp-k">Lead Captain</span>${dp.leads.length ? h(dp.leads.join(' / ')) : '<i>Not on Set Ups yet</i>'}</p>
+        ${form === 'pre' ? preFormHtml(dp) : form === 'post' ? postFormHtml(dp) : `${heroHtml(dp, ph)}${dp.pre ? planHtml(dp) : ''}${actionsHtml(dp, ph)}`}
+      </section>`;
+  }
+
+  /* ---------- the forms ---------- */
+  const picksHtml = (list, target) => `<div class="hd-picks">${list.map(p => `<button type="button" class="hd-pick" data-hd-pick="${target}">${h(p)}</button>`).join('')}</div>`;
+  const peopleList = dp => `<datalist id="hdPeople">${dp.people.map(p => `<option value="${h(p)}">`).join('')}</datalist>`;
+  function preFormHtml(dp){
+    const d = S.data, pre = dp.pre || {goals: []};
+    const used = new Set();
+    // An earlier huddle's goals go back to their own rows; a second goal of a kind takes a free row.
+    const rows = KINDS.map(k => { const g = pre.goals.find(x => x.kind === k.kind && !used.has(x)); if(g) used.add(g); return g || null; });
+    pre.goals.filter(g => !used.has(g)).forEach(g => { const i = rows.indexOf(null); if(i >= 0) rows[i] = g; });
+    const dev = pre.develop || {};
+    const focusBtns = g => ['week', 'month'].filter(s => d.focus[s]).map(s => `<button type="button" class="hd-pick is-toggle" data-hd-focus="${s}" aria-pressed="${g && g.focus === s}" title="${h(d.focus[s].text)}">${icon('flag')}${s === 'week' ? 'Week' : 'Month'} focus</button>`).join('');
+    return `
+      <form class="hd-form" data-hd-form="pre" data-hd-dp="${h(dp.name)}">
+        ${peopleList(dp)}
+        <h4 class="hd-step"><i>1</i>Why are you here today?</h4>
+        ${picksHtml(d.picks.purpose, 'purpose')}
+        <input type="text" data-hd-f="purpose" maxlength="140" value="${h(pre.purpose)}" placeholder="Your purpose for this shift, in one sentence" aria-label="Why are you here today?">
+        <h4 class="hd-step"><i>2</i>Your ONE priority</h4>
+        ${picksHtml(d.picks.priority, 'priority')}
+        <input type="text" data-hd-f="priority" maxlength="80" value="${h(pre.priority)}" placeholder="What you want to accomplish today" aria-label="Your ONE priority">
+        <h4 class="hd-step"><i>3</i>Goals you can check when the shift ends</h4>
+        ${KINDS.map((k, i) => { const g = rows[i]; return `
+        <fieldset class="hd-goal-row" data-hd-goal="${k.kind}">
+          <legend>${k.label}</legend>
+          ${k.kind === 'system' ? picksHtml(d.picks.system, 'goal') : ''}
+          <input type="text" data-hd-f="text" maxlength="160" value="${h(g && g.text)}" placeholder="${h(k.hint)}" aria-label="${h(k.label)}">
+          <div class="hd-goal-extra">
+            <label class="hd-field"><span>Number to hit (optional)</span><input type="text" data-hd-f="target" maxlength="24" value="${h(g && g.target)}" placeholder="3:00"></label>
+            <label class="hd-field"><span>Owner</span><input type="text" data-hd-f="owner" maxlength="60" list="hdPeople" value="${h(g && g.owner !== (dp.pre && dp.pre.by) ? g.owner : '')}" placeholder="Me"></label>
+          </div>
+          ${focusBtns(g) ? `<div class="hd-picks">${focusBtns(g)}</div>` : ''}
+        </fieldset>`; }).join('')}
+        <h4 class="hd-step"><i>4</i>Who would you like to develop?</h4>
+        <div class="hd-goal-extra">
+          <label class="hd-field"><span>Who</span><input type="text" data-hd-f="who" maxlength="60" list="hdPeople" value="${h(dev.who)}" placeholder="Someone on this shift"></label>
+          <label class="hd-field"><span>The skill to coach</span><input type="text" data-hd-f="skill" maxlength="120" value="${h(dev.skill)}"></label>
+        </div>
+        <label class="hd-check"><input type="checkbox" data-hd-f="pea" ${dev.pea ? 'checked' : ''}><span>A PEA will be done on them today</span></label>
+        <p class="hd-error" hidden></p>
+        <div class="hd-actions"><button type="submit" class="hd-btn" data-hd-save>Save the pre-huddle</button><button type="button" class="hd-link" data-hd-cancel>Cancel</button></div>
+      </form>`;
+  }
+  function postFormHtml(dp){
+    const pre = dp.pre, post = dp.post || {results: {}};
+    const rec = post.recognition || {};
+    return `
+      <form class="hd-form" data-hd-form="post" data-hd-dp="${h(dp.name)}">
+        ${peopleList(dp)}
+        <h4 class="hd-step"><i>1</i>How did each goal go?</h4>
+        ${pre.goals.map(g => { const r = post.results[g.id] || {}; return `
+        <fieldset class="hd-goal-row" data-hd-result-for="${h(g.id)}">
+          <legend>${h(g.text)}${g.target ? ` <b class="hd-target">${h(g.target)}</b>` : ''}</legend>
+          <div class="hd-results" role="group" aria-label="Result">${RESULTS.map(([v, label]) => `<button type="button" class="hd-res is-${v}" data-hd-res="${v}" aria-pressed="${r.result === v}">${label}</button>`).join('')}</div>
+          <input type="text" data-hd-f="why" maxlength="160" value="${h(r.why)}" placeholder="One line: why" aria-label="Why">
+        </fieldset>`; }).join('')}
+        <h4 class="hd-step"><i>2</i>Who won the shift?</h4>
+        <div class="hd-goal-extra">
+          <label class="hd-field"><span>Who</span><input type="text" data-hd-f="who" maxlength="60" list="hdPeople" value="${h(rec.who)}"></label>
+          <label class="hd-field"><span>For what</span><input type="text" data-hd-f="what" maxlength="160" value="${h(rec.what)}"></label>
+        </div>
+        <h4 class="hd-step"><i>3</i>One thing for the next leader</h4>
+        <input type="text" data-hd-f="handoff" maxlength="200" value="${h(post.handoff)}" placeholder="What they need to know walking in" aria-label="One thing for the next leader">
+        <p class="hd-error" hidden></p>
+        <div class="hd-actions"><button type="submit" class="hd-btn" data-hd-save>Save the post-huddle</button><button type="button" class="hd-link" data-hd-cancel>Cancel</button></div>
+      </form>`;
+  }
+  const val = (el, f) => { const x = el.querySelector(`[data-hd-f="${f}"]`); return x ? (x.type === 'checkbox' ? x.checked : x.value.trim()) : ''; };
+  function submit(form){
+    const kind = form.dataset.hdForm;
+    if(kind === 'focus'){
+      send('focus', {scope: form.dataset.hdScope, date: S.data.date, text: val(form, 'text'), why: val(form, 'why'), tag: val(form, 'tag')}, 'Focus saved');
+    } else if(kind === 'pre'){
+      const goals = [...form.querySelectorAll('[data-hd-goal]')].map(row => {
+        const on = row.querySelector('[data-hd-focus][aria-pressed="true"]');
+        return {kind: row.dataset.hdGoal, text: val(row, 'text'), target: val(row, 'target'), owner: val(row, 'owner'), focus: on ? on.dataset.hdFocus : ''};
+      }).filter(g => g.text);
+      send('pre', {date: S.data.date, daypart: form.dataset.hdDp, purpose: val(form, 'purpose'), priority: val(form, 'priority'), goals,
+        develop: {who: val(form, 'who'), skill: val(form, 'skill'), pea: val(form, 'pea')}}, 'Pre-huddle saved');
+    } else {
+      const results = {};
+      form.querySelectorAll('[data-hd-result-for]').forEach(row => {
+        const on = row.querySelector('[data-hd-res][aria-pressed="true"]');
+        results[row.dataset.hdResultFor] = {result: on ? on.dataset.hdRes : '', why: val(row, 'why')};
+      });
+      send('post', {date: S.data.date, daypart: form.dataset.hdDp, results, recognition: {who: val(form, 'who'), what: val(form, 'what')}, handoff: val(form, 'handoff')}, 'Shift closed');
+    }
+  }
+
+  /* ---------- the page ---------- */
+  function render(){
+    const root = S.root;
+    if(!root) return;
+    const head = '<div class="knp-headrow"><h2 class="knp-title">Huddle</h2><p class="knp-lede">Two minutes before the shift, two minutes after: aim it at the focus, then say how it went.</p></div>';
+    if(S.status === 'locked'){ root.innerHTML = `${head}<p class="knp-lede">${h(S.error)}</p>`; return; }
+    if(!S.data){ root.innerHTML = `${head}<p class="knp-lede">${S.status === 'error' ? h(S.error) : 'Loading the huddles…'}</p>`; return; }
+    const d = S.data;
+    const week = [0, 1, 2, 3, 4, 5].map(i => addDays(d.week, i));
+    const closed = d.dayparts.filter(x => x.post).length, set = d.dayparts.filter(x => x.pre).length;
+    root.innerHTML = `
+      ${head}
+      <div class="knp-days hd-days" role="group" aria-label="Pick a day">
+        <button type="button" class="hd-week" data-hd-day="${addDays(d.week, -7)}" aria-label="The week before">‹</button>
+        ${week.map(x => `<button type="button" class="knp-day ${x === d.date ? 'is-on' : ''} ${x === d.today ? 'is-today' : ''}" data-hd-day="${x}" aria-pressed="${x === d.date}"><span>${h(dayLabel(x, {weekday: 'short'}))}</span><b>${+x.slice(8)}</b></button>`).join('')}
+        <button type="button" class="hd-week" data-hd-day="${addDays(d.week, 7)}" aria-label="The week after">›</button>
+      </div>
+      <div class="hd-focus">${focusHtml('month')}${focusHtml('week')}</div>
+      ${d.dayparts.length ? `
+      <p class="hd-sum">${h(dayLabel(d.date, {weekday: 'long', month: 'short', day: 'numeric'}))} · <b>${set}</b> of ${d.dayparts.length} huddles set · <b>${closed}</b> closed</p>
+      <div class="knp-cards">${d.dayparts.map(cardHtml).join('')}</div>` : `<p class="knp-lede">The store is closed ${h(dayLabel(d.date, {weekday: 'long'}))}. Pick another day.</p>`}
+      <p class="knp-foot">One huddle a daypart, on the Know the Numbers dayparts. The Lead Captain and the names offered come from Set Ups. A huddle is filled in on its own day; the pre-huddle opens ${d.preOpensMin} minutes before the daypart, the post-huddle once it has started.</p>`;
+  }
+
+  function mount(){
+    if(S.root) return;
+    S.root = document.getElementById('huddleRoot');
+    S.root.addEventListener('click', e => {
+      const t = e.target.closest('button');
+      if(!t || !S.root.contains(t)) return;
+      if(t.dataset.hdDay){ S.date = t.dataset.hdDay; S.form = null; load(); return; }
+      if(t.dataset.hdFocusEdit){ S.form = {kind: 'focus', scope: t.dataset.hdFocusEdit}; render(); focusFirst(); return; }
+      if(t.dataset.hdOpen){ S.form = {kind: t.dataset.hdOpen, daypart: t.dataset.hdDp}; render(); focusFirst(); return; }
+      if('hdCancel' in t.dataset){ S.form = null; render(); return; }
+      if(t.dataset.hdPick){
+        // A quick pick fills the line beside it: the purpose, the priority, or its own goal.
+        const scope = t.dataset.hdPick === 'goal' ? t.closest('[data-hd-goal]') : t.closest('form');
+        const input = scope.querySelector(`[data-hd-f="${t.dataset.hdPick === 'goal' ? 'text' : t.dataset.hdPick}"]`);
+        input.value = t.textContent;
+        t.parentNode.querySelectorAll('.hd-pick').forEach(b => b.classList.toggle('is-on', b === t));
+        return;
+      }
+      if(t.dataset.hdFocus){
+        const on = t.getAttribute('aria-pressed') === 'true';
+        t.parentNode.querySelectorAll('[data-hd-focus]').forEach(b => b.setAttribute('aria-pressed', 'false'));
+        t.setAttribute('aria-pressed', String(!on));
+        return;
+      }
+      if(t.dataset.hdRes){
+        t.parentNode.querySelectorAll('[data-hd-res]').forEach(b => b.setAttribute('aria-pressed', String(b === t)));
+      }
+    });
+    S.root.addEventListener('submit', e => { e.preventDefault(); submit(e.target); });
+    S.root.addEventListener('input', e => {
+      // Typing over a quick pick: it's no longer the pick.
+      const box = e.target.previousElementSibling;
+      if(box && box.classList && box.classList.contains('hd-picks')) box.querySelectorAll('.is-on').forEach(b => b.classList.remove('is-on'));
+    });
+  }
+  function focusFirst(){
+    const form = S.root.querySelector('form');
+    if(form && form.scrollIntoView) form.closest('.knp-card, .hd-focus-col').scrollIntoView({block: 'nearest'});
+  }
+
+  // navigation.js: the view opened.
+  window.hdActivate = function(){
+    mount();
+    if(!S.form) render();
+    load();
+    clearInterval(S.poll);
+    S.poll = setInterval(() => { if(!shown()){ clearInterval(S.poll); return; } if(!document.hidden && !S.form) load(); }, POLL_MS);
+  };
+  window.HuddlePage = {S, phase};
+})();
