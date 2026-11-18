@@ -22,6 +22,15 @@
 //  - A phone nobody signed in on: the day's marketing events and a way to
 //    sign in (Tim, Oct 28 2026: no leader numbers before sign-in). The
 //    kitchen iPad's side keeps its prep, breaks and Food Safety.
+// Nov 18 2026 (Tim): Home is one glance at your own day, every line a tap
+// to where it lives. Vision, Mission and Values and the Leadership Wins left
+// Home. A Team Member and a Trainer also see who's leading the shift. A Team
+// Lead sees the tickets waiting on them (or a well done) and no waste or
+// Food Safety line. A director (and the Admin Team, the same card for now)
+// sees how many people FOH and BOH each have for the daypart, the breaks
+// left in each house (AM shifts' until 1 PM, then PM), the tickets waiting
+// on them, and the rest folded under "More about today". The signed-out
+// Front card shows the counter timers due.
 // It reads only what that phone already has (a team PIN never reads the
 // private sections), and every row opens the screen that fixes it. On the
 // kitchen's side the lines carry Spanish; FOH stays English.
@@ -260,6 +269,13 @@ function rnPersonCard(v, day, trainer){
     rows.push(rnRow(rnClock(parseDaypartTimeToMinutes(x.dp.time)), `Later: ${x.slot} (${rnShort(x.dp.name)})`, esText('Later spot') + (esPlace(x.slot) ? ': ' + esPlace(x.slot) : ''), `setups:${x.side}|${today}|${x.dp.name}`)));
   // A tap opens the Schedule on their week (Tim, Oct 28 2026).
   if(on.length) rows.push(rnRow('', `Your shift: ${rnShiftsText(on)}`, esText('Your shift'), `myweek:${today}`));
+  // Who's leading the shift (Tim, Nov 18 2026): the Lead Captain on Set Ups
+  // for the daypart on the clock, on their side. Not when that's them.
+  if(floor.length){
+    const lead = rnLeading(side, today, rnDaypartIndex(side, day.now)).filter(n => !names.some(x => rnSame(n, x)));
+    const dpNow = suDaypartsFor(side)[rnDaypartIndex(side, day.now)];
+    if(lead.length) rows.push(rnRow('', `Leading the shift: ${lead.map(suDisplayName).join(', ')}`, esText('Leading the shift'), `setups:${side}|${today}|${dpNow.name}`));
+  }
   myZones.forEach(z => rows.push(rnRow(`${z.checked}/${z.total}`, `your zone: ${z.zone} · ${hand.title} at ${rnClock(hand.at)}`, '', `zone:${hand.name}`, z.done ? 'ok' : '')));
   rnTicketRows(day).forEach(r => rows.push(r));
   if(trainer && entry){
@@ -267,6 +283,12 @@ function rnPersonCard(v, day, trainer){
     rows.push(rnRow(String(g.open.length), `open spot${g.open.length === 1 ? '' : 's'} on ${side.toUpperCase()} for ${rnShort(g.dp.name)}`, esText('Open spots now'), g.open.length ? `spot:${side}|${g.dp.name}|${g.open[0].slot}` : `setups:${side}|${today}|${g.dp.name}`, g.open.length ? 'bad' : 'ok'));
   }
   return {side, first, rows, team: true, title: `Hi, ${first1}`, pea: rnMine.pea && rnMine.pea.positions && rnMine.pea.positions.length ? rnMine.pea : null};
+}
+
+// The Lead Captain(s) on Set Ups for a side's daypart.
+function rnLeading(side, date, dpIndex){
+  const dp = suDaypartsFor(side)[dpIndex];
+  return dp ? suSplitNames(posAssignments[[side, date, dp.name, SU_LEAD_CAPTAIN].join('||')]) : [];
 }
 
 // ----- Mine: my tickets and my PEA (Tim, Oct 28 2026) -----
@@ -277,19 +299,27 @@ function rnPersonCard(v, day, trainer){
 // or offline, the card simply doesn't have those lines.
 const RN_MINE_EVERY = 5 * 60 * 1000;
 const RN_TICKETS_SHOWN = 4;
-let rnMine = {who: '', at: 0, pea: null, tickets: null};
+// Leaders (Team Leads, the Admin Team, directors and the shared PINs) get
+// their tickets too, as one count (Tim, Nov 18 2026); the PEA scores are a
+// Team Member's and a Trainer's.
+let rnMine = {who: '', at: 0, pea: null, tickets: null, counts: null};
+const RN_MINE_NONE = () => ({who: '', at: 0, pea: null, tickets: null, counts: null});
 function rnMineLoad(){
   if(typeof fetch !== 'function') return;
   const v = rnViewer();
-  if(!['member', 'trainer'].includes(v.role) || !v.name){ if(rnMine.who) rnMine = {who: '', at: 0, pea: null, tickets: null}; return; }
-  if(rnMine.who === v.name && Date.now() - rnMine.at < RN_MINE_EVERY) return;
-  if(rnMine.who !== v.name) rnMine = {who: v.name, at: 0, pea: null, tickets: null};
+  const team = ['member', 'trainer'].includes(v.role);
+  // The shared PINs carry no name: one key for whoever holds the PIN.
+  const who = v.role === 'none' ? '' : team || v.name ? v.name : '(' + v.role + ')';
+  if(!who){ if(rnMine.who) rnMine = RN_MINE_NONE(); return; }
+  if(rnMine.who === who && Date.now() - rnMine.at < RN_MINE_EVERY) return;
+  if(rnMine.who !== who) rnMine = {...RN_MINE_NONE(), who};
   rnMine.at = Date.now();
-  const who = v.name, get = url => fetch(url, {credentials: 'same-origin', cache: 'no-store'}).then(r => (r.ok ? r.json() : null)).catch(() => null);
-  Promise.all([get('/api/me/pea'), get('/api/pass/state')]).then(([pea, pass]) => {
+  const get = url => fetch(url, {credentials: 'same-origin', cache: 'no-store'}).then(r => (r.ok ? r.json() : null)).catch(() => null);
+  Promise.all([team ? get('/api/me/pea') : null, get('/api/pass/state')]).then(([pea, pass]) => {
     if(rnMine.who !== who) return;
     rnMine.pea = pea && Array.isArray(pea.positions) ? pea : null;
     rnMine.tickets = pass ? rnTicketsFrom(pass) : null;
+    rnMine.counts = pass ? rnTicketCounts(pass) : null;
     const home = document.getElementById('homeView');
     if(home && home.classList.contains('active')) renderRightNow();
   });
@@ -305,6 +335,33 @@ function rnTicketsFrom(pass){
     return {id: t.id, title: t.title, due: t.due, state};
   }).sort((a, b) => rank[a.state] - rank[b.state] || a.due - b.due);
 }
+// A leader's open tickets, by whose move it is (pass-engine.js derive's
+// actor): mine to do, mine to approve (turned in, or a new time asked for),
+// and the ones out with the team. `late`: one of mine to do is past due.
+function rnTicketCounts(pass){
+  if(typeof PassEngine === 'undefined' || !pass.me || !Array.isArray(pass.events)) return null;
+  const E = PassEngine, now = Date.now(), me = pass.me.id, c = {todo: 0, approve: 0, out: 0, late: false};
+  Object.values(E.fold(pass.events)).filter(t => E.OPEN.includes(t.status) && (t.owner === me || t.delegator === me)).forEach(t => {
+    const r = E.derive(t, now);
+    if(r.actor !== me) { if(t.delegator === me) c.out++; return; }
+    if(t.owner === me){ c.todo++; if(r.late) c.late = true; } else c.approve++;
+  });
+  return c;
+}
+// One row for a leader: what's waiting on them, or a well done when nothing
+// is (Tim, Nov 18 2026). Nothing until the tickets are in.
+function rnLeaderTicketRow(boh){
+  const c = rnMine.counts;
+  if(!c) return null;
+  const waiting = c.todo + c.approve;
+  const out = c.out ? `${c.out} out with the team` : '';
+  if(!waiting){
+    return rnRow('0', c.out ? `tickets waiting on you · ${out}` : 'No open tickets. Nicely done.', boh ? esText(c.out ? 'Tickets waiting on you' : 'No open tickets, nicely done') : '', 'tickets', 'ok');
+  }
+  const parts = [c.todo ? `${c.todo} to do` : '', c.approve ? `${c.approve} to approve` : '', out].filter(Boolean);
+  return rnRow(String(waiting), `ticket${waiting === 1 ? '' : 's'} waiting on you: ${parts.join(' · ')}`, boh ? esText('Tickets waiting on you') : '', 'tickets', c.late ? 'bad' : 'warn');
+}
+
 function rnDueText(ts){
   const d = new Date(ts), iso = toLocalISODate(d), min = d.getHours() * 60 + d.getMinutes();
   if(iso === today) return rnClock(min);
@@ -353,12 +410,20 @@ function rnLeadCard(v, day, store){
     return {side: sides.length === 1 ? sides[0] : 'foh', first, rows, kicker: `${dayName}`, title: v.name ? `Hi, ${rnFirst(v.name)}` : 'Tomorrow'};
   }
 
-  // Now, side by side.
+  // Now, side by side. A Team Lead reads the open spots on their side; a
+  // director reads how many people each house has for the daypart, FOH and
+  // BOH apart, with the open spots after it (Tim, Nov 18 2026).
   const gaps = sides.map(side => rnDaypartGaps(side, today, rnDaypartIndex(side, day.now)));
   gaps.forEach(g => {
     const side = sides[gaps.indexOf(g)];
     const label = sides.length > 1 ? `${side.toUpperCase()} ` : '';
-    rows.push(rnRow(String(g.open.length), `${label}open spot${g.open.length === 1 ? '' : 's'} for ${rnShort(g.dp.name)}`, side === 'boh' ? esText('Open spots now') : '', g.open.length ? `spot:${side}|${g.dp.name}|${g.open[0].slot}` : `setups:${side}|${today}|${g.dp.name}`, g.open.length ? 'bad' : 'ok'));
+    const go = g.open.length ? `spot:${side}|${g.dp.name}|${g.open[0].slot}` : `setups:${side}|${today}|${g.dp.name}`;
+    if(store){
+      const staffed = typeof g.m.onShift === 'number' ? g.m.onShift : g.m.filled + g.unplaced.length;
+      rows.push(rnRow(String(staffed), `${side.toUpperCase()} staffed for ${rnShort(g.dp.name)}${g.open.length ? ` · ${g.open.length} open spot${g.open.length === 1 ? '' : 's'}` : ''}`, '', go, g.open.length ? 'bad' : ''));
+    } else {
+      rows.push(rnRow(String(g.open.length), `${label}open spot${g.open.length === 1 ? '' : 's'} for ${rnShort(g.dp.name)}`, side === 'boh' ? esText('Open spots now') : '', go, g.open.length ? 'bad' : 'ok'));
+    }
     if(!first && g.open.length) first = {text: `Nobody is on ${g.open[0].slot} for ${rnShort(g.dp.name)}${sides.length > 1 ? ` (${side.toUpperCase()})` : ''}.`, es: side === 'boh' ? esText('Nobody is on SPOT for DP', esPlace(g.open[0].slot) || g.open[0].slot, esDaypart(g.dp.name)) : '', go: `spot:${side}|${g.dp.name}|${g.open[0].slot}`};
   });
   // Someone on both schedules counts once.
@@ -380,12 +445,28 @@ function rnLeadCard(v, day, store){
       if(!first && done < hand.zones.length && day.now >= hand.at - 30) first = {text: `${hand.zones.length - done} zone${hand.zones.length - done === 1 ? '' : 's'} still to reset for ${hand.title}.`, go: `zone:${hand.name}`};
     }
   }
-  // Breaks coming up.
-  const soon = sides.flatMap(side => rnBreaksSoon(side, day.now).map(b => ({...b, side})));
-  if(soon.length){
-    rows.push(rnRow(String(soon.length), `break${soon.length === 1 ? '' : 's'} due: ${soon.slice(0, 3).map(b => `${suDisplayName(b.name)} ${rnClock(b.start)}`).join(', ')}`, sides.includes('boh') ? esText('Breaks due soon') : '', `setups:${soon[0].side}|${today}|`, ''));
+  // Breaks: a Team Lead reads the ones coming up; a director reads how many
+  // are left to run in each house, the AM shifts' until 1 PM and the PM
+  // shifts' after (Tim, Nov 18 2026).
+  if(store){
+    sides.forEach(side => {
+      const br = rnBreaksLeft(side, day.now, RN_PM_SHOWN_FROM);
+      if(!br.total) return;
+      const next = br.left[0];
+      rows.push(rnRow(String(br.left.length), `${side.toUpperCase()} ${br.pm ? 'PM' : 'AM'} break${br.left.length === 1 ? '' : 's'} left (of ${br.total})${next ? ` · next: ${suDisplayName(next.name)} ${rnClock(next.start)}` : ''}`, '', `setups:${side}|${today}|`, br.left.length ? '' : 'ok'));
+    });
+  } else {
+    const soon = sides.flatMap(side => rnBreaksSoon(side, day.now).map(b => ({...b, side})));
+    if(soon.length){
+      rows.push(rnRow(String(soon.length), `break${soon.length === 1 ? '' : 's'} due: ${soon.slice(0, 3).map(b => `${suDisplayName(b.name)} ${rnClock(b.start)}`).join(', ')}`, sides.includes('boh') ? esText('Breaks due soon') : '', `setups:${soon[0].side}|${today}|`, ''));
+    }
   }
-  // The director's extras: the rest of the day, the leaders on.
+  // What's waiting on them on the Tasks tab.
+  const tk = rnLeaderTicketRow(sides.length === 1 && sides[0] === 'boh');
+  if(tk) rows.push(tk);
+  // The director's extras: the leaders on, and under "More about today" the
+  // rest of the day, waste and Food Safety (a Team Lead's card has neither:
+  // Tim, Nov 18 2026).
   if(store){
     const later = [];
     sides.forEach(side => suDaypartsFor(side).forEach((dp, i) => {
@@ -393,19 +474,20 @@ function rnLeadCard(v, day, store){
       const g = rnDaypartGaps(side, today, i);
       if(g.open.length) later.push({side, dp, n: g.open.length});
     }));
-    if(later.length) rows.push(rnRow(String(later.reduce((s, x) => s + x.n, 0)), `open later today: ${later.slice(0, 3).map(x => `${rnShort(x.dp.name)} ${x.side.toUpperCase()} ${x.n}`).join(', ')}`, '', `setups:${later[0].side}|${today}|${later[0].dp.name}`, 'warn'));
     const leaders = sides.flatMap(side => rnRoster(side, today).filter(p => p.leader && rosterOverlaps(p, day.now, day.now + 1)).map(p => p.name));
     rows.push(rnRow(String(leaders.length), leaders.length ? `leader${leaders.length === 1 ? '' : 's'} on: ${leaders.slice(0, 4).map(suDisplayName).join(', ')}${leaders.length > 4 ? '…' : ''}` : 'leaders on the schedule right now', '', '', leaders.length ? '' : 'bad'));
+    const more = r => { r.more = true; rows.push(r); };
+    if(later.length) more(rnRow(String(later.reduce((s, x) => s + x.n, 0)), `open later today: ${later.slice(0, 3).map(x => `${rnShort(x.dp.name)} ${x.side.toUpperCase()} ${x.n}`).join(', ')}`, '', `setups:${later[0].side}|${today}|${later[0].dp.name}`, 'warn'));
+    const w = rnWaste();
+    more(rnRow(rnMoney(w.total), `waste today, limit ${rnMoney(w.limit)}`, '', 'waste', w.over ? 'bad' : w.near ? 'warn' : 'ok'));
+    const fs = rnFoodSafety();
+    more(rnRow(fs ? `${fs.done}/${fs.total}` : '0', 'Food Safety walkthrough today', '', 'foodsafety', fs && fs.done === fs.total ? 'ok' : ''));
   }
-  const w = rnWaste();
-  rows.push(rnRow(rnMoney(w.total), `waste today, limit ${rnMoney(w.limit)}`, sides.includes('boh') ? esText('Waste today') : '', 'waste', w.over ? 'bad' : w.near ? 'warn' : 'ok'));
-  const fs = rnFoodSafety();
-  rows.push(rnRow(fs ? `${fs.done}/${fs.total}` : '0', 'Food Safety walkthrough today', sides.includes('boh') ? esText('Food Safety walkthrough') : '', 'foodsafety', fs && fs.done === fs.total ? 'ok' : ''));
   if(!first){
     const dp = gaps[0].dp;
     first = {text: `${rnShort(dp.name)} is covered. Go catch someone doing it right.`, es: sides.length === 1 && sides[0] === 'boh' ? esText('Everything is covered for DP', esDaypart(dp.name)) : ''};
   }
-  return {side: sides.length === 1 ? sides[0] : 'foh', first, rows, title: v.name ? `Hi, ${rnFirst(v.name)}` : ''};
+  return {side: sides.length === 1 ? sides[0] : 'foh', first, rows, fold: !!store, title: v.name ? `Hi, ${rnFirst(v.name)}` : ''};
 }
 
 // ----- The day's roster -----
@@ -499,7 +581,9 @@ function rnWithRoster(card, day){
   const total = rnHeadcount(rnDayRoster(date, null));
   if(!total) return card;
   const when = day.closed ? new Date(date + 'T12:00:00').toLocaleDateString('en-US', {weekday: 'long'}) : 'today';
-  card.rows.push(rnRow(String(total), `on the schedule ${when} · see who’s working`, '', `schedule:${date}`, ''));
+  const row = rnRow(String(total), `on the schedule ${when} · see who’s working`, '', `schedule:${date}`, '');
+  if(card.fold) row.more = true;
+  card.rows.push(row);
   return card;
 }
 
@@ -509,6 +593,7 @@ function rnWithRoster(card, day){
 // its own card (in Spanish too), and Set Ups and Waste open on its side.
 const RN_SIDE_KEY = 'cfaBudaSide';
 const RN_PM_FROM = 14 * 60;      // PM shifts start at 2 PM: the break count switches to them then
+const RN_PM_SHOWN_FROM = 13 * 60;   // a director's card shows the PM shifts' breaks from 1 PM (Tim, Nov 18 2026)
 function rnDeviceSide(){
   try{ return localStorage.getItem(RN_SIDE_KEY) === 'boh' ? 'boh' : 'foh'; }catch(e){ return 'foh'; }
 }
@@ -538,12 +623,12 @@ function rnPrepLeft(){
 
 // The kitchen's breaks not yet marked taken: the morning shifts' until 2 PM,
 // then the afternoon's (Tim: PM shifts start at 2).
-function rnBreaksLeft(side, now){
+function rnBreaksLeft(side, now, pmShownFrom){
   const plan = typeof breakPlanFor === 'function' ? breakPlanFor(side, today) : {breaks: []};
   const all = (plan.breaks || []).filter(b => b.start !== null);
   const open = b => !completedBreaks[breakKeyFor(b.name, today, side)];
   const am = all.filter(b => b.from < RN_PM_FROM), pm = all.filter(b => b.from >= RN_PM_FROM);
-  const pmNow = now >= RN_PM_FROM;
+  const pmNow = now >= (pmShownFrom || RN_PM_FROM);
   const list = pmNow ? pm : am;
   const left = list.filter(open).sort((a, b) => a.start - b.start);
   return {pm: pmNow, total: list.length, left};
@@ -592,8 +677,36 @@ function rnKitchenCard(day){
 // kitchen's card on a kitchen iPad.
 function rnTeamCard(day){
   if(rnDeviceSide() === 'boh') return rnKitchenCard(day);
-  const rows = [rnRow('', 'Sign in with your clock-in PIN to see your spot', '', 'signin', '')];
+  const rows = (day.closed ? [] : rnTimerRows()).concat([rnRow('', 'Sign in with your clock-in PIN to see your spot', '', 'signin', '')]);
   return {side: 'foh', first: null, rows, team: true, title: '', sideSwitch: true};
+}
+
+// The counter tablet's timers on the signed-out Front card (Tim, Nov 18
+// 2026): the ones due now, else the next one coming. Read from the Timers
+// page's own rules (timers.js TimersPage.peek) once the rest of the hub has
+// loaded, at most every RN_TIMERS_EVERY while Home is up; until then, or
+// offline, the card simply doesn't have the line.
+const RN_TIMERS_EVERY = 60 * 1000;
+let rnTimers = {at: 0, list: null};
+function rnTimersLoad(){
+  if(typeof TimersPage === 'undefined' || typeof TimersPage.peek !== 'function') return;
+  if(Date.now() - rnTimers.at < RN_TIMERS_EVERY) return;
+  rnTimers.at = Date.now();
+  TimersPage.peek().then(list => {
+    rnTimers.list = list;
+    const home = document.getElementById('homeView');
+    if(home && home.classList.contains('active')) renderRightNow();
+  }).catch(() => {});
+}
+function rnTimerRows(){
+  rnTimersLoad();
+  const list = rnTimers.list || [];
+  const due = list.filter(t => t.cls === 'late' || t.cls === 'missed');
+  if(due.length) return [rnRow(String(due.length), `timer${due.length === 1 ? '' : 's'} due now: ${due.map(t => t.name).join(', ')}`, '', 'timers', 'bad')];
+  const next = list.filter(t => t.cls === 'ok' || t.cls === 'soon').sort((a, b) => a.left - b.left)[0];
+  if(!next) return [];
+  const min = Math.max(1, Math.round(next.left / 60000));
+  return [rnRow(`${min}m`, `until the next timer: ${next.name}`, '', 'timers', next.cls === 'soon' ? 'warn' : '')];
 }
 
 // The Front / Kitchen switch on a signed-out card.
@@ -607,7 +720,9 @@ function rnCardFor(v, day){
   const card = rnCardForRole(v, day);
   // My level, PTO and uniform credit, and the Admin Team's requests to review
   // (team-extras.js; Tim, Oct 28 2026). Only the signed-in person's own.
-  if(v.name && typeof apRightNowRows === 'function') card.rows = card.rows.concat(apRightNowRows());
+  if(v.name && typeof apRightNowRows === 'function') card.rows = card.rows.concat(apRightNowRows().map(r => (card.fold && r.go === 'credit' ? {...r, more: true} : r)));
+  // What needs someone stays on top; the rest folds under "More about today".
+  if(card.fold) card.rows = card.rows.filter(r => !r.more).concat(card.rows.filter(r => r.more));
   return card;
 }
 function rnCardForRole(v, day){
@@ -770,6 +885,7 @@ function rnCloseEvent(){
   rnEvsReturn = null;
 }
 
+let rnMoreOpen = false;   // "More about today" stays as the person left it through the minute's redraw
 const RN_ROLE_LABELS = {member: 'Team Member', trainer: 'Trainer', lead: 'Team Lead', admin: 'Admin Team', director: 'Director', manager: 'Manager', none: ''};
 
 function renderRightNow(){
@@ -791,7 +907,14 @@ function renderRightNow(){
   const kicker = card.kicker ? `Next up · ${card.kicker}` : day.closed ? 'Closed' : day.now < day.opensAt ? `Before open · ${rnShort(dp.name)} at ${rnClock(day.opensAt)}` : `Right now · ${rnShort(dp.name)}`;
   const kickerEs = card.kicker || day.closed ? '' : esText('Right now') + ' · ' + esDaypart(dp.name);
   const title = card.title || (day.closed ? 'The store is closed' : rnShort(dp.name));
-  const roleLabel = RN_ROLE_LABELS[v.role];
+  // The Admin Team's card is the director's (Tim, Nov 18 2026: the same for now), under their own name.
+  const roleLabel = typeof acUser !== 'undefined' && acUser && acUser.role === 'admin' ? RN_ROLE_LABELS.admin : RN_ROLE_LABELS[v.role];
+  const rowHtml = r => `<div class="rn-row${r.go ? ' is-go' : ''}"${go(r.go)}>
+          ${r.n !== '' ? `<span class="rn-n${r.tone ? ' is-' + r.tone : ''}">${escapeHtml(r.n)}</span>` : '<span class="rn-n rn-n-dot" aria-hidden="true"></span>'}
+          <span class="rn-t">${escapeHtml(r.text)}${es(r.es)}</span>
+          ${r.go ? `<span class="rn-go">${RN_ICON_GO}</span>` : ''}
+        </div>`;
+  const top = card.rows.filter(r => !r.more), more = card.rows.filter(r => r.more);
   const es = t => boh && t ? esSpan(t, true) : '';
   const go = g => g ? ` data-rn-go="${escapeHtml(g)}" role="button" tabindex="0"` : '';
   root.className = `rn${boh ? ' rn-boh' : ''}`;
@@ -806,12 +929,10 @@ function renderRightNow(){
     ${card.first ? `<div class="rn-first${card.first.go ? ' is-go' : ''}"${go(card.first.go)}><b>First thing${boh ? `<span class="es" lang="es"> · ${escapeHtml(esText('First thing'))}</span>` : ''}</b><span>${card.first.until ? rnBreakHtml(card.first) : escapeHtml(card.first.text)}</span>${es(card.first.es)}</div>` : ''}
     ${card.roster && card.rosterFirst ? rnRosterHtml(card.roster, card.rosterHead) : ''}
     <div class="rn-list">
-      ${card.rows.map(r => `<div class="rn-row${r.go ? ' is-go' : ''}"${go(r.go)}>
-          ${r.n !== '' ? `<span class="rn-n${r.tone ? ' is-' + r.tone : ''}">${escapeHtml(r.n)}</span>` : '<span class="rn-n rn-n-dot" aria-hidden="true"></span>'}
-          <span class="rn-t">${escapeHtml(r.text)}${es(r.es)}</span>
-          ${r.go ? `<span class="rn-go">${RN_ICON_GO}</span>` : ''}
-        </div>`).join('')}
-    </div>${rnPeaHtml(card.pea, boh)}${card.roster && !card.rosterFirst ? rnRosterHtml(card.roster, card.rosterHead) : ''}`;
+      ${top.map(rowHtml).join('')}
+    </div>
+    ${more.length ? `<details class="rn-more" data-rn-more${rnMoreOpen ? ' open' : ''}><summary>More about today <span>${more.length}</span>${RN_ICON_GO}</summary><div class="rn-list">${more.map(rowHtml).join('')}</div></details>` : ''}
+    ${rnPeaHtml(card.pea, boh)}${card.roster && !card.rosterFirst ? rnRosterHtml(card.roster, card.rosterHead) : ''}`;
 }
 
 // Taps: open the screen that fixes it.
@@ -850,6 +971,7 @@ function rnGo(g){
     window.scrollTo({top: 0});
   }
   else if(what === 'waste'){ launchShowTab('wastelog'); window.scrollTo({top: 0}); }
+  else if(what === 'timers'){ launchShowTab('timers'); window.scrollTo({top: 0}); }
   else if(what === 'headcount'){ launchShowTab('headcount'); window.scrollTo({top: 0}); }
   else if(what === 'schedule' && typeof tsShowDay === 'function') tsShowDay(rest);
   else if(what === 'myweek' && typeof tsShowWeek === 'function') tsShowWeek(rest);
@@ -870,6 +992,9 @@ document.getElementById('rightNow').addEventListener('click', e => {
   const t = e.target.closest('[data-rn-go]');
   if(t) rnGo(t.dataset.rnGo);
 });
+document.getElementById('rightNow').addEventListener('toggle', e => {
+  if(e.target && e.target.matches && e.target.matches('[data-rn-more]')) rnMoreOpen = e.target.open;
+}, true);
 document.getElementById('rightNow').addEventListener('keydown', e => {
   const ev = e.target.closest('[data-rn-ev]');
   if(ev && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); rnOpenEvent(ev.dataset.rnEv, ev.dataset.rnEvDate, ev); return; }

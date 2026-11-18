@@ -1842,6 +1842,15 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .rn-first > span:not(.es){font-family:var(--font-ui);font-size:15.5px;font-weight:600;line-height:1.3;color:var(--text-primary);}
 .rn-first .es-line{font-family:var(--font-display);font-style:italic;font-size:13px;color:var(--text-secondary);}
 .rn-list{position:relative;}
+/* "More about today" on a director's card (Tim, Nov 18 2026): what needs someone stays on top, the rest folds. */
+.rn-more{position:relative;border-top:1px solid var(--border);}
+.rn-more > summary{display:flex;align-items:center;gap:8px;min-height:48px;cursor:pointer;list-style:none;font-family:var(--font-ui);font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary);}
+.rn-more > summary::-webkit-details-marker{display:none;}
+.rn-more > summary span{font-weight:600;letter-spacing:0;color:var(--text-secondary);background:var(--border);border-radius:999px;padding:1px 8px;}
+.rn-more > summary svg{margin-left:auto;transition:transform .15s;}
+.rn-more[open] > summary svg{transform:rotate(90deg);}
+.rn-more > summary:focus-visible{outline:2px solid var(--cfa-navy);outline-offset:2px;border-radius:10px;}
+.rn-more .rn-row:first-child{border-top:1px solid var(--border);}
 .rn-row{display:flex;align-items:center;gap:12px;min-height:52px;padding:8px 0;border-top:1px solid var(--border);}
 .rn-row:first-child{border-top:0;}
 .rn-n{flex:none;min-width:44px;font-family:var(--font-display);font-size:22px;font-weight:700;line-height:1;color:var(--text-primary);}

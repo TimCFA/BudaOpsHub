@@ -344,33 +344,8 @@ function renderHomeScoreboard(){
   if(dateEl) dateEl.textContent = formatVerboseDate(today);
   renderHomeQuote();
   if(typeof renderRightNow === 'function') renderRightNow();
-  
-  const vmvContainer = document.getElementById('homeVMVContainer');
-  
-  // Escape first, then apply the ***bold italic*** markup and line breaks.
-  const formatText = (text) => {
-    return escapeHtml(text)
-      .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
-      .replace(/\n/g, '<br>');
-  };
-  
-  const vmvTitles = ['Vision', 'Mission', 'Values'];
-  const vmvData = [homeData.vision, homeData.mission, homeData.values];
-  
-  vmvContainer.innerHTML = vmvData.map((content, idx) => `
-    <div class="home-vmv-card">
-      <div class="home-vmv-title">${vmvTitles[idx]}</div>
-      <div class="home-vmv-content" style="white-space: pre-wrap; line-height: 1.8;">${formatText(content)}</div>
-    </div>
-  `).join('');
-  
-  const winsContainer = document.getElementById('homeWinsContainer');
-  winsContainer.innerHTML = homeData.wins.map((win) => `
-    <div class="home-win-card">
-      <div class="home-win-name">${escapeHtml(win.name)}</div>
-      <div class="home-win-role">${escapeHtml(win.role)}</div>
-      <div class="home-win-content">${win.content ? escapeHtml(win.content) : '<em style="color:var(--text-secondary);">No update yet this month</em>'}</div>
-    </div>
-  `).join('');
+  // Vision, Mission and Values and the Monthly Leadership Wins are no longer drawn
+  // here (Tim, Nov 18 2026): Home is the welcome and the Right Now card. homeData
+  // keeps them, edited in Manage.
 }
 

@@ -154,6 +154,46 @@ class TeamMember(unittest.TestCase):
         self.assertEqual(got['firstEs'], 'Estás en Empanizador 1 hasta las 8:00')
 
 
+class LeadingTheShift(unittest.TestCase):
+    def test_the_lead_captain_on_their_side(self):
+        """Tim, Nov 18 2026: a team member sees who's leading the shift."""
+        lc = "posAssignments['foh||' + today + '||Dinner (5:00-8:00)||Lead Captain'] = 'Leo Park';"
+        got = run({'op': card('member', 'Ana Ruiz', extra=lc)}, {'op': card('member', 'Ana Ruiz')}, {'op': card('trainer', 'Leo Park', extra=lc)},
+                  {'op': card('member', 'Sam Ortiz', extra="posAssignments['boh||' + today + '||Dinner (5:00-8:00)||Lead Captain'] = 'Rosa Vela';")})
+        self.assertIn(['', 'Leading the shift: Leo', 'setups:foh|2026-10-19|Dinner (5:00-8:00)', 'Líder del turno'], got[0]['rows'])
+        self.assertFalse(any('Leading' in r[1] for r in got[1]['rows']))      # nobody set: no line
+        self.assertFalse(any('Leading' in r[1] for r in got[2]['rows']))      # it's them
+        self.assertIn(['', 'Leading the shift: Rosa', 'setups:boh|2026-10-19|Dinner (5:00-8:00)', 'Líder del turno'], got[3]['rows'])
+
+
+class CounterTimers(unittest.TestCase):
+    def test_the_signed_out_front_card_shows_the_timers(self):
+        """Tim, Nov 18 2026: the timers due now, else the next one coming."""
+        op = lambda lst: f"c => {{ rnTimers = {{at: Date.now(), list: {lst}}}; return rnCardFor(rnViewer(), rnDay()).rows.map(r => [r.n, r.text, r.go, r.tone]); }}"
+        got = run({'op': op("[{name: 'Restrooms', cls: 'late', left: -60000}, {name: 'Lot Sweep', cls: 'ok', left: 600000}, {name: 'Dining Room Touch', cls: 'missed', left: -900000}]")},
+                  {'op': op("[{name: 'Restrooms', cls: 'ok', left: 720000}, {name: 'Lot Sweep', cls: 'ok', left: 3000000}, {name: 'Playground', cls: 'new'}]")},
+                  {'op': op("[{name: 'Restrooms', cls: 'off'}]")}, {'op': op('null')})
+        self.assertEqual(got[0][0], ['2', 'timers due now: Restrooms, Dining Room Touch', 'timers', 'bad'])
+        self.assertEqual(got[1][0], ['12m', 'until the next timer: Restrooms', 'timers', ''])
+        for g in got:
+            self.assertEqual(g[-1][2], 'signin')
+        self.assertEqual(len(got[2]), 1)
+        self.assertEqual(len(got[3]), 1)
+        self.assertIn('TimersPage = {S, cycle, cyclesOf, pausesOf, agg, ownerNow, onTheFloor, peek}', read('static', 'js', 'timers.js'))
+
+
+class OneGlance(unittest.TestCase):
+    def test_home_is_the_welcome_and_right_now(self):
+        """Tim, Nov 18 2026: Vision, Mission and Values and the Monthly
+        Leadership Wins left Home; Manage still keeps them."""
+        page = read('cfa-buda-ops-hub-complete.html')
+        home = page[page.index('id="homeView"'):page.index('id="wastelogView"')]
+        self.assertNotIn('homeVMVContainer', home)
+        self.assertNotIn('homeWinsContainer', home)
+        self.assertNotIn('homeVMVContainer', read('static', 'js', 'scoreboards-and-eoi.js'))
+        self.assertIn('homeData', read('static', 'js', 'management-views.js'))
+
+
 class Trainer(unittest.TestCase):
     def test_adds_the_open_spots_on_their_side(self):
         got = run({'op': card('trainer', 'Sam Ortiz', extra="gaps['boh|Dinner'] = {open: ['Breader 2', 'Fries'], unplaced: [], filled: 5};")})[0]
@@ -172,13 +212,35 @@ class TeamLead(unittest.TestCase):
         self.assertEqual(texts[0], 'open spots for Dinner')
         self.assertIn('on the clock with no spot: Mia', texts)
         self.assertIn('break due: Mia 5:25', texts)                   # 7:00 is more than half an hour out
-        self.assertIn('Food Safety walkthrough today', texts)
+        # Tim, Nov 18 2026: Food Safety and waste are a director's, not a Team Lead's.
+        self.assertFalse(any('Food Safety' in t or 'waste' in t for t in texts))
         self.assertFalse(any('BOH' in t for t in texts))              # Leo is on the FOH schedule
         self.assertFalse(any(t.startswith('leaders on') for t in texts))   # the director's
 
     def test_all_covered(self):
         got = run({'op': card('lead', 'Leo Park')})[0]
         self.assertEqual(got['first'], 'Dinner is covered. Go catch someone doing it right.')
+
+    def test_open_tickets_or_a_well_done(self):
+        """Tim, Nov 18 2026: a lead sees how many tickets are waiting on them,
+        and something to celebrate when none are. No line until they're read."""
+        tk = lambda c: card('lead', 'Leo Park', extra=f"rnMine.counts = {c};")
+        got = run({'op': card('lead', 'Leo Park')}, {'op': tk('{todo: 2, approve: 1, out: 3, late: false}')},
+                  {'op': tk('{todo: 0, approve: 0, out: 0, late: false}')}, {'op': tk('{todo: 0, approve: 0, out: 2, late: false}')})
+        row = lambda g: next((r for r in g['rows'] if r[2] == 'tickets'), None)
+        self.assertIsNone(row(got[0]))
+        self.assertEqual(row(got[1])[:2], ['3', 'tickets waiting on you: 2 to do · 1 to approve · 3 out with the team'])
+        self.assertEqual(row(got[2])[:2], ['0', 'No open tickets. Nicely done.'])
+        self.assertEqual(row(got[3])[:2], ['0', 'tickets waiting on you · 2 out with the team'])
+
+    def test_whose_move_a_ticket_is(self):
+        ev = lambda i, typ, by, task, data=None: {'id': f'e{i}', 'at': 1000 + i, 'type': typ, 'by': by, 'taskId': task, 'data': data or {}}
+        made = lambda i, by, owner, task: ev(i, 'created', by, task, {'title': 'T', 'owner': owner, 'due': 4102444800000})
+        events = [made(1, 'boss', 'me', 't1'),                                    # handed to me: mine to do
+                  made(2, 'me', 'ana', 't2'),                                     # out with the team
+                  made(3, 'me', 'ana', 't3'), ev(4, 'backbrief', 'ana', 't3', {'summary': 's'}), ev(5, 'submit', 'ana', 't3', {'evidence': 'done'})]   # turned in: mine to approve
+        got = run({'op': f"c => rnTicketCounts({{me: {{id: 'me'}}, events: {json.dumps(events)}}})"})[0]
+        self.assertEqual(got, {'todo': 1, 'approve': 1, 'out': 1, 'late': False})
 
 
 class Director(unittest.TestCase):
@@ -188,11 +250,35 @@ class Director(unittest.TestCase):
                      gaps['foh|Close'] = {open: ['Floors'], unplaced: [], filled: 4};""")})[0]
         texts = [r[1] for r in got['rows']]
         self.assertEqual(got['first'], 'Nobody is on Host 2 for Dinner (FOH).')
-        self.assertIn('FOH open spot for Dinner', texts)
-        self.assertIn('BOH open spot for Dinner', texts)
+        # Tim, Nov 18 2026: how many people each house has, FOH and BOH apart.
+        self.assertEqual(got['rows'][0][:2], ['10', 'FOH staffed for Dinner · 1 open spot'])
+        self.assertEqual(got['rows'][1][:2], ['7', 'BOH staffed for Dinner · 1 open spot'])
+        self.assertFalse(any('open spot for' in t for t in texts))
         self.assertIn('on the clock with no spot: Mia', texts)        # on both schedules: once
         self.assertIn('open later today: Close FOH 1', texts)
         self.assertIn('leader on: Leo', texts)
+
+    def test_breaks_left_by_house_and_the_rest_folds(self):
+        """Tim, Nov 18 2026: breaks left to run in each house, the AM shifts'
+        until 1 PM and the PM shifts' after; what doesn't need someone now
+        folds under More about today."""
+        brk = """breaks.foh = [{name: 'Mia Cole', start: 9 * 60, from: 6 * 60}, {name: 'Ana Ruiz Lopez', start: 12 * 60, from: 8 * 60}, {name: 'Leo Park', start: 18 * 60, from: 14 * 60}];
+                 completedBreaks['foh||' + today + '||Mia Cole'] = true;
+                 gaps['foh|Close'] = {open: ['Floors'], unplaced: [], filled: 4};"""
+        op = """c => { %s acUser = null; launchManager = true; const card = rnCardFor(rnViewer(), rnDay());
+                 return card.rows.map(r => [r.n, r.text, !!r.more]); }""" % (SETUP + brk)
+        am, pm = run({'op': op, 'at': '2026-10-19T12:50:00-05:00'}, {'op': op, 'at': '2026-10-19T13:05:00-05:00'})
+        self.assertIn(['1', 'FOH AM break left (of 2) · next: Ana 12:00', False], am)
+        self.assertIn(['1', 'FOH PM break left (of 1) · next: Leo 6:00', False], pm)
+        folded = [r[1] for r in pm if r[2]]
+        self.assertTrue(any(t.startswith('open later today') for t in folded))
+        self.assertTrue(any(t.startswith('waste today') for t in folded))
+        self.assertIn('Food Safety walkthrough today', folded)
+        self.assertTrue(all(r[2] for r in pm[[r[2] for r in pm].index(True):]))      # the folded rows come last
+        js = read('static', 'js', 'right-now.js')
+        self.assertIn('<details class="rn-more" data-rn-more', js)
+        # The Admin Team's card is the director's, under their own name.
+        self.assertIn("acUser.role === 'admin' ? RN_ROLE_LABELS.admin : RN_ROLE_LABELS[v.role]", js)
 
     def test_after_close_tomorrows_set_ups(self):
         got = run({'op': card('director', '', extra="gaps['foh|Lunch'] = {open: ['Host 2', 'OMD 2'], unplaced: [], filled: 10};"), 'at': '2026-10-19T22:30:00-05:00'})[0]
@@ -480,7 +566,8 @@ class WhatsMine(unittest.TestCase):
 
     def test_only_team_members_and_trainers_ask(self):
         js = read('static', 'js', 'right-now.js')
-        self.assertIn("if(!['member', 'trainer'].includes(v.role) || !v.name)", js)
-        self.assertIn("Promise.all([get('/api/me/pea'), get('/api/pass/state')])", js)
+        # The PEA scores are a Team Member's and a Trainer's; leaders read their tickets too (Nov 18 2026).
+        self.assertIn("const team = ['member', 'trainer'].includes(v.role);", js)
+        self.assertIn("Promise.all([team ? get('/api/me/pea') : null, get('/api/pass/state')])", js)
         self.assertIn("if(what === 'ticket' && typeof psOpenTicket === 'function') psOpenTicket(rest);", js)
         self.assertIn('window.psOpenTicket = openTicket;', read('static', 'js', 'pass.js'))

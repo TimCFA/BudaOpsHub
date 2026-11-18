@@ -72,6 +72,18 @@ open daypart or handoff is one white card with its positions or zones as rows
 inside; a spot's zone colour is on its number badge. Home and the Waste
 logger keep their own look (Tim's call). Tests: `tests/test_bottom_nav.py`.
 
+## Home
+
+Home is one glance at your own day (Tim, Nov 18 2026): the welcome and quote,
+then the Right Now card (`static/js/right-now.js`), which changes by who is
+signed in; every line taps through to where it lives. Vision, Mission and
+Values and the Monthly Leadership Wins are off Home (still kept in Manage as
+`homeData`, for a page of their own later). What each role sees, and Tim's
+calls behind it, are in the comments at the top of right-now.js and in
+`tests/test_right_now.py`; ask before undoing one. Home is drawn in the first
+seconds of a load (`tests/test_first_load.py`), so anything new waits for the
+late scripts or is measured first.
+
 ## Tasks
 
 The Tasks tab is the Pass (`pass_api.py`, `static/js/pass-engine.js`,

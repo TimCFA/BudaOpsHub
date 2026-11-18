@@ -68,6 +68,6 @@ process.stdout.write(JSON.stringify(input.cases.map(c => {
   vm.runInContext(`today = toLocalISODate(new Date()); fohRoster = {}; bohRoster = {}; truckShifts = {}; adminShifts = {}; rnRosterOpen = false; hcSummary = undefined; posAssignments = {}; completedBreaks = {}; breakCountdowns = {};
     storeEvents = [];
     acUser = null; launchManager = false; breaks = {foh: [], boh: []}; gaps = {}; handoff = null; wasteFoh = 0; wasteBoh = 0;
-    rnMine = {who: '', at: 0, pea: null, tickets: null};`, ctx);
+    rnMine = {who: '', at: 0, pea: null, tickets: null, counts: null}; rnTimers = {at: 0, list: null};`, ctx);
   return vm.runInContext(`(${c.op})`, ctx)(c);
 })));
