@@ -117,6 +117,32 @@ signed-out device names who did it); Team Leads and up hand off and change
 the timers. FOH only, so English only. `FOH_DAYPARTS` in timers_api.py must
 match `fohDayparts` in zone-reset.js (tests/test_timers.py checks).
 
+## Directors' Week
+
+Directors' Week sits on the Calendar tab beside the store's calendar
+(`week_api.py`, `static/js/week.js`, `static/css/week.css`; Tim, Nov 18
+2026): the team sees how a director plans to spend the week and asks for
+their time. The week is mirrored from one Google calendar the director
+shares with the hub's service account (the Firebase one; its address is shown
+on the director's settings card) with "Make changes to events"; nobody plans
+in the hub, no phone talks to Google, and a director who hasn't connected has
+no page. Never a primary calendar: only an ID ending
+`@group.calendar.google.com` connects. A block's type is told by its title,
+else its Google colour (`BLOCK_TYPES`): Open door is bookable in 30-minute
+slots, PEA and Floor support windows show by name, everything else is "Busy".
+Requests (`REQUEST_TYPES`, data so a type can be added) wait for the
+director: Open door time, a PEA on me, staffing support, need to talk.
+Booking closes at midnight (tomorrow is the first day; a same-shift gap is a
+call or text, said on the page), one person a slot unless the block's title
+says "group", and a taken slot shows "Booked" with no name. Accepting a slot
+writes it onto the director's Google calendar; a PEA or staffing request is
+only marked accepted. Requests are folded from events under
+`week/events/<id>`, one record each; which calendar each director shares and
+the switch are under `secure/week`, so it never touches `/api/state/sync`.
+Nothing shows to the team until a director turns it on (Tim's call). A
+director is told by a row on Right Now and a badge on the tab; there is no
+email yet. English only. Tests: `tests/test_week.py`.
+
 ## Deploying
 
 Merging to `main` deploys to Render and restarts the server for about a

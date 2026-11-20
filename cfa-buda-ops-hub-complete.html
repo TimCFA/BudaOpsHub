@@ -26,6 +26,7 @@
 <link rel="stylesheet" href="/static/css/dark.css">
 <link rel="stylesheet" href="/static/css/pass.css">
 <link rel="stylesheet" href="/static/css/timers.css">
+<link rel="stylesheet" href="/static/css/week.css">
 <!-- Dark mode, per device (theme.js): set before the page paints so it never flashes light. -->
 <script>try{if(localStorage.getItem('cfaBudaTheme')==='dark'){document.documentElement.dataset.theme='dark';document.querySelector('meta[name="theme-color"]').content='#121418';}}catch(e){}</script>
 </head>
@@ -98,7 +99,7 @@
       </div>
 
       <button type="button" class="tab full-only" role="tab" aria-selected="false" aria-controls="scoreboardView" data-view="scoreboard">Scoreboard <span class="sub"><i>Tableros</i></span></button>
-      <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="calendarView" data-view="calendar">Calendar <span class="sub"><i>Calendario</i></span></button>
+      <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="calendarView" data-view="calendar">Calendar <span class="sub"><i>Calendario</i></span><span class="ps-tab-badge" id="weekTabBadge" hidden></span></button>
       <!-- The team's shifts for the week (team-schedule.js; Tim, Oct 25 2026). -->
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="scheduleView" data-view="schedule">Schedule <span class="sub"><i>Horario</i></span></button>
       <!-- Tasks: The Pass (pass_api.py, static/js/pass.js): tickets handed from a leader to one owner, said back, checked in, turned in and verified. The count is what's waiting on whoever is signed in. -->
@@ -921,7 +922,13 @@
   <div class="view" id="tasksView"></div>
 
   <div class="view" id="calendarView">
+    <!-- Directors' Week (week.js, week_api.py; Tim, Nov 18 2026): a director's week from their Google calendar and the team's requests for their time. The switch shows only once there is a week to see. -->
+    <div class="dw-switch" id="dwSwitch" role="tablist" aria-label="Calendar" hidden>
+      <button type="button" class="dw-seg is-on" role="tab" aria-selected="true" data-dw-page="store">Store calendar</button>
+      <button type="button" class="dw-seg" role="tab" aria-selected="false" data-dw-page="week">Directors’ Week<span class="dw-seg-n" id="dwSegBadge" hidden></span></button>
+    </div>
     <div class="cal-page" id="calendarRoot"></div>
+    <div class="dw-root" id="weekRoot" hidden></div>
   </div>
 
   <!-- Directors View: the week ahead for the director team (directors.js). PIN only. -->
@@ -1324,6 +1331,7 @@
 <script src="/static/js/pass-engine.js" defer></script>
 <script src="/static/js/pass.js" defer></script>
 <script src="/static/js/timers.js" defer></script>
+<script src="/static/js/week.js" defer></script>
 <script src="/static/js/hub-health.js" defer></script>
 </body>
 </html>
