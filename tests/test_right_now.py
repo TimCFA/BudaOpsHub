@@ -166,6 +166,88 @@ class LeadingTheShift(unittest.TestCase):
         self.assertIn(['', 'Leading the shift: Rosa', 'setups:boh|2026-10-19|Dinner (5:00-8:00)', 'Líder del turno'], got[3]['rows'])
 
 
+class NewHire(unittest.TestCase):
+    """Tim, Nov 20 2026: someone in their first 30 days (the roster's "In
+    training" tag, or a hire date inside 30 days) gets a card made for them."""
+    NEW = """
+      fohRoster[today] = [{name: 'Kai Mercer', start: '6:00p', end: '9:00p', training: true}, {name: 'Leo Park', start: '2:00p', end: '10:30p', leader: true}];
+      posAssignments['foh||' + today + '||Dinner (5:00-8:00)||Drinks 1'] = 'Dee Brooks / Kai Mercer';
+      posAssignments['foh||' + today + '||Dinner (5:00-8:00)||Lead Captain'] = 'Leo Park';
+      posAssignments['foh||2026-10-16||Lunch (10:30-1:00)||Host 2'] = 'Kai Mercer';
+      posAssignments['foh||2026-10-17||Lunch (10:30-1:00)||iPOS 3 LANE 2'] = 'Kai Mercer';
+      posAssignments['foh||2026-10-17||Dinner (5:00-8:00)||Host 1'] = 'Kai Mercer';
+      posAssignments['foh||2026-10-21||Lunch (10:30-1:00)||OMD 1'] = 'Kai Mercer';
+      homeData = {newHire: {en: 'Black non-slip shoes\\n\\nPark in the back row', es: 'Zapatos negros'}};
+    """
+
+    def op(self, name='Kai Mercer', setup=None, extra=''):
+        return """c => { %s %s acUser = {role: 'member', name: %s}; const card = rnCardFor(rnViewer(), rnDay());
+                 return {title: card.title, nh: card.newHire || null, rows: card.rows.map(r => [r.n, r.text, r.go, r.es]), html: rnNewHireHtml(card.newHire, card.side === 'boh')}; }""" % (
+                     self.NEW if setup is None else setup, extra, json.dumps(name))
+
+    def test_the_card_before_the_shift(self):
+        got = run({'op': self.op(extra="apMine = {name: 'Kai Mercer', hireDate: '2026-10-15'};"), 'at': '2026-10-19T16:30:00-05:00'})[0]
+        self.assertEqual(got['title'], 'Welcome, Kai')
+        self.assertEqual(got['nh'], {'day': 5, 'of': 30, 'before': {'en': ['Black non-slip shoes', 'Park in the back row'], 'es': []}})
+        texts = [r[1] for r in got['rows']]
+        self.assertIn('With you on Drinks 1: Dee', texts)
+        self.assertIn('When you walk in, find Leo', texts)
+        self.assertFalse(any(t.startswith('Leading the shift') for t in texts))        # said once
+        self.assertIn(['2', 'positions so far: Host, iPOS', 'mine', 'Posiciones hasta ahora'], got['rows'])   # not Wednesday's, nor tonight's yet
+        self.assertLess(texts.index('Your shift: 6:00p–9:00p'), texts.index('With you on Drinks 1: Dee'))
+        self.assertIn('Day 5 of 30', got['html'])
+        self.assertIn('<li>Park in the back row</li>', got['html'])
+        self.assertNotIn('Zapatos', got['html'])                                       # FOH stays English
+
+    def test_on_shift_the_before_list_steps_aside(self):
+        got = run({'op': self.op(), 'at': '2026-10-19T18:30:00-05:00'})[0]
+        self.assertEqual(got['nh'], {'day': None, 'of': 30, 'before': None})           # no hire date on file: no day count
+        self.assertIn('Your first 30 days', got['html'])
+        texts = [r[1] for r in got['rows']]
+        self.assertIn('Leading the shift: Leo', texts)
+        self.assertFalse(any(t.startswith('When you walk in') for t in texts))
+        self.assertIn('positions so far: Host, Drinks, iPOS', texts)                   # today's Drinks counts once it started
+
+    def test_who_is_a_new_hire(self):
+        plain = self.NEW.replace(', training: true', '')
+        tomorrow = plain + "fohRoster['2026-10-20'] = [{name: 'Kai Mercer', start: '9:00a', end: '1:00p', training: true}];"
+        got = run({'op': self.op(setup=plain)},                                                       # no tag, no date
+                  {'op': self.op(setup=plain, extra="apMine = {name: 'Kai Mercer', hireDate: '2026-10-01'};")},     # day 19
+                  {'op': self.op(setup=plain, extra="apMine = {name: 'Kai Mercer', hireDate: '2026-08-01'};")},     # long past
+                  {'op': self.op(setup=tomorrow)},                                                    # tagged tomorrow
+                  {'op': self.op(extra="apMine = {name: 'Kai Mercer', hireDate: '2026-08-01'};")},                  # tagged: the roster says so
+                  {'op': self.op(setup=plain, extra="apMine = {name: 'Someone Else', hireDate: '2026-10-15'};")})   # not theirs
+        self.assertEqual([g['nh'] and g['nh']['day'] for g in got], [None, 19, None, None, None, None])
+        self.assertEqual([bool(g['nh']) for g in got], [False, True, False, True, True, False])
+
+    def test_the_kitchens_carries_spanish(self):
+        boh = """bohRoster[today] = [{name: 'Ines Duarte', start: '6:00p', end: '9:00p', training: true}];
+                 homeData = {newHire: {en: 'Black non-slip shoes', es: 'Zapatos negros'}};"""
+        got = run({'op': self.op('Ines Duarte', setup=boh, extra="apMine = {name: 'Ines Duarte', hireDate: '2026-10-17'};")})[0]
+        self.assertIn('Día 3 de 30', got['html'])
+        self.assertIn('<li class="es" lang="es">Zapatos negros</li>', got['html'])
+        self.assertIn('En entrenamiento', got['html'])
+
+    def test_wired_in(self):
+        self.assertIn("'hireDate': (prof.get('hireDate') or '') if isinstance(prof, dict) else ''", read('team_extras.py'))
+        mv = read('static', 'js', 'management-views.js')
+        self.assertIn('id="home-newhire-en"', mv)
+        self.assertIn("mvTakeId('home-newhire-es'", mv)
+        # Trainers, leads and directors keep their own cards.
+        self.assertIn("if(v.role === 'member') return rnNewHireCard(rnPersonCard(v, day, false), v, day);", read('static', 'js', 'right-now.js'))
+
+
+class SlimWelcome(unittest.TestCase):
+    def test_the_welcome_is_a_strip(self):
+        """Tim, Nov 20 2026: the date, greeting and quote in smaller type, so
+        Right Now starts near the top; the welcome still comes first."""
+        css = read('static', 'css', 'theme-cfa.css')
+        self.assertIn('.home-greeting{font-family:var(--font-display);font-weight:600;font-size:22px;', css)
+        self.assertIn('.home-logo{width:40px;height:40px;', css)
+        page = read('cfa-buda-ops-hub-complete.html')
+        self.assertLess(page.index('class="home-welcome"'), page.index('id="rightNow"'))
+
+
 class CounterTimers(unittest.TestCase):
     def test_the_signed_out_front_card_shows_the_timers(self):
         """Tim, Nov 18 2026: the timers due now, else the next one coming."""
@@ -260,9 +342,11 @@ class Director(unittest.TestCase):
 
     def test_breaks_left_by_house_and_the_rest_folds(self):
         """Tim, Nov 18 2026: breaks left to run in each house, the AM shifts'
-        until 1 PM and the PM shifts' after; what doesn't need someone now
-        folds under More about today."""
-        brk = """breaks.foh = [{name: 'Mia Cole', start: 9 * 60, from: 6 * 60}, {name: 'Ana Ruiz Lopez', start: 12 * 60, from: 8 * 60}, {name: 'Leo Park', start: 18 * 60, from: 14 * 60}];
+        until 1 PM and the PM shifts' after (the kitchen's switch at 2 PM, as
+        on its iPad: Nov 20 2026); what doesn't need someone now folds under
+        More about today."""
+        brk = """breaks.boh = [{name: 'Sam Ortiz', start: 11 * 60, from: 6 * 60}, {name: 'Rosa Vela', start: 19 * 60, from: 15 * 60}];
+                 breaks.foh = [{name: 'Mia Cole', start: 9 * 60, from: 6 * 60}, {name: 'Ana Ruiz Lopez', start: 12 * 60, from: 8 * 60}, {name: 'Leo Park', start: 18 * 60, from: 14 * 60}];
                  completedBreaks['foh||' + today + '||Mia Cole'] = true;
                  gaps['foh|Close'] = {open: ['Floors'], unplaced: [], filled: 4};"""
         op = """c => { %s acUser = null; launchManager = true; const card = rnCardFor(rnViewer(), rnDay());
@@ -270,6 +354,9 @@ class Director(unittest.TestCase):
         am, pm = run({'op': op, 'at': '2026-10-19T12:50:00-05:00'}, {'op': op, 'at': '2026-10-19T13:05:00-05:00'})
         self.assertIn(['1', 'FOH AM break left (of 2) · next: Ana 12:00', False], am)
         self.assertIn(['1', 'FOH PM break left (of 1) · next: Leo 6:00', False], pm)
+        self.assertIn(['1', 'BOH AM break left (of 1) · next: Sam 11:00', False], pm)      # the kitchen: 2 PM
+        late = run({'op': op, 'at': '2026-10-19T14:05:00-05:00'})[0]
+        self.assertIn(['1', 'BOH PM break left (of 1) · next: Rosa 7:00', False], late)
         folded = [r[1] for r in pm if r[2]]
         self.assertTrue(any(t.startswith('open later today') for t in folded))
         self.assertTrue(any(t.startswith('waste today') for t in folded))

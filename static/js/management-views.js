@@ -421,6 +421,13 @@ function renderHomeManage(){
       <textarea id="home-values" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:'Inter';font-size:12px;resize:vertical;min-height:100px;">${escapeHtml(homeData.values)}</textarea>
     </div>
 
+    <div style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;">
+      <div style="font-weight:600;font-size:12px;color:var(--text-primary);margin-bottom:4px;">New hires: what to know before a shift</div>
+      <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Shown on Home to anyone in their first 30 days, one line each: uniform, where to park, when to arrive. The Spanish shows to the kitchen's new hires.</div>
+      <textarea id="home-newhire-en" placeholder="One line each" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:'Inter';font-size:12px;resize:vertical;min-height:80px;margin-bottom:8px;">${escapeHtml((homeData.newHire || {}).en || '')}</textarea>
+      <textarea id="home-newhire-es" lang="es" placeholder="En español, una línea cada una" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:'Inter';font-size:12px;resize:vertical;min-height:80px;">${escapeHtml((homeData.newHire || {}).es || '')}</textarea>
+    </div>
+
     <div style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
       <div style="font-weight:600;font-size:12px;color:var(--text-primary);margin-bottom:12px;">Monthly Leadership Wins</div>
       ${homeData.wins.map((win, i) => `
@@ -437,6 +444,8 @@ async function saveHomeScoreboard(quiet){
   mvTakeId('home-vision', v => { homeData.vision = v; });
   mvTakeId('home-mission', v => { homeData.mission = v; });
   mvTakeId('home-values', v => { homeData.values = v; });
+  mvTakeId('home-newhire-en', v => { homeData.newHire = Object.assign({}, homeData.newHire, {en: v}); });
+  mvTakeId('home-newhire-es', v => { homeData.newHire = Object.assign({}, homeData.newHire, {es: v}); });
   homeData.wins.forEach((win, i) => {
     mvTakeId('home-win-' + i, v => { win.content = v; });
   });

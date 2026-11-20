@@ -28,6 +28,7 @@ vm.runInContext(se.match(/function suSplitNames\([\s\S]*?\n}\n/)[0], ctx);
 vm.runInContext(`
   function suDaypartsFor(side){ return side === 'foh' ? fohDayparts : bohDayparts; }
   let today = '', fohRoster = {}, bohRoster = {}, truckShifts = {}, adminShifts = {}, posAssignments = {}, completedBreaks = {}, breakCountdowns = {}, wasteTarget = 100, wasteFoh = 0, wasteBoh = 0;
+  let apMine = null, homeData = {};
   let acUser = null, launchManager = false, breaks = {foh: [], boh: []}, gaps = {}, handoff = null, fsDone = null;
   function serverNow(){ return Date.now(); }
   function breakKeyFor(name, day, side){ return side + '||' + day + '||' + name; }
@@ -68,6 +69,6 @@ process.stdout.write(JSON.stringify(input.cases.map(c => {
   vm.runInContext(`today = toLocalISODate(new Date()); fohRoster = {}; bohRoster = {}; truckShifts = {}; adminShifts = {}; rnRosterOpen = false; hcSummary = undefined; posAssignments = {}; completedBreaks = {}; breakCountdowns = {};
     storeEvents = [];
     acUser = null; launchManager = false; breaks = {foh: [], boh: []}; gaps = {}; handoff = null; wasteFoh = 0; wasteBoh = 0;
-    rnMine = {who: '', at: 0, pea: null, tickets: null, counts: null}; rnTimers = {at: 0, list: null};`, ctx);
+    rnMine = {who: '', at: 0, pea: null, tickets: null, counts: null}; rnTimers = {at: 0, list: null}; apMine = null; homeData = {};`, ctx);
   return vm.runInContext(`(${c.op})`, ctx)(c);
 })));

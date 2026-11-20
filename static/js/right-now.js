@@ -31,6 +31,9 @@
 // left in each house (AM shifts' until 1 PM, then PM), the tickets waiting
 // on them, and the rest folded under "More about today". The signed-out
 // Front card shows the counter timers due.
+// Nov 20 2026 (Tim): someone in their first 30 days gets a new hire's card
+// (rnNewHireCard); the welcome above is a slim strip, so the card starts
+// near the top of a phone.
 // It reads only what that phone already has (a team PIN never reads the
 // private sections), and every row opens the screen that fixes it. On the
 // kitchen's side the lines carry Spanish; FOH stays English.
@@ -446,11 +449,11 @@ function rnLeadCard(v, day, store){
     }
   }
   // Breaks: a Team Lead reads the ones coming up; a director reads how many
-  // are left to run in each house, the AM shifts' until 1 PM and the PM
-  // shifts' after (Tim, Nov 18 2026).
+  // are left to run in each house, the AM shifts' until 1 PM on FOH (2 PM in
+  // the kitchen, as on its iPad) and the PM shifts' after (Tim, Nov 20 2026).
   if(store){
     sides.forEach(side => {
-      const br = rnBreaksLeft(side, day.now, RN_PM_SHOWN_FROM);
+      const br = rnBreaksLeft(side, day.now, side === 'foh' ? RN_PM_SHOWN_FROM : RN_PM_FROM);
       if(!br.total) return;
       const next = br.left[0];
       rows.push(rnRow(String(br.left.length), `${side.toUpperCase()} ${br.pm ? 'PM' : 'AM'} break${br.left.length === 1 ? '' : 's'} left (of ${br.total})${next ? ` · next: ${suDisplayName(next.name)} ${rnClock(next.start)}` : ''}`, '', `setups:${side}|${today}|`, br.left.length ? '' : 'ok'));
@@ -593,7 +596,7 @@ function rnWithRoster(card, day){
 // its own card (in Spanish too), and Set Ups and Waste open on its side.
 const RN_SIDE_KEY = 'cfaBudaSide';
 const RN_PM_FROM = 14 * 60;      // PM shifts start at 2 PM: the break count switches to them then
-const RN_PM_SHOWN_FROM = 13 * 60;   // a director's card shows the PM shifts' breaks from 1 PM (Tim, Nov 18 2026)
+const RN_PM_SHOWN_FROM = 13 * 60;   // a director's card shows FOH's PM breaks from 1 PM; the kitchen's stay at 2 PM (Tim, Nov 20 2026)
 function rnDeviceSide(){
   try{ return localStorage.getItem(RN_SIDE_KEY) === 'boh' ? 'boh' : 'foh'; }catch(e){ return 'foh'; }
 }
@@ -725,8 +728,103 @@ function rnCardFor(v, day){
   if(card.fold) card.rows = card.rows.filter(r => !r.more).concat(card.rows.filter(r => r.more));
   return card;
 }
+// ----- New hires (Tim, Nov 20 2026) -----
+// Someone in their first 30 days gets a card made for them: a welcome by
+// name with their day number, who's with them on their spot, who to find
+// when they walk in, the positions they've worked so far, and what to know
+// before a shift (the store's own words, typed in Manage → Home Page). The
+// hub knows them by the "In training" tag HotSchedules puts on their shifts
+// (weekly-roster-import.js), today or in the coming week, or by a hire date
+// in Our Team inside the 30 days (team-extras.js apMine, their own only).
+// The training plan itself comes later.
+const RN_NEW_DAYS = 30;
+function rnNewHire(v, date){
+  const hired = typeof apMine !== 'undefined' && apMine && rnSame(apMine.name, v.name) && /^\d{4}-\d{2}-\d{2}$/.test(apMine.hireDate || '') ? apMine.hireDate : '';
+  const n = hired ? Math.round((new Date(today + 'T12:00:00') - new Date(hired + 'T12:00:00')) / 86400000) + 1 : null;
+  const inDays = n !== null && n >= 1 && n <= RN_NEW_DAYS;
+  let tagged = false;
+  for(let i = 0; i < 7 && !tagged; i++) tagged = rnOnRoster(v.name, rnAddDays(date, i)).some(o => o.entry.training);
+  if(n !== null && n > RN_NEW_DAYS && !tagged) return null;
+  return tagged || inDays ? {day: inDays ? n : null} : null;
+}
+// The positions someone has been placed on up to today, by how often, by the
+// spot's family ("iPOS 2 LANE 1" is iPOS, "Host 1 (Captain)" is Host).
+function rnPositionsSoFar(names){
+  const count = {};
+  Object.keys(posAssignments).forEach(key => {
+    const [side, date, dpName, slot] = key.split('||');
+    if(!slot || date > today || slot === SU_LEAD_CAPTAIN) return;
+    if(date === today){            // today's count once the daypart has started
+      const dp = (side === 'foh' || side === 'boh' ? suDaypartsFor(side) : []).find(d => d.name === dpName);
+      if(!dp || parseDaypartTimeToMinutes(dp.time) > rnNowMins()) return;
+    }
+    if(!suSplitNames(posAssignments[key]).some(n => names.some(x => rnSame(n, x)))) return;
+    const pos = slot.replace(/\s*\(.*$/, '').replace(/\s*\d.*$/, '').trim() || slot;
+    count[pos] = (count[pos] || 0) + 1;
+  });
+  return Object.keys(count).sort((a, b) => count[b] - count[a] || a.localeCompare(b));
+}
+function rnBeforeShift(boh){
+  const d = typeof homeData !== 'undefined' && homeData && homeData.newHire ? homeData.newHire : {};
+  const lines = s => String(s || '').split('\n').map(x => x.trim()).filter(Boolean);
+  const en = lines(d.en), es = boh ? lines(d.es) : [];
+  return en.length || es.length ? {en, es} : null;
+}
+function rnNewHireCard(card, v, day){
+  const date = day.closed ? day.next : today;
+  const nh = rnNewHire(v, date);
+  if(!nh) return card;
+  const on = rnOnRoster(v.name, date);
+  const names = [v.name, ...on.map(o => o.entry.name)];
+  const mine = n => names.some(x => rnSame(n, x));
+  const boh = card.side === 'boh';
+  const rows = [];
+  // Who's on their spot with them, now or at their next one: their trainer, most days.
+  const spots = rnSpotsFor(names, date);
+  const at = s => parseDaypartTimeToMinutes(s.dp.time);
+  const spot = day.closed ? spots[0] : spots.filter(s => daypartTimeWindow(suDaypartsFor(s.side), s.dpIndex).endMin > day.now)[0];
+  if(spot){
+    const others = suSplitNames(posAssignments[[spot.side, date, spot.dp.name, spot.slot].join('||')]).filter(n => !mine(n));
+    if(others.length) rows.push(rnRow('', `With you on ${spot.slot}: ${others.map(suDisplayName).join(', ')}`, esText('With you on your spot'), `setups:${spot.side}|${date}|${spot.dp.name}`));
+  }
+  // Who to find when they walk in: the Lead Captain when their shift starts.
+  const starts = on.map(o => rnShiftStart(o.entry)).filter(m => m !== null);
+  const startsAt = starts.length ? Math.min(...starts) : null;
+  const floor = on.filter(o => RN_FLOOR.includes(o.side));
+  if(floor.length && startsAt !== null && (day.closed || startsAt > day.now)){
+    const side = floor[0].side, i = rnDaypartIndex(side, startsAt);
+    const lead = rnLeading(side, date, i).filter(n => !mine(n));
+    if(lead.length){
+      rows.push(rnRow('', `When you walk in, find ${lead.map(suDisplayName).join(' or ')}`, esText('When you walk in, find NAME', lead.map(suDisplayName).join(' o ')), `setups:${side}|${date}|${suDaypartsFor(side)[i].name}`));
+      card.rows = card.rows.filter(r => !r.text.startsWith('Leading the shift'));   // said once
+    }
+  }
+  // What to know before a shift, until theirs has started.
+  const before = day.closed || startsAt === null || startsAt > day.now;
+  const so = rnPositionsSoFar(names);
+  if(so.length) rows.push(rnRow(String(so.length), `position${so.length === 1 ? '' : 's'} so far: ${so.slice(0, 5).join(', ')}${so.length > 5 ? '…' : ''}`, esText('Positions so far'), 'mine', ''));
+  // Under their spot and shift, above the rest.
+  const keep = card.rows.findIndex(r => !/^(Now|Next|Later|Your shift)\b/.test(r.text) && !/^\d+:\d+$/.test(r.n));
+  const cut = keep === -1 ? card.rows.length : keep;
+  card.rows = card.rows.slice(0, cut).concat(rows, card.rows.slice(cut));
+  card.title = `Welcome, ${rnFirst(v.name)}`;
+  card.newHire = {day: nh.day, of: RN_NEW_DAYS, before: before ? rnBeforeShift(boh) : null};
+  return card;
+}
+function rnNewHireHtml(nh, boh){
+  if(!nh) return '';
+  const es = t => boh && t ? esSpan(t, false) : '';
+  const pct = nh.day ? Math.round(nh.day / nh.of * 100) : 0;
+  return `<section class="rn-new" aria-label="Your first ${nh.of} days">
+      <div class="rn-new-head"><b>${nh.day ? `Day ${nh.day} of ${nh.of}${es(esText('Day N of M', nh.day, nh.of))}` : `Your first ${nh.of} days${es(esText('Your first 30 days'))}`}</b><span>In training${es(esText('In training'))}</span></div>
+      ${nh.day ? `<div class="rn-new-bar" aria-hidden="true"><i style="width:${pct}%"></i></div>` : ''}
+      <p>We’re glad you’re here. Ask anything, anytime.${es(esText('Glad you are here'))}</p>
+      ${nh.before ? `<div class="rn-new-before"><h3>Before your shift${es(esText('Before your shift'))}</h3><ul>${nh.before.en.map(l => `<li>${escapeHtml(l)}</li>`).join('')}${nh.before.es.map(l => `<li class="es" lang="es">${escapeHtml(l)}</li>`).join('')}</ul></div>` : ''}
+    </section>`;
+}
+
 function rnCardForRole(v, day){
-  if(v.role === 'member') return rnPersonCard(v, day, false);
+  if(v.role === 'member') return rnNewHireCard(rnPersonCard(v, day, false), v, day);
   if(v.role === 'trainer') return rnPersonCard(v, day, true);
   if(v.role === 'lead') return rnWithRoster(rnLeadCard(v, day, false), day);
   if(v.role === 'admin') return rnWithRoster(rnAdminCard(v, day), day);
@@ -908,7 +1006,7 @@ function renderRightNow(){
   const kickerEs = card.kicker || day.closed ? '' : esText('Right now') + ' · ' + esDaypart(dp.name);
   const title = card.title || (day.closed ? 'The store is closed' : rnShort(dp.name));
   // The Admin Team's card is the director's (Tim, Nov 18 2026: the same for now), under their own name.
-  const roleLabel = typeof acUser !== 'undefined' && acUser && acUser.role === 'admin' ? RN_ROLE_LABELS.admin : RN_ROLE_LABELS[v.role];
+  const roleLabel = card.newHire ? 'In training' : typeof acUser !== 'undefined' && acUser && acUser.role === 'admin' ? RN_ROLE_LABELS.admin : RN_ROLE_LABELS[v.role];
   const rowHtml = r => `<div class="rn-row${r.go ? ' is-go' : ''}"${go(r.go)}>
           ${r.n !== '' ? `<span class="rn-n${r.tone ? ' is-' + r.tone : ''}">${escapeHtml(r.n)}</span>` : '<span class="rn-n rn-n-dot" aria-hidden="true"></span>'}
           <span class="rn-t">${escapeHtml(r.text)}${es(r.es)}</span>
@@ -926,6 +1024,7 @@ function renderRightNow(){
     </div>
     <h2 class="rn-title">${escapeHtml(title)}${day.closed ? '' : ` <span class="rn-time">${escapeHtml(rnClock(day.now))}</span>`}</h2>
     ${rnEventsHtml(day, boh, !!card.team)}
+    ${rnNewHireHtml(card.newHire, boh)}
     ${card.first ? `<div class="rn-first${card.first.go ? ' is-go' : ''}"${go(card.first.go)}><b>First thing${boh ? `<span class="es" lang="es"> · ${escapeHtml(esText('First thing'))}</span>` : ''}</b><span>${card.first.until ? rnBreakHtml(card.first) : escapeHtml(card.first.text)}</span>${es(card.first.es)}</div>` : ''}
     ${card.roster && card.rosterFirst ? rnRosterHtml(card.roster, card.rosterHead) : ''}
     <div class="rn-list">

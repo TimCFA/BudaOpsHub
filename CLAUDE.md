@@ -78,7 +78,13 @@ Home is one glance at your own day (Tim, Nov 18 2026): the welcome and quote,
 then the Right Now card (`static/js/right-now.js`), which changes by who is
 signed in; every line taps through to where it lives. Vision, Mission and
 Values and the Monthly Leadership Wins are off Home (still kept in Manage as
-`homeData`, for a page of their own later). What each role sees, and Tim's
+`homeData`, for a page of their own later). The welcome is a slim strip, so the
+card starts near the top of a phone. Someone in their first 30 days (the
+roster's "In training" tag from HotSchedules, or a hire date in Our Team)
+gets a new hire's card: their day number, who is on their spot with them, who
+to find when they walk in, positions so far, and "Before your shift" lines a
+director types in Manage → Home Page (Tim, Nov 20 2026; the training plan
+comes later). What each role sees, and Tim's
 calls behind it, are in the comments at the top of right-now.js and in
 `tests/test_right_now.py`; ask before undoing one. Home is drawn in the first
 seconds of a load (`tests/test_first_load.py`), so anything new waits for the
