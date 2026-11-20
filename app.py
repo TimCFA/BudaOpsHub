@@ -3168,8 +3168,16 @@ timers_api.register(app, me=_pass_me, setups=_timers_setups, ref=lambda path: db
 # Captain and who a goal can be given to come from Set Ups.
 import huddle_api
 
+def _huddle_timer_events():
+    store = app.extensions['timer_store']
+    store.ensure()
+    return list(store.events.values())
+
+# The shift's numbers are read from what the hub already holds: Know the
+# Numbers, waste, food safety and Zone Resets in the saved state (read only),
+# and the Timers page's events.
 huddle_api.register(app, me=_pass_me, setups=_timers_setups, ref=lambda path: db.reference(path),
-                    tz=levelset_sync.STORE_TZ)
+                    tz=levelset_sync.STORE_TZ, sections=lambda: _read_sections(), timer_events=_huddle_timer_events)
 
 # ===== START SERVER =====
 

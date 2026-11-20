@@ -102,13 +102,89 @@ class Rules(unittest.TestCase):
         self.assertEqual(f['focus'], {})                                    # cleared
 
 
+class Numbers(unittest.TestCase):
+    """The shift's numbers, from what the hub already records."""
+
+    def test_handoffs_and_zone_lists_match_zone_reset(self):
+        js = read('static', 'js', 'zone-reset.js')
+        block = js[js.index('const zoneResetDayparts'):js.index('];', js.index('const zoneResetDayparts'))]
+        self.assertEqual(re.findall(r"name: '([^']+)', time: '[^']+', leadFrom: '([^']+)'", block), HA.HANDOFFS)
+        js = read('static', 'js', 'state-and-utils.js')
+        block = js[js.index('const ZONE_CHECKLISTS'):js.index('};', js.index('const ZONE_CHECKLISTS'))]
+        zones = {name: len(re.findall(r"'(?:[^'\\]|\\.)*'", items)) for name, items in re.findall(r"^\s*'([^']+)': \[(.*)\],?$", block, re.M)}
+        final = re.search(r'const FINAL_CHECK_ITEMS = \[(.*)\];', js).group(1)
+        zones['Final Check'] = len(re.findall(r"'(?:[^'\\]|\\.)*'", final))
+        self.assertEqual(zones, HA.ZONE_ITEMS)
+        self.assertEqual(list(zones), list(HA.ZONE_ITEMS))                   # in the page's order
+
+    def test_each_handoff_belongs_to_one_huddle(self):
+        got = {n: HA.handoffs_of(n) for n, _ in HA.DAYPARTS}
+        self.assertEqual(got[BREAKFAST], ['Breakfast to Lunch (10:30am - 11:30am)'])
+        self.assertEqual(got['Afternoon (2:00-5:00)'], ['Mid to Dinner (4:00pm - 5:00pm)'])
+        self.assertEqual(got[DINNER], ['Dinner to Late Night (7:00pm - 8:00pm)', 'Close'])
+        self.assertEqual(sorted(h for v in got.values() for h in v), sorted(n for n, _ in HA.HANDOFFS))
+
+    def test_productivity_live_then_history(self):
+        live = {'ops': {'numbersData': {'2026-11-18': {LUNCH: {'projectedSales': '$9,200', 'productivityGoal': '$110', 'actualProductivity': '104.5', 'actualSales': ''}}}}}
+        self.assertEqual(HA.productivity(live, '2026-11-18', LUNCH), {'goal': 110.0, 'actual': 104.5, 'projectedSales': 9200.0, 'actualSales': None})
+        hist = {'history': {'numbersHistory': {'2026-11-18': {LUNCH: ['9200', '110', '', '9050', '101']}}}}
+        self.assertEqual(HA.productivity(hist, '2026-11-18', LUNCH), {'goal': 110.0, 'actual': 101.0, 'projectedSales': 9200.0, 'actualSales': 9050.0})
+        self.assertIsNone(HA.productivity({}, '2026-11-18', LUNCH))
+        self.assertIsNone(HA.productivity(live, '2026-11-18', DINNER))
+
+    def test_timer_cycles_by_when_they_came_due(self):
+        a, b = ms(WED, '10:30'), ms(WED, '14:00')
+        ev = lambda typ, tid, due, status=None: {'type': typ, 'data': {'timerId': tid, 'due': due, 'status': status}}
+        events = [ev('reset', 'restroom', ms(WED, '11:00'), 'ontime'), ev('reset', 'restroom', ms(WED, '11:30'), 'late'),
+                  ev('miss', 'lot', ms(WED, '12:00')), ev('reset', 'lot', ms(WED, '12:00'), 'missed'),      # one cycle, one miss
+                  ev('reset', 'restroom', ms(WED, '10:00'), 'ontime'), ev('reset', 'restroom', ms(WED, '14:00'), 'ontime'),   # other dayparts
+                  ev('reset', 'restroom', None, 'closed'), ev('handoff', 'lot', ms(WED, '12:00'))]
+        self.assertEqual(HA.timer_cycles(events, a, b), {'ontime': 1, 'late': 1, 'missed': 1})
+        self.assertIsNone(HA.timer_cycles(events, ms(WED, '17:00'), ms(WED, '22:00')))
+
+    def test_waste_is_the_side_and_the_window(self):
+        e = lambda at, cost, side='foh': {'ts': ms(WED, at), 'cost': cost, 'section': side}
+        secs = {'waste': {'entries': [e('11:00', 4.25), e('13:59', '2.50'), e('12:00', 9, 'boh'), e('14:00', 7), 'junk']}}
+        self.assertEqual(HA.waste_logged(secs, 'foh', ms(WED, '10:30'), ms(WED, '14:00')), {'cost': 6.75, 'count': 2})
+        self.assertIsNone(HA.waste_logged(secs, 'foh', ms(WED, '06:00'), ms(WED, '10:30')))
+
+    def test_food_safety_walkthroughs_finished_in_the_window(self):
+        secs = {'ops': {'foodSafetyWalkthroughs': {'2026-11-18': {'completedAt': ms(WED, '09:10'), 'more': {'r2': {'completedAt': ms(WED, '12:40')}, 'r3': {}}}}}}
+        self.assertEqual(HA.food_safety_done(secs, '2026-11-18', ms(WED, '10:30'), ms(WED, '14:00')), 1)
+        self.assertEqual(HA.food_safety_done(secs, '2026-11-19', 0, 10 ** 14), 0)
+
+    def test_zone_resets_are_per_zone(self):
+        mark = lambda who: {'initials': who, 'ts': 1}
+        handoff = 'Lunch to Mid (1:00pm - 2:00pm)'
+        state = {handoff: {'The Spot': {'Clear clutter': mark('mt'), 'Sweep & mop': mark('GK'), 'Take out trash': mark('MT')},
+                           'Restrooms': {'Wipe toilets': mark('CO')}, 'Final Check': {'Floors cleaned': mark('MT')}},
+                 'Close': {'The Spot': {'Clear clutter': mark('ZZ')}}}
+        z = HA.zone_resets({'ops': {'zoneChecklistState': {'2026-11-18': state}}}, '2026-11-18', LUNCH)
+        self.assertEqual([h['handoff'] for h in z], [handoff])
+        rows = {r['name']: r for r in z[0]['zones']}
+        self.assertEqual(list(rows), list(HA.ZONE_ITEMS))
+        self.assertEqual(rows['The Spot'], {'name': 'The Spot', 'checked': 3, 'total': 3, 'by': ['GK', 'MT']})
+        self.assertEqual((rows['Restrooms']['checked'], rows['Restrooms']['total'], rows['Dining Room']['checked']), (1, 8, 0))
+        self.assertEqual((z[0]['checked'], z[0]['total'], z[0]['done']), (5, sum(HA.ZONE_ITEMS.values()), 1))
+        self.assertIsNone(HA.zone_resets({'ops': {'zoneChecklistState': {}}}, '2026-11-18', LUNCH))     # cleared: say nothing, not zero
+
+    def test_the_kept_copy_fills_what_the_hub_no_longer_holds(self):
+        live = {'productivity': {'goal': 110.0, 'actual': 104.0}, 'timers': None, 'waste': None, 'foodSafety': 0, 'zones': None}
+        kept = {'productivity': {'goal': 110.0, 'actual': None}, 'timers': {'ontime': 3, 'late': 0, 'missed': 1}, 'waste': None, 'foodSafety': 1, 'zones': [{'handoff': 'X'}]}
+        got = HA.with_kept(live, kept)
+        self.assertEqual((got['productivity']['actual'], got['timers']['missed'], got['foodSafety'], got['zones']), (104.0, 1, 1, [{'handoff': 'X'}]))
+        self.assertEqual(HA.with_kept(live, None), live)
+
+
 class Api(unittest.TestCase):
     def setUp(self):
         store.clear()
         self.posa = {}
         self.was = (appmod.db.reference, appmod._read_sections, HA.time)     # put back after: other tests use the real ones
         appmod.db.reference = lambda path: FakeRef(path)
-        appmod._read_sections = lambda: {'setups': {'posAssignments': self.posa}}
+        self.sections = {'setups': {'posAssignments': self.posa}}
+        appmod._read_sections = lambda: self.sections
+        appmod.app.extensions['timer_store'].reset()
         HA.time = Clock
         appmod.app.extensions['huddle_store'].reset()
         self.c = appmod.app.test_client()
@@ -118,6 +194,7 @@ class Api(unittest.TestCase):
     def tearDown(self):
         appmod.db.reference, appmod._read_sections, HA.time = self.was
         appmod.app.extensions['huddle_store'].reset()
+        appmod.app.extensions['timer_store'].reset()
 
     def at(self, day, hhmm):
         Clock.t = ms(day, hhmm) / 1000
@@ -264,6 +341,52 @@ class Api(unittest.TestCase):
         self.as_('Noah Bennett', 'lead')
         self.assertEqual(self.post().status_code, 200)
         self.assertEqual(self.part()['post']['by'], 'Noah Bennett')
+
+    # ----- the shift's numbers -----
+
+    def numbers_day(self):
+        self.sections.update({
+            'ops': {'numbersData': {'2026-11-18': {LUNCH: {'productivityGoal': '$110', 'actualProductivity': '', 'projectedSales': '$9,200'}}},
+                    'zoneChecklistState': {'2026-11-18': {'Lunch to Mid (1:00pm - 2:00pm)': {'The Spot': {
+                        'Clear clutter': {'initials': 'MT', 'ts': 1}, 'Sweep & mop': {'initials': 'MT', 'ts': 1}, 'Take out trash': {'initials': 'MT', 'ts': 1}}}}}},
+            'waste': {'entries': [{'ts': ms(WED, '11:20'), 'cost': 3.5, 'section': 'foh'}]}})
+        for i, (due, status) in enumerate((('11:00', 'ontime'), ('11:30', 'ontime'), ('12:00', 'late'))):
+            eid = f'{ms(WED, due):013d}-t{i}'
+            store['timers/events/' + eid] = {'id': eid, 'at': ms(WED, due), 'type': 'reset', 'by': '', 'data': {'timerId': 'restroom', 'due': ms(WED, due), 'status': status}}
+
+    def test_a_daypart_carries_its_numbers_once_it_has_started(self):
+        self.numbers_day()
+        self.assertIsNone(self.part()['numbers'])                           # 10:15: Lunch hasn't started
+        self.assertIsNotNone(self.part(BREAKFAST)['numbers'])
+        self.at(WED, '13:00')
+        n = self.part()['numbers']
+        self.assertEqual(n['productivity'], {'goal': 110.0, 'actual': None, 'projectedSales': 9200.0, 'actualSales': None})
+        self.assertEqual((n['timers'], n['waste'], n['foodSafety']), ({'ontime': 2, 'late': 1, 'missed': 0}, {'cost': 3.5, 'count': 1}, 0))
+        self.assertEqual((n['zones'][0]['done'], len(n['zones'][0]['zones'])), (1, len(HA.ZONE_ITEMS)))
+        self.assertIsNone(self.part(DINNER)['numbers'])
+
+    def test_the_post_huddle_keeps_the_numbers_as_they_stood(self):
+        self.numbers_day()
+        self.send('pre', **PRE)
+        self.at(WED, '14:05')
+        self.post()
+        kept = [e for e in self.events() if e['type'] == 'post'][0]['data']['numbers']
+        self.assertEqual((kept['timers'], kept['waste']['cost'], kept['zones'][0]['done']), ({'ontime': 2, 'late': 1, 'missed': 0}, 3.5, 1))
+        # The hub clears its own records; the actual comes in with tomorrow's upload.
+        self.sections['ops']['zoneChecklistState'] = {}
+        self.sections['waste']['entries'] = []
+        self.sections['ops']['numbersData']['2026-11-18'][LUNCH]['actualProductivity'] = '$104'
+        n = self.part()['numbers']
+        self.assertEqual((n['productivity']['actual'], n['waste']['cost'], n['zones'][0]['done']), (104.0, 3.5, 1))
+
+    def test_numbers_that_cannot_be_read_do_not_break_the_huddle(self):
+        def boom():
+            raise OSError('down')
+        appmod._read_sections = boom
+        self.at(WED, '13:00')
+        r = self.state()
+        self.assertEqual(r.status_code, 200)
+        self.assertIsNone(r.get_json()['dayparts'][1]['numbers'])
 
     # ----- the focus -----
 

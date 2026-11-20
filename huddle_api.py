@@ -26,6 +26,16 @@ it, and its Lead Captain and the people a goal can be given to are read
 from Set Ups, never typed in a list here. A missed one can still be filled
 in until the day is over; after that it is history.
 
+The shift's numbers (slice 2). Each daypart's card carries what the hub
+already recorded for it, never retyped: per DAYPART, productivity against
+its goal (Know the Numbers), the task timers that came due in it (on time,
+late, missed), the FOH waste logged in it and the food safety walkthroughs
+finished in it; per ZONE, the Zone Resets of the handoffs its Lead Captain
+owns, each zone's items checked and who initialled them. Nothing is split by
+zone that the hub doesn't record by zone. The numbers are read live, and a
+copy is kept on the post-huddle as it stood when the shift was closed, for
+the days the hub's own records have since been cleared.
+
 Storage: one Firebase record per event under huddle/events/<id>, written
 once and never changed (the Pass's way, pass_api.py), so two servers
 overlapping during a deploy can't wipe each other's work. Saving a
@@ -78,6 +88,21 @@ PICKS = {
     'priority': ['Speed of service', 'Second Mile Service', 'Food quality', 'Cleanliness', 'Order accuracy'],
     'system': ['Zone Resets', 'Leader Transition List', 'OE Walkthrough', 'Food Safety Walkthrough', 'PEAs', 'Huddle'],
 }
+
+
+# Zone Reset's handoffs and the Set Ups daypart whose Lead Captain owns each
+# (zone-reset.js zoneResetDayparts), and how many items each zone's list has
+# (state-and-utils.js ZONE_CHECKLISTS, FINAL_CHECK_ITEMS); tests/test_huddle.py
+# checks both against the page.
+HANDOFFS = [
+    ('Breakfast to Lunch (10:30am - 11:30am)', 'Breakfast'),
+    ('Lunch to Mid (1:00pm - 2:00pm)', 'Lunch'),
+    ('Mid to Dinner (4:00pm - 5:00pm)', 'Mid'),
+    ('Dinner to Late Night (7:00pm - 8:00pm)', 'Dinner'),
+    ('Close', 'Close'),
+]
+ZONE_ITEMS = {'Dining Room': 10, 'Restrooms': 8, 'Front Counter': 10, 'Bagging Station': 10, 'Drinks Zone': 14,
+              'Outside': 8, 'Soda Room / Tea Station': 6, 'The Spot': 3, 'Final Check': 5}
 
 
 class Unavailable(Exception):
@@ -155,6 +180,114 @@ def on_set_up(posa, side, iso, daypart):
                     seen.add(k)
                     people.append(n)
     return leads, sorted(people, key=str.lower)
+
+
+# ----- the shift's numbers -----------------------------------------------------------
+
+def _num(v):
+    """A number from 104.5 or '$1,234.50'; None if there isn't one."""
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    m = re.search(r'-?\d+(?:\.\d+)?', str(v or '').replace(',', ''))
+    return float(m.group(0)) if m else None
+
+
+def productivity(sections, iso, daypart):
+    """{goal, actual, projectedSales, actualSales} for a daypart (dollars per
+    labor hour, dollars), from Know the Numbers; None when there's no goal
+    and no actual. The live numbers first, else the day's kept history."""
+    e = (((sections.get('ops') or {}).get('numbersData') or {}).get(iso) or {}).get(daypart)
+    if isinstance(e, dict):
+        out = {'goal': _num(e.get('productivityGoal')), 'actual': _num(e.get('actualProductivity')),
+               'projectedSales': _num(e.get('projectedSales')), 'actualSales': _num(e.get('actualSales'))}
+    else:
+        h = (((sections.get('history') or {}).get('numbersHistory') or {}).get(iso) or {}).get(daypart)
+        h = list(h) + [None] * 5 if isinstance(h, list) else [None] * 5
+        out = {'goal': _num(h[1]), 'actual': _num(h[4]), 'projectedSales': _num(h[0]), 'actualSales': _num(h[3])}
+    return out if out['goal'] is not None or out['actual'] is not None else None
+
+
+def timer_cycles(events, start, end):
+    """{ontime, late, missed} for the timer cycles that came due in a window
+    (timers_api's reset and miss events); None when none did. A cycle the
+    server wrote a miss for stays one miss however late it was reset."""
+    done, missed = {}, set()
+    for e in events or ():
+        d = e.get('data') or {}
+        due = d.get('due')
+        if not isinstance(due, (int, float)) or not start <= due < end:
+            continue
+        key = (d.get('timerId'), due)
+        if e.get('type') == 'miss' or (e.get('type') == 'reset' and d.get('status') == 'missed'):
+            missed.add(key)
+        elif e.get('type') == 'reset' and d.get('status') in ('ontime', 'late'):
+            done[key] = d['status']
+    out = {'ontime': 0, 'late': 0, 'missed': len(missed)}
+    for key, status in done.items():
+        if key not in missed:
+            out[status] += 1
+    return out if any(out.values()) else None
+
+
+def waste_logged(sections, side, start, end):
+    """{cost, count} of the waste a side logged in a window; None when nothing was."""
+    cost = count = 0
+    for e in (sections.get('waste') or {}).get('entries') or ():
+        if isinstance(e, dict) and str(e.get('section') or '').lower() == side and isinstance(e.get('ts'), (int, float)) and start <= e['ts'] < end:
+            cost += _num(e.get('cost')) or 0
+            count += 1
+    return {'cost': round(cost, 2), 'count': count} if count else None
+
+
+def food_safety_done(sections, iso, start, end):
+    """How many food safety walkthroughs were finished in a window."""
+    day = ((sections.get('ops') or {}).get('foodSafetyWalkthroughs') or {}).get(iso)
+    if not isinstance(day, dict):
+        return 0
+    rounds = [day] + [r for r in (day.get('more') or {}).values() if isinstance(r, dict)]
+    return sum(1 for r in rounds if isinstance(r.get('completedAt'), (int, float)) and start <= r['completedAt'] < end)
+
+
+def handoffs_of(daypart):
+    """The Zone Reset handoffs a huddle daypart's Lead Captains own."""
+    short = {n.split(' (')[0] for n in set_up_dayparts(daypart)}
+    return [name for name, lead_from in HANDOFFS if lead_from in short]
+
+
+def zone_resets(sections, iso, daypart):
+    """[{handoff, checked, total, done, zones: [{name, checked, total, by}]}]
+    for a daypart's handoffs, per zone: its items checked and the initials on
+    them. None when the hub holds no Zone Reset record for that day at all
+    (it clears them after a while)."""
+    state = ((sections.get('ops') or {}).get('zoneChecklistState') or {}).get(iso)
+    if not isinstance(state, dict):
+        return None
+    out = []
+    for handoff in handoffs_of(daypart):
+        marks, zones = state.get(handoff) if isinstance(state.get(handoff), dict) else {}, []
+        for name, total in ZONE_ITEMS.items():
+            items = [v for v in (marks.get(name) or {}).values() if v] if isinstance(marks.get(name), dict) else []
+            by = sorted({str(v.get('initials') or '').strip().upper()[:4] for v in items if isinstance(v, dict)} - {''})
+            zones.append({'name': name, 'checked': min(len(items), total), 'total': total, 'by': by})
+        out.append({'handoff': handoff, 'zones': zones, 'checked': sum(z['checked'] for z in zones),
+                    'total': sum(z['total'] for z in zones), 'done': sum(1 for z in zones if z['checked'] >= z['total'])})
+    return out
+
+
+def shift_numbers(sections, timer_events, iso, daypart, start, end):
+    return {'productivity': productivity(sections, iso, daypart), 'timers': timer_cycles(timer_events, start, end),
+            'waste': waste_logged(sections, 'foh', start, end), 'foodSafety': food_safety_done(sections, iso, start, end),
+            'zones': zone_resets(sections, iso, daypart)}
+
+
+def with_kept(live, kept):
+    """The live numbers, with the copy kept on the post-huddle wherever the
+    hub no longer holds its own record."""
+    if not isinstance(kept, dict):
+        return live
+    return {k: (v if v not in (None, 0) else kept.get(k, v)) for k, v in live.items()}
 
 
 # ----- the rules ---------------------------------------------------------------------
@@ -311,11 +444,13 @@ class HuddleStore:
 
 # ----- routes ----------------------------------------------------------------------------
 
-def register(app, me, setups, ref, tz, hours=None):
+def register(app, me, setups, ref, tz, hours=None, sections=None, timer_events=None):
     """Add /api/huddle. `me()` is the signed-in person ({id, name, role}) or
     None; `setups()` Set Ups' posAssignments; `ref(path)` a Firebase
     reference; `tz` the store's time zone; `hours()` the store's hours (the
-    Timers page's, timers_api.DEFAULT_CONFIG['hours'] by default)."""
+    Timers page's, timers_api.DEFAULT_CONFIG['hours'] by default);
+    `sections()` the saved state's sections and `timer_events()` the Timers
+    page's events, for the shift's numbers (without them, none are shown)."""
     store = HuddleStore(ref)
     app.extensions['huddle_store'] = store
 
@@ -336,6 +471,22 @@ def register(app, me, setups, ref, tz, hours=None):
             print(f'[HUDDLE] set ups not read: {type(e).__name__}')
             return {}
 
+    def read(fn, what):
+        try:
+            return (fn() if fn else None) or None
+        except Exception as e:
+            print(f'[HUDDLE] {what} not read: {type(e).__name__}')
+            return None
+
+    def numbers_for(day, now):
+        """A function giving a daypart's numbers on a day (the sources are read
+        once), or one giving None when there are none to read."""
+        secs = read(sections, 'saved state')
+        if secs is None:
+            return lambda name, start, end: None
+        events = read(timer_events, 'timers') or []
+        return lambda name, start, end: shift_numbers(secs, events, day.isoformat(), name, start, end) if start <= now else None
+
     @app.after_request
     def _huddle_never_cached(resp):
         if request.path.startswith('/api/huddle/'):
@@ -352,12 +503,14 @@ def register(app, me, setups, ref, tz, hours=None):
         f = fold(store.events.values())
         now, iso, p_posa = now_ms(), day.isoformat(), posa()
         today = datetime.fromtimestamp(now / 1000, tz).date()
-        dayparts = []
+        dayparts, numbers = [], numbers_for(day, now)
         for name, start, end in windows(day, store_hours(), tz):
             leads, people = on_set_up(p_posa, 'foh', iso, name)
             h = f['huddles'].get(f'{iso}|foh|{name}') or {'pre': None, 'post': None}
+            live, kept = numbers(name, start, end), (h['post'] or {}).get('numbers')
             dayparts.append({'name': name, 'side': 'foh', 'start': start, 'end': end, 'preOpens': start - PRE_OPENS_MIN * MIN,
-                             'leads': leads, 'people': people, 'pre': h['pre'], 'post': h['post'], 'score': score(h)})
+                             'leads': leads, 'people': people, 'pre': h['pre'], 'post': h['post'], 'score': score(h),
+                             'numbers': with_kept(live, kept) if live else kept})
         return {'serverTime': now, 'tz': str(tz), 'today': today.isoformat(), 'date': iso, 'week': week_of(day), 'month': month_of(day),
                 'me': {'name': p['name'], 'role': p['role'], 'canFocus': p['role'] in FOCUS_SETTERS},
                 'focus': {s: f['focus'].get((s, period_of(s, day))) for s in ('week', 'month')},
@@ -428,7 +581,8 @@ def register(app, me, setups, ref, tz, hours=None):
                         raise Refused('Do the pre-huddle first.')
                     if now < win[1]:
                         raise Refused('The post-huddle opens once the daypart has started.')
-                    data = {**key, **clean_post(d, h['pre'])}
+                    # The shift's numbers as they stand now, kept with the post.
+                    data = {**key, **clean_post(d, h['pre']), 'numbers': numbers_for(day, now)(*win)}
                 store.append(typ, p['name'], data)
                 return jsonify({'ok': True, **view(day, p)})
         return answer(go)

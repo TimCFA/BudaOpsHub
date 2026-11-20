@@ -136,7 +136,16 @@ and both only on their own day. The rules live on the server only: the page
 draws what `/api/huddle/state` sends. Events live under
 `huddle/events/<id>` in Firebase, one record each (a save again is a new
 record; the latest stands), never a saved-state section, so it never touches
-`/api/state/sync`. The look is Know the Numbers' (the `knp-` classes). FOH
+`/api/state/sync`. Once a daypart has started its card carries the shift's
+numbers, added up by the server from what the hub already records
+(`shift_numbers`), never retyped: per daypart, productivity against its
+goal, the task timers that came due in it, FOH waste logged and food safety
+walkthroughs finished; per zone, the Zone Resets of the handoffs its Lead
+Captains own (`HANDOFFS` and `ZONE_ITEMS` must match zone-reset.js and
+state-and-utils.js; the tests check). Never show a per-zone split of a number
+the hub records per daypart. A copy is kept on the post-huddle event as it
+stood at closing, used where the hub has since cleared its own record. It
+only reads the saved state. The look is Know the Numbers' (the `knp-` classes). FOH
 only so far, so English only; BOH comes with its Spanish. The defaults
 (four dayparts, 30 minutes, three goals, who sees it) were the build's, not
 Tim's decisions, until he confirms them. Tests: `tests/test_huddle.py`.

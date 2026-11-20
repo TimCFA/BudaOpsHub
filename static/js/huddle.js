@@ -15,6 +15,13 @@
 // develop. The post-huddle closes it: each goal hit, partly or missed and
 // why, one recognition, one thing for the next leader.
 //
+// The shift's numbers: once a daypart has started its card carries what the
+// hub already recorded for it, never retyped: per daypart, productivity
+// against its goal, the task timers, the waste logged and the food safety
+// walkthroughs; per zone, the Zone Resets of its handoffs. The server adds
+// them up (huddle_api.py shift_numbers); the drive-thru time and the guests'
+// OSAT are Know the Numbers' own (kn-page.js), from the latest uploads.
+//
 // The rules live on the server (huddle_api.py): when each opens, who may
 // write, what a huddle holds. This page draws what the server sends and
 // posts what was filled in; the quick picks come from the server too.
@@ -208,8 +215,43 @@
       <section class="knp-card hd-card ${isNow ? 'is-now' : ''} ${dp.post ? 'is-closed' : ''}">
         <div class="knp-head"><h3>${h(shortName(dp.name))} <span>${h(timeText(dp.name))}</span></h3>${badge}</div>
         <p class="hd-lead"><span class="knp-k">Lead Captain</span>${dp.leads.length ? h(dp.leads.join(' / ')) : '<i>Not on Set Ups yet</i>'}</p>
-        ${form === 'pre' ? preFormHtml(dp) : form === 'post' ? postFormHtml(dp) : `${heroHtml(dp, ph)}${dp.pre ? planHtml(dp) : ''}${actionsHtml(dp, ph)}`}
+        ${form === 'pre' ? preFormHtml(dp) : form === 'post' ? postFormHtml(dp) : `${heroHtml(dp, ph)}${dp.pre ? planHtml(dp) : ''}${actionsHtml(dp, ph)}${numbersHtml(dp)}`}
       </section>`;
+  }
+
+  /* ---------- the shift's numbers ---------- */
+  const money = v => '$' + (Math.round(v * 100) % 100 ? v.toFixed(2) : Math.round(v).toLocaleString('en-US'));
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  function numbersHtml(dp){
+    const n = dp.numbers;
+    if(!n) return '';
+    const stat = (label, value, note, cls) => `<div class="knp-stat ${cls || ''}"><span class="knp-k">${label}</span><b>${value}</b>${note ? `<small>${note}</small>` : ''}</div>`;
+    const stats = [];
+    const p = n.productivity;
+    if(p && p.actual !== null) stats.push(stat('Productivity', `${money(p.actual)}/hr`, p.goal !== null ? (p.actual >= p.goal ? `goal ${money(p.goal)}: met` : `goal ${money(p.goal)}: ${money(p.goal - p.actual)} under`) : 'no goal set', p.goal === null ? '' : p.actual >= p.goal ? 'is-ok' : 'is-under'));
+    else if(p) stats.push(stat('Productivity goal', `${money(p.goal)}/hr`, 'the actual comes in with the sales upload'));
+    const t = n.timers;
+    if(t){ const all = t.ontime + t.late + t.missed; stats.push(stat('Timers', `${t.ontime} of ${all}`, `on time${t.late ? ` · ${t.late} late` : ''}${t.missed ? ` · ${t.missed} missed` : ''}`, t.missed ? 'is-over' : t.late ? 'is-under' : 'is-ok')); }
+    stats.push(stat('Waste logged', n.waste ? money(n.waste.cost) : '$0', n.waste ? `${plural(n.waste.count, 'entry', 'entries')}, front of house` : 'nothing logged, front of house'));
+    if(n.foodSafety) stats.push(stat('Food safety', plural(n.foodSafety, 'walkthrough', 'walkthroughs'), 'finished this daypart', 'is-ok'));
+    // Know the Numbers' own, from the latest uploads: not this shift's alone.
+    try {
+      const dt = typeof knDriveThru === 'function' ? knDriveThru(dp.name) : null;
+      if(dt && typeof knClock === 'function') stats.push(stat('Drive-thru time', knClock(dt.secs), dt.range ? `average, ${h(dt.range)}` : 'average'));
+      const osat = typeof knOsat === 'function' ? knOsat(dp.name) : null;
+      if(osat) stats.push(stat('Guest OSAT', `${Math.round(osat.osat)}%`, `highly satisfied, ${h(osat.label)}`));
+    } catch (e) {}
+    const zones = (n.zones || []).map(z => `
+      <details class="hd-zones">
+        <summary><span class="knp-k">Zone Reset · ${h(shortName(z.handoff))}</span><b class="${z.done === z.zones.length ? 'is-done' : ''}">${z.done} of ${z.zones.length} zones done</b></summary>
+        <ul>${z.zones.map(r => `<li class="${r.checked >= r.total ? 'is-done' : r.checked ? 'is-part' : ''}"><span>${r.checked >= r.total ? icon('check') : ''}${h(r.name)}</span><span class="hd-zone-n">${r.checked}/${r.total}${r.by.length ? ` · ${h(r.by.join(', '))}` : ''}</span></li>`).join('')}</ul>
+      </details>`).join('');
+    return `
+      <div class="hd-numbers">
+        <p class="hd-numbers-k"><b>The shift's numbers</b> per daypart, from what the hub recorded</p>
+        <div class="knp-stats">${stats.join('')}</div>
+        ${zones ? `<p class="hd-numbers-k"><b>Zone Resets</b> per zone</p>${zones}` : ''}
+      </div>`;
   }
 
   /* ---------- the forms ---------- */
@@ -260,6 +302,7 @@
     return `
       <form class="hd-form" data-hd-form="post" data-hd-dp="${h(dp.name)}">
         ${peopleList(dp)}
+        ${numbersHtml(dp)}
         <h4 class="hd-step"><i>1</i>How did each goal go?</h4>
         ${pre.goals.map(g => { const r = post.results[g.id] || {}; return `
         <fieldset class="hd-goal-row" data-hd-result-for="${h(g.id)}">
@@ -321,7 +364,7 @@
       ${d.dayparts.length ? `
       <p class="hd-sum">${h(dayLabel(d.date, {weekday: 'long', month: 'short', day: 'numeric'}))} · <b>${set}</b> of ${d.dayparts.length} huddles set · <b>${closed}</b> closed</p>
       <div class="knp-cards">${d.dayparts.map(cardHtml).join('')}</div>` : `<p class="knp-lede">The store is closed ${h(dayLabel(d.date, {weekday: 'long'}))}. Pick another day.</p>`}
-      <p class="knp-foot">One huddle a daypart, on the Know the Numbers dayparts. The Lead Captain and the names offered come from Set Ups. A huddle is filled in on its own day; the pre-huddle opens ${d.preOpensMin} minutes before the daypart, the post-huddle once it has started.</p>`;
+      <p class="knp-foot">One huddle a daypart, on the Know the Numbers dayparts. The Lead Captain and the names offered come from Set Ups. A huddle is filled in on its own day; the pre-huddle opens ${d.preOpensMin} minutes before the daypart, the post-huddle once it has started. The shift's numbers are per daypart; only Zone Resets are recorded per zone, so only they are shown per zone. Drive-thru time and OSAT are averages from the latest uploads.</p>`;
   }
 
   function mount(){

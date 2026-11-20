@@ -62,6 +62,25 @@ body.lt-hidden .tab-dropdown-item[data-view="huddle"]{display:none !important;}
 .hd-line.is-win .hd-ic{color:var(--ok);}
 .hd-by{margin:0;font-size:12px;color:var(--text-tertiary);}
 
+/* The shift's numbers: Know the Numbers' stat tiles, then Zone Resets per zone. */
+.hd-numbers{display:grid;gap:8px;padding-top:10px;border-top:1px solid var(--border);}
+.hd-numbers-k{margin:0;font-size:12px;color:var(--text-tertiary);}
+.hd-numbers-k b{font-size:13px;color:var(--text-primary);}
+.hd-zones{border-radius:12px;background:var(--cfa-light);}
+.hd-zones summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;padding:8px 10px;cursor:pointer;list-style:none;}
+.hd-zones summary::-webkit-details-marker{display:none;}
+.hd-zones summary b{flex:none;font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.hd-zones summary b::after{content:"";display:inline-block;width:6px;height:6px;margin:0 2px 2px 8px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg);}
+.hd-zones[open] summary b::after{transform:rotate(-135deg);margin-bottom:-2px;}
+.hd-zones summary b.is-done{color:var(--ok);}
+.hd-zones ul{display:grid;gap:0;margin:0;padding:0 10px 8px;list-style:none;}
+.hd-zones li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--border);font-size:14px;color:var(--text-secondary);}
+.hd-zones li span:first-child{display:inline-flex;align-items:center;gap:5px;}
+.hd-zones li.is-done{color:var(--text-primary);font-weight:600;}
+.hd-zones li.is-done .hd-ic{color:var(--ok);}
+.hd-zones li.is-part{color:var(--text-primary);}
+.hd-zone-n{font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap;}
+
 /* Buttons: red is the action; a quiet one waits its turn. */
 .hd-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;}
 .hd-btn{min-height:44px;padding:10px 18px;border:1px solid var(--cfa-red);border-radius:999px;background:var(--cfa-red);color:#fff;font-size:14px;font-weight:700;cursor:pointer;}
