@@ -911,16 +911,17 @@ function rnEventRows(day, boh, team){
   const m = rnEvents(day, team);
   if(!m) return [];
   const go = (ev, date) => `event:${ev.id}|${date}`;
+  const dot = (row, ev) => { row.color = (EVENT_KINDS[ev.kind] || EVENT_KINDS.note).color; return row; };
   const head = m.live ? 'today' : rnWeekday(m.date);
   const rows = m.special.filter(x => x.when.state !== 'done' && x.when.state !== 'allday').map(({ev, when}) =>
-    rnRow(when.state === 'now' ? 'Now' : '', `${head}: ${ev.title} · ${when.text}`, boh ? when.es || esText('Today on the calendar') : '', go(ev, m.date), when.state === 'now' ? 'bad' : ''));
+    dot(rnRow(when.state === 'now' ? 'Now' : '', `${head}: ${ev.title} · ${when.text}`, boh ? when.es || esText('Today on the calendar') : '', go(ev, m.date), when.state === 'now' ? 'bad' : ''), ev));
   // All day and the long ones share one line.
   const also = m.special.filter(x => x.when.state === 'allday').map(x => x.ev).concat(m.ongoing);
-  if(also.length) rows.push(rnRow('', `${rows.length ? 'also ' : ''}${head}: ${also.map(ev => ev.title).join(', ')}`, boh ? esText('Also running') : '', go(also[0], m.date), ''));
+  if(also.length) rows.push(dot(rnRow('', `${rows.length ? 'also ' : ''}${head}: ${also.map(ev => ev.title).join(', ')}`, boh ? esText('Also running') : '', go(also[0], m.date), ''), also[0]));
   if(m.next){
     const label = m.next.date === rnAddDays(today, 1) ? 'tomorrow' : rnWeekday(m.next.date);
     const ev = m.next.list[0], more = m.next.list.length - 1;
-    rows.push(rnRow('', `${label}: ${ev.title}${ev.from ? ` · ${evClock(ev.from)}` : ''}${more ? ` · +${more} more` : ''}`, boh && label === 'tomorrow' ? esText('Tomorrow') : '', go(ev, m.next.date), ''));
+    rows.push(dot(rnRow('', `${label}: ${ev.title}${ev.from ? ` · ${evClock(ev.from)}` : ''}${more ? ` · +${more} more` : ''}`, boh && label === 'tomorrow' ? esText('Tomorrow') : '', go(ev, m.next.date), ''), ev));
   }
   return rows;
 }
@@ -1015,14 +1016,17 @@ function renderRightNow(){
   const title = card.title || (day.closed ? 'The store is closed' : rnShort(dp.name));
   // The Admin Team's card is the director's (Tim, Nov 18 2026: the same for now), under their own name.
   const roleLabel = card.newHire ? 'In training' : typeof acUser !== 'undefined' && acUser && acUser.role === 'admin' ? RN_ROLE_LABELS.admin : RN_ROLE_LABELS[v.role];
-  const rowHtml = r => `<div class="rn-row${r.go ? ' is-go' : ''}"${go(r.go)}>
-          ${r.n !== '' ? `<span class="rn-n${r.tone ? ' is-' + r.tone : ''}">${escapeHtml(r.n)}</span>` : '<span class="rn-n rn-n-dot" aria-hidden="true"></span>'}
-          <span class="rn-t">${escapeHtml(r.text)}${es(r.es)}</span>
-          ${r.go ? `<span class="rn-go">${RN_ICON_GO}</span>` : ''}
-        </div>`;
-  const top = card.rows.filter(r => !r.more), more = card.rows.filter(r => r.more);
   const es = t => boh && t ? esSpan(t, true) : '';
+  const esIn = t => boh && t ? esSpan(t, false) : '';
   const go = g => g ? ` data-rn-go="${escapeHtml(g)}" role="button" tabindex="0"` : '';
+  const groups = {day: [], floor: [], tix: [], cal: [], cta: [], more: []};
+  card.rows.forEach(r => groups[rnGroupOf(r, card)].push(r));
+  // The floor's counts are tiles; a line with no count reads as a line.
+  const tiles = groups.floor.filter(r => r.n !== ''), floorLines = groups.floor.filter(r => r.n === '');
+  const sec = (key, title, titleEs, body) => body ? `<section class="rn-sec rn-sec-${key}"><h3 class="rn-sec-h">${RN_SEC_ICONS[key] || ''}<span>${escapeHtml(title)}${esIn(titleEs)}</span></h3>${body}</section>` : '';
+  const lines = list => list.length ? `<div class="rn-list">${list.map(r => rnLineHtml(r, es, go)).join('')}</div>` : '';
+  const first = card.first;
+  const tone = first ? rnFirstTone(first) : '';
   root.className = `rn${boh ? ' rn-boh' : ''}`;
   root.innerHTML = `
     <div class="rn-top">
@@ -1031,14 +1035,80 @@ function renderRightNow(){
       ${card.sideSwitch ? rnSideSwitchHtml() : ''}
     </div>
     <h2 class="rn-title">${escapeHtml(title)}${day.closed ? '' : ` <span class="rn-time">${escapeHtml(rnClock(day.now))}</span>`}</h2>
+    ${first ? `<div class="rn-first rn-hero${tone ? ' is-' + tone : ''}${first.go ? ' is-go' : ''}"${go(first.go)}>
+        <span class="rn-hero-b"><small>First thing${boh ? `<span class="es" lang="es"> · ${escapeHtml(esText('First thing'))}</span>` : ''}</small><b>${first.until ? rnBreakHtml(first) : escapeHtml(first.text)}</b>${es(first.es)}</span>
+        ${first.go ? `<span class="rn-hero-go">${RN_ICON_GO}</span>` : ''}
+      </div>` : ''}
     ${rnNewHireHtml(card.newHire, boh)}
-    ${card.first ? `<div class="rn-first${card.first.go ? ' is-go' : ''}"${go(card.first.go)}><b>First thing${boh ? `<span class="es" lang="es"> · ${escapeHtml(esText('First thing'))}</span>` : ''}</b><span>${card.first.until ? rnBreakHtml(card.first) : escapeHtml(card.first.text)}</span>${es(card.first.es)}</div>` : ''}
     ${card.roster && card.rosterFirst ? rnRosterHtml(card.roster, card.rosterHead) : ''}
-    <div class="rn-list">
-      ${top.map(rowHtml).join('')}
-    </div>
-    ${more.length ? `<details class="rn-more" data-rn-more${rnMoreOpen ? ' open' : ''}><summary>More about today <span>${more.length}</span>${RN_ICON_GO}</summary><div class="rn-list">${more.map(rowHtml).join('')}</div></details>` : ''}
-    ${rnPeaHtml(card.pea, boh)}${card.roster && !card.rosterFirst ? rnRosterHtml(card.roster, card.rosterHead) : ''}`;
+    ${sec('day', 'Your day', esText('Your day'), lines(groups.day))}
+    ${sec('floor', card.sideSwitch ? 'Today' : 'On the floor', esText(card.sideSwitch ? 'Today' : 'On the floor'),
+      (tiles.length ? `<div class="rn-tiles">${tiles.map(r => rnTileHtml(r, es, go)).join('')}</div>` : '') + lines(floorLines))}
+    ${sec('tix', 'Tickets', esText('Tickets'), lines(groups.tix))}
+    ${rnPeaHtml(card.pea, boh)}
+    ${sec('cal', 'On the calendar', esText('On the calendar'), lines(groups.cal))}
+    ${groups.more.length ? `<details class="rn-more rn-sec" data-rn-more${rnMoreOpen ? ' open' : ''}><summary>More about today <span>${groups.more.length}</span>${RN_ICON_GO}</summary>${lines(groups.more)}</details>` : ''}
+    ${groups.cta.map(r => `<button type="button" class="rn-cta" data-rn-go="${escapeHtml(r.go)}"><span class="rn-cta-main"><b>${escapeHtml(r.text)}</b>${RN_ICON_GO}</span>${es(r.es)}</button>`).join('')}
+    ${card.roster && !card.rosterFirst ? rnRosterHtml(card.roster, card.rosterHead) : ''}`;
+}
+
+// ----- The look (Tim, Nov 21 2026) -----
+// "Clinical and boring" was a list of same-weight rows. Now the card is in
+// compartments, each a kind of information with its own header and shape:
+// the First thing as a banner (red when it needs someone, green when all is
+// covered, navy for where you are), "Your day" as lines, the floor's counts
+// as big-number tiles, tickets, the calendar, then the way to sign in as a
+// button. Every line splits into a small label, the words that matter in
+// bold, and the detail after: "Next: Drinks 1 (Mid)" reads NEXT / Drinks 1
+// (Mid). Colours keep their one meaning (CLAUDE.md, Tab bar and header).
+const rnSecIcon = d => `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const RN_SEC_ICONS = {
+  day: rnSecIcon('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
+  floor: rnSecIcon('<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>'),
+  tix: rnSecIcon('<path d="M4 8.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1.6a1.9 1.9 0 0 0 0 3.8v1.6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-1.6a1.9 1.9 0 0 0 0-3.8z"/><path d="M14 7v10" stroke-dasharray="2 2.5"/>'),
+  cal: rnSecIcon('<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'),
+};
+// Which compartment a line belongs in, by where its tap goes.
+function rnGroupOf(r, card){
+  if(r.more) return 'more';
+  if(/^event:/.test(r.go)) return 'cal';
+  if(/^tickets?(:|$)/.test(r.go)) return 'tix';
+  if(r.go === 'signin') return 'cta';
+  return card.team && !card.sideSwitch ? 'day' : 'floor';
+}
+// A line's label, its words that matter, and the detail after.
+function rnParts(text){
+  const i = text.indexOf(': ');
+  const kicker = i > 0 && i <= 28 && !text.slice(0, i).includes(' · ') ? text.slice(0, i) : '';
+  const rest = kicker ? text.slice(i + 2) : text;
+  const j = rest.indexOf(' · ');
+  return {kicker, value: j > 0 ? rest.slice(0, j) : rest, detail: j > 0 ? rest.slice(j + 3) : ''};
+}
+// The banner's colour: red needs someone, green is all covered, else navy.
+function rnFirstTone(first){
+  if(first.until) return '';
+  const t = first.text;
+  if(/covered|are filled|Rest up/.test(t)) return 'ok';
+  if(/^(Nobody is on|No spot yet|Reset )|with no spot|still to reset|open spots?\.$/.test(t)) return 'bad';
+  return '';
+}
+function rnLineHtml(r, es, go){
+  const p = rnParts(r.text);
+  const n = r.n !== '' ? `<span class="rn-n${r.tone ? ' is-' + r.tone : ''}">${escapeHtml(r.n)}</span>`
+    : `<span class="rn-n rn-n-dot"${r.color ? ` style="--dot:${escapeHtml(r.color)}"` : ''} aria-hidden="true"></span>`;
+  return `<div class="rn-row${r.tone ? ' is-' + r.tone : ''}${r.go ? ' is-go' : ''}"${go(r.go)}>
+          ${n}
+          <span class="rn-t">${p.kicker ? `<small class="rn-k">${escapeHtml(p.kicker)}</small>` : ''}<b class="rn-v">${escapeHtml(p.value)}</b>${p.detail ? `<span class="rn-d">${escapeHtml(p.detail)}</span>` : ''}${es(r.es)}</span>
+          ${r.go ? `<span class="rn-go">${RN_ICON_GO}</span>` : ''}
+        </div>`;
+}
+function rnTileHtml(r, es, go){
+  const p = rnParts(r.text);
+  return `<div class="rn-tile${r.tone ? ' is-' + r.tone : ''}${r.go ? ' is-go' : ''}"${go(r.go)}>
+          <b class="rn-tile-n">${escapeHtml(r.n)}</b>
+          <span class="rn-tile-l">${escapeHtml(p.kicker || p.value)}</span>
+          ${p.kicker || p.detail ? `<small class="rn-tile-d">${escapeHtml(p.kicker ? p.value + (p.detail ? ' · ' + p.detail : '') : p.detail)}</small>` : ''}${es(r.es)}
+        </div>`;
 }
 
 // Taps: open the screen that fixes it.

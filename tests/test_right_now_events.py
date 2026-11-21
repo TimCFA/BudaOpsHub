@@ -126,7 +126,10 @@ class Wiring(unittest.TestCase):
         self.assertNotIn('rnEventsHtml', js)
         self.assertIn("const evs = rnEventRows(day, card.side === 'boh', !!card.team);", js)
         self.assertIn("else if(what === 'event') rnOpenEvent(parts[0], parts[1] || today, document.activeElement);", js)
-        self.assertIn('<span class="rn-t">${escapeHtml(r.text)}${es(r.es)}</span>', js)
+        # A line's label, words and detail all go through escapeHtml (rnLineHtml).
+        self.assertIn('<b class="rn-v">${escapeHtml(p.value)}</b>', js)
+        self.assertIn('<small class="rn-k">${escapeHtml(p.kicker)}</small>', js)
+        self.assertIn('<span class="rn-d">${escapeHtml(p.detail)}</span>', js)
         self.assertIn("if(ev){ rnOpenEvent(ev.dataset.rnEv, ev.dataset.rnEvDate, ev); return; }", js)
         page = read('cfa-buda-ops-hub-complete.html')
         self.assertLess(page.index('/static/js/events.js'), page.index('/static/js/right-now.js'))

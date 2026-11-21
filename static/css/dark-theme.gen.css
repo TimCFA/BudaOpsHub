@@ -375,3 +375,17 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .su-row-choose{color:var(--ink-dark-red);}
 :where(html[data-theme="dark"]) .launch-subnav[aria-label="Lists"] .launch-pill.active{color:var(--cfa-bg);}
 :where(html[data-theme="dark"]) .zr-dp-body .zone-acc-item + .zone-acc-item{border-top:1px solid #37342F;}
+:where(html[data-theme="dark"]) .rn-hero-go{background:rgba(29,29,29,0.2);}
+:where(html[data-theme="dark"]) .rn-sec-h{color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .rn-sec-tix .rn-sec-h{color:#FFB545;}
+:where(html[data-theme="dark"]) .rn-row .rn-n.is-warn{background:#483D25;color:#FFC161;}
+:where(html[data-theme="dark"]) .rn-row .rn-n.is-ok{background:#253D2C;color:#7CDC9A;}
+:where(html[data-theme="dark"]) .rn-row.is-bad .rn-v{color:var(--ink-dark-red);}
+:where(html[data-theme="dark"]) .rn-tile-n{color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .rn-tile.is-bad{background:#342225;border-color:#672C38;}
+:where(html[data-theme="dark"]) .rn-tile.is-bad .rn-tile-n{color:var(--ink-red);}
+:where(html[data-theme="dark"]) .rn-tile.is-bad .rn-tile-d{color:var(--ink-dark-red);}
+:where(html[data-theme="dark"]) .rn-tile.is-warn{background:#3D341F;}
+:where(html[data-theme="dark"]) .rn-tile.is-warn .rn-tile-n{color:#FFB545;}
+:where(html[data-theme="dark"]) .rn-tile.is-ok{background:#26352B;border-color:#306942;}
+:where(html[data-theme="dark"]) .rn-tile.is-ok .rn-tile-n{color:#78D091;}

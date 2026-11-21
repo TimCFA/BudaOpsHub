@@ -104,7 +104,7 @@ class TeamMember(unittest.TestCase):
         self.assertRegex(got[2][1], r'^On break: <b class="rn-break-left" data-rn-break-until="\d+">12:3[34]</b> left, back at 5:2[23]\.$')
         js = read('static', 'js', 'right-now.js')
         self.assertIn("document.querySelectorAll('#rightNow [data-rn-break-until]')", js)     # ticks every second
-        self.assertIn('${card.first.until ? rnBreakHtml(card.first) : escapeHtml(card.first.text)}', js)
+        self.assertIn('${first.until ? rnBreakHtml(first) : escapeHtml(first.text)}', js)
 
     def test_their_zone_at_the_coming_handoff(self):
         got = run({'op': card('member', 'Ana Ruiz', extra="""handoff = {name: 'Dinner to Late Night (7:00pm - 8:00pm)', owners: {Restrooms: ['Ana Ruiz Lopez']}, done: {Restrooms: {checked: 1, total: 8}}};""")},
@@ -237,6 +237,41 @@ class NewHire(unittest.TestCase):
         self.assertIn("if(v.role === 'member') return rnNewHireCard(rnPersonCard(v, day, false), v, day);", read('static', 'js', 'right-now.js'))
 
 
+class TheLook(unittest.TestCase):
+    """Tim, Nov 21 2026: compartments, a banner, big-number tiles, and each
+    line a small label over the words that matter."""
+
+    def test_a_line_splits_into_label_words_and_detail(self):
+        got = run({'op': """c => ['Next: Drinks 1 (Mid)', 'zones reset · Lunch → Mid at 1:00 · 1 with nobody', 'ticket: Restock: the bar · say it back',
+                     'FOH AM breaks left (of 14) · next: Tessa 8:00', 'break due: Mia 5:25, Leo 6:00', 'No open tickets. Nicely done.', 'AM breaks left (of 6) · next: Rosa 9:00'].map(rnParts)"""})[0]
+        self.assertEqual(got[6], {'kicker': '', 'value': 'AM breaks left (of 6)', 'detail': 'next: Rosa 9:00'})
+        self.assertEqual(got[0], {'kicker': 'Next', 'value': 'Drinks 1 (Mid)', 'detail': ''})
+        self.assertEqual(got[1], {'kicker': '', 'value': 'zones reset', 'detail': 'Lunch → Mid at 1:00 · 1 with nobody'})
+        self.assertEqual(got[2], {'kicker': 'ticket', 'value': 'Restock: the bar', 'detail': 'say it back'})
+        self.assertEqual(got[3], {'kicker': '', 'value': 'FOH AM breaks left (of 14)', 'detail': 'next: Tessa 8:00'})
+        self.assertEqual(got[4], {'kicker': 'break due', 'value': 'Mia 5:25, Leo 6:00', 'detail': ''})
+        self.assertEqual(got[5], {'kicker': '', 'value': 'No open tickets. Nicely done.', 'detail': ''})
+
+    def test_where_a_line_goes_and_the_banners_colour(self):
+        got = run({'op': """c => [[{go: 'event:x|2026-10-19'}, {}], [{go: 'ticket:t1'}, {}], [{go: 'tickets'}, {}], [{go: 'signin'}, {team: true, sideSwitch: true}],
+                     [{go: 'setups:foh|x|y'}, {team: true}], [{go: 'setups:foh|x|y'}, {}], [{go: 'timers'}, {team: true, sideSwitch: true}], [{go: 'waste', more: true}, {}]].map(([r, c2]) => rnGroupOf(r, c2))
+                     .concat(['Nobody is on Host 2 for Dinner.', 'Dinner is covered. Go catch someone doing it right.', 'You’re on Drinks 1 until 8:00.', '2 on the clock with no spot, starting with Mia.',
+                              'Tuesday’s FOH Set Ups have 2 open spots.', 'Tuesday’s Set Ups are filled. Rest up.'].map(text => rnFirstTone({text})), rnFirstTone({text: 'On break', until: 5}))"""})[0]
+        self.assertEqual(got, ['cal', 'tix', 'tix', 'cta', 'day', 'floor', 'floor', 'more', 'bad', 'ok', '', 'bad', 'bad', 'ok', ''])
+
+    def test_escaped_and_wired(self):
+        got = run({'op': """c => { const es = () => '', go = () => ''; const r = {n: '<i>', text: '<b>x</b>: <img src=x> · <u>d</u>', go: '', tone: ''};
+                     return rnLineHtml(r, es, go) + rnTileHtml(r, es, go); }"""})[0]
+        for bad in ('<i>', '<b>x', '<img', '<u>'):
+            self.assertNotIn(bad, got)
+        js = read('static', 'js', 'right-now.js')
+        self.assertIn('<div class="rn-tiles">${tiles.map(r => rnTileHtml(r, es, go)).join(\'\')}</div>', js)
+        self.assertIn('class="rn-first rn-hero', js)
+        css = read('static', 'css', 'theme-cfa.css')
+        self.assertIn('.rn-hero.is-bad{background:var(--cfa-red);', css)
+        self.assertIn('@media (prefers-reduced-motion:reduce){ .rn-sec-cal .rn-row .rn-n.is-bad{animation:none;} }', css)
+
+
 class SlimWelcome(unittest.TestCase):
     def test_the_welcome_is_a_strip(self):
         """Tim, Nov 20 2026: the date, greeting and quote in smaller type, so
@@ -363,7 +398,7 @@ class Director(unittest.TestCase):
         self.assertIn('Food Safety walkthrough today', folded)
         self.assertTrue(all(r[2] for r in pm[[r[2] for r in pm].index(True):]))      # the folded rows come last
         js = read('static', 'js', 'right-now.js')
-        self.assertIn('<details class="rn-more" data-rn-more', js)
+        self.assertIn('<details class="rn-more rn-sec" data-rn-more', js)
         # The Admin Team's card is the director's, under their own name.
         self.assertIn("acUser.role === 'admin' ? RN_ROLE_LABELS.admin : RN_ROLE_LABELS[v.role]", js)
 
