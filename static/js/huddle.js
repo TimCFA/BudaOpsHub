@@ -22,6 +22,11 @@
 // them up (huddle_api.py shift_numbers); the drive-thru time and the guests'
 // OSAT are Know the Numbers' own (kn-page.js), from the latest uploads.
 //
+// The week (directors): Day / Week at the top. The week adds up the huddles
+// set and closed, the goals hit, the goals written against each focus, each
+// leader's huddles, each daypart's numbers and who won a shift
+// (huddle_api.py roll_up).
+//
 // The rules live on the server (huddle_api.py): when each opens, who may
 // write, what a huddle holds. This page draws what the server sends and
 // posts what was filled in; the quick picks come from the server too.
@@ -47,7 +52,7 @@
     person: '<circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/>',
   };
 
-  const S = {root: null, status: 'loading', error: '', data: null, date: null, offset: 0, form: null, busy: false, poll: null, seq: 0};
+  const S = {root: null, status: 'loading', error: '', data: null, date: null, mode: 'day', week: null, offset: 0, form: null, busy: false, poll: null, seq: 0};
 
   /* ---------- helpers ---------- */
   const h = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
@@ -84,9 +89,12 @@
   async function load(){
     const seq = ++S.seq;
     try {
-      const d = await api('/state' + (S.date ? '?date=' + encodeURIComponent(S.date) : ''));
+      const q = S.date ? '?date=' + encodeURIComponent(S.date) : '';
+      const [d, w] = await Promise.all([api('/state' + q), S.mode === 'week' ? api('/week' + q) : null]);
       if(seq !== S.seq) return;                 // a newer ask is on its way
       take(d);
+      S.week = w;
+      if(!d.me.canFocus) S.mode = 'day';
     } catch (e) {
       if(seq !== S.seq) return;
       S.status = e.status === 403 ? 'locked' : (S.data ? 'ready' : 'error');
@@ -343,6 +351,66 @@
     }
   }
 
+  /* ---------- the week (directors) ---------- */
+  const pct = (a, b) => b ? Math.round(a / b * 100) + '%' : '—';
+  function tallyText(t){
+    if(!t.goals) return 'No goals tied to it yet this week.';
+    const bits = [`${t.hit} hit`, t.partly ? `${t.partly} partly` : '', t.missed ? `${t.missed} missed` : '', t.open ? `${t.open} still open` : ''].filter(Boolean);
+    return `${plural(t.goals, 'goal', 'goals')} this week · ${bits.join(' · ')}`;
+  }
+  function weekHtml(){
+    const w = S.week;
+    if(!w) return '<p class="knp-lede">Adding up the week…</p>';
+    const t = w.totals;
+    const cell = {};
+    w.cells.forEach(c => { cell[c.date + '|' + c.daypart] = c; });
+    const cellHtml = (day, dp) => {
+      const c = cell[day + '|' + dp];
+      if(!c) return '<td class="hd-wk-cell is-off" aria-label="Closed"></td>';
+      const label = c.state === 'closed' ? `${c.hit}/${c.goals}` : c.state === 'set' ? 'Set' : c.state === 'none' ? 'None' : '';
+      const say = c.state === 'closed' ? `closed, ${c.hit} of ${c.goals} goals hit` : c.state === 'set' ? 'set, not closed' : c.state === 'none' ? 'no huddle' : 'not yet';
+      return `<td class="hd-wk-cell is-${c.state}"><button type="button" data-hd-day="${day}" aria-label="${h(dayLabel(day))}, ${h(shortName(dp))}: ${say}${c.by ? ', ' + h(c.by) : ''}" title="${h(c.by)}">${label}</button></td>`;
+    };
+    const focusCol = scope => {
+      const f = w.focus[scope];
+      return `<div class="hd-focus-col"><div class="hd-focus-k"><span>${scope === 'week' ? 'This week' : 'This month'} · ${h(periodLabel(scope))}</span></div>${f
+        ? `<b class="hd-focus-text">${h(f.text)}</b><p class="hd-focus-why">${h(tallyText(f))}</p>`
+        : '<p class="hd-focus-none">No focus was set.</p>'}</div>`;
+    };
+    const stat = (label, value, note, cls) => `<div class="knp-stat ${cls || ''}"><span class="knp-k">${label}</span><b>${value}</b>${note ? `<small>${note}</small>` : ''}</div>`;
+    const partHtml = p => {
+      const tm = p.timers, all = tm.ontime + tm.late + tm.missed;
+      return `
+        <section class="knp-card hd-card">
+          <div class="knp-head"><h3>${h(shortName(p.name))} <span>${h(timeText(p.name))}</span></h3></div>
+          <div class="knp-hero hd-hero"><b>${p.closed}/${p.expected}</b><span>huddles closed<br>${p.set} set</span></div>
+          <div class="knp-stats">
+            ${stat('Goals hit', p.goals ? `${p.hit} of ${p.goals}` : '—', p.goals ? [p.partly ? `${p.partly} partly` : '', p.missed ? `${p.missed} missed` : '', p.open ? `${p.open} open` : ''].filter(Boolean).join(' · ') : 'no goals written')}
+            ${stat('Productivity', p.prodKnown ? `${p.prodMet} of ${p.prodKnown}` : '—', p.prodKnown ? 'shifts met the goal' : 'no actuals yet', p.prodKnown ? (p.prodMet === p.prodKnown ? 'is-ok' : 'is-under') : '')}
+            ${stat('Timers', all ? pct(tm.ontime, all) : '—', all ? `on time · ${tm.late} late · ${tm.missed} missed` : 'none came due', all ? (tm.missed ? 'is-over' : tm.late ? 'is-under' : 'is-ok') : '')}
+            ${stat('Waste logged', money(p.waste), 'front of house')}
+          </div>
+        </section>`;
+    };
+    return `
+      <div class="knp-day-sum"><div><span>Huddles set</span><b>${t.set} of ${t.expected}</b></div><div><span>Closed</span><b>${t.closed} of ${t.expected}</b></div><div><span>Goals hit</span><b>${t.goals ? `${t.hit} of ${t.goals}` : '—'}</b></div></div>
+      <div class="hd-focus">${focusCol('month')}${focusCol('week')}</div>
+      <h3 class="hd-h3">The week at a glance</h3>
+      <div class="hd-wk-wrap"><table class="hd-wk">
+        <thead><tr><th scope="col"><span class="hd-sr">Daypart</span></th>${w.days.map(d => `<th scope="col" class="${d === w.today ? 'is-today' : ''}">${h(dayLabel(d, {weekday: 'short'}))} <b>${+d.slice(8)}</b></th>`).join('')}</tr></thead>
+        <tbody>${w.dayparts.map(dp => `<tr><th scope="row">${h(shortName(dp))}</th>${w.days.map(d => cellHtml(d, dp)).join('')}</tr>`).join('')}</tbody>
+      </table></div>
+      <p class="hd-key"><span class="is-closed">2/3</span> closed, goals hit <span class="is-set">Set</span> set, not closed yet <span class="is-none">None</span> no huddle</p>
+      <h3 class="hd-h3">Leaders</h3>
+      ${w.leaders.length ? `<ul class="hd-rows">${w.leaders.map(l => `<li><b>${h(l.name)}</b><span>${plural(l.set, 'huddle', 'huddles')} set · ${l.closed} closed · ${l.goals ? `${l.hit} of ${l.goals} goals hit` : 'no goals'}</span></li>`).join('')}</ul>` : '<p class="knp-lede">Nobody has set a huddle this week yet.</p>'}
+      ${t.develop ? `<p class="hd-sum"><b>${t.develop}</b> ${t.develop === 1 ? 'huddle named' : 'huddles named'} someone to develop · <b>${t.pea}</b> planned a PEA</p>` : ''}
+      <h3 class="hd-h3">Who won a shift</h3>
+      ${w.wins.length ? `<ul class="hd-rows">${w.wins.map(x => `<li><b>${icon('star')}${h(x.who)}</b><span>${x.what ? h(x.what) + ' · ' : ''}${h(dayLabel(x.date, {weekday: 'short'}))} ${h(shortName(x.daypart))}, from ${h(x.by)}</span></li>`).join('')}</ul>` : '<p class="knp-lede">No recognition written yet this week.</p>'}
+      <h3 class="hd-h3">Each daypart across the week</h3>
+      <div class="knp-cards">${w.byDaypart.map(partHtml).join('')}</div>
+      <p class="knp-foot">A huddle counts as expected once its daypart has started. Goals tied to a focus are counted in the week they were written. The numbers are per daypart, from what the hub recorded.</p>`;
+  }
+
   /* ---------- the page ---------- */
   function render(){
     const root = S.root;
@@ -353,18 +421,22 @@
     const d = S.data;
     const week = [0, 1, 2, 3, 4, 5].map(i => addDays(d.week, i));
     const closed = d.dayparts.filter(x => x.post).length, set = d.dayparts.filter(x => x.pre).length;
+    const weekMode = S.mode === 'week' && d.me.canFocus;
+    const modes = d.me.canFocus ? `<div class="hd-modes" role="group" aria-label="Day or week">${[['day', 'Day'], ['week', 'Week']].map(([m, label]) => `<button type="button" class="hd-mode" data-hd-mode="${m}" aria-pressed="${S.mode === m}">${label}</button>`).join('')}</div>` : '';
     root.innerHTML = `
       ${head}
+      ${modes}
       <div class="knp-days hd-days" role="group" aria-label="Pick a day">
         <button type="button" class="hd-week" data-hd-day="${addDays(d.week, -7)}" aria-label="The week before">‹</button>
-        ${week.map(x => `<button type="button" class="knp-day ${x === d.date ? 'is-on' : ''} ${x === d.today ? 'is-today' : ''}" data-hd-day="${x}" aria-pressed="${x === d.date}"><span>${h(dayLabel(x, {weekday: 'short'}))}</span><b>${+x.slice(8)}</b></button>`).join('')}
+        ${week.map(x => `<button type="button" class="knp-day ${x === d.date && !weekMode ? 'is-on' : ''} ${x === d.today ? 'is-today' : ''}" data-hd-day="${x}" aria-pressed="${x === d.date}"><span>${h(dayLabel(x, {weekday: 'short'}))}</span><b>${+x.slice(8)}</b></button>`).join('')}
         <button type="button" class="hd-week" data-hd-day="${addDays(d.week, 7)}" aria-label="The week after">›</button>
       </div>
+      ${weekMode ? weekHtml() : `
       <div class="hd-focus">${focusHtml('month')}${focusHtml('week')}</div>
       ${d.dayparts.length ? `
       <p class="hd-sum">${h(dayLabel(d.date, {weekday: 'long', month: 'short', day: 'numeric'}))} · <b>${set}</b> of ${d.dayparts.length} huddles set · <b>${closed}</b> closed</p>
       <div class="knp-cards">${d.dayparts.map(cardHtml).join('')}</div>` : `<p class="knp-lede">The store is closed ${h(dayLabel(d.date, {weekday: 'long'}))}. Pick another day.</p>`}
-      <p class="knp-foot">One huddle a daypart, on the Know the Numbers dayparts. The Lead Captain and the names offered come from Set Ups. A huddle is filled in on its own day; the pre-huddle opens ${d.preOpensMin} minutes before the daypart, the post-huddle once it has started. The shift's numbers are per daypart; only Zone Resets are recorded per zone, so only they are shown per zone. Drive-thru time and OSAT are averages from the latest uploads.</p>`;
+      <p class="knp-foot">One huddle a daypart, on the Know the Numbers dayparts. The Lead Captain and the names offered come from Set Ups. A huddle is filled in on its own day; the pre-huddle opens ${d.preOpensMin} minutes before the daypart, the post-huddle once it has started. The shift's numbers are per daypart; only Zone Resets are recorded per zone, so only they are shown per zone. Drive-thru time and OSAT are averages from the latest uploads.</p>`}`;
   }
 
   function mount(){
@@ -373,7 +445,12 @@
     S.root.addEventListener('click', e => {
       const t = e.target.closest('button');
       if(!t || !S.root.contains(t)) return;
-      if(t.dataset.hdDay){ S.date = t.dataset.hdDay; S.form = null; load(); return; }
+      if(t.dataset.hdMode){ S.mode = t.dataset.hdMode; S.form = null; S.week = null; render(); load(); return; }
+      if(t.dataset.hdDay){
+        // In the week, the arrows move a week; a day (in the row or the grid) opens that day.
+        if(!t.classList.contains('hd-week')) S.mode = 'day';
+        S.date = t.dataset.hdDay; S.form = null; S.week = null; load(); return;
+      }
       if(t.dataset.hdFocusEdit){ S.form = {kind: 'focus', scope: t.dataset.hdFocusEdit}; render(); focusFirst(); return; }
       if(t.dataset.hdOpen){ S.form = {kind: t.dataset.hdOpen, daypart: t.dataset.hdDp}; render(); focusFirst(); return; }
       if('hdCancel' in t.dataset){ S.form = null; render(); return; }

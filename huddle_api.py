@@ -36,6 +36,11 @@ zone that the hub doesn't record by zone. The numbers are read live, and a
 copy is kept on the post-huddle as it stood when the shift was closed, for
 the days the hub's own records have since been cleared.
 
+The week (slice 3), for directors: how many of the week's huddles were set
+and closed, how many goals were hit, how many goals were written against the
+week's and the month's focus and how they went, each leader's huddles, each
+daypart's numbers across the week, and who won a shift.
+
 Storage: one Firebase record per event under huddle/events/<id>, written
 once and never changed (the Pass's way, pass_api.py), so two servers
 overlapping during a deploy can't wipe each other's work. Saving a
@@ -45,6 +50,8 @@ section; never goes through /api/state/sync.
   GET  /api/huddle/state?date=YYYY-MM-DD      Team Leads and up
         me, the focuses for that day's week and month, and each daypart:
         its hours, Lead Captain, who is on its Set Up, its pre and post
+  GET  /api/huddle/week?date=YYYY-MM-DD       directors
+        the roll-up of that day's week (Monday to Saturday)
   POST /api/huddle/events   {type, data}
         pre     {date, daypart, purpose, priority, goals, develop}   Team Leads and up
         post    {date, daypart, results, recognition, handoff}       Team Leads and up
@@ -332,6 +339,56 @@ def score(h):
     return out
 
 
+def roll_up(cells, focus):
+    """A week's huddles added up. `cells` is one per day and daypart:
+    {date, daypart, started, pre, post, numbers}; `focus` the week's and
+    the month's ({'week': ..., 'month': ...}). A huddle is expected once its
+    daypart has started; an open goal is one in a huddle not closed yet."""
+    tally = lambda: {'goals': 0, 'hit': 0, 'partly': 0, 'missed': 0, 'open': 0}
+    totals = {'expected': 0, 'set': 0, 'closed': 0, 'develop': 0, 'pea': 0, **tally()}
+    by_focus = {s: ({**{k: focus[s].get(k) for k in ('text', 'why', 'tag')}, **tally()} if focus.get(s) else None) for s in ('week', 'month')}
+    leaders, parts, wins, grid = {}, {}, [], []
+    for c in cells:
+        pre, post, n = c.get('pre'), c.get('post'), c.get('numbers') or {}
+        part = parts.setdefault(c['daypart'], {'name': c['daypart'], 'expected': 0, 'set': 0, 'closed': 0, 'prodKnown': 0, 'prodMet': 0,
+                                               'timers': {'ontime': 0, 'late': 0, 'missed': 0}, 'waste': 0.0, **tally()})
+        cell = {'date': c['date'], 'daypart': c['daypart'], 'state': 'closed' if post else 'set' if pre else 'none' if c.get('started') else 'ahead',
+                'by': (pre or {}).get('by', ''), 'goals': 0, 'hit': 0}
+        grid.append(cell)
+        if c.get('started'):
+            totals['expected'] += 1
+            part['expected'] += 1
+        p = n.get('productivity') or {}
+        if p.get('goal') is not None and p.get('actual') is not None:
+            part['prodKnown'] += 1
+            part['prodMet'] += p['actual'] >= p['goal']
+        for k in part['timers']:
+            part['timers'][k] += (n.get('timers') or {}).get(k, 0)
+        part['waste'] = round(part['waste'] + ((n.get('waste') or {}).get('cost') or 0), 2)
+        if not pre:
+            continue
+        who = leaders.setdefault(timers_api._key(pre.get('by')), {'name': pre.get('by', ''), 'set': 0, 'closed': 0, **tally()})
+        for t in (totals, part, who):
+            t['set'] += 1
+            t['closed'] += bool(post)
+        if pre.get('develop'):
+            totals['develop'] += 1
+            totals['pea'] += bool(pre['develop'].get('pea'))
+        for g in pre.get('goals') or []:
+            r = ((post or {}).get('results') or {}).get(g.get('id'), {}).get('result') if post else None
+            r = r if r in RESULTS else 'open'
+            cell['goals'] += 1
+            cell['hit'] += r == 'hit'
+            for t in (totals, part, who, by_focus.get(g.get('focus'))):
+                if t is not None:
+                    t['goals'] += 1
+                    t[r] += 1
+        if post and post.get('recognition'):
+            wins.append({'date': c['date'], 'daypart': c['daypart'], 'by': post.get('by', ''), **post['recognition']})
+    return {'totals': totals, 'focus': by_focus, 'cells': grid, 'byDaypart': list(parts.values()), 'wins': wins,
+            'leaders': sorted(leaders.values(), key=lambda x: (-x['closed'], -x['set'], x['name'].lower()))}
+
+
 # ----- cleaning what the page sends --------------------------------------------------
 
 def _text(v, cap):
@@ -533,6 +590,32 @@ def register(app, me, setups, ref, tz, hours=None, sections=None, timer_events=N
                 arg = request.args.get('date')
                 day = _day(arg) if arg else datetime.fromtimestamp(now_ms() / 1000, tz).date()
                 return jsonify(view(day, p))
+        return answer(go)
+
+    @app.route('/api/huddle/week')
+    def huddle_week():
+        def go():
+            p = lead_or_refuse()
+            if p['role'] not in FOCUS_SETTERS:
+                raise Refused('The week’s roll-up is for directors.', 403)
+            store.ensure()
+            with store.lock:
+                now = now_ms()
+                arg = request.args.get('date')
+                day = _day(arg) if arg else datetime.fromtimestamp(now / 1000, tz).date()
+                monday = _date.fromisoformat(week_of(day))
+                f, cells, days = fold(store.events.values()), [], [monday + timedelta(days=i) for i in range(6)]
+                for d in days:
+                    numbers = numbers_for(d, now)
+                    for name, start, end in windows(d, store_hours(), tz):
+                        h = f['huddles'].get(f'{d.isoformat()}|foh|{name}') or {'pre': None, 'post': None}
+                        live, kept = numbers(name, start, end), (h['post'] or {}).get('numbers')
+                        cells.append({'date': d.isoformat(), 'daypart': name, 'started': start <= now, 'pre': h['pre'], 'post': h['post'],
+                                      'numbers': with_kept(live, kept) if live else kept})
+                return jsonify({'serverTime': now, 'tz': str(tz), 'today': datetime.fromtimestamp(now / 1000, tz).date().isoformat(),
+                                'date': day.isoformat(), 'week': monday.isoformat(), 'month': month_of(day),
+                                'days': [d.isoformat() for d in days], 'dayparts': [n for n, _ in DAYPARTS],
+                                **roll_up(cells, {s: f['focus'].get((s, period_of(s, day))) for s in ('week', 'month')})})
         return answer(go)
 
     @app.route('/api/huddle/events', methods=['POST'])

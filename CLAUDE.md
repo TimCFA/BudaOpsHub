@@ -145,10 +145,16 @@ Captains own (`HANDOFFS` and `ZONE_ITEMS` must match zone-reset.js and
 state-and-utils.js; the tests check). Never show a per-zone split of a number
 the hub records per daypart. A copy is kept on the post-huddle event as it
 stood at closing, used where the hub has since cleared its own record. It
-only reads the saved state. The look is Know the Numbers' (the `knp-` classes). FOH
-only so far, so English only; BOH comes with its Spanish. The defaults
-(four dayparts, 30 minutes, three goals, who sees it) were the build's, not
-Tim's decisions, until he confirms them. Tests: `tests/test_huddle.py`.
+only reads the saved state. Directors also get Day / Week at the top: the
+week's roll-up (`/api/huddle/week`, `roll_up`) of huddles set and closed,
+goals hit, goals written against each focus, each leader's huddles, each
+daypart's numbers and who won a shift; a huddle is expected once its daypart
+has started. The look is Know the Numbers' (the `knp-` classes). FOH
+only so far, so English only; BOH comes with its Spanish. Tim confirmed the
+four dayparts ("for now") and which handoff counts for which huddle (Nov 21
+2026). The other defaults (30 minutes, three goals, leaders only, any leader
+can close a huddle, FOH waste only) are the build's, not Tim's decisions,
+until he confirms them. Tests: `tests/test_huddle.py`.
 
 ## Deploying
 

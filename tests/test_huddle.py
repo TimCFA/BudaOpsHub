@@ -388,6 +388,52 @@ class Api(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertIsNone(r.get_json()['dayparts'][1]['numbers'])
 
+    # ----- the week -----
+
+    def week(self, day=None):
+        return self.c.get('/api/huddle/week' + (f'?date=2026-11-{day}' if day else ''))
+
+    def test_the_week_is_for_directors(self):
+        self.assertEqual(self.week().status_code, 403)                      # a Team Lead
+        self.as_('Caleb Ortiz', 'member')
+        self.assertEqual(self.week().status_code, 403)
+        self.as_('Dana Reyes', 'director')
+        self.assertEqual(self.week().status_code, 200)
+
+    def test_the_week_adds_up_huddles_goals_and_focus(self):
+        self.numbers_day()
+        self.as_('Dana Reyes', 'director')
+        self.send('focus', scope='week', text='Sub 3-minute drive-thru', why='Guests in the lane')
+        self.as_('Maya Torres', 'lead')
+        self.send('pre', **PRE)                                             # Lunch: g1 is tied to the week's focus
+        self.at(WED, '14:05')
+        self.post()                                                         # hit, partly, missed
+        self.as_('Noah Bennett', 'lead')
+        self.send('pre', **{**PRE, 'daypart': 'Afternoon (2:00-5:00)', 'goals': [{'text': 'Lobby reset by 3', 'focus': 'week'}], 'develop': None})
+        self.as_('Dana Reyes', 'director')
+        w = self.week().get_json()
+        self.assertEqual((w['week'], w['days'][0], w['days'][-1], len(w['cells'])), ('2026-11-16', '2026-11-16', '2026-11-21', 24))
+        # Mon, Tue: 4 each, Wed by 2:05pm: Breakfast, Lunch, Afternoon.
+        self.assertEqual({k: w['totals'][k] for k in ('expected', 'set', 'closed', 'goals', 'hit', 'partly', 'missed', 'open', 'develop', 'pea')},
+                         {'expected': 11, 'set': 2, 'closed': 1, 'goals': 4, 'hit': 1, 'partly': 1, 'missed': 1, 'open': 1, 'develop': 1, 'pea': 1})
+        self.assertEqual({k: w['focus']['week'][k] for k in ('text', 'goals', 'hit', 'open')}, {'text': 'Sub 3-minute drive-thru', 'goals': 2, 'hit': 1, 'open': 1})
+        self.assertIsNone(w['focus']['month'])
+        cell = {(c['date'], c['daypart']): c for c in w['cells']}
+        self.assertEqual((cell[('2026-11-18', LUNCH)]['state'], cell[('2026-11-18', LUNCH)]['hit'], cell[('2026-11-18', LUNCH)]['goals']), ('closed', 1, 3))
+        self.assertEqual([cell[('2026-11-18', n)]['state'] for n in (BREAKFAST, 'Afternoon (2:00-5:00)', DINNER)], ['none', 'set', 'ahead'])
+        self.assertEqual(cell[('2026-11-21', LUNCH)]['state'], 'ahead')
+        self.assertEqual([(x['name'], x['set'], x['closed'], x['hit']) for x in w['leaders']], [('Maya Torres', 1, 1, 1), ('Noah Bennett', 1, 0, 0)])
+        lunch = next(x for x in w['byDaypart'] if x['name'] == LUNCH)
+        self.assertEqual((lunch['expected'], lunch['set'], lunch['closed'], lunch['timers'], lunch['waste'], lunch['prodKnown']),
+                         (3, 1, 1, {'ontime': 2, 'late': 1, 'missed': 0}, 3.5, 0))
+        self.assertEqual(w['wins'], [{'date': '2026-11-18', 'daypart': LUNCH, 'by': 'Maya Torres', 'who': 'Caleb Ortiz', 'what': 'Kept the window moving'}])
+
+    def test_another_week_is_empty(self):
+        self.send('pre', **PRE)
+        self.as_('Dana Reyes', 'director')
+        w = self.week(10).get_json()
+        self.assertEqual((w['week'], w['totals']['set'], w['totals']['expected'], w['leaders']), ('2026-11-09', 0, 24, []))
+
     # ----- the focus -----
 
     def test_directors_set_the_focus_and_leads_see_it(self):

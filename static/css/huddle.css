@@ -12,6 +12,39 @@ body.lt-hidden .tab-dropdown-item[data-view="huddle"]{display:none !important;}
 .hd-week{border:1px solid var(--border);border-radius:12px;background:var(--cfa-white);color:var(--text-secondary);font-size:20px;line-height:1;cursor:pointer;}
 .hd-week:hover{border-color:var(--cfa-navy);}
 
+/* Day / Week (directors): ink is selected. */
+.hd-modes{display:inline-flex;gap:0;margin:0 0 10px;padding:3px;border-radius:999px;background:var(--cfa-soft);}
+.hd-mode{min-height:38px;padding:6px 18px;border:0;border-radius:999px;background:transparent;color:var(--text-primary);font-size:13px;font-weight:700;cursor:pointer;}
+.hd-mode[aria-pressed="true"]{background:var(--text-primary);color:var(--cfa-white);}
+html[data-theme="dark"] .hd-mode[aria-pressed="true"]{color:#121418;}
+.hd-h3{margin:16px 0 8px;font-family:var(--font-display);font-size:20px;font-weight:600;}
+.hd-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);}
+/* The week at a glance: a daypart a row, a day a column. Green closed, ink set, red none. */
+.hd-wk-wrap{overflow-x:auto;}
+.hd-wk{width:100%;border-collapse:separate;border-spacing:3px;table-layout:fixed;}
+.hd-wk th{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-secondary);text-align:center;}
+.hd-wk thead th b{display:block;font-family:var(--font-display);font-size:16px;letter-spacing:0;color:var(--text-primary);}
+.hd-wk thead th.is-today{color:var(--cfa-red);}
+.hd-wk tbody th{width:74px;text-align:left;text-transform:none;letter-spacing:0;font-size:12px;color:var(--text-primary);}
+.hd-wk-cell{padding:0;}
+.hd-wk-cell button{width:100%;min-height:44px;border:1px solid var(--border);border-radius:10px;background:var(--cfa-white);color:var(--text-tertiary);font-family:var(--font-display);font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;cursor:pointer;}
+.hd-wk-cell.is-closed button,.hd-key .is-closed{background:var(--ok-soft);border-color:var(--ok);color:var(--ok);}
+.hd-wk-cell.is-set button,.hd-key .is-set{background:var(--text-primary);border-color:var(--text-primary);color:var(--cfa-white);}
+.hd-wk-cell.is-none button,.hd-key .is-none{border-color:var(--cfa-red);color:var(--cfa-red);}
+.hd-wk-cell.is-ahead button{border-style:dashed;}
+.hd-wk-cell.is-off{border-radius:10px;background:var(--cfa-soft);}
+html[data-theme="dark"] .hd-wk-cell.is-set button,html[data-theme="dark"] .hd-key .is-set{color:#121418;}
+html[data-theme="dark"] .hd-wk-cell.is-none button,html[data-theme="dark"] .hd-key .is-none{color:var(--ink-red);}
+.hd-key{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:6px 0 0;font-size:12px;color:var(--text-tertiary);}
+.hd-key span{margin-left:8px;padding:1px 7px;border:1px solid var(--border);border-radius:7px;font-family:var(--font-display);font-weight:600;}
+.hd-key span:first-child{margin-left:0;}
+.hd-rows{display:grid;gap:0;margin:0;padding:0 14px;list-style:none;border:1px solid var(--border);border-radius:var(--radius);background:var(--cfa-white);}
+.hd-rows li{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 12px;padding:10px 0;border-top:1px solid var(--border);font-size:14px;}
+.hd-rows li:first-child{border-top:0;}
+.hd-rows li b{display:inline-flex;align-items:center;gap:5px;}
+.hd-rows li b .hd-ic{color:var(--ok);}
+.hd-rows li span{font-size:13px;color:var(--text-secondary);}
+
 /* The focus: the month's and the week's, side by side. */
 .hd-focus{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:1px;margin:0 0 12px;border-radius:var(--radius);background:rgba(246,241,232,.22);overflow:hidden;}
 .hd-focus-col{display:grid;gap:4px;align-content:start;padding:14px;background:var(--cfa-navy);color:#F6F1E8;}
