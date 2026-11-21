@@ -12,9 +12,11 @@ What the team sees of a block goes by its type (BLOCK_TYPES, told by the
 event's title, else its colour):
 
   Open door            bookable, in 30-minute slots
-  PEA window           shown by name
-  Floor support window shown by name
-  everything else      "Busy", nothing more
+  every other type     shown by its type's name and colour, never bookable
+  anything else        "Busy"
+
+Only the type shows (Tim, Nov 21 2026), never the event's own title: "Focus:
+budget" is "Focus" to the team.
 
 A request (REQUEST_TYPES: data, so a type can be added without new code)
 waits for the director: Open door time (a slot), a PEA on me or staffing
@@ -418,9 +420,8 @@ def register(app, me, signed_in, ref, tz, calendar, dayparts):
         held = taken(reqs, did)
         days = {}
         for b in m['blocks']:
-            # The team sees a busy block as "Busy" and nothing more; the director sees their own as it is.
-            own = bool(p) and p['id'] == did
-            out = {'type': b['type'] if own or b['show'] != 'busy' else 'busy', 'label': b['name'] if own else b['label'],
+            # Everyone sees which kind of block it is (Tim, Nov 21 2026), never the event's own title.
+            out = {'type': b['type'], 'label': b['name'],
                    'show': b['show'], 'start': b['start'], 'end': b['end']}
             if b['show'] == 'book':
                 out['group'] = b['group']

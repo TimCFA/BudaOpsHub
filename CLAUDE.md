@@ -129,10 +129,11 @@ in the hub, no phone talks to Google, and a director who hasn't connected has
 no page. Never a primary calendar: only an ID ending
 `@group.calendar.google.com` connects. A block's type is told by its title,
 else its Google colour (`BLOCK_TYPES`): Open door is bookable in 30-minute
-slots, PEA and Floor support windows show by name, everything else is "Busy".
+slots; every other type shows by its type's name, never the event's own
+title, and can't be booked; an event of no type is "Busy".
 The week is a calendar grid, and its blocks wear Google Calendar's colours
-(Tim, Nov 21 2026: the one exception to "one meaning a colour"); a director
-sees their own busy blocks by name and colour, the team sees grey "Busy".
+(Tim, Nov 21 2026: the one exception to "one meaning a colour"), for the
+team as for the director.
 Requests (`REQUEST_TYPES`, data so a type can be added) wait for the
 director: Open door time, a PEA on me, staffing support, need to talk.
 Booking closes at midnight (tomorrow is the first day; a same-shift gap is a

@@ -4,8 +4,8 @@
 // The server keeps the rules (week_api.py): what each block shows, which
 // slots are open, who may answer. This draws what it sends.
 //
-// The team sees: Open door blocks as 30-minute slots to ask for, PEA and
-// Floor support windows by name, everything else as "Busy". A slot someone
+// The team sees: Open door blocks as 30-minute slots to ask for, and every
+// other block by its type's name and colour (never the event's own title). A slot someone
 // asked for says "Booked", never who. Booking closes at midnight: tomorrow
 // is the first day, and a same-shift gap is a call or text.
 // A director sees, on top: the requests waiting on them (accept / decline),
@@ -105,7 +105,7 @@
       ${D.setup ? setupHtml() : ''}
       ${inboxHtml()}
       ${dir ? `
-        <p class="dw-lede">${mine ? 'Your week, as you see it. The team sees Lunch peak, Focus, Admin and Weekly review only as “Busy”.' : `How ${h(firstName(dir.name))} plans to spend the week. Tap an open slot to ask for it.`}</p>
+        <p class="dw-lede">${mine ? 'This is what the team sees of your week: each block’s type, never its title.' : `How ${h(firstName(dir.name))} plans to spend the week. Tap an open slot to ask for it.`}</p>
         <p class="dw-urgent">${I.phone}<span><b>Short this shift? Call or text.</b> Requests here are for tomorrow and later; today is already set.</span></p>
         ${mine ? '' : `<button type="button" class="dw-ask" data-dw-ask>${I.plus}Request ${h(firstName(dir.name))}’s time</button>`}
         ${dir.stale ? '<p class="dw-stale">Google Calendar isn’t answering right now, so this may be a few minutes old.</p>' : ''}
@@ -154,9 +154,8 @@
           </div>`).join('')}
         </div>
       </div>
-      <p class="dw-legend"><span><i class="dw-k t-open"></i>Open door: tap a slot to ask for it</span><span><i class="dw-k is-booked"></i>Booked</span><span><i class="dw-k t-pea"></i>PEA window</span><span><i class="dw-k t-support"></i>Floor support window</span>${mine
-        ? '<span><i class="dw-k t-peak"></i>Lunch peak</span><span><i class="dw-k t-focus"></i>Focus</span><span><i class="dw-k t-admin"></i>Admin</span><span><i class="dw-k t-review"></i>Weekly review</span><span class="dw-legend-note">The team sees those four as Busy.</span>'
-        : '<span><i class="dw-k is-busy"></i>Busy</span>'}</p>`;
+      <p class="dw-legend"><span><i class="dw-k t-open"></i>Open door: tap a slot to ask for it</span><span><i class="dw-k is-booked"></i>Booked</span>${[['pea', 'PEA window'], ['support', 'Floor support window'], ['peak', 'Lunch peak'], ['focus', 'Focus'], ['admin', 'Admin'], ['review', 'Weekly review']]
+        .filter(k => all.some(b => b.type === k[0])).map(k => `<span><i class="dw-k t-${k[0]}"></i>${k[1]}</span>`).join('')}${all.some(b => b.type === 'busy') ? '<span><i class="dw-k is-busy"></i>Busy</span>' : ''}</p>`;
   }
   function blockHtml(b, base, mine){
     if(b.show !== 'book'){
@@ -222,8 +221,8 @@
       ${su.connected
         ? `<p class="dw-ok">Your Google calendar is connected. The hub reads it every few minutes.</p>
            <details class="dw-more"><summary>How blocks show to the team</summary><ul class="dw-key">${su.blockTypes.map(t =>
-             `<li><b>${h(t.label)}</b> ${t.show === 'book' ? 'bookable in 30-minute slots' : t.show === 'named' ? 'shown by name' : 'shows as Busy'}</li>`).join('')}
-             <li>Anything else shows as Busy. A block is told by its title; add “group” to an Open door title to let more than one person book it.</li></ul>
+             `<li><b>${h(t.label)}</b> ${t.show === 'book' ? 'bookable in 30-minute slots' : 'shown by name, can’t be booked'}</li>`).join('')}
+             <li>Anything else shows as Busy. The team sees a block’s type, never the title you gave it. A block is told by its title; add “group” to an Open door title to let more than one person book it.</li></ul>
              <button type="button" class="dw-btn" data-dw-disconnect>Disconnect my calendar</button></details>`
         : `<p class="dw-lede">Connect the Google calendar you plan your week in. Until you do, you have no page.</p>${steps}`}
       <div class="dw-live">

@@ -215,19 +215,16 @@ class Api(unittest.TestCase):
         self.assertEqual(self.ask().status_code, 401)
 
     # ----- what the team sees -----
-    def test_the_team_sees_slots_names_and_busy_nothing_else(self):
+    def test_the_team_sees_slots_and_each_blocks_type_never_its_title(self):
         self.connect()
         self.as_('Ben Cole', 'member')
         s = self.state()
         days = {d['date']: d['blocks'] for d in s['directors'][0]['days']}
         tomorrow = days[at(1, 0).date().isoformat()]
-        self.assertEqual([(b['label'], b['show']) for b in tomorrow], [('Busy', 'busy'), ('Open door', 'book')])
+        # Which kind of block, never the event's own title; only Open door books.
+        self.assertEqual([(b['type'], b['label'], b['show']) for b in tomorrow], [('focus', 'Focus', 'busy'), ('open', 'Open door', 'book')])
         self.assertNotIn('budget', str(s))
-        self.assertNotIn('focus', str(s['directors']).lower())                     # not even which kind of busy
-        self.as_('Dee Lopez', 'director')
-        own = {d['date']: d['blocks'] for d in self.state()['directors'][0]['days']}[at(1, 0).date().isoformat()]
-        self.assertEqual((own[0]['type'], own[0]['label'], own[0]['show']), ('focus', 'Focus', 'busy'))   # her own, as it is
-        self.as_('Ben Cole', 'member')
+        self.assertNotIn('slots', tomorrow[0])
         self.assertEqual([x['state'] for x in tomorrow[1]['slots']], ['open', 'open'])
         self.assertEqual(days[at(2, 0).date().isoformat()][0]['label'], 'PEA window')
         # Today is set in stone: its Open door slot shows, closed.
