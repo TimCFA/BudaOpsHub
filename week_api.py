@@ -56,6 +56,7 @@ SECURE = 'secure/week'          # {directors: {id: {name, calendarId, at}}, sett
 MIN = 60 * 1000
 SLOT_MIN = 30
 MIRROR_SECONDS = 180            # how old the copy of a calendar may be
+STALE_SECONDS = 600             # a copy older than this is shown as stale
 CONFIG_SECONDS = 60
 MAX_BODY = 8_000
 NOTE_MAX = 500
@@ -110,7 +111,7 @@ class GoogleCalendar:
     calendars someone has shared with its address, and only their events."""
     SCOPES = ('https://www.googleapis.com/auth/calendar.events',)
     API = 'https://www.googleapis.com/calendar/v3/calendars'
-    TIMEOUT = 10
+    TIMEOUT = 4          # seconds: a web request is waiting on it, and the server's threads are few
 
     def __init__(self, info):
         self.info = info if isinstance(info, dict) else None
@@ -275,7 +276,9 @@ class WeekStore:
     def reset(self):
         self.events, self.loaded, self.last_at, self.synced = {}, False, 0, 0
         self.config, self.config_at = None, 0
-        self.mirror = {}             # director id -> {at, blocks, ok}
+        self.mirror = {}             # director id -> {at, read, cal, blocks, ok}
+        self.asking = {}             # director id -> a lock held while Google is being asked
+        self.deciding = set()        # requests being answered right now
 
     def _add(self, ev):
         if ev['id'] not in self.events:
@@ -394,23 +397,34 @@ def register(app, me, signed_in, ref, tz, calendar, dayparts):
 
     def mirror(did, cfg, now, force=False):
         """A director's blocks for the two weeks, from the copy kept here;
-        Google is asked again once the copy is MIRROR_SECONDS old. If Google
-        can't be reached the old copy serves, marked stale."""
-        got = store.mirror.get(did)
+        Google is asked again once the copy is MIRROR_SECONDS old. One
+        thread asks at a time for each director: anyone else arriving
+        meanwhile gets the copy there is, without waiting, so a slow Google
+        never ties up the server's threads (they are shared with Set Ups
+        saves). If Google can't be reached the old copy serves, marked stale."""
         cal = cfg['directors'][did]['calendarId']
-        if got and got['cal'] == cal and not force and time.time() - got['at'] < MIRROR_SECONDS:
+        got = store.mirror.get(did)
+        if got and got['cal'] != cal:
+            got = None
+        if got and not force and time.time() - got['at'] < MIRROR_SECONDS:
             return got
-        monday, _, last = window(now)
+        asking = store.asking.setdefault(did, threading.Lock())
+        if not asking.acquire(blocking=False):
+            if got:
+                return got if time.time() - got['read'] < STALE_SECONDS else dict(got, ok=False)
+            return {'at': 0, 'read': 0, 'cal': cal, 'blocks': [], 'ok': False}
         try:
-            events = calendar.list(cal, local(day_start(monday)), local(day_start(last + timedelta(days=1))))
-            got = {'at': time.time(), 'cal': cal, 'blocks': blocks_from(events, tz), 'ok': True}
-        except CalendarError:
-            if got and got['cal'] == cal:
-                got = dict(got, at=time.time() - MIRROR_SECONDS + 30, ok=False)    # ask again in half a minute
-            else:
-                got = {'at': time.time() - MIRROR_SECONDS + 30, 'cal': cal, 'blocks': [], 'ok': False}
-        store.mirror[did] = got
-        return got
+            monday, _, last = window(now)
+            try:
+                events = calendar.list(cal, local(day_start(monday)), local(day_start(last + timedelta(days=1))))
+                got = {'at': time.time(), 'read': time.time(), 'cal': cal, 'blocks': blocks_from(events, tz), 'ok': True}
+            except CalendarError:
+                again = time.time() - MIRROR_SECONDS + 30               # ask again in half a minute
+                got = dict(got, at=again, ok=False) if got else {'at': again, 'read': 0, 'cal': cal, 'blocks': [], 'ok': False}
+            store.mirror[did] = got
+            return got
+        finally:
+            asking.release()
 
     def week_of(did, cfg, reqs, p, now):
         """What one person sees of one director's two weeks."""
@@ -508,6 +522,10 @@ def register(app, me, signed_in, ref, tz, calendar, dayparts):
         now = now_ms()
         _, first, last = window(now)
         data = {'type': t['id'], 'director': did, 'note': _text(d.get('note'), NOTE_MAX)}
+        # Google is asked before the lock is taken, never while holding it.
+        blocks = mirror(did, cfg, now, force=True) if t['needs'] == 'slot' else None
+        if blocks and not blocks['ok'] and not blocks['blocks']:
+            raise Refused('Google Calendar is slow right now. Try again in a moment.', 503)
         with store.lock:
             reqs = fold(store.events.values())
             if sum(1 for r in reqs.values() if r['by'] == p['id'] and r['status'] == 'pending') >= OPEN_REQUESTS_MAX:
@@ -519,7 +537,7 @@ def register(app, me, signed_in, ref, tz, calendar, dayparts):
                     raise Refused('Pick an open slot.')
                 if not day_start(first) <= slot < day_start(last + timedelta(days=1)):
                     raise Refused('That day is set. Tomorrow is the first day you can book; for today, call or text.', 409)
-                block = next((b for b in mirror(did, cfg, now, force=True)['blocks'] if b['show'] == 'book' and slot in slots_of(b)), None)
+                block = next((b for b in blocks['blocks'] if b['show'] == 'book' and slot in slots_of(b)), None)
                 if not block:
                     raise Refused('That slot isn’t Open door time any more.', 409)
                 if not block['group']:
@@ -557,17 +575,16 @@ def register(app, me, signed_in, ref, tz, calendar, dayparts):
             raise Refused('Unknown step.', 404)
         store.ensure(force=True)
         cfg = store.settings()
+        data, start = {'note': _text(d.get('note'), NOTE_MAX)}, 0
         with store.lock:
             r = fold(store.events.values()).get(rid)
             if not r or p['id'] not in (r['by'], r['director']):
                 raise Refused('That request isn’t here any more.', 404)
-            mine = p['id'] == r['director']
-            if action != 'cancel' and not mine:
+            if action != 'cancel' and p['id'] != r['director']:
                 raise Refused('Only the director answers a request.', 403)
-            if r['status'] not in (('pending',) if action != 'cancel' else HOLDING):
+            if r['status'] not in (('pending',) if action != 'cancel' else HOLDING) or rid in store.deciding:
                 raise Refused('That request has already been answered.', 409)
             cal = (cfg['directors'].get(r['director']) or {}).get('calendarId')
-            data, written = {'note': _text(d.get('note'), NOTE_MAX)}, ''
             if action == 'accept':
                 start = r['slot']
                 if r['type'] == 'talk' and d.get('when'):
@@ -578,30 +595,35 @@ def register(app, me, signed_in, ref, tz, calendar, dayparts):
                     if not now_ms() < start < now_ms() + 60 * 24 * 60 * MIN:
                         raise Refused('Pick a time that’s still ahead.')
                     data['when'] = start
-                if start:
-                    if not cal:
-                        raise Refused('Your calendar isn’t connected, so the booking can’t be written to it.', 409)
-                    try:
-                        written = calendar.insert(cal, booking(r, start, cfg))
-                    except CalendarError:
-                        raise Refused('Google Calendar didn’t take the booking. Nothing was accepted; try again in a moment.', 502)
-                    data['gcal'] = written
-            at, eid = store.next_id()
-            try:
-                store.append({'id': eid, 'at': at, 'type': action, 'by': p['id'], 'byName': p['name'], 'reqId': rid, 'data': data})
-            except Unavailable:
-                if written:
-                    try:
-                        calendar.delete(cal, written)
-                    except CalendarError:
-                        pass
-                raise
-            if action == 'cancel' and r['gcal'] and cal:
+                if start and not cal:
+                    raise Refused('Your calendar isn’t connected, so the booking can’t be written to it.', 409)
+            store.deciding.add(rid)          # nobody else answers it while Google is asked, below, with the lock let go
+        written = ''
+        try:
+            if start:
                 try:
-                    calendar.delete(cal, r['gcal'])
+                    written = calendar.insert(cal, booking(r, start, cfg))
                 except CalendarError:
-                    print('[WEEK] a cancelled booking is still on the Google calendar')
-            store.mirror.pop(r['director'], None)
+                    raise Refused('Google Calendar didn’t take the booking. Nothing was accepted; try again in a moment.', 502)
+                data['gcal'] = written
+            with store.lock:
+                at, eid = store.next_id()
+                store.append({'id': eid, 'at': at, 'type': action, 'by': p['id'], 'byName': p['name'], 'reqId': rid, 'data': data})
+        except Unavailable:
+            if written:
+                try:
+                    calendar.delete(cal, written)
+                except CalendarError:
+                    pass
+            raise
+        finally:
+            store.deciding.discard(rid)
+        if action == 'cancel' and r['gcal'] and cal:
+            try:
+                calendar.delete(cal, r['gcal'])
+            except CalendarError:
+                print('[WEEK] a cancelled booking is still on the Google calendar')
+        store.mirror.pop(r['director'], None)
         print(f'[WEEK] {action}')
         return jsonify({'ok': True})
 

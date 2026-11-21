@@ -9,6 +9,7 @@ Firebase is a dict of paths (FakeRef); Google is FakeCalendar. Made-up names.
 """
 import os
 import sys
+import time
 import unittest
 from datetime import datetime, timedelta
 
@@ -247,6 +248,45 @@ class Api(unittest.TestCase):
         s = self.state()
         self.assertTrue(s['directors'][0]['stale'])
         self.assertTrue(s['directors'][0]['days'])
+
+    def test_a_hung_google_holds_one_thread_and_nobody_else_waits(self):
+        """Server threads are few and shared with Set Ups saves: while one
+        request is waiting on Google, the next gets the copy there is."""
+        import threading
+        self.connect()
+        self.as_('Ben Cole', 'member')
+        self.state()
+        ws = appmod.app.extensions['week_store']
+        ws.mirror[self.dee]['at'] = 0                                   # the copy has gone old
+        hung, go, real = threading.Event(), threading.Event(), appmod.app.extensions['week_calendar']
+        def slow(cal, start, end):
+            hung.set()
+            go.wait(10)
+            return list(self.cal.events)
+        real.list = slow
+        other = appmod.app.test_client()
+        with other.session_transaction() as sess:
+            sess['user'] = {'name': 'Ana Ruiz', 'role': 'lead', 'via': 'pin'}
+        first = threading.Thread(target=lambda: other.get('/api/week/state'))
+        first.start()
+        try:
+            self.assertTrue(hung.wait(5))
+            t0 = time.time()
+            s = self.state()                                            # doesn't wait for Google
+            self.assertLess(time.time() - t0, 2)
+            self.assertTrue(s['directors'][0]['days'])
+            self.assertFalse(ws.lock.acquire(blocking=False) is False)  # and the store's lock is free
+            ws.lock.release()
+            # Asking for a slot doesn't wait on it either, or hold the lock meanwhile.
+            t0 = time.time()
+            self.assertEqual(self.ask().status_code, 200)
+            self.assertLess(time.time() - t0, 2)
+        finally:
+            go.set()
+            first.join(10)
+
+    def test_google_is_given_four_seconds_not_ten(self):
+        self.assertLessEqual(W.GoogleCalendar.TIMEOUT, 4)
 
     # ----- asking -----
     def test_a_slot_asked_for_is_booked_to_everyone_else_with_no_name(self):
