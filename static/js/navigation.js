@@ -45,6 +45,7 @@ function activateView(view){
   if(view === 'cem' && typeof renderCemTrends === 'function') renderCemTrends();
   if(view === 'knownumbers' && typeof renderKnPage === 'function') renderKnPage();
   if(view === 'calendar' && typeof renderCalendarView === 'function') renderCalendarView();
+  if(view === 'calendar' && typeof dwActivate === 'function') dwActivate();   // week.js: Directors' Week
   if(view === 'tasks' && typeof psActivate === 'function') psActivate();   // pass.js
   if(view === 'timers' && typeof tmActivate === 'function') tmActivate();   // timers.js
   if(view === 'huddle' && typeof hdActivate === 'function') hdActivate();   // huddle.js

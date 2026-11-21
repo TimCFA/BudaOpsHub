@@ -168,6 +168,36 @@ nothing on team members' Right Now cards; any Team Lead or director can
 close another's huddle; each side's card shows its own waste; the week is
 directors only. Tests: `tests/test_huddle.py`.
 
+## Directors' Week
+
+Directors' Week sits on the Calendar tab beside the store's calendar
+(`week_api.py`, `static/js/week.js`, `static/css/week.css`; Tim, Nov 18
+2026): the team sees how a director plans to spend the week and asks for
+their time. The week is mirrored from one Google calendar the director
+shares with the hub's service account (the Firebase one; its address is shown
+on the director's settings card) with "Make changes to events"; nobody plans
+in the hub, no phone talks to Google, and a director who hasn't connected has
+no page. Never a primary calendar: only an ID ending
+`@group.calendar.google.com` connects. A block's type is told by its title,
+else its Google colour (`BLOCK_TYPES`): Open door is bookable in 30-minute
+slots; every other type shows by its type's name, never the event's own
+title, and can't be booked; an event of no type is "Busy".
+The week is a calendar grid, and its blocks wear Google Calendar's colours
+(Tim, Nov 21 2026: the one exception to "one meaning a colour"), for the
+team as for the director.
+Requests (`REQUEST_TYPES`, data so a type can be added) wait for the
+director: Open door time, a PEA on me, staffing support, need to talk.
+Booking closes at midnight (tomorrow is the first day; a same-shift gap is a
+call or text, said on the page), one person a slot unless the block's title
+says "group", and a taken slot shows "Booked" with no name. Accepting a slot
+writes it onto the director's Google calendar; a PEA or staffing request is
+only marked accepted. Requests are folded from events under
+`week/events/<id>`, one record each; which calendar each director shares and
+the switch are under `secure/week`, so it never touches `/api/state/sync`.
+Nothing shows to the team until a director turns it on (Tim's call). A
+director is told by a row on Right Now and a badge on the tab; there is no
+email yet. English only. Tests: `tests/test_week.py`.
+
 ## Deploying
 
 Merging to `main` deploys to Render and restarts the server for about a
