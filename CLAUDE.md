@@ -117,6 +117,57 @@ signed-out device names who did it); Team Leads and up hand off and change
 the timers. FOH only, so English only. `FOH_DAYPARTS` in timers_api.py must
 match `fohDayparts` in zone-reset.js (tests/test_timers.py checks).
 
+## Huddle
+
+The Huddle page under Lists (OE on the full site), beside Leader Transition,
+is the pre-huddle and post-huddle for each daypart and the store's focus for
+the month and the week (`huddle_api.py`, `static/js/huddle.js`,
+`static/css/huddle.css`; Tim, Nov 18 2026). Team Leads and up, enforced by
+the server; directors set the focuses. The pre-huddle is Tim's Team Lead
+Pre-Shift Card (why I'm here, the ONE priority, up to three goals: PEC area,
+leadership, the system I'll run, each tied to a focus with a tap; who I'll
+develop); the post-huddle closes it (each goal hit / partly / missed, one
+recognition, one thing for the next leader). One huddle per day and daypart
+on the four Know the Numbers dayparts (`DAYPARTS` in huddle_api.py must match
+`numbersDayparts` in know-numbers.js; tests/test_huddle.py checks); the Lead
+Captain and the names offered come from Set Ups. The pre-huddle opens 30
+minutes before the daypart (`PRE_OPENS_MIN`), the post once it has started,
+and both only on their own day. The rules live on the server only: the page
+draws what `/api/huddle/state` sends. Events live under
+`huddle/events/<id>` in Firebase, one record each (a save again is a new
+record; the latest stands), never a saved-state section, so it never touches
+`/api/state/sync`. Once a daypart has started its card carries the shift's
+numbers, added up by the server from what the hub already records
+(`shift_numbers`), never retyped: per daypart, productivity against its
+goal, the task timers that came due in it, FOH waste logged and food safety
+walkthroughs finished; per zone, the Zone Resets of the handoffs its Lead
+Captains own (`HANDOFFS` and `ZONE_ITEMS` must match zone-reset.js and
+state-and-utils.js; the tests check). Never show a per-zone split of a number
+the hub records per daypart. A copy is kept on the post-huddle event as it
+stood at closing, used where the hub has since cleared its own record. It
+only reads the saved state. Directors also get Day / Week at the top: the
+week's roll-up (`/api/huddle/week`, `roll_up`) of huddles set and closed,
+goals hit, goals written against each focus, each leader's huddles, each
+daypart's numbers and who won a shift; a huddle is expected once its daypart
+has started. The look is Know the Numbers' (the `knp-` classes).
+
+Front of house and the kitchen each have their own huddles (FOH / Kitchen at
+the top, remembered on the device; Tim, Nov 21 2026). FOH stays English
+only. On the kitchen's side every phrase carries its Spanish from the
+glossary's Huddle section through `L` / `es` / `P` in huddle.js, including
+the quick picks and what the server says when it refuses a save (keyed by
+their own English); tests/test_huddle.py fails if one is missing. The
+kitchen has no Lead Captain, its own quick picks (`PICKS['boh']`, the
+build's until Tim names them) and its own waste; the task timers and Zone
+Resets are front of house's, so its huddle carries neither. The directors'
+week is English and per side.
+
+Tim confirmed (Nov 21 2026): four dayparts "for now"; which handoff counts
+for which huddle; the pre-huddle opens 30 minutes before; leaders only, with
+nothing on team members' Right Now cards; any Team Lead or director can
+close another's huddle; each side's card shows its own waste; the week is
+directors only. Tests: `tests/test_huddle.py`.
+
 ## Deploying
 
 Merging to `main` deploys to Render and restarts the server for about a

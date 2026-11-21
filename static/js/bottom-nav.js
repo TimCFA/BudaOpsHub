@@ -26,7 +26,7 @@
     {view: 'zonereset', label: 'Lists', es: 'Listas'},
     {view: 'wastelog', label: 'Waste', es: 'Desperdicio'}
   ];
-  const LISTS = ['zonereset', 'timers', 'foodsafety', 'safecount'];
+  const LISTS = ['zonereset', 'huddle', 'timers', 'foodsafety', 'safecount'];
 
   const tabs = document.querySelector('.tabs');
   if(!tabs) return;
