@@ -335,9 +335,10 @@ document.getElementById('homeQuoteBox').addEventListener('click', ()=>{
 function renderHomeScoreboard(){
   const hour = new Date().getHours();
   let greeting = '';
-  if(hour < 12) greeting = 'Good Morning';
-  else if(hour < 17) greeting = 'Good Afternoon';
-  else greeting = 'Good Evening';
+  // The Right Now card adds the name (right-now.js rnGreet).
+  if(hour < 12) greeting = 'Good morning';
+  else if(hour < 17) greeting = 'Good afternoon';
+  else greeting = 'Good evening';
   
   document.getElementById('homeGreeting').textContent = greeting + '.';
   const dateEl = document.getElementById('homeDate');

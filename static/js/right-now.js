@@ -202,6 +202,28 @@ function rnFoodSafety(){
 
 // One row: big value, line, its Spanish (BOH), and where a tap goes.
 function rnRow(n, text, es, go, tone){ return {n, text, es: es || '', go: go || '', tone: tone || ''}; }
+// What the look adds to a row (Nov 21 2026): icon ('clock', 'pin'), who (a name: their initials lead the line), bar (0 to 1), note (a detail that isn't part of its sentence).
+function rnWith(row, extra){ return Object.assign(row, extra); }
+// The banner's parts, beside its sentence (`text` stays whole for the tests,
+// the Spanish and a screen reader): a small label, the words that matter in
+// big type, the detail, and its colour ('bad' needs someone, 'ok' all covered).
+function rnHead(first, k, big, sub, tone){ return Object.assign(first, {k: k || '', big: big || '', sub: sub || '', tone: tone || ''}); }
+// 100 → "1 h 40 min"
+function rnDur(min){
+  const m = Math.max(0, Math.round(min));
+  return m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}` : `${m} min`;
+}
+// How far through today's shift someone is: {bar, note, es}. A split shift
+// runs from its first block to its last.
+function rnShiftProgress(on, now){
+  const spans = on.flatMap(o => (o.entry.blocks && o.entry.blocks.length ? o.entry.blocks : [o.entry]).map(b => [parseShiftTimeToMinutes(b.start), parseShiftTimeToMinutes(b.end)]))
+    .filter(([s, e]) => s !== null && e !== null).map(([s, e]) => [s, e <= s ? e + 1440 : e]);
+  if(!spans.length) return null;
+  const start = Math.min(...spans.map(x => x[0])), end = Math.max(...spans.map(x => x[1]));
+  if(now < start) return {bar: 0, note: `starts in ${rnDur(start - now)}`, es: esText('Starts in TIME', rnDur(start - now))};
+  if(now >= end) return {bar: 1, note: 'done for today', es: esText('Done for today')};
+  return {bar: (now - start) / (end - start), note: `${rnDur(end - now)} left`, es: esText('TIME left', rnDur(end - now))};
+}
 
 // ----- Per role -----
 function rnPersonCard(v, day, trainer){
@@ -224,7 +246,8 @@ function rnPersonCard(v, day, trainer){
       first = s
         ? {text: `${dayName}: ${s.slot} at ${rnShort(s.dp.name)}.`, es: esText('Next: SPOT at DP', esPlace(s.slot) || s.slot, esDaypart(s.dp.name)), go: `setups:${s.side}|${date}|${s.dp.name}`}
         : {text: `${dayName}: your shift is ${rnShiftsText(on)}.${floor.length ? ' No spot yet.' : ''}`, es: esText('Your shift starts at TIME', rnShiftText(on[0].entry))};
-      rows.push(rnRow('', `Your shift ${dayName}: ${rnShiftsText(on)}`, esText('Your shift'), `myweek:${date}`));
+      rnHead(first, s ? `${dayName} · you’re on` : `${dayName} · your shift`, s ? s.slot : rnShiftsText(on), s ? `at ${rnShort(s.dp.name)}` : floor.length ? 'No spot yet' : '');
+      rows.push(rnWith(rnRow('', `Your shift ${dayName}: ${rnShiftsText(on)}`, esText('Your shift'), `myweek:${date}`), {icon: 'clock'}));
       spots.forEach(x => rows.push(rnRow(rnClock(parseDaypartTimeToMinutes(x.dp.time)), `${x.slot} at ${rnShort(x.dp.name)}`, esPlace(x.slot), `setups:${x.side}|${date}|${x.dp.name}`)));
     }
     return {side, first, rows, team: true, kicker: `${dayName}`, title: `Hi, ${first1}`};
@@ -249,35 +272,48 @@ function rnPersonCard(v, day, trainer){
   } else if(onBreak){
     const back = rnClock(day.now + Math.round((brkUntil - serverNow()) / 60000));
     first = {text: `On break, back at ${back}.`, es: esText('On break, back at TIME', back), until: brkUntil, back};
+    rnHead(first, 'On break', '', `back at ${back}`);
   } else if(myZones.some(z => !z.done) && day.now >= hand.at - 30){
     const z = myZones.find(x => !x.done);
     first = {text: `Reset ${z.zone} for the ${hand.title} handoff (${z.checked} of ${z.total} done).`, go: `zone:${hand.name}`};
+    rnHead(first, 'Reset your zone', z.zone, `for the ${hand.title} handoff · ${z.checked} of ${z.total} done`, 'bad');
+    first.bar = z.total ? z.checked / z.total : 0;
   } else if(nowSpot){
     nowFirst = true;
     const end = daypartTimeWindow(suDaypartsFor(nowSpot.side), nowSpot.dpIndex).endMin;
     first = {text: `You’re on ${nowSpot.slot} until ${rnClock(end)}.`, es: esText('You are on SPOT until TIME', esPlace(nowSpot.slot) || nowSpot.slot, rnClock(end)), go: `setups:${nowSpot.side}|${today}|${nowSpot.dp.name}`};
+    rnHead(first, 'You’re on', nowSpot.slot, `until ${rnClock(end)}`);
+    const began = parseDaypartTimeToMinutes(nowSpot.dp.time);
+    if(end > began) first.bar = (day.now - began) / (end - began);   // how far through the daypart
   } else if(startsAt !== null && startsAt > day.now){
     first = {text: `Your shift starts at ${rnClock(startsAt)}${nextSpot ? `, on ${nextSpot.slot}` : ''}.`, es: esText('Your shift starts at TIME', rnClock(startsAt))};
+    rnHead(first, 'Your shift starts at', rnClock(startsAt), [nextSpot ? `on ${nextSpot.slot}` : '', `in ${rnDur(startsAt - day.now)}`].filter(Boolean).join(' · '));
   } else if(offFloor && !spots.length){
     first = {text: `Your ${RN_OFF_FLOOR[offFloor.side]} shift today: ${rnShiftText(offFloor.entry)}.`};
+    rnHead(first, `Your ${RN_OFF_FLOOR[offFloor.side]} shift today`, rnShiftText(offFloor.entry), '');
   } else {
     const dp = suDaypartsFor(side)[rnDaypartIndex(side, day.now)];
     first = {text: `No spot yet for ${rnShort(dp.name)}. Check with your leader.`, es: esText('No spot yet for DP', esDaypart(dp.name)), go: `setups:${side}|${today}|${dp.name}`};
+    rnHead(first, `No spot yet for ${rnShort(dp.name)}`, 'Check with your leader', '', 'bad');
   }
 
-  if(nowSpot && !nowFirst) rows.push(rnRow('', `Now: ${nowSpot.slot} (${rnShort(nowSpot.dp.name)})`, esText('Your spot now') + (esPlace(nowSpot.slot) ? ': ' + esPlace(nowSpot.slot) : ''), `setups:${nowSpot.side}|${today}|${nowSpot.dp.name}`));
+  if(nowSpot && !nowFirst) rows.push(rnWith(rnRow('', `Now: ${nowSpot.slot} (${rnShort(nowSpot.dp.name)})`, esText('Your spot now') + (esPlace(nowSpot.slot) ? ': ' + esPlace(nowSpot.slot) : ''), `setups:${nowSpot.side}|${today}|${nowSpot.dp.name}`), {icon: 'pin'}));
   if(nextSpot) rows.push(rnRow(rnClock(parseDaypartTimeToMinutes(nextSpot.dp.time)), `Next: ${nextSpot.slot} (${rnShort(nextSpot.dp.name)})`, esText('Next spot') + (esPlace(nextSpot.slot) ? ': ' + esPlace(nextSpot.slot) : ''), `setups:${nextSpot.side}|${today}|${nextSpot.dp.name}`));
   // Every spot after that today, so the whole day's Set Ups are here.
   spots.filter(x => x !== nextSpot && parseDaypartTimeToMinutes(x.dp.time) > day.now).forEach(x =>
     rows.push(rnRow(rnClock(parseDaypartTimeToMinutes(x.dp.time)), `Later: ${x.slot} (${rnShort(x.dp.name)})`, esText('Later spot') + (esPlace(x.slot) ? ': ' + esPlace(x.slot) : ''), `setups:${x.side}|${today}|${x.dp.name}`)));
   // A tap opens the Schedule on their week (Tim, Oct 28 2026).
-  if(on.length) rows.push(rnRow('', `Your shift: ${rnShiftsText(on)}`, esText('Your shift'), `myweek:${today}`));
+  if(on.length){
+    // How far through it they are: a bar, and the time left (Tim, Nov 21 2026).
+    const prog = rnShiftProgress(on, day.now);
+    rows.push(rnWith(rnRow('', `Your shift: ${rnShiftsText(on)}`, esText('Your shift') + (prog ? ' · ' + prog.es : ''), `myweek:${today}`), {icon: 'clock', ...(prog ? {bar: prog.bar, note: prog.note} : {})}));
+  }
   // Who's leading the shift (Tim, Nov 18 2026): the Lead Captain on Set Ups
   // for the daypart on the clock, on their side. Not when that's them.
   if(floor.length){
     const lead = rnLeading(side, today, rnDaypartIndex(side, day.now)).filter(n => !names.some(x => rnSame(n, x)));
     const dpNow = suDaypartsFor(side)[rnDaypartIndex(side, day.now)];
-    if(lead.length) rows.push(rnRow('', `Leading the shift: ${lead.map(suDisplayName).join(', ')}`, esText('Leading the shift'), `setups:${side}|${today}|${dpNow.name}`));
+    if(lead.length) rows.push(rnWith(rnRow('', `Leading the shift: ${lead.map(suDisplayName).join(', ')}`, esText('Leading the shift'), `setups:${side}|${today}|${dpNow.name}`), {who: lead[0]}));
   }
   myZones.forEach(z => rows.push(rnRow(`${z.checked}/${z.total}`, `your zone: ${z.zone} · ${hand.title} at ${rnClock(hand.at)}`, '', `zone:${hand.name}`, z.done ? 'ok' : '')));
   rnTicketRows(day).forEach(r => rows.push(r));
@@ -359,7 +395,7 @@ function rnLeaderTicketRow(boh){
   const waiting = c.todo + c.approve;
   const out = c.out ? `${c.out} out with the team` : '';
   if(!waiting){
-    return rnRow('0', c.out ? `tickets waiting on you · ${out}` : 'No open tickets. Nicely done.', boh ? esText(c.out ? 'Tickets waiting on you' : 'No open tickets, nicely done') : '', 'tickets', 'ok');
+    return rnRow('0', c.out ? `Nothing waiting on you · ${out}` : 'No open tickets. Nicely done.', boh ? esText(c.out ? 'Nothing waiting on you' : 'No open tickets, nicely done') : '', 'tickets', 'ok');
   }
   const parts = [c.todo ? `${c.todo} to do` : '', c.approve ? `${c.approve} to approve` : '', out].filter(Boolean);
   return rnRow(String(waiting), `ticket${waiting === 1 ? '' : 's'} waiting on you: ${parts.join(' · ')}`, boh ? esText('Tickets waiting on you') : '', 'tickets', c.late ? 'bad' : 'warn');
@@ -386,7 +422,7 @@ function rnPeaHtml(pea, boh){
   if(!pea) return '';
   const es = t => boh && t ? esSpan(t, false) : '';
   return `<section class="rn-pea" aria-label="Your PEA scores">
-      <div class="rn-pea-head"><span>Your PEA${es(esText('Your PEA'))}</span><small>latest ${PEA_RECENT_RATINGS_RN} ratings per position${es(esText('Latest ratings per position'))}</small></div>
+      <div class="rn-pea-head"><span>${RN_SEC_ICONS.pea}Your PEA${es(esText('Your PEA'))}</span><small>latest ${PEA_RECENT_RATINGS_RN} ratings per position${es(esText('Latest ratings per position'))}</small></div>
       <div class="rn-pea-grid">${pea.positions.map(p => `<div class="rn-pea-cell is-${escapeHtml(p.tier)}" title="${escapeHtml(`${p.total} rating${p.total === 1 ? '' : 's'}, last ${p.last}`)}">
           <span>${escapeHtml(p.position)}</span><b>${escapeHtml(Number(p.avg).toFixed(2))}</b><small>${escapeHtml(p.tierLabel)}${es(esText(p.tierLabel))}</small></div>`).join('')}</div>
     </section>`;
@@ -407,10 +443,10 @@ function rnLeadCard(v, day, store){
       let open = 0, spots = 0;
       suDaypartsFor(side).forEach((dp, i) => { const g = rnDaypartGaps(side, date, i); open += g.open.length; spots += g.m.filled + g.open.length; });
       rows.push(rnRow(`${spots - open}/${spots}`, `${side.toUpperCase()} Set Ups filled for ${dayName}`, side === 'boh' ? esText('Set Ups filled') : '', `setups:${side}|${date}|`, open ? 'warn' : 'ok'));
-      if(!first && open) first = {text: `${dayName}’s ${side.toUpperCase()} Set Ups have ${open} open spot${open === 1 ? '' : 's'}.`, go: `setups:${side}|${date}|`};
+      if(!first && open) first = rnHead({text: `${dayName}’s ${side.toUpperCase()} Set Ups have ${open} open spot${open === 1 ? '' : 's'}.`, go: `setups:${side}|${date}|`}, `${dayName}’s ${side.toUpperCase()} Set Ups`, `${open} open spot${open === 1 ? '' : 's'}`, '', 'bad');
     });
-    if(!first) first = {text: `${dayName}’s Set Ups are filled. Rest up.`};
-    return {side: sides.length === 1 ? sides[0] : 'foh', first, rows, kicker: `${dayName}`, title: v.name ? `Hi, ${rnFirst(v.name)}` : 'Tomorrow'};
+    if(!first) first = rnHead({text: `${dayName}’s Set Ups are filled. Rest up.`}, '', `${dayName}’s Set Ups are filled`, 'Rest up', 'ok');
+    return {side: sides.length === 1 ? sides[0] : 'foh', first, rows, fold: !!store, kicker: `${dayName}`, title: v.name ? `Hi, ${rnFirst(v.name)}` : 'Tomorrow'};
   }
 
   // Now, side by side. A Team Lead reads the open spots on their side; a
@@ -423,11 +459,11 @@ function rnLeadCard(v, day, store){
     const go = g.open.length ? `spot:${side}|${g.dp.name}|${g.open[0].slot}` : `setups:${side}|${today}|${g.dp.name}`;
     if(store){
       const staffed = typeof g.m.onShift === 'number' ? g.m.onShift : g.m.filled + g.unplaced.length;
-      rows.push(rnRow(String(staffed), `${side.toUpperCase()} staffed for ${rnShort(g.dp.name)}${g.open.length ? ` · ${g.open.length} open spot${g.open.length === 1 ? '' : 's'}` : ''}`, '', go, g.open.length ? 'bad' : ''));
+      rows.push(rnRow(String(staffed), `${side.toUpperCase()} staffed for ${rnShort(g.dp.name)}${g.open.length ? ` · ${g.open.length} open spot${g.open.length === 1 ? '' : 's'}` : ''}`, '', go, g.open.length ? 'flag' : ''));
     } else {
       rows.push(rnRow(String(g.open.length), `${label}open spot${g.open.length === 1 ? '' : 's'} for ${rnShort(g.dp.name)}`, side === 'boh' ? esText('Open spots now') : '', go, g.open.length ? 'bad' : 'ok'));
     }
-    if(!first && g.open.length) first = {text: `Nobody is on ${g.open[0].slot} for ${rnShort(g.dp.name)}${sides.length > 1 ? ` (${side.toUpperCase()})` : ''}.`, es: side === 'boh' ? esText('Nobody is on SPOT for DP', esPlace(g.open[0].slot) || g.open[0].slot, esDaypart(g.dp.name)) : '', go: `spot:${side}|${g.dp.name}|${g.open[0].slot}`};
+    if(!first && g.open.length) first = rnHead({text: `Nobody is on ${g.open[0].slot} for ${rnShort(g.dp.name)}${sides.length > 1 ? ` (${side.toUpperCase()})` : ''}.`, es: side === 'boh' ? esText('Nobody is on SPOT for DP', esPlace(g.open[0].slot) || g.open[0].slot, esDaypart(g.dp.name)) : '', go: `spot:${side}|${g.dp.name}|${g.open[0].slot}`}, 'Nobody is on', g.open[0].slot, `for ${rnShort(g.dp.name)}${sides.length > 1 ? ` (${side.toUpperCase()})` : ''}`, 'bad');
   });
   // Someone on both schedules counts once.
   const seen = new Set();
@@ -437,7 +473,7 @@ function rnLeadCard(v, day, store){
     const u = unplaced[0];
     const when = day.now < day.opensAt ? `scheduled for ${rnShort(u.dp.name)}` : 'on the clock';
     rows.push(rnRow(String(unplaced.length), `${when} with no spot: ${unplaced.slice(0, 3).map(x => suDisplayName(x.n)).join(', ')}${unplaced.length > 3 ? '…' : ''}`, sides.includes('boh') ? esText('Scheduled with no spot') : '', `setups:${u.side}|${today}|${u.dp.name}`, 'bad'));
-    if(!first) first = {text: rnSentence(`${unplaced.length} ${when} with no spot, starting with ${suDisplayName(u.n)}`), go: `setups:${u.side}|${today}|${u.dp.name}`};
+    if(!first) first = rnHead({text: rnSentence(`${unplaced.length} ${when} with no spot, starting with ${suDisplayName(u.n)}`), go: `setups:${u.side}|${today}|${u.dp.name}`}, `${when} with no spot`, unplaced.slice(0, 3).map(x => suDisplayName(x.n)).join(', ') + (unplaced.length > 3 ? ` +${unplaced.length - 3}` : ''), '', 'bad');
   }
   // The Zone Reset handoff (FOH).
   if(sides.includes('foh')){
@@ -445,7 +481,7 @@ function rnLeadCard(v, day, store){
     if(hand){
       const done = hand.zones.filter(z => z.done).length, nobody = hand.zones.filter(z => !z.owners.length && !z.done).length;
       rows.push(rnRow(`${done}/${hand.zones.length}`, `zones reset · ${hand.title} at ${rnClock(hand.at)}${nobody ? ` · ${nobody} with nobody` : ''}`, '', `zone:${hand.name}`, done === hand.zones.length ? 'ok' : day.now >= hand.at ? 'bad' : ''));
-      if(!first && done < hand.zones.length && day.now >= hand.at - 30) first = {text: `${hand.zones.length - done} zone${hand.zones.length - done === 1 ? '' : 's'} still to reset for ${hand.title}.`, go: `zone:${hand.name}`};
+      if(!first && done < hand.zones.length && day.now >= hand.at - 30) first = rnHead({text: `${hand.zones.length - done} zone${hand.zones.length - done === 1 ? '' : 's'} still to reset for ${hand.title}.`, go: `zone:${hand.name}`}, `Still to reset for ${hand.title}`, `${hand.zones.length - done} zone${hand.zones.length - done === 1 ? '' : 's'}`, '', 'bad');
     }
   }
   // Breaks: a Team Lead reads the ones coming up; a director reads how many
@@ -456,7 +492,7 @@ function rnLeadCard(v, day, store){
       const br = rnBreaksLeft(side, day.now, side === 'foh' ? RN_PM_SHOWN_FROM : RN_PM_FROM);
       if(!br.total) return;
       const next = br.left[0];
-      rows.push(rnRow(String(br.left.length), `${side.toUpperCase()} ${br.pm ? 'PM' : 'AM'} break${br.left.length === 1 ? '' : 's'} left (of ${br.total})${next ? ` · next: ${suDisplayName(next.name)} ${rnClock(next.start)}` : ''}`, '', `setups:${side}|${today}|`, br.left.length ? '' : 'ok'));
+      rows.push(rnWith(rnRow(String(br.left.length), `${side.toUpperCase()} ${br.pm ? 'PM' : 'AM'} break${br.left.length === 1 ? '' : 's'} left (of ${br.total})${next ? ` · next: ${suDisplayName(next.name)} ${rnClock(next.start)}` : ''}`, '', `setups:${side}|${today}|`, br.left.length ? '' : 'ok'), {bar: (br.total - br.left.length) / br.total}));
     });
   } else {
     const soon = sides.flatMap(side => rnBreaksSoon(side, day.now).map(b => ({...b, side})));
@@ -482,13 +518,13 @@ function rnLeadCard(v, day, store){
     const more = r => { r.more = true; rows.push(r); };
     if(later.length) more(rnRow(String(later.reduce((s, x) => s + x.n, 0)), `open later today: ${later.slice(0, 3).map(x => `${rnShort(x.dp.name)} ${x.side.toUpperCase()} ${x.n}`).join(', ')}`, '', `setups:${later[0].side}|${today}|${later[0].dp.name}`, 'warn'));
     const w = rnWaste();
-    more(rnRow(rnMoney(w.total), `waste today, limit ${rnMoney(w.limit)}`, '', 'waste', w.over ? 'bad' : w.near ? 'warn' : 'ok'));
+    more(rnWith(rnRow(rnMoney(w.total), `waste today, limit ${rnMoney(w.limit)}`, '', 'waste', w.over ? 'bad' : w.near ? 'warn' : 'ok'), w.limit ? {bar: Math.min(1, w.total / w.limit)} : {}));
     const fs = rnFoodSafety();
     more(rnRow(fs ? `${fs.done}/${fs.total}` : '0', 'Food Safety walkthrough today', '', 'foodsafety', fs && fs.done === fs.total ? 'ok' : ''));
   }
   if(!first){
     const dp = gaps[0].dp;
-    first = {text: `${rnShort(dp.name)} is covered. Go catch someone doing it right.`, es: sides.length === 1 && sides[0] === 'boh' ? esText('Everything is covered for DP', esDaypart(dp.name)) : ''};
+    first = rnHead({text: `${rnShort(dp.name)} is covered. Go catch someone doing it right.`, es: sides.length === 1 && sides[0] === 'boh' ? esText('Everything is covered for DP', esDaypart(dp.name)) : ''}, '', `${rnShort(dp.name)} is covered`, 'Go catch someone doing it right', 'ok');
   }
   return {side: sides.length === 1 ? sides[0] : 'foh', first, rows, fold: !!store, title: v.name ? `Hi, ${rnFirst(v.name)}` : ''};
 }
@@ -661,9 +697,9 @@ function rnKitchenCard(day){
     if(br.total){
       const next = br.left[0];
       const label = br.pm ? 'PM' : 'AM';
-      rows.push(rnRow(String(br.left.length), `${label} break${br.left.length === 1 ? '' : 's'} left (of ${br.total})${next ? ` · next: ${suDisplayName(next.name)} ${rnClock(next.start)}` : ''}`,
+      rows.push(rnWith(rnRow(String(br.left.length), `${label} break${br.left.length === 1 ? '' : 's'} left (of ${br.total})${next ? ` · next: ${suDisplayName(next.name)} ${rnClock(next.start)}` : ''}`,
         [esText(br.pm ? 'PM breaks left' : 'AM breaks left', br.left.length, br.total), next ? esText('Next break', suDisplayName(next.name), rnClock(next.start)) : ''].filter(Boolean).join(' · '),
-        `setups:boh|${today}|`, br.left.length ? '' : 'ok'));
+        `setups:boh|${today}|`, br.left.length ? '' : 'ok'), {bar: (br.total - br.left.length) / br.total}));
     }
     const fs = rnFoodSafety();
     rows.push(rnRow(fs ? `${fs.done}/${fs.total}` : '0', 'Food Safety walkthrough today', esText('Food Safety walkthrough'), 'foodsafety', fs && fs.done === fs.total ? 'ok' : ''));
@@ -792,7 +828,7 @@ function rnNewHireCard(card, v, day){
   const spot = day.closed ? spots[0] : spots.filter(s => daypartTimeWindow(suDaypartsFor(s.side), s.dpIndex).endMin > day.now)[0];
   if(spot){
     const others = suSplitNames(posAssignments[[spot.side, date, spot.dp.name, spot.slot].join('||')]).filter(n => !mine(n));
-    if(others.length) rows.push(rnRow('', `With you on ${spot.slot}: ${others.map(suDisplayName).join(', ')}`, esText('With you on your spot'), `setups:${spot.side}|${date}|${spot.dp.name}`));
+    if(others.length) rows.push(rnWith(rnRow('', `With you on ${spot.slot}: ${others.map(suDisplayName).join(', ')}`, esText('With you on your spot'), `setups:${spot.side}|${date}|${spot.dp.name}`), {who: others[0]}));
   }
   // Who to find when they walk in: the Lead Captain when their shift starts.
   const starts = on.map(o => rnShiftStart(o.entry)).filter(m => m !== null);
@@ -802,7 +838,7 @@ function rnNewHireCard(card, v, day){
     const side = floor[0].side, i = rnDaypartIndex(side, startsAt);
     const lead = rnLeading(side, date, i).filter(n => !mine(n));
     if(lead.length){
-      rows.push(rnRow('', `When you walk in, find ${lead.map(suDisplayName).join(' or ')}`, esText('When you walk in, find NAME', lead.map(suDisplayName).join(' o ')), `setups:${side}|${date}|${suDaypartsFor(side)[i].name}`));
+      rows.push(rnWith(rnRow('', `When you walk in, find ${lead.map(suDisplayName).join(' or ')}`, esText('When you walk in, find NAME', lead.map(suDisplayName).join(' o ')), `setups:${side}|${date}|${suDaypartsFor(side)[i].name}`), {who: lead[0]}));
       card.rows = card.rows.filter(r => !r.text.startsWith('Leading the shift'));   // said once
     }
   }
@@ -821,12 +857,12 @@ function rnNewHireCard(card, v, day){
 function rnNewHireHtml(nh, boh){
   if(!nh) return '';
   const es = t => boh && t ? esSpan(t, false) : '';
-  const pct = nh.day ? Math.round(nh.day / nh.of * 100) : 0;
-  return `<section class="rn-new" aria-label="Your first ${nh.of} days">
-      <div class="rn-new-head"><b>${nh.day ? `Day ${nh.day} of ${nh.of}${es(esText('Day N of M', nh.day, nh.of))}` : `Your first ${nh.of} days${es(esText('Your first 30 days'))}`}</b><span>In training${es(esText('In training'))}</span></div>
-      ${nh.day ? `<div class="rn-new-bar" aria-hidden="true"><i style="width:${pct}%"></i></div>` : ''}
-      <p>We’re glad you’re here. Ask anything, anytime.${es(esText('Glad you are here'))}</p>
-      ${nh.before ? `<div class="rn-new-before"><h3>Before your shift${es(esText('Before your shift'))}</h3><ul>${nh.before.en.map(l => `<li>${escapeHtml(l)}</li>`).join('')}${nh.before.es.map(l => `<li class="es" lang="es">${escapeHtml(l)}</li>`).join('')}</ul></div>` : ''}
+  const esLine = t => boh && t ? esSpan(t, true) : '';
+  return `<section class="rn-sec rn-new" aria-label="Your first ${nh.of} days">
+      <h3 class="rn-sec-h">${RN_SEC_ICONS.new}<span>Your first ${nh.of} days${es(esText('Your first 30 days'))}</span></h3>
+      ${nh.day ? `<div class="rn-new-day"><b>Day ${nh.day}</b><span>of ${nh.of}${es(esText('Day N of M', nh.day, nh.of))}</span></div>${rnBarHtml(nh.day / nh.of)}` : ''}
+      <p>We’re glad you’re here. Ask anything, anytime.${esLine(esText('Glad you are here'))}</p>
+      ${nh.before ? `<div class="rn-new-before"><h4>Before your shift${es(esText('Before your shift'))}</h4><ul>${nh.before.en.map(l => `<li>${escapeHtml(l)}</li>`).join('')}${nh.before.es.map(l => `<li class="es" lang="es">${escapeHtml(l)}</li>`).join('')}</ul></div>` : ''}
     </section>`;
 }
 
@@ -1009,11 +1045,11 @@ function renderRightNow(){
     root.innerHTML = '';
     return;
   }
+  rnGreet(v, card);
   const boh = card.side === 'boh';
   const dp = day.closed ? null : suDaypartsFor(card.side)[rnDaypartIndex(card.side, day.now)];
-  const kicker = card.kicker ? `Next up · ${card.kicker}` : day.closed ? 'Closed' : day.now < day.opensAt ? `Before open · ${rnShort(dp.name)} at ${rnClock(day.opensAt)}` : `Right now · ${rnShort(dp.name)}`;
+  const kicker = card.kicker ? `Next up · ${card.kicker}` : day.closed ? 'The store is closed' : day.now < day.opensAt ? `Before open · ${rnShort(dp.name)} at ${rnClock(day.opensAt)}` : `Right now · ${rnShort(dp.name)}`;
   const kickerEs = card.kicker || day.closed ? '' : esText('Right now') + ' · ' + esDaypart(dp.name);
-  const title = card.title || (day.closed ? 'The store is closed' : rnShort(dp.name));
   // The Admin Team's card is the director's (Tim, Nov 18 2026: the same for now), under their own name.
   const roleLabel = card.newHire ? 'In training' : typeof acUser !== 'undefined' && acUser && acUser.role === 'admin' ? RN_ROLE_LABELS.admin : RN_ROLE_LABELS[v.role];
   const es = t => boh && t ? esSpan(t, true) : '';
@@ -1023,51 +1059,73 @@ function renderRightNow(){
   card.rows.forEach(r => groups[rnGroupOf(r, card)].push(r));
   // The floor's counts are tiles; a line with no count reads as a line.
   const tiles = groups.floor.filter(r => r.n !== ''), floorLines = groups.floor.filter(r => r.n === '');
-  const sec = (key, title, titleEs, body) => body ? `<section class="rn-sec rn-sec-${key}"><h3 class="rn-sec-h">${RN_SEC_ICONS[key] || ''}<span>${escapeHtml(title)}${esIn(titleEs)}</span></h3>${body}</section>` : '';
+  const sec = (key, title, body) => body ? `<section class="rn-sec rn-sec-${key}"><h3 class="rn-sec-h">${RN_SEC_ICONS[key] || ''}<span>${escapeHtml(title)}${esText(title) === title ? '' : esIn(esText(title))}</span></h3>${body}</section>` : '';
   const lines = list => list.length ? `<div class="rn-list">${list.map(r => rnLineHtml(r, es, go)).join('')}</div>` : '';
-  const first = card.first;
-  const tone = first ? rnFirstTone(first) : '';
-  root.className = `rn${boh ? ' rn-boh' : ''}`;
+  // Two columns on a tablet or a computer: what's theirs to do, then what's around it.
+  const main = rnNewHireHtml(card.newHire, boh)
+    + sec('day', 'Your day', lines(groups.day))
+    + sec('floor', card.sideSwitch ? (boh ? 'Today' : 'Timers') : card.kicker ? 'Set Ups' : 'On the floor', (tiles.length ? `<div class="rn-tiles">${tiles.map(r => rnTileHtml(r, es, go)).join('')}</div>` : '') + lines(floorLines));
+  const side = sec('tix', 'Tickets', lines(groups.tix))
+    + rnPeaHtml(card.pea, boh)
+    + sec('cal', 'On the calendar', lines(groups.cal))
+    + (groups.more.length ? `<details class="rn-more rn-sec" data-rn-more${rnMoreOpen ? ' open' : ''}><summary>More about ${escapeHtml(card.kicker || 'today')} <span>${groups.more.length}</span>${RN_ICON_GO}</summary>${lines(groups.more)}</details>` : '')
+    + groups.cta.map(r => `<button type="button" class="rn-cta" data-rn-go="${escapeHtml(r.go)}"><span class="rn-cta-main"><b>${escapeHtml(r.text)}</b>${RN_ICON_GO}</span>${es(r.es)}</button>`).join('');
+  root.className = `rn${boh ? ' rn-boh' : ''}${rnEnter ? ' rn-enter' : ''}`;
+  rnEnter = false;
   root.innerHTML = `
-    <div class="rn-top">
-      <span class="rn-kicker">${escapeHtml(kicker)}${boh && kickerEs ? `<span class="es" lang="es"> · ${escapeHtml(kickerEs)}</span>` : ''}</span>
+    <div class="rn-top${card.sideSwitch ? ' is-switch' : ''}">
+      <h2 class="rn-kicker">${escapeHtml(kicker)}${day.closed ? '' : ` · <b>${escapeHtml(rnClock(day.now))}</b>`}${boh && kickerEs ? `<span class="es" lang="es">${escapeHtml(kickerEs)}</span>` : ''}</h2>
       ${roleLabel ? `<span class="rn-role">${escapeHtml(roleLabel)}</span>` : ''}
       ${card.sideSwitch ? rnSideSwitchHtml() : ''}
     </div>
-    <h2 class="rn-title">${escapeHtml(title)}${day.closed ? '' : ` <span class="rn-time">${escapeHtml(rnClock(day.now))}</span>`}</h2>
-    ${first ? `<div class="rn-first rn-hero${tone ? ' is-' + tone : ''}${first.go ? ' is-go' : ''}"${go(first.go)}>
-        <span class="rn-hero-b"><small>First thing${boh ? `<span class="es" lang="es"> · ${escapeHtml(esText('First thing'))}</span>` : ''}</small><b>${first.until ? rnBreakHtml(first) : escapeHtml(first.text)}</b>${es(first.es)}</span>
-        ${first.go ? `<span class="rn-hero-go">${RN_ICON_GO}</span>` : ''}
-      </div>` : ''}
-    ${rnNewHireHtml(card.newHire, boh)}
-    ${card.roster && card.rosterFirst ? rnRosterHtml(card.roster, card.rosterHead) : ''}
-    ${sec('day', 'Your day', esText('Your day'), lines(groups.day))}
-    ${sec('floor', card.sideSwitch ? 'Today' : 'On the floor', esText(card.sideSwitch ? 'Today' : 'On the floor'),
-      (tiles.length ? `<div class="rn-tiles">${tiles.map(r => rnTileHtml(r, es, go)).join('')}</div>` : '') + lines(floorLines))}
-    ${sec('tix', 'Tickets', esText('Tickets'), lines(groups.tix))}
-    ${rnPeaHtml(card.pea, boh)}
-    ${sec('cal', 'On the calendar', esText('On the calendar'), lines(groups.cal))}
-    ${groups.more.length ? `<details class="rn-more rn-sec" data-rn-more${rnMoreOpen ? ' open' : ''}><summary>More about today <span>${groups.more.length}</span>${RN_ICON_GO}</summary>${lines(groups.more)}</details>` : ''}
-    ${groups.cta.map(r => `<button type="button" class="rn-cta" data-rn-go="${escapeHtml(r.go)}"><span class="rn-cta-main"><b>${escapeHtml(r.text)}</b>${RN_ICON_GO}</span>${es(r.es)}</button>`).join('')}
-    ${card.roster && !card.rosterFirst ? rnRosterHtml(card.roster, card.rosterHead) : ''}`;
+    ${card.first ? rnHeroHtml(card.first, boh, es, go) : ''}
+    <div class="rn-cols${main && side ? '' : ' is-one'}">${main ? `<div class="rn-col">${main}</div>` : ''}${side ? `<div class="rn-col">${side}</div>` : ''}</div>`;
 }
 
 // ----- The look (Tim, Nov 21 2026) -----
 // "Clinical and boring" was a list of same-weight rows. Now the card is in
 // compartments, each a kind of information with its own header and shape:
 // the First thing as a banner (red when it needs someone, green when all is
-// covered, navy for where you are), "Your day" as lines, the floor's counts
-// as big-number tiles, tickets, the calendar, then the way to sign in as a
-// button. Every line splits into a small label, the words that matter in
-// bold, and the detail after: "Next: Drinks 1 (Mid)" reads NEXT / Drinks 1
-// (Mid). Colours keep their one meaning (CLAUDE.md, Tab bar and header).
-const rnSecIcon = d => `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+// covered, navy for where you are) with the words that matter in big type;
+// "Your day" as lines; the floor's counts as big-number tiles; tickets; the
+// calendar; the way to sign in as a button. Every line splits into a small
+// label, the words that matter in bold, and the detail after: "Next: Drinks
+// 1 (Mid)" reads NEXT / Drinks 1 (Mid). A count out of a total draws a bar.
+// On a tablet or a computer the compartments sit in two columns. The card
+// rises in once when Home opens, never on the minute's redraw. Colours keep
+// their one meaning (CLAUDE.md, Tab bar and header).
+const rnSvg = (d, size, weight) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="${weight}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const RN_SEC_ICONS = {
-  day: rnSecIcon('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
-  floor: rnSecIcon('<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>'),
-  tix: rnSecIcon('<path d="M4 8.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1.6a1.9 1.9 0 0 0 0 3.8v1.6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-1.6a1.9 1.9 0 0 0 0-3.8z"/><path d="M14 7v10" stroke-dasharray="2 2.5"/>'),
-  cal: rnSecIcon('<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'),
+  day: rnSvg('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>', 15, 2.2),
+  floor: rnSvg('<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>', 15, 2.2),
+  tix: rnSvg('<path d="M4 8.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1.6a1.9 1.9 0 0 0 0 3.8v1.6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-1.6a1.9 1.9 0 0 0 0-3.8z"/><path d="M14 7v10" stroke-dasharray="2 2.5"/>', 15, 2.2),
+  cal: rnSvg('<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>', 15, 2.2),
+  new: rnSvg('<path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.8z"/>', 15, 2.2),
+  pea: rnSvg('<path d="M5 20V11M12 20V4M19 20v-6"/>', 15, 2.4),
 };
+// A line with no count leads with what kind of line it is.
+const RN_ICONS = {
+  clock: rnSvg('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>', 20, 2),
+  pin: rnSvg('<path d="M12 21s-6.5-5.6-6.5-10.5a6.5 6.5 0 0 1 13 0C18.5 15.4 12 21 12 21z"/><circle cx="12" cy="10.5" r="2.3"/>', 20, 2),
+  check: rnSvg('<path d="M5 12.5l4.5 4.5L19 7.5"/>', 20, 2.6),
+};
+let rnEnter = true;
+function rnArrive(){ rnEnter = true; }       // navigation.js: Home was opened
+
+// One greeting, not two: the welcome's own line carries the name, and a new
+// hire's says welcome.
+function rnGreet(v, card){
+  const el = document.getElementById('homeGreeting');
+  if(!el) return;
+  const h = new Date().getHours(), name = rnFirst(v.name);
+  const hello = card.newHire ? 'Welcome' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  el.textContent = `${hello}${name ? ', ' + name : ''}.`;
+}
+// "Priya Shah" → "PS"
+function rnInitials(name){
+  const w = String(name || '').trim().split(/\s+/).filter(Boolean);
+  return ((w[0] || '').charAt(0) + (w.length > 1 ? w[w.length - 1].charAt(0) : '')).toUpperCase();
+}
 // Which compartment a line belongs in, by where its tap goes.
 function rnGroupOf(r, card){
   if(r.more) return 'more';
@@ -1084,30 +1142,59 @@ function rnParts(text){
   const j = rest.indexOf(' · ');
   return {kicker, value: j > 0 ? rest.slice(0, j) : rest, detail: j > 0 ? rest.slice(j + 3) : ''};
 }
-// The banner's colour: red needs someone, green is all covered, else navy.
-function rnFirstTone(first){
-  if(first.until) return '';
-  const t = first.text;
-  if(/covered|are filled|Rest up/.test(t)) return 'ok';
-  if(/^(Nobody is on|No spot yet|Reset )|with no spot|still to reset|open spots?\.$/.test(t)) return 'bad';
-  return '';
+// A bar for a count out of a total: the row's own (bar, 0 to 1), or read off "3/9".
+function rnBarOf(r){
+  if(typeof r.bar === 'number') return r.bar;
+  const m = /^(\d+)\/(\d+)$/.exec(r.n);
+  return m && Number(m[2]) ? Number(m[1]) / Number(m[2]) : null;
+}
+function rnBarHtml(part, tone, attrs){
+  const pct = Math.round(Math.max(0, Math.min(1, part)) * 100);
+  return `<span class="rn-bar${tone && tone !== 'flag' ? ' is-' + tone : ''}"${attrs || ''} aria-hidden="true"><i style="width:${pct}%"></i></span>`;
+}
+// A break's share left, of the break's length (break-planner.js BREAK_LEN).
+function rnBreakPart(until){
+  const len = (typeof BREAK_LEN === 'number' ? BREAK_LEN : 30) * 60000;
+  return (until - serverNow()) / len;
+}
+function rnHeroHtml(f, boh, es, go){
+  const onBreak = !!f.until;
+  const big = onBreak ? `<b class="rn-break-left" data-rn-break-until="${Number(f.until)}">${rnBreakLeft(f.until)}</b>` : escapeHtml(f.big || f.text);
+  const sub = onBreak ? `left · ${f.sub}` : f.sub;
+  const bar = onBreak ? rnBarHtml(rnBreakPart(f.until), '', ` data-rn-break-bar="${Number(f.until)}"`) : typeof f.bar === 'number' ? rnBarHtml(f.bar) : '';
+  return `<div class="rn-hero${f.tone ? ' is-' + f.tone : ''}${f.big || onBreak ? '' : ' is-text'}${f.go ? ' is-go' : ''}"${go(f.go)}>
+      <span class="rn-hero-b">
+        <small>${escapeHtml(f.k || 'First thing')}${boh && !f.k ? `<span class="es" lang="es"> · ${escapeHtml(esText('First thing'))}</span>` : ''}</small>
+        <span class="rn-hero-big">${big}</span>
+        ${sub ? `<span class="rn-hero-sub">${escapeHtml(sub)}</span>` : ''}${bar}${es(f.es)}
+      </span>
+      ${f.go ? `<span class="rn-hero-go">${RN_ICON_GO}</span>` : ''}
+    </div>`;
 }
 function rnLineHtml(r, es, go){
-  const p = rnParts(r.text);
-  const n = r.n !== '' ? `<span class="rn-n${r.tone ? ' is-' + r.tone : ''}">${escapeHtml(r.n)}</span>`
-    : `<span class="rn-n rn-n-dot"${r.color ? ` style="--dot:${escapeHtml(r.color)}"` : ''} aria-hidden="true"></span>`;
-  return `<div class="rn-row${r.tone ? ' is-' + r.tone : ''}${r.go ? ' is-go' : ''}"${go(r.go)}>
-          ${n}
-          <span class="rn-t">${p.kicker ? `<small class="rn-k">${escapeHtml(p.kicker)}</small>` : ''}<b class="rn-v">${escapeHtml(p.value)}</b>${p.detail ? `<span class="rn-d">${escapeHtml(p.detail)}</span>` : ''}${es(r.es)}</span>
+  const p = rnParts(r.text), tone = r.tone && r.tone !== 'flag' ? ' is-' + r.tone : '';
+  const done = r.go === 'tickets' && r.tone === 'ok';     // nothing waiting on them: a tick, not a zero
+  const lead = done ? `<i class="rn-ic is-ok">${RN_ICONS.check}</i>`
+    : r.n !== '' ? `<b class="rn-pill${tone}">${escapeHtml(r.n)}</b>`
+    : r.color ? `<i class="rn-dot" style="--dot:${escapeHtml(r.color)}"></i>`
+    : r.who ? `<i class="rn-ic rn-av">${escapeHtml(rnInitials(r.who))}</i>`
+    : RN_ICONS[r.icon] ? `<i class="rn-ic">${RN_ICONS[r.icon]}</i>` : '<i class="rn-dot"></i>';
+  const detail = [p.detail, r.note].filter(Boolean).join(' · ');
+  const bar = rnBarOf(r);
+  return `<div class="rn-row${tone}${r.go ? ' is-go' : ''}"${go(r.go)}>
+          <span class="rn-n"${r.n !== '' && !done ? '' : ' aria-hidden="true"'}>${lead}</span>
+          <span class="rn-t">${p.kicker ? `<small class="rn-k">${escapeHtml(p.kicker)}</small>` : ''}<b class="rn-v">${escapeHtml(p.value)}</b>${detail ? `<span class="rn-d">${escapeHtml(detail)}</span>` : ''}${bar === null ? '' : rnBarHtml(bar, r.tone)}${es(r.es)}</span>
           ${r.go ? `<span class="rn-go">${RN_ICON_GO}</span>` : ''}
         </div>`;
 }
 function rnTileHtml(r, es, go){
-  const p = rnParts(r.text);
+  const p = rnParts(r.text), bar = rnBarOf(r);
+  const detail = p.kicker ? p.value + (p.detail ? ' · ' + p.detail : '') : p.detail;
   return `<div class="rn-tile${r.tone ? ' is-' + r.tone : ''}${r.go ? ' is-go' : ''}"${go(r.go)}>
           <b class="rn-tile-n">${escapeHtml(r.n)}</b>
           <span class="rn-tile-l">${escapeHtml(p.kicker || p.value)}</span>
-          ${p.kicker || p.detail ? `<small class="rn-tile-d">${escapeHtml(p.kicker ? p.value + (p.detail ? ' · ' + p.detail : '') : p.detail)}</small>` : ''}${es(r.es)}
+          ${detail ? `<small class="rn-tile-d">${escapeHtml(detail)}</small>` : ''}${es(r.es)}${bar === null ? '' : rnBarHtml(bar, r.tone)}
+          ${r.go ? `<span class="rn-tile-go">${RN_ICON_GO}</span>` : ''}
         </div>`;
 }
 
@@ -1179,19 +1266,20 @@ document.getElementById('rightNow').addEventListener('keydown', e => {
   if(t && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); rnGo(t.dataset.rnGo); }
 });
 
-// A break's time left, counting down (the seconds tick below).
+// A break's time left, counting down: the banner's big number and its bar
+// tick every second.
 function rnBreakLeft(until){
   const s = Math.max(0, Math.round((until - serverNow()) / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-}
-function rnBreakHtml(f){
-  return `On break: <b class="rn-break-left" data-rn-break-until="${Number(f.until)}">${rnBreakLeft(f.until)}</b> left, back at ${escapeHtml(f.back)}.`;
 }
 setInterval(() => {
   const els = document.querySelectorAll('#rightNow [data-rn-break-until]');
   if(!els.length || document.visibilityState !== 'visible') return;
   let over = false;
   els.forEach(el => { const until = Number(el.dataset.rnBreakUntil); el.textContent = rnBreakLeft(until); if(until <= serverNow()) over = true; });
+  document.querySelectorAll('#rightNow [data-rn-break-bar] i').forEach(i => {
+    i.style.width = Math.round(Math.max(0, Math.min(1, rnBreakPart(Number(i.parentNode.dataset.rnBreakBar)))) * 100) + '%';
+  });
   if(over) renderRightNow();
 }, 1000);
 

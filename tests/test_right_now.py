@@ -95,16 +95,20 @@ class TeamMember(unittest.TestCase):
         got = run({'op': card('member', 'Ana Ruiz', extra="breakCountdowns['foh||' + today + '||Ana Ruiz Lopez'] = Date.now() + 20 * 60000;")},
                   {'op': card('member', 'Ana Ruiz', extra="breakCountdowns['foh||' + today + '||Ana Ruiz Lopez'] = Date.now() - 60000;")},
                   {'op': """c => { """ + SETUP + """ breakCountdowns['foh||' + today + '||Ana Ruiz Lopez'] = Date.now() + 754000;
-                       const f = rnPersonCard({role: 'member', name: 'Ana Ruiz'}, rnDay(), false).first; return [f.until > Date.now(), rnBreakHtml(f)]; }"""})
+                       const f = rnPersonCard({role: 'member', name: 'Ana Ruiz'}, rnDay(), false).first; return [f.until > Date.now(), rnHeroHtml(f, false, () => '', () => ''), [f.k, f.big, f.sub, f.tone]]; }"""})
         self.assertEqual(got[0]['first'], 'On break, back at 5:30.')
         self.assertEqual(got[0]['firstEs'], 'En descanso, regresa a las 5:30')
         self.assertIn('Next: Host 1 (Close)', [r[1] for r in got[0]['rows']])
         self.assertEqual(got[1]['first'], 'You’re on Drinks 1 until 8:00.')                 # a break that's over: back to the spot
         self.assertTrue(got[2][0])
-        self.assertRegex(got[2][1], r'^On break: <b class="rn-break-left" data-rn-break-until="\d+">12:3[34]</b> left, back at 5:2[23]\.$')
+        # The banner: ON BREAK, the time left in big type, when they're back, and a bar of the break left (Nov 21 2026).
+        self.assertRegex(got[2][1], r'<small>On break</small>\s*<span class="rn-hero-big"><b class="rn-break-left" data-rn-break-until="\d+">12:3[34]</b></span>\s*<span class="rn-hero-sub">left · back at 5:2[23]</span>')
+        self.assertRegex(got[2][1], r'<span class="rn-bar" data-rn-break-bar="\d+" aria-hidden="true"><i style="width:42%"></i></span>')      # 12:34 of a 30 minute break
+        self.assertRegex(got[2][2][2], r'^back at 5:2[23]$')
+        self.assertEqual(got[2][2][:2] + got[2][2][3:], ['On break', '', ''])
         js = read('static', 'js', 'right-now.js')
         self.assertIn("document.querySelectorAll('#rightNow [data-rn-break-until]')", js)     # ticks every second
-        self.assertIn('${first.until ? rnBreakHtml(first) : escapeHtml(first.text)}', js)
+        self.assertIn("document.querySelectorAll('#rightNow [data-rn-break-bar] i')", js)      # and its bar with it
 
     def test_their_zone_at_the_coming_handoff(self):
         got = run({'op': card('member', 'Ana Ruiz', extra="""handoff = {name: 'Dinner to Late Night (7:00pm - 8:00pm)', owners: {Restrooms: ['Ana Ruiz Lopez']}, done: {Restrooms: {checked: 1, total: 8}}};""")},
@@ -195,7 +199,7 @@ class NewHire(unittest.TestCase):
         self.assertFalse(any(t.startswith('Leading the shift') for t in texts))        # said once
         self.assertIn(['2', 'positions so far: Host, iPOS', 'mine', 'Posiciones hasta ahora'], got['rows'])   # not Wednesday's, nor tonight's yet
         self.assertLess(texts.index('Your shift: 6:00p–9:00p'), texts.index('With you on Drinks 1: Dee'))
-        self.assertIn('Day 5 of 30', got['html'])
+        self.assertIn('<div class="rn-new-day"><b>Day 5</b><span>of 30</span></div><span class="rn-bar" aria-hidden="true"><i style="width:17%"></i></span>', got['html'])
         self.assertIn('<li>Park in the back row</li>', got['html'])
         self.assertNotIn('Zapatos', got['html'])                                       # FOH stays English
 
@@ -226,7 +230,8 @@ class NewHire(unittest.TestCase):
         got = run({'op': self.op('Ines Duarte', setup=boh, extra="apMine = {name: 'Ines Duarte', hireDate: '2026-10-17'};")})[0]
         self.assertIn('Día 3 de 30', got['html'])
         self.assertIn('<li class="es" lang="es">Zapatos negros</li>', got['html'])
-        self.assertIn('En entrenamiento', got['html'])
+        self.assertIn('Tus primeros 30 días', got['html'])
+        self.assertIn('Nos alegra que estés aquí', got['html'])
 
     def test_wired_in(self):
         self.assertIn("'hireDate': (prof.get('hireDate') or '') if isinstance(prof, dict) else ''", read('team_extras.py'))
@@ -252,35 +257,125 @@ class TheLook(unittest.TestCase):
         self.assertEqual(got[4], {'kicker': 'break due', 'value': 'Mia 5:25, Leo 6:00', 'detail': ''})
         self.assertEqual(got[5], {'kicker': '', 'value': 'No open tickets. Nicely done.', 'detail': ''})
 
-    def test_where_a_line_goes_and_the_banners_colour(self):
+    def test_where_a_line_goes(self):
         got = run({'op': """c => [[{go: 'event:x|2026-10-19'}, {}], [{go: 'ticket:t1'}, {}], [{go: 'tickets'}, {}], [{go: 'signin'}, {team: true, sideSwitch: true}],
-                     [{go: 'setups:foh|x|y'}, {team: true}], [{go: 'setups:foh|x|y'}, {}], [{go: 'timers'}, {team: true, sideSwitch: true}], [{go: 'waste', more: true}, {}]].map(([r, c2]) => rnGroupOf(r, c2))
-                     .concat(['Nobody is on Host 2 for Dinner.', 'Dinner is covered. Go catch someone doing it right.', 'You’re on Drinks 1 until 8:00.', '2 on the clock with no spot, starting with Mia.',
-                              'Tuesday’s FOH Set Ups have 2 open spots.', 'Tuesday’s Set Ups are filled. Rest up.'].map(text => rnFirstTone({text})), rnFirstTone({text: 'On break', until: 5}))"""})[0]
-        self.assertEqual(got, ['cal', 'tix', 'tix', 'cta', 'day', 'floor', 'floor', 'more', 'bad', 'ok', '', 'bad', 'bad', 'ok', ''])
+                     [{go: 'setups:foh|x|y'}, {team: true}], [{go: 'setups:foh|x|y'}, {}], [{go: 'timers'}, {team: true, sideSwitch: true}], [{go: 'waste', more: true}, {}]].map(([r, c2]) => rnGroupOf(r, c2))"""})[0]
+        self.assertEqual(got, ['cal', 'tix', 'tix', 'cta', 'day', 'floor', 'floor', 'more'])
+
+    def test_the_banner_is_a_label_big_words_and_the_detail(self):
+        """The sentence stays whole (the Spanish, a screen reader); beside it
+        the banner's parts, and its colour: red needs someone, green is all
+        covered, navy is where you are."""
+        first = lambda role, name, extra='', setup=SETUP: f"""c => {{ {setup} {extra} acUser = {json.dumps({'role': role, 'name': name})}; launchManager = {'true' if role == 'director' else 'false'};
+            const f = rnCardFor(rnViewer(), rnDay()).first; return [f.text, f.k, f.big, f.sub, f.tone, typeof f.bar === 'number' ? Math.round(f.bar * 100) : null]; }}"""
+        zone = "handoff = {name: 'Dinner to Late Night (7:00pm - 8:00pm)', owners: {Restrooms: ['Ana Ruiz Lopez']}, done: {Restrooms: {checked: 2, total: 8}}};"
+        got = run({'op': first('member', 'Ana Ruiz')},                                                  # 5:10 PM, on Drinks 1 for Dinner (5 to 8)
+                  {'op': first('member', 'Ana Ruiz'), 'at': '2026-10-19T10:20:00-05:00'},               # before her shift
+                  {'op': first('member', 'Ana Ruiz', zone), 'at': '2026-10-19T18:40:00-05:00'},         # her zone, 20 minutes before the handoff
+                  {'op': first('lead', 'Leo Park', "gaps['foh|Dinner'] = {open: ['Host 2'], unplaced: [], filled: 9};")},
+                  {'op': first('lead', 'Leo Park', "gaps['foh|Dinner'] = {open: [], unplaced: ['Mia Cole', 'Kit Lane', 'Abe Roy', 'Zed Poe'], filled: 9};")},
+                  {'op': first('lead', 'Leo Park')},
+                  {'op': first('director', '', "gaps['foh|Lunch'] = {open: ['Host 2', 'OMD 2'], unplaced: [], filled: 10};"), 'at': '2026-10-19T22:30:00-05:00'},
+                  {'op': first('member', 'Ana Ruiz', setup='')})
+        self.assertEqual(got[0], ['You’re on Drinks 1 until 8:00.', 'You’re on', 'Drinks 1', 'until 8:00', '', 6])            # 10 minutes into three hours
+        self.assertEqual(got[1], ['Your shift starts at 12:00, on Drinks 1.', 'Your shift starts at', '12:00', 'on Drinks 1 · in 1 h 40 min', '', None])
+        self.assertEqual(got[2], ['Reset Restrooms for the Dinner → Late Night handoff (2 of 8 done).', 'Reset your zone', 'Restrooms', 'for the Dinner → Late Night handoff · 2 of 8 done', 'bad', 25])
+        self.assertEqual(got[3], ['Nobody is on Host 2 for Dinner.', 'Nobody is on', 'Host 2', 'for Dinner', 'bad', None])
+        self.assertEqual(got[4], ['4 on the clock with no spot, starting with Mia.', 'on the clock with no spot', 'Mia, Kit, Abe +1', '', 'bad', None])
+        self.assertEqual(got[5], ['Dinner is covered. Go catch someone doing it right.', '', 'Dinner is covered', 'Go catch someone doing it right', 'ok', None])
+        self.assertEqual(got[6], ['Tuesday’s FOH Set Ups have 2 open spots.', 'Tuesday’s FOH Set Ups', '2 open spots', '', 'bad', None])
+        self.assertEqual(got[7][0], 'You’re not on today’s schedule.')                                  # a plain sentence: no parts
+        self.assertEqual(got[7][1:5], [None, None, None, None])
+        html = run({'op': """c => rnHeroHtml(rnHead({text: 'x', go: 'setups:foh|d|p'}, 'You’re on', 'Drinks 1', 'until 8:00'), false, () => '', g => ' data-rn-go="' + g + '"')
+                             + rnHeroHtml({text: 'You’re not on today’s schedule.'}, true, t => '<i>' + t + '</i>', () => '')"""})[0]
+        self.assertIn('<div class="rn-hero is-go" data-rn-go="setups:foh|d|p">', html)
+        self.assertIn('<small>You’re on</small>', html)
+        self.assertIn('<span class="rn-hero-big">Drinks 1</span>', html)
+        self.assertIn('<span class="rn-hero-sub">until 8:00</span>', html)
+        self.assertIn('<div class="rn-hero is-text">', html)                                            # a sentence keeps the old label, with its Spanish in the kitchen
+        self.assertIn('<small>First thing<span class="es" lang="es"> · Lo primero</span></small>', html)
+
+    def test_a_count_out_of_a_total_draws_a_bar(self):
+        got = run({'op': """c => [{n: '3/9'}, {n: '0/84'}, {n: '12'}, {n: '2', bar: 0.5}, {n: '$24.37', bar: 2}, {n: '1/0'}].map(r => { const b = rnBarOf(r); return b === null ? null : rnBarHtml(b, r.tone); })"""})[0]
+        self.assertEqual(got[0], '<span class="rn-bar" aria-hidden="true"><i style="width:33%"></i></span>')
+        self.assertEqual(got[1], '<span class="rn-bar" aria-hidden="true"><i style="width:0%"></i></span>')
+        self.assertEqual([got[2], got[5]], [None, None])
+        self.assertIn('width:50%', got[3])
+        self.assertIn('width:100%', got[4])                                                             # never past the end
+        # A director's breaks left: the ones taken; the staffed count stays navy with its open spots flagged.
+        rows = run({'op': """c => { %s breaks.foh = [{name: 'Mia Cole', start: 9 * 60, from: 6 * 60}, {name: 'Ana Ruiz Lopez', start: 12 * 60, from: 8 * 60}];
+                       completedBreaks['foh||' + today + '||Mia Cole'] = true; gaps['foh|Lunch'] = {open: ['Host 2'], unplaced: [], filled: 9};
+                       acUser = null; launchManager = true; return rnCardFor(rnViewer(), rnDay()).rows.map(r => [r.text, r.tone, r.bar === undefined ? null : r.bar]); }""" % SETUP,
+                    'at': '2026-10-19T12:10:00-05:00'})[0]
+        self.assertIn(['FOH AM break left (of 2) · next: Ana 12:00', '', 0.5], rows)
+        self.assertIn(['FOH staffed for Lunch · 1 open spot', 'flag', None], rows)
+        self.assertIn(['BOH staffed for Lunch', '', None], rows)
+
+    def test_the_shift_shows_how_far_through_it_they_are(self):
+        op = lambda who, side: f"""c => {{ {side}Roster[today] = [{{name: {json.dumps(who)}, start: '12:00p', end: '8:00p'}}]; acUser = {{role: 'member', name: {json.dumps(who)}}};
+            const r = rnCardFor(rnViewer(), rnDay()).rows.find(x => x.text.startsWith('Your shift')); return [r.text, r.es, Math.round(r.bar * 100), r.note, r.icon]; }}"""
+        got = run({'op': op('Ana Ruiz', 'foh')}, {'op': op('Sam Ortiz', 'boh'), 'at': '2026-10-19T10:20:00-05:00'}, {'op': op('Sam Ortiz', 'boh'), 'at': '2026-10-19T20:30:00-05:00'},
+                  {'op': "c => [rnDur(100), rnDur(60), rnDur(25), rnDur(0), rnInitials('Priya Shah'), rnInitials('ana maría ruiz lópez'), rnInitials('Leo'), rnInitials('')]"})
+        self.assertEqual(got[0], ['Your shift: 12:00p–8:00p', 'Tu turno · faltan 2 h 50 min', 65, '2 h 50 min left', 'clock'])     # 5:10 PM
+        self.assertEqual(got[1], ['Your shift: 12:00p–8:00p', 'Tu turno · empieza en 1 h 40 min', 0, 'starts in 1 h 40 min', 'clock'])
+        self.assertEqual(got[2], ['Your shift: 12:00p–8:00p', 'Tu turno · terminaste por hoy', 100, 'done for today', 'clock'])
+        self.assertEqual(got[3], ['1 h 40 min', '1 h', '25 min', '0 min', 'PS', 'AL', 'L', ''])
 
     def test_escaped_and_wired(self):
-        got = run({'op': """c => { const es = () => '', go = () => ''; const r = {n: '<i>', text: '<b>x</b>: <img src=x> · <u>d</u>', go: '', tone: ''};
-                     return rnLineHtml(r, es, go) + rnTileHtml(r, es, go); }"""})[0]
-        for bad in ('<i>', '<b>x', '<img', '<u>'):
+        got = run({'op': """c => { const es = () => '', go = () => ''; const r = {n: '<i>', text: '<b>x</b>: <img src=x> · <u>d</u>', go: '', tone: '', note: '<s>n</s>'};
+                     return rnLineHtml(r, es, go) + rnTileHtml(r, es, go) + rnLineHtml({n: '', text: 'a', go: '', tone: '', who: '<a> <b>'}, es, go)
+                       + rnHeroHtml({text: '<em>t</em>', k: '<k>', big: '<big>', sub: '<sub>'}, false, es, go) + rnHeroHtml({text: '<em>t</em>'}, false, es, go); }"""})[0]
+        for bad in ('<i>', '<b>x', '<img', '<u>', '<s>', '<a>', '<k>', '<big>', '<sub>', '<em>'):
             self.assertNotIn(bad, got)
         js = read('static', 'js', 'right-now.js')
         self.assertIn('<div class="rn-tiles">${tiles.map(r => rnTileHtml(r, es, go)).join(\'\')}</div>', js)
-        self.assertIn('class="rn-first rn-hero', js)
+        self.assertIn("${card.first ? rnHeroHtml(card.first, boh, es, go) : ''}", js)
         css = read('static', 'css', 'theme-cfa.css')
         self.assertIn('.rn-hero.is-bad{background:var(--cfa-red);', css)
-        self.assertIn('@media (prefers-reduced-motion:reduce){ .rn-sec-cal .rn-row .rn-n.is-bad{animation:none;} }', css)
+        self.assertIn('.rn-hero.is-ok{background:#2E7D45;', css)
 
-
-class SlimWelcome(unittest.TestCase):
-    def test_the_welcome_is_a_strip(self):
-        """Tim, Nov 20 2026: the date, greeting and quote in smaller type, so
-        Right Now starts near the top; the welcome still comes first."""
+    def test_two_columns_on_a_tablet_and_motion_only_when_wanted(self):
+        js = read('static', 'js', 'right-now.js')
+        self.assertIn("""<div class="rn-cols${main && side ? '' : ' is-one'}">""", js)
         css = read('static', 'css', 'theme-cfa.css')
-        self.assertIn('.home-greeting{font-family:var(--font-display);font-weight:600;font-size:22px;', css)
-        self.assertIn('.home-logo{width:40px;height:40px;', css)
+        wide = css[css.index("/* A tablet or a computer: two columns"):]
+        self.assertIn('@media (min-width:860px){\n  .rn-cols{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);', wide)
+        # Every animation of the card's sits inside "no preference": someone who asked for less motion gets none.
+        card = css[css.index('/* ===== Home: Right Now'):css.index('/* The one event, on its own')]
+        motion = card[card.index('@media (prefers-reduced-motion:no-preference){'):]
+        self.assertEqual(card.count('animation:'), motion.count('animation:'))
+        self.assertGreaterEqual(motion.count('animation:'), 3)
+        # It rises in when Home is opened, not on the minute's redraw or a sync.
+        self.assertIn("root.className = `rn${boh ? ' rn-boh' : ''}${rnEnter ? ' rn-enter' : ''}`;\n  rnEnter = false;", js)
+        self.assertIn("if(view === 'home'){ if(opened && typeof rnArrive === 'function') rnArrive(); renderHomeScoreboard(); }", read('static', 'js', 'navigation.js'))
+
+
+class OneGreeting(unittest.TestCase):
+    def test_the_welcome_carries_the_name(self):
+        """Tim, Nov 21 2026 (the look): one greeting, not two. The welcome's
+        line is the page's headline, with the person's first name; a new
+        hire's says welcome; a device nobody signed in on gets the plain one."""
+        op = """c => { const out = []; [[{name: 'Maya Torres'}, {}], [{name: ''}, {}], [{name: 'Kai Mercer'}, {newHire: {day: 3}}]].forEach(([v, card]) => {
+                  rnGreet(v, card); out.push(document.getElementById('homeGreeting').textContent); }); return out; }"""
+        got = run({'op': op, 'at': '2026-10-19T08:00:00-05:00'}, {'op': op, 'at': '2026-10-19T14:00:00-05:00'}, {'op': op, 'at': '2026-10-19T19:00:00-05:00'})
+        self.assertEqual(got[0], ['Good morning, Maya.', 'Good morning.', 'Welcome, Kai.'])
+        self.assertEqual(got[1], ['Good afternoon, Maya.', 'Good afternoon.', 'Welcome, Kai.'])
+        self.assertEqual(got[2][0], 'Good evening, Maya.')
+        js = read('static', 'js', 'right-now.js')
+        self.assertIn('  rnGreet(v, card);\n', js)
+        self.assertNotIn('rn-title', js)                                   # the card's own "Hi, Maya" is gone
+        self.assertIn('<h2 class="rn-kicker">', js)
+
+    def test_the_welcome_is_on_the_pages_own_ground_and_still_first(self):
+        """Culture first (Tim): the greeting and the quote open Home, above
+        the card. No longer a navy block, so the banner is the page's first
+        colour."""
+        css = read('static', 'css', 'theme-cfa.css')
+        self.assertIn('.home-welcome{background:transparent;color:var(--text-primary);', css)
+        self.assertIn('.home-quote-box{background:transparent;border-left:3px solid var(--cfa-red);', css)
         page = read('cfa-buda-ops-hub-complete.html')
         self.assertLess(page.index('class="home-welcome"'), page.index('id="rightNow"'))
+        self.assertLess(page.index('id="homeGreeting"'), page.index('id="homeQuoteBox"'))
 
 
 class CounterTimers(unittest.TestCase):
@@ -348,7 +443,11 @@ class TeamLead(unittest.TestCase):
         self.assertIsNone(row(got[0]))
         self.assertEqual(row(got[1])[:2], ['3', 'tickets waiting on you: 2 to do · 1 to approve · 3 out with the team'])
         self.assertEqual(row(got[2])[:2], ['0', 'No open tickets. Nicely done.'])
-        self.assertEqual(row(got[3])[:2], ['0', 'tickets waiting on you · 2 out with the team'])
+        self.assertEqual(row(got[3])[:2], ['0', 'Nothing waiting on you · 2 out with the team'])
+        # Nothing waiting: a tick, not a zero.
+        html = run({'op': "c => rnLineHtml({n: '0', text: 'No open tickets. Nicely done.', go: 'tickets', tone: 'ok', es: ''}, () => '', () => '')"})[0]
+        self.assertIn('<i class="rn-ic is-ok">', html)
+        self.assertNotIn('rn-pill', html)
 
     def test_whose_move_a_ticket_is(self):
         ev = lambda i, typ, by, task, data=None: {'id': f'e{i}', 'at': 1000 + i, 'type': typ, 'by': by, 'taskId': task, 'data': data or {}}
@@ -623,7 +722,7 @@ class PageWiring(unittest.TestCase):
     def test_spanish_only_on_the_kitchens_card(self):
         css = read('static', 'css', 'theme-cfa.css')
         self.assertIn('.rn:not(.rn-boh) .es{display:none;}', css)
-        self.assertIn("root.className = `rn${boh ? ' rn-boh' : ''}`;", read('static', 'js', 'right-now.js'))
+        self.assertIn("root.className = `rn${boh ? ' rn-boh' : ''}${rnEnter ? ' rn-enter' : ''}`;", read('static', 'js', 'right-now.js'))
 
 
 if __name__ == '__main__':

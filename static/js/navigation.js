@@ -38,7 +38,7 @@ function activateView(view){
   }
   if(view === 'tx') renderTXScoreboard();
   if(view === 'lx') renderLXScoreboard();
-  if(view === 'home') renderHomeScoreboard();
+  if(view === 'home'){ if(opened && typeof rnArrive === 'function') rnArrive(); renderHomeScoreboard(); }   // right-now.js: the card rises in when Home opens
   if(view === 'forecast') renderForecastView();
   if(view === 'cem' && typeof renderCemTrends === 'function') renderCemTrends();
   if(view === 'knownumbers' && typeof renderKnPage === 'function') renderKnPage();

@@ -129,7 +129,8 @@ class Wiring(unittest.TestCase):
         # A line's label, words and detail all go through escapeHtml (rnLineHtml).
         self.assertIn('<b class="rn-v">${escapeHtml(p.value)}</b>', js)
         self.assertIn('<small class="rn-k">${escapeHtml(p.kicker)}</small>', js)
-        self.assertIn('<span class="rn-d">${escapeHtml(p.detail)}</span>', js)
+        self.assertIn('<span class="rn-d">${escapeHtml(detail)}</span>', js)
+        self.assertIn('style="--dot:${escapeHtml(r.color)}"', js)                 # each event by its calendar colour
         self.assertIn("if(ev){ rnOpenEvent(ev.dataset.rnEv, ev.dataset.rnEvDate, ev); return; }", js)
         page = read('cfa-buda-ops-hub-complete.html')
         self.assertLess(page.index('/static/js/events.js'), page.index('/static/js/right-now.js'))
