@@ -166,3 +166,77 @@ html[data-theme="dark"] .hd-pick.is-toggle[aria-pressed="true"]{color:#F6F1E8;}
   .hd-goal-extra{grid-template-columns:1fr;}
   .hd-focus-text{font-size:21px;}
 }
+
+/* ===== Home's language (Tim, Nov 21 2026: one look with the revamped Home) =====
+   The Right Now card on Home is a banner for the one thing, then a card per
+   kind of information, each line a small label over the words that matter,
+   and big-number tiles for the counts. The Huddle wears the same: the focus
+   and each card's ONE priority are banners (navy; red when it needs someone;
+   green when done), labels are Home's small caps, the shift's numbers are
+   tiles, and the action is one full-width red button. Tints are see-through
+   so dark mode follows without a second set. */
+.hd-page .knp-title{font-size:32px;letter-spacing:-.01em;}
+.hd-page :is(.knp-k,.hd-goal-k,.hd-focus-k){font-size:10.5px;font-weight:800;letter-spacing:.12em;}
+.hd-page .knp-k{color:var(--text-tertiary);}
+
+/* Banners: the focus, and a card's ONE priority or its score. */
+.hd-focus{border-radius:18px;box-shadow:0 6px 18px rgba(0,79,113,.22);}
+.hd-focus-k{color:rgba(255,255,255,.82);}
+.hd-focus-text{font-size:23px;font-weight:700;}
+.hd-hero.is-banner{display:flex;align-items:center;gap:12px;margin:0;padding:14px 16px;border-radius:16px;background:var(--cfa-navy);color:#FFFFFF;}
+.hd-hero.is-banner.is-bad{background:var(--cfa-red);}
+.hd-hero.is-banner.is-ok{background:#2E7D45;}
+.hd-page .hd-hero.is-banner b{color:#FFFFFF;font-family:var(--font-display);font-weight:700;line-height:1.15;}
+.hd-page .hd-hero.is-banner span{color:rgba(255,255,255,.85);}
+.hd-page .hd-hero.is-banner .es{color:rgba(255,255,255,.85);opacity:1;}
+.hd-hero.is-banner.is-words{flex-direction:column-reverse;align-items:flex-start;gap:3px;}
+.hd-page .hd-hero.is-banner.is-words b{font-size:23px;overflow-wrap:anywhere;}
+.hd-page .hd-hero.is-banner.is-words > span{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;}
+.hd-page .hd-hero.is-banner.is-words > span .es{letter-spacing:0;text-transform:none;font-weight:400;}
+.hd-page .hd-hero.is-banner.is-score b{font-size:36px;line-height:1;font-variant-numeric:tabular-nums;}
+.hd-page .hd-hero.is-banner.is-score span{font-size:13.5px;line-height:1.3;}
+
+/* Compartments: a card's corners, and a small navy heading over each kind of information. */
+.hd-page .knp-card,.hd-rows{border-radius:18px;}
+.hd-page .knp-card.is-now{box-shadow:inset 0 0 0 1px var(--cfa-red),0 6px 18px rgba(221,0,49,.10);}
+.hd-numbers-k{font-size:12.5px;line-height:1.3;}
+.hd-numbers-k b,.hd-h3{display:block;margin:0 0 1px;font-family:var(--font-ui);font-size:11.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--cfa-navy);}
+.hd-h3{margin:18px 2px 8px;}
+.hd-numbers-k b .es{letter-spacing:0;text-transform:none;font-weight:400;}
+html[data-theme="dark"] :is(.hd-numbers-k b,.hd-h3){color:var(--ink-navy);}
+
+/* A line: label, the words that matter, the detail. */
+.hd-goal{padding:10px 12px;border-radius:14px;}
+.hd-goal-text{font-size:16.5px;font-weight:700;line-height:1.25;}
+.hd-goal-why,.hd-line{font-size:13.5px;}
+.hd-lead{font-size:16.5px;font-weight:700;}
+.hd-result{padding:5px 11px;font-size:12.5px;line-height:1;}
+.hd-result.is-hit{background:rgba(46,125,69,.16);color:var(--ok);}
+.hd-result.is-partly{background:rgba(224,165,38,.24);color:#7A4A00;}
+.hd-rows li b{font-size:16px;}
+
+/* The shift's numbers: big-number tiles, tinted by how it went. */
+.hd-page .knp-stat{gap:2px;min-height:92px;padding:11px 12px;border:1px solid var(--border);border-radius:14px;box-shadow:none;}
+.hd-page .knp-stat b{font-size:28px;font-weight:700;line-height:1.05;color:var(--cfa-navy);}
+.hd-page .knp-stat b i{font-size:.5em;font-style:normal;font-weight:600;}
+.hd-page .knp-stat small{font-size:12.5px;font-weight:500;color:var(--text-secondary);}
+.hd-page .knp-stat.is-ok{background:rgba(46,125,69,.10);border-color:rgba(46,125,69,.34);}
+.hd-page .knp-stat.is-ok b{color:#2E7D45;}
+.hd-page .knp-stat.is-under{background:rgba(224,165,38,.14);border-color:rgba(224,165,38,.5);}
+.hd-page .knp-stat.is-under b{color:#B26B00;}
+.hd-page .knp-stat.is-under small{color:#7A4A00;}
+.hd-page .knp-stat.is-over{background:rgba(221,0,49,.07);border-color:rgba(221,0,49,.3);}
+.hd-page .knp-stat.is-over b{color:var(--cfa-red);}
+.hd-page .knp-stats > :last-child:nth-child(odd){grid-column:1 / -1;}
+.hd-page .knp-day-sum{border-radius:18px;box-shadow:0 6px 18px rgba(0,79,113,.22);}
+.hd-page .knp-day-sum b{font-size:26px;font-weight:700;}
+.hd-zones{border:1px solid var(--border);border-radius:14px;}
+html[data-theme="dark"] .hd-page .knp-stat b{color:var(--ink-navy);}
+html[data-theme="dark"] .hd-page .knp-stat.is-ok b{color:var(--ok);}
+html[data-theme="dark"] .hd-page .knp-stat.is-under :is(b,small),html[data-theme="dark"] .hd-result.is-partly{color:#FFC361;}
+html[data-theme="dark"] .hd-page .knp-stat.is-over b{color:var(--ink-red);}
+
+/* The action: one full-width red button, as Home's. */
+.hd-card > .hd-actions > .hd-btn:not(.is-quiet),.hd-form > .hd-actions > .hd-btn{flex:1 1 100%;min-height:54px;border-radius:16px;font-size:15.5px;font-weight:800;box-shadow:0 6px 18px rgba(221,0,49,.22);}
+.hd-btn .es{display:block;font-size:13px;}
+.hd-form input[type="text"],.hd-focus-form input[type="text"],.hd-focus-form select,.hd-goal-row{border-radius:14px;}
