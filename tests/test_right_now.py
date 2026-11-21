@@ -125,6 +125,16 @@ class TeamMember(unittest.TestCase):
         self.assertEqual(got[0]['first'], 'You’re not on today’s schedule.')
         self.assertEqual(got[1]['first'], 'No spot yet for Dinner. Check with your leader.')
 
+    def test_after_their_shift_it_says_done_not_no_spot(self):
+        """Nov 21 2026: someone whose shift is over was told "No spot yet,
+        check with your leader". Now it's a green done, with a thank you."""
+        done = "fohRoster[today] = [{name: 'Ana Ruiz Lopez', start: '6:00a', end: '2:00p'}]; posAssignments = {};"
+        got = run({'op': card('member', 'Ana Ruiz', extra=done)},
+                  {'op': """c => { bohRoster[today] = [{name: 'Sam Ortiz', start: '6:00a', end: '2:00p'}]; acUser = {role: 'member', name: 'Sam Ortiz'};
+                             const f = rnCardFor(rnViewer(), rnDay()).first; return [f.k, f.big, f.sub, f.tone, f.es]; }"""})
+        self.assertEqual(got[0]['first'], 'You’re done for today. Your shift ended at 2:00.')
+        self.assertEqual(got[1], ['Your shift ended at 2:00', 'Done for today', 'Thank you for today.', 'ok', 'Terminaste por hoy. Tu turno terminó a las 2:00. Gracias por hoy.'])
+
     def test_truck_and_office_shifts_count(self):
         # Tim, Oct 25 2026: an office shift on Monday, and the card said he wasn't on.
         office = "adminShifts['2026-10-19'] = [{name: 'Jordan Testcase', start: '11:30a', end: '2:30p'}];"
@@ -320,6 +330,11 @@ class TheLook(unittest.TestCase):
         self.assertEqual(got[1], ['Your shift: 12:00p–8:00p', 'Tu turno · empieza en 1 h 40 min', 0, 'starts in 1 h 40 min', 'clock'])
         self.assertEqual(got[2], ['Your shift: 12:00p–8:00p', 'Tu turno · terminaste por hoy', 100, 'done for today', 'clock'])
         self.assertEqual(got[3], ['1 h 40 min', '1 h', '25 min', '0 min', 'PS', 'AL', 'L', ''])
+        # A line's words start with a capital, but a name with its own capitals is left alone.
+        caps = run({'op': "c => ['open spots on FOH for Lunch', 'iPOS 1 (Captain) (Lunch)', '2 to do', 'zones reset', 'Drinks 1', 'waste today, limit $100', ''].map(rnCap)"})[0]
+        self.assertEqual(caps, ['Open spots on FOH for Lunch', 'iPOS 1 (Captain) (Lunch)', '2 to do', 'Zones reset', 'Drinks 1', 'Waste today, limit $100', ''])
+        html = run({'op': "c => rnLineHtml({n: '', text: 'Now: iPOS 1 (Captain) (Lunch)', go: '', tone: '', es: ''}, () => '', () => '')"})[0]
+        self.assertIn('<b class="rn-v">iPOS 1 (Captain) (Lunch)</b>', html)
 
     def test_escaped_and_wired(self):
         got = run({'op': """c => { const es = () => '', go = () => ''; const r = {n: '<i>', text: '<b>x</b>: <img src=x> · <u>d</u>', go: '', tone: '', note: '<s>n</s>'};
@@ -346,7 +361,8 @@ class TheLook(unittest.TestCase):
         self.assertEqual(card.count('animation:'), motion.count('animation:'))
         self.assertGreaterEqual(motion.count('animation:'), 3)
         # It rises in when Home is opened, not on the minute's redraw or a sync.
-        self.assertIn("root.className = `rn${boh ? ' rn-boh' : ''}${rnEnter ? ' rn-enter' : ''}`;\n  rnEnter = false;", js)
+        self.assertIn("root.className = `rn${boh ? ' rn-boh' : ''}${rnEnter ? ' rn-enter' : ''}`;\n  if(typeof hubStarted === 'undefined' || hubStarted || hubWarming) rnEnter = false;", js)
+        self.assertIn("if(who !== rnSeen){ rnSeen = who; rnEnter = true; }", js)                    # and when someone signs in
         self.assertIn("if(view === 'home'){ if(opened && typeof rnArrive === 'function') rnArrive(); renderHomeScoreboard(); }", read('static', 'js', 'navigation.js'))
 
 

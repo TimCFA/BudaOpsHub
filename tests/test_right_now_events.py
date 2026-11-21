@@ -127,7 +127,7 @@ class Wiring(unittest.TestCase):
         self.assertIn("const evs = rnEventRows(day, card.side === 'boh', !!card.team);", js)
         self.assertIn("else if(what === 'event') rnOpenEvent(parts[0], parts[1] || today, document.activeElement);", js)
         # A line's label, words and detail all go through escapeHtml (rnLineHtml).
-        self.assertIn('<b class="rn-v">${escapeHtml(p.value)}</b>', js)
+        self.assertIn('<b class="rn-v">${escapeHtml(rnCap(p.value))}</b>', js)
         self.assertIn('<small class="rn-k">${escapeHtml(p.kicker)}</small>', js)
         self.assertIn('<span class="rn-d">${escapeHtml(detail)}</span>', js)
         self.assertIn('style="--dot:${escapeHtml(r.color)}"', js)                 # each event by its calendar colour

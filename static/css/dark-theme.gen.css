@@ -246,6 +246,10 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .rn-tile.is-flag .rn-tile-d{color:var(--ink-dark-red);}
 :where(html[data-theme="dark"]) .rn-new-day b{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .rn-pea-cell{border-top:4px solid rgba(41,41,41,0.4);background:rgba(29,29,29,0.1);}
+@media (hover:hover){
+  :where(html[data-theme="dark"]) .rn-tile.is-go:hover .rn-tile-go{color:var(--ink-navy);}
+  :where(html[data-theme="dark"]) .rn-hero.is-go:hover .rn-hero-go{background:rgba(29,29,29,0.32);}
+}
 :where(html[data-theme="dark"]) .rn-evs-cal{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .rn-roster-ic{background:rgba(29,29,29,0.14);}
 :where(html[data-theme="dark"]) .rn-rg-h{color:var(--ink-navy);}

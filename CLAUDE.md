@@ -69,28 +69,42 @@ row.
 One meaning a colour (the Nov 2026 refresh): ink is "selected", red is "now"
 and "needs someone", navy is stats, green is done. On Set Ups and Lists the
 open daypart or handoff is one white card with its positions or zones as rows
-inside; a spot's zone colour is on its number badge. Home and the Waste
-logger keep their own look (Tim's call). Tests: `tests/test_bottom_nav.py`.
+inside; a spot's zone colour is on its number badge. The Waste logger keeps
+its own look (Tim's call); Home got its own redesign on Nov 21 2026 (see
+Home), on the same colour meanings. Tests: `tests/test_bottom_nav.py`.
 
 ## Home
 
-Home is one glance at your own day (Tim, Nov 18 2026): the welcome and quote,
-then the Right Now card (`static/js/right-now.js`), which changes by who is
-signed in; every line taps through to where it lives. Vision, Mission and
-Values and the Monthly Leadership Wins are off Home (still kept in Manage as
-`homeData`, for a page of their own later). The welcome is a slim strip, so the
-card starts near the top of a phone. Someone in their first 30 days (the
-roster's "In training" tag from HotSchedules, or a hire date in Our Team)
-gets a new hire's card: their day number, who is on their spot with them, who
-to find when they walk in, positions so far, and "Before your shift" lines a
-director types in Manage → Home Page (Tim, Nov 20 2026; the training plan
-comes later). The day's calendar events are quiet lines after the person's
-own, not a block ("Now" in red while one runs), and a new hire's card has
-none (Tim, Nov 21 2026). What each role sees, and Tim's
-calls behind it, are in the comments at the top of right-now.js and in
-`tests/test_right_now.py`; ask before undoing one. Home is drawn in the first
-seconds of a load (`tests/test_first_load.py`), so anything new waits for the
-late scripts or is measured first.
+Home is one glance at your own day (Tim, Nov 18 2026): the greeting and the
+quote (culture first, always), then the Right Now card
+(`static/js/right-now.js`), which changes by who is signed in; every line
+taps through to where it lives. Vision, Mission and Values and the Monthly
+Leadership Wins are off Home (still kept in Manage as `homeData`, for a page
+of their own later). Someone in their first 30 days (the roster's "In
+training" tag from HotSchedules, or a hire date in Our Team) gets a new
+hire's card: their day number, who is on their spot with them, who to find
+when they walk in, positions so far, and "Before your shift" lines a director
+types in Manage → Home Page (Tim, Nov 20 2026; the training plan comes
+later). The day's calendar events are quiet lines after the person's own
+("Now" in red while one runs), and a new hire's card has none.
+
+The look (Tim, Nov 21 2026: "more dynamic and engaging"; "The look" in
+right-now.js and "Home: Right Now" in theme-cfa.css): the greeting carries
+the person's name and sits on the page's own ground, so the first block of
+colour is the banner. The banner is the First thing: a small label, the words
+that matter in big type, the detail (red when it needs someone, green when
+all is covered or done, navy for where you are). Under it a compartment per
+kind of information: Your day as lines, the floor's counts as big-number
+tiles, tickets as stubs, the calendar, then "More about today" and the way to
+sign in as the page's one button. Every line is a small label over the words
+that matter; a count out of a total draws a bar; a person's line leads with
+their initials. Two columns from 860px. The card rises in when Home opens or
+someone signs in, only for people who haven't asked their device for less
+motion. What each role sees, and Tim's calls behind it, are in the comments
+at the top of right-now.js and in `tests/test_right_now.py`; ask before
+undoing one. Home is drawn in the first seconds of a load
+(`tests/test_first_load.py`), so anything new waits for the late scripts or
+is measured first.
 
 ## Tasks
 

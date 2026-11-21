@@ -338,6 +338,7 @@ const ES = {
   'Starts in TIME': t => `empieza en ${t}`,
   'TIME left': t => `faltan ${t}`,
   'Done for today': 'terminaste por hoy',
+  'Done for today, shift ended at TIME': t => `Terminaste por hoy. Tu turno terminó a las ${t}. Gracias por hoy.`,
   'Timers': 'Temporizadores',
   'On the floor': 'En el piso',
   'Tickets': 'Tickets',

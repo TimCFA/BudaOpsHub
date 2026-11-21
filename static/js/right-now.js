@@ -32,8 +32,10 @@
 // on them, and the rest folded under "More about today". The signed-out
 // Front card shows the counter timers due.
 // Nov 20 2026 (Tim): someone in their first 30 days gets a new hire's card
-// (rnNewHireCard); the welcome above is a slim strip, so the card starts
-// near the top of a phone.
+// (rnNewHireCard).
+// Nov 21 2026 (Tim: "more dynamic and engaging"): the look, further down
+// ("The look"). The welcome above carries the person's name (rnGreet), so
+// the card has no greeting of its own; the day's events are quiet lines.
 // It reads only what that phone already has (a team PIN never reads the
 // private sections), and every row opens the screen that fixes it. On the
 // kitchen's side the lines carry Spanish; FOH stays English.
@@ -213,16 +215,16 @@ function rnDur(min){
   const m = Math.max(0, Math.round(min));
   return m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}` : `${m} min`;
 }
-// How far through today's shift someone is: {bar, note, es}. A split shift
-// runs from its first block to its last.
+// How far through today's shift someone is: {bar, note, es, end}. A split
+// shift runs from its first block to its last.
 function rnShiftProgress(on, now){
   const spans = on.flatMap(o => (o.entry.blocks && o.entry.blocks.length ? o.entry.blocks : [o.entry]).map(b => [parseShiftTimeToMinutes(b.start), parseShiftTimeToMinutes(b.end)]))
     .filter(([s, e]) => s !== null && e !== null).map(([s, e]) => [s, e <= s ? e + 1440 : e]);
   if(!spans.length) return null;
   const start = Math.min(...spans.map(x => x[0])), end = Math.max(...spans.map(x => x[1]));
-  if(now < start) return {bar: 0, note: `starts in ${rnDur(start - now)}`, es: esText('Starts in TIME', rnDur(start - now))};
-  if(now >= end) return {bar: 1, note: 'done for today', es: esText('Done for today')};
-  return {bar: (now - start) / (end - start), note: `${rnDur(end - now)} left`, es: esText('TIME left', rnDur(end - now))};
+  if(now < start) return {bar: 0, end, note: `starts in ${rnDur(start - now)}`, es: esText('Starts in TIME', rnDur(start - now))};
+  if(now >= end) return {bar: 1, end, note: 'done for today', es: esText('Done for today')};
+  return {bar: (now - start) / (end - start), end, note: `${rnDur(end - now)} left`, es: esText('TIME left', rnDur(end - now))};
 }
 
 // ----- Per role -----
@@ -266,6 +268,7 @@ function rnPersonCard(v, day, trainer){
   const brkUntil = entry ? Number(breakCountdowns[breakKeyFor(entry.name, today, side)]) || 0 : 0;
   const onBreak = brkUntil > serverNow();
   let nowFirst = false;
+  const prog = on.length ? rnShiftProgress(on, day.now) : null;   // how far through today's shift
 
   if(!on.length && !spots.length){
     first = {text: 'You’re not on today’s schedule.', es: esText('Not on the schedule')};
@@ -288,6 +291,11 @@ function rnPersonCard(v, day, trainer){
   } else if(startsAt !== null && startsAt > day.now){
     first = {text: `Your shift starts at ${rnClock(startsAt)}${nextSpot ? `, on ${nextSpot.slot}` : ''}.`, es: esText('Your shift starts at TIME', rnClock(startsAt))};
     rnHead(first, 'Your shift starts at', rnClock(startsAt), [nextSpot ? `on ${nextSpot.slot}` : '', `in ${rnDur(startsAt - day.now)}`].filter(Boolean).join(' · '));
+  } else if(prog && prog.bar === 1){
+    // Their shift is over (it used to say "No spot yet, check with your leader": Nov 21 2026).
+    const at = rnClock(prog.end % 1440);
+    first = {text: `You’re done for today. Your shift ended at ${at}.`, es: esText('Done for today, shift ended at TIME', at)};
+    rnHead(first, `Your shift ended at ${at}`, 'Done for today', 'Thank you for today.', 'ok');
   } else if(offFloor && !spots.length){
     first = {text: `Your ${RN_OFF_FLOOR[offFloor.side]} shift today: ${rnShiftText(offFloor.entry)}.`};
     rnHead(first, `Your ${RN_OFF_FLOOR[offFloor.side]} shift today`, rnShiftText(offFloor.entry), '');
@@ -305,7 +313,6 @@ function rnPersonCard(v, day, trainer){
   // A tap opens the Schedule on their week (Tim, Oct 28 2026).
   if(on.length){
     // How far through it they are: a bar, and the time left (Tim, Nov 21 2026).
-    const prog = rnShiftProgress(on, day.now);
     rows.push(rnWith(rnRow('', `Your shift: ${rnShiftsText(on)}`, esText('Your shift') + (prog ? ' · ' + prog.es : ''), `myweek:${today}`), {icon: 'clock', ...(prog ? {bar: prog.bar, note: prog.note} : {})}));
   }
   // Who's leading the shift (Tim, Nov 18 2026): the Lead Captain on Set Ups
@@ -729,6 +736,7 @@ const RN_TIMERS_EVERY = 60 * 1000;
 let rnTimers = {at: 0, list: null};
 function rnTimersLoad(){
   if(typeof TimersPage === 'undefined' || typeof TimersPage.peek !== 'function') return;
+  if(typeof mgrStatusKnown !== 'undefined' && !mgrStatusKnown) return;     // not until it's known nobody is signed in (manage-and-import.js)
   if(Date.now() - rnTimers.at < RN_TIMERS_EVERY) return;
   rnTimers.at = Date.now();
   TimersPage.peek().then(list => {
@@ -1070,8 +1078,12 @@ function renderRightNow(){
     + sec('cal', 'On the calendar', lines(groups.cal))
     + (groups.more.length ? `<details class="rn-more rn-sec" data-rn-more${rnMoreOpen ? ' open' : ''}><summary>More about ${escapeHtml(card.kicker || 'today')} <span>${groups.more.length}</span>${RN_ICON_GO}</summary>${lines(groups.more)}</details>` : '')
     + groups.cta.map(r => `<button type="button" class="rn-cta" data-rn-go="${escapeHtml(r.go)}"><span class="rn-cta-main"><b>${escapeHtml(r.text)}</b>${RN_ICON_GO}</span>${es(r.es)}</button>`).join('');
+  // It rises in when Home is opened or someone signs in, once the saved data
+  // is in (or early-paint.js has drawn it): never on the minute's redraw.
+  const who = v.role + '|' + v.name;
+  if(who !== rnSeen){ rnSeen = who; rnEnter = true; }
   root.className = `rn${boh ? ' rn-boh' : ''}${rnEnter ? ' rn-enter' : ''}`;
-  rnEnter = false;
+  if(typeof hubStarted === 'undefined' || hubStarted || hubWarming) rnEnter = false;
   root.innerHTML = `
     <div class="rn-top${card.sideSwitch ? ' is-switch' : ''}">
       <h2 class="rn-kicker">${escapeHtml(kicker)}${day.closed ? '' : ` · <b>${escapeHtml(rnClock(day.now))}</b>`}${boh && kickerEs ? `<span class="es" lang="es">${escapeHtml(kickerEs)}</span>` : ''}</h2>
@@ -1109,7 +1121,7 @@ const RN_ICONS = {
   pin: rnSvg('<path d="M12 21s-6.5-5.6-6.5-10.5a6.5 6.5 0 0 1 13 0C18.5 15.4 12 21 12 21z"/><circle cx="12" cy="10.5" r="2.3"/>', 20, 2),
   check: rnSvg('<path d="M5 12.5l4.5 4.5L19 7.5"/>', 20, 2.6),
 };
-let rnEnter = true;
+let rnEnter = true, rnSeen = null;
 function rnArrive(){ rnEnter = true; }       // navigation.js: Home was opened
 
 // One greeting, not two: the welcome's own line carries the name, and a new
@@ -1142,6 +1154,9 @@ function rnParts(text){
   const j = rest.indexOf(' · ');
   return {kicker, value: j > 0 ? rest.slice(0, j) : rest, detail: j > 0 ? rest.slice(j + 3) : ''};
 }
+// A line's words start with a capital ("open spots" → "Open spots"), but a
+// name that carries its own capitals is left alone (iPOS stays iPOS).
+function rnCap(s){ return /^[a-z]+([\s,]|$)/.test(s) ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 // A bar for a count out of a total: the row's own (bar, 0 to 1), or read off "3/9".
 function rnBarOf(r){
   if(typeof r.bar === 'number') return r.bar;
@@ -1183,7 +1198,7 @@ function rnLineHtml(r, es, go){
   const bar = rnBarOf(r);
   return `<div class="rn-row${tone}${r.go ? ' is-go' : ''}"${go(r.go)}>
           <span class="rn-n"${r.n !== '' && !done ? '' : ' aria-hidden="true"'}>${lead}</span>
-          <span class="rn-t">${p.kicker ? `<small class="rn-k">${escapeHtml(p.kicker)}</small>` : ''}<b class="rn-v">${escapeHtml(p.value)}</b>${detail ? `<span class="rn-d">${escapeHtml(detail)}</span>` : ''}${bar === null ? '' : rnBarHtml(bar, r.tone)}${es(r.es)}</span>
+          <span class="rn-t">${p.kicker ? `<small class="rn-k">${escapeHtml(p.kicker)}</small>` : ''}<b class="rn-v">${escapeHtml(rnCap(p.value))}</b>${detail ? `<span class="rn-d">${escapeHtml(detail)}</span>` : ''}${bar === null ? '' : rnBarHtml(bar, r.tone)}${es(r.es)}</span>
           ${r.go ? `<span class="rn-go">${RN_ICON_GO}</span>` : ''}
         </div>`;
 }
@@ -1192,7 +1207,7 @@ function rnTileHtml(r, es, go){
   const detail = p.kicker ? p.value + (p.detail ? ' · ' + p.detail : '') : p.detail;
   return `<div class="rn-tile${r.tone ? ' is-' + r.tone : ''}${r.go ? ' is-go' : ''}"${go(r.go)}>
           <b class="rn-tile-n">${escapeHtml(r.n)}</b>
-          <span class="rn-tile-l">${escapeHtml(p.kicker || p.value)}</span>
+          <span class="rn-tile-l">${escapeHtml(rnCap(p.kicker || p.value))}</span>
           ${detail ? `<small class="rn-tile-d">${escapeHtml(detail)}</small>` : ''}${es(r.es)}${bar === null ? '' : rnBarHtml(bar, r.tone)}
           ${r.go ? `<span class="rn-tile-go">${RN_ICON_GO}</span>` : ''}
         </div>`;
