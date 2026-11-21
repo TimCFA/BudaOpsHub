@@ -4,7 +4,9 @@
 // Leads and up.
 //
 // The look is Know the Numbers' (kn-page.js; the knp- classes in
-// theme-cfa.css): a week of days, then one card per daypart with one big
+// theme-cfa.css), dressed in Home's language (the Right Now card, Nov 21
+// 2026; "Home's language" in huddle.css): a banner for the one thing, a
+// small label over the words that matter, big-number tiles for the counts: a week of days, then one card per daypart with one big
 // thing on it: the shift's ONE priority, and once it's closed, how many of
 // its goals were hit. The focus sits above them in a navy band.
 //
@@ -212,9 +214,9 @@
   function heroHtml(dp, ph){
     if(dp.score){
       const all = dp.score.hit === dp.score.goals;
-      return `<div class="knp-hero hd-hero ${all ? 'is-done' : ''}"><b>${dp.score.hit}/${dp.score.goals}</b><span>goals hit${dp.score.partly ? ` · ${dp.score.partly} partly` : ''}${es('N of M goals hit', dp.score.hit, dp.score.goals)}<br>priority: ${h(dp.pre.priority)}${es(dp.pre.priority)}</span></div>`;
+      return `<div class="knp-hero hd-hero is-banner is-score ${all ? 'is-ok' : ''}"><b>${dp.score.hit}/${dp.score.goals}</b><span>goals hit${dp.score.partly ? ` · ${dp.score.partly} partly` : ''}${es('N of M goals hit', dp.score.hit, dp.score.goals)}<br>priority: ${h(dp.pre.priority)}${es(dp.pre.priority)}</span></div>`;
     }
-    if(dp.pre) return `<div class="knp-hero hd-hero is-words"><b>${h(dp.pre.priority)}${es(dp.pre.priority)}</b><span>the ONE<br>priority${es('the ONE priority')}</span></div>`;
+    if(dp.pre) return `<div class="knp-hero hd-hero is-banner is-words ${ph === 'due' ? 'is-bad' : ''}"><b>${h(dp.pre.priority)}${es(dp.pre.priority)}</b><span>the ONE priority${es('the ONE priority')}</span></div>`;
     const none = ph === 'past' ? L('No huddle was set for this daypart.')
       : ph === 'ahead' ? (S.data.date === S.data.today ? `The pre-huddle opens at ${h(fmtTime(dp.preOpens))}, ${S.data.preOpensMin} minutes before the daypart.${es('Pre-huddle opens at T', fmtTime(dp.preOpens), S.data.preOpensMin)}` : L('The pre-huddle opens on the day.'))
       : ph === 'late' ? L('No pre-huddle yet. It can still be filled in today.')
@@ -252,14 +254,14 @@
     const stat = (label, value, note, cls) => `<div class="knp-stat ${cls || ''}"><span class="knp-k">${label}</span><b>${value}</b>${note ? `<small>${note}</small>` : ''}</div>`;
     const stats = [];
     const p = n.productivity;
-    if(p && p.actual !== null) stats.push(stat(L('Productivity'), `${money(p.actual)}/hr`, p.goal !== null ? (p.actual >= p.goal ? `goal ${money(p.goal)}: met${es('goal G: met', money(p.goal))}` : `goal ${money(p.goal)}: ${money(p.goal - p.actual)} under${es('goal G: U under', money(p.goal), money(p.goal - p.actual))}`) : L('no goal set'), p.goal === null ? '' : p.actual >= p.goal ? 'is-ok' : 'is-under'));
-    else if(p) stats.push(stat(L('Productivity goal'), `${money(p.goal)}/hr`, L('the actual comes in with the sales upload')));
+    if(p && p.actual !== null) stats.push(stat(L('Productivity'), `${money(p.actual)}<i>/hr</i>`, p.goal !== null ? (p.actual >= p.goal ? `goal ${money(p.goal)}: met${es('goal G: met', money(p.goal))}` : `goal ${money(p.goal)}: ${money(p.goal - p.actual)} under${es('goal G: U under', money(p.goal), money(p.goal - p.actual))}`) : L('no goal set'), p.goal === null ? '' : p.actual >= p.goal ? 'is-ok' : 'is-under'));
+    else if(p) stats.push(stat(L('Productivity goal'), `${money(p.goal)}<i>/hr</i>`, L('the actual comes in with the sales upload')));
     const t = n.timers;
     if(t){ const all = t.ontime + t.late + t.missed; stats.push(stat('Timers', `${t.ontime} of ${all}`, `on time${t.late ? ` · ${t.late} late` : ''}${t.missed ? ` · ${t.missed} missed` : ''}`, t.missed ? 'is-over' : t.late ? 'is-under' : 'is-ok')); }
     stats.push(stat(L('Waste logged'), n.waste ? money(n.waste.cost) : '$0', boh()
       ? (n.waste ? `${plural(n.waste.count, 'entry', 'entries')}, kitchen${es('N entries, kitchen', n.waste.count)}` : L('nothing logged, kitchen'))
       : (n.waste ? `${plural(n.waste.count, 'entry', 'entries')}, front of house` : 'nothing logged, front of house')));
-    if(n.foodSafety) stats.push(stat(L('Food safety'), `${plural(n.foodSafety, 'walkthrough', 'walkthroughs')}${es('N walkthroughs', n.foodSafety)}`, L('finished this daypart'), 'is-ok'));
+    if(n.foodSafety) stats.push(stat(L('Food safety'), String(n.foodSafety), `${n.foodSafety === 1 ? 'walkthrough' : 'walkthroughs'} finished this daypart${es('N walkthroughs', n.foodSafety)}${es('finished this daypart')}`, 'is-ok'));
     // Know the Numbers' own, from the latest uploads: not this shift's alone.
     try {
       const dt = typeof knDriveThru === 'function' ? knDriveThru(dp.name) : null;
@@ -401,7 +403,7 @@
       return `
         <section class="knp-card hd-card">
           <div class="knp-head"><h3>${h(shortName(p.name))} <span>${h(timeText(p.name))}</span></h3></div>
-          <div class="knp-hero hd-hero"><b>${p.closed}/${p.expected}</b><span>huddles closed<br>${p.set} set</span></div>
+          <div class="knp-hero hd-hero is-banner is-score"><b>${p.closed}/${p.expected}</b><span>huddles closed<br>${p.set} set</span></div>
           <div class="knp-stats">
             ${stat('Goals hit', p.goals ? `${p.hit} of ${p.goals}` : '—', p.goals ? [p.partly ? `${p.partly} partly` : '', p.missed ? `${p.missed} missed` : '', p.open ? `${p.open} open` : ''].filter(Boolean).join(' · ') : 'no goals written')}
             ${stat('Productivity', p.prodKnown ? `${p.prodMet} of ${p.prodKnown}` : '—', p.prodKnown ? 'shifts met the goal' : 'no actuals yet', p.prodKnown ? (p.prodMet === p.prodKnown ? 'is-ok' : 'is-under') : '')}

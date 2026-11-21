@@ -149,7 +149,12 @@ only reads the saved state. Directors also get Day / Week at the top: the
 week's roll-up (`/api/huddle/week`, `roll_up`) of huddles set and closed,
 goals hit, goals written against each focus, each leader's huddles, each
 daypart's numbers and who won a shift; a huddle is expected once its daypart
-has started. The look is Know the Numbers' (the `knp-` classes).
+has started. The look is Know the Numbers' (the `knp-` classes), dressed in
+Home's language (Tim, Nov 21 2026; "Home's language" in huddle.css): the
+focus and each card's ONE priority are banners (navy; red when it needs
+someone; green when done), labels are Home's small caps, the shift's numbers
+are big-number tiles tinted by how they went, and the action is one
+full-width red button.
 
 Front of house and the kitchen each have their own huddles (FOH / Kitchen at
 the top, remembered on the device; Tim, Nov 21 2026). FOH stays English
