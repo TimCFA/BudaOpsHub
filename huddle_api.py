@@ -18,7 +18,7 @@ The post-huddle closes it once the daypart has started: each goal hit,
 partly or missed with a line on why, one recognition, one thing to hand to
 the next leader.
 
-A huddle is one per day, side and daypart. The dayparts are the four Know
+A huddle is one per day, side (front of house, the kitchen) and daypart. The dayparts are the four Know
 the Numbers ones (static/js/know-numbers.js numbersDayparts;
 tests/test_huddle.py checks they match), so a huddle lines up with the
 productivity numbers; each covers the Set Ups dayparts that start inside
@@ -47,7 +47,7 @@ overlapping during a deploy can't wipe each other's work. Saving a
 pre-huddle again is a new event; the latest stands. Not a saved-state
 section; never goes through /api/state/sync.
 
-  GET  /api/huddle/state?date=YYYY-MM-DD      Team Leads and up
+  GET  /api/huddle/state?date=YYYY-MM-DD&side=foh|boh      Team Leads and up
         me, the focuses for that day's week and month, and each daypart:
         its hours, Lead Captain, who is on its Set Up, its pre and post
   GET  /api/huddle/week?date=YYYY-MM-DD       directors
@@ -72,7 +72,7 @@ MIN = 60 * 1000
 LEADS = ('director', 'manager', 'admin', 'lead')          # fill a huddle in, and see them
 FOCUS_SETTERS = ('director', 'manager', 'admin')          # set the month's and the week's focus
 LEAD_CAPTAIN = timers_api.LEAD_CAPTAIN
-SIDES = ('foh',)                                          # BOH comes with its Spanish (CLAUDE.md)
+SIDES = ('foh', 'boh')                                    # front of house, and the kitchen with its Spanish (CLAUDE.md)
 PRE_OPENS_MIN = 30                                        # the pre-huddle opens this long before the daypart
 MAX_GOALS = 3
 MAX_BODY = 20_000
@@ -90,11 +90,27 @@ GOAL_KINDS = ('pec', 'lead', 'system')
 RESULTS = ('hit', 'partly', 'missed')
 EVENT_TYPES = ('pre', 'post', 'focus')
 # Quick picks, from the card. The page offers them; the server keeps whatever was written.
+# The kitchen's are its own (the build's, until Tim names them); each has its
+# Spanish in the glossary (static/js/spanish.js; tests/test_huddle.py checks).
+PURPOSES = ['Serve guests well', 'Grow my people', 'Grow as a leader', 'Set the standard', 'Support my team']
 PICKS = {
-    'purpose': ['Serve guests well', 'Grow my people', 'Grow as a leader', 'Set the standard', 'Support my team'],
-    'priority': ['Speed of service', 'Second Mile Service', 'Food quality', 'Cleanliness', 'Order accuracy'],
-    'system': ['Zone Resets', 'Leader Transition List', 'OE Walkthrough', 'Food Safety Walkthrough', 'PEAs', 'Huddle'],
+    'foh': {'purpose': PURPOSES,
+            'priority': ['Speed of service', 'Second Mile Service', 'Food quality', 'Cleanliness', 'Order accuracy'],
+            'system': ['Zone Resets', 'Leader Transition List', 'OE Walkthrough', 'Food Safety Walkthrough', 'PEAs', 'Huddle']},
+    'boh': {'purpose': PURPOSES,
+            'priority': ['Food quality', 'Food safety', 'Speed of service', 'Cleanliness', 'Order accuracy'],
+            'system': ['Food Safety Walkthrough', 'Prep Board', 'Waste logging', 'PEAs', 'Huddle']},
 }
+# The kitchen's Set Ups dayparts and when each starts (zone-reset.js
+# bohDayparts; tests/test_huddle.py checks). FOH's are timers_api.FOH_DAYPARTS.
+BOH_DAYPARTS = [
+    ('Early Breakfast (6:00-8:00)', '6:00'),
+    ('Breakfast (8:00-10:30)', '8:00'),
+    ('Lunch (10:30-2:00)', '10:30'),
+    ('Afternoon (2:00-5:00)', '14:00'),
+    ('Dinner (5:00-8:00)', '17:00'),
+    ('Close (8:00-10:00)', '20:00'),
+]
 
 
 # Zone Reset's handoffs and the Set Ups daypart whose Lead Captain owns each
@@ -154,12 +170,12 @@ def windows(day, hours, tz):
             for i, (name, _) in enumerate(DAYPARTS)]
 
 
-def set_up_dayparts(name):
-    """The Set Ups dayparts (timers_api.FOH_DAYPARTS) that start inside a huddle daypart."""
+def set_up_dayparts(name, side='foh'):
+    """A side's Set Ups dayparts that start inside a huddle daypart."""
     i = [n for n, _ in DAYPARTS].index(name)
     start = timers_api._mins(DAYPARTS[i][1])
     end = timers_api._mins(DAYPARTS[i + 1][1]) if i + 1 < len(DAYPARTS) else 24 * 60
-    return [n for n, t in timers_api.FOH_DAYPARTS if start <= timers_api._mins(t) < end]
+    return [n for n, t in (BOH_DAYPARTS if side == 'boh' else timers_api.FOH_DAYPARTS) if start <= timers_api._mins(t) < end]
 
 
 def _names(v):
@@ -174,7 +190,7 @@ def _names(v):
 def on_set_up(posa, side, iso, daypart):
     """(the Lead Captains, everyone placed) on a huddle daypart's Set Ups, in the order found."""
     leads, people, seen = [], [], set()
-    for sub in set_up_dayparts(daypart):
+    for sub in set_up_dayparts(daypart, side):
         prefix = f'{side}||{iso}||{sub}||'
         for key, v in (posa or {}).items():
             if not str(key).startswith(prefix):
@@ -283,10 +299,14 @@ def zone_resets(sections, iso, daypart):
     return out
 
 
-def shift_numbers(sections, timer_events, iso, daypart, start, end):
-    return {'productivity': productivity(sections, iso, daypart), 'timers': timer_cycles(timer_events, start, end),
-            'waste': waste_logged(sections, 'foh', start, end), 'foodSafety': food_safety_done(sections, iso, start, end),
-            'zones': zone_resets(sections, iso, daypart)}
+def shift_numbers(sections, timer_events, iso, daypart, start, end, side='foh'):
+    """A side's numbers for a daypart. Productivity and food safety are the
+    store's; the waste is the side's own; the task timers and Zone Resets
+    are front of house's, so the kitchen's huddle carries neither."""
+    foh = side == 'foh'
+    return {'productivity': productivity(sections, iso, daypart), 'timers': timer_cycles(timer_events, start, end) if foh else None,
+            'waste': waste_logged(sections, side, start, end), 'foodSafety': food_safety_done(sections, iso, start, end),
+            'zones': zone_resets(sections, iso, daypart) if foh else None}
 
 
 def with_kept(live, kept):
@@ -535,14 +555,14 @@ def register(app, me, setups, ref, tz, hours=None, sections=None, timer_events=N
             print(f'[HUDDLE] {what} not read: {type(e).__name__}')
             return None
 
-    def numbers_for(day, now):
+    def numbers_for(day, now, side):
         """A function giving a daypart's numbers on a day (the sources are read
         once), or one giving None when there are none to read."""
         secs = read(sections, 'saved state')
         if secs is None:
             return lambda name, start, end: None
         events = read(timer_events, 'timers') or []
-        return lambda name, start, end: shift_numbers(secs, events, day.isoformat(), name, start, end) if start <= now else None
+        return lambda name, start, end: shift_numbers(secs, events, day.isoformat(), name, start, end, side) if start <= now else None
 
     @app.after_request
     def _huddle_never_cached(resp):
@@ -556,22 +576,29 @@ def register(app, me, setups, ref, tz, hours=None, sections=None, timer_events=N
             raise Refused('Team Leads and up: sign in with your clock-in PIN for the Huddle.', 403)
         return p
 
-    def view(day, p):
+    def side_of(v):
+        if v in (None, ''):
+            return 'foh'
+        if v not in SIDES:
+            raise Refused('Front of house or the kitchen.')
+        return v
+
+    def view(day, p, side):
         f = fold(store.events.values())
         now, iso, p_posa = now_ms(), day.isoformat(), posa()
         today = datetime.fromtimestamp(now / 1000, tz).date()
-        dayparts, numbers = [], numbers_for(day, now)
+        dayparts, numbers = [], numbers_for(day, now, side)
         for name, start, end in windows(day, store_hours(), tz):
-            leads, people = on_set_up(p_posa, 'foh', iso, name)
-            h = f['huddles'].get(f'{iso}|foh|{name}') or {'pre': None, 'post': None}
+            leads, people = on_set_up(p_posa, side, iso, name)
+            h = f['huddles'].get(f'{iso}|{side}|{name}') or {'pre': None, 'post': None}
             live, kept = numbers(name, start, end), (h['post'] or {}).get('numbers')
-            dayparts.append({'name': name, 'side': 'foh', 'start': start, 'end': end, 'preOpens': start - PRE_OPENS_MIN * MIN,
+            dayparts.append({'name': name, 'side': side, 'start': start, 'end': end, 'preOpens': start - PRE_OPENS_MIN * MIN,
                              'leads': leads, 'people': people, 'pre': h['pre'], 'post': h['post'], 'score': score(h),
                              'numbers': with_kept(live, kept) if live else kept})
         return {'serverTime': now, 'tz': str(tz), 'today': today.isoformat(), 'date': iso, 'week': week_of(day), 'month': month_of(day),
                 'me': {'name': p['name'], 'role': p['role'], 'canFocus': p['role'] in FOCUS_SETTERS},
                 'focus': {s: f['focus'].get((s, period_of(s, day))) for s in ('week', 'month')},
-                'dayparts': dayparts, 'picks': PICKS, 'maxGoals': MAX_GOALS, 'preOpensMin': PRE_OPENS_MIN}
+                'side': side, 'sides': list(SIDES), 'dayparts': dayparts, 'picks': PICKS[side], 'maxGoals': MAX_GOALS, 'preOpensMin': PRE_OPENS_MIN}
 
     def answer(fn):
         try:
@@ -589,7 +616,7 @@ def register(app, me, setups, ref, tz, hours=None, sections=None, timer_events=N
             with store.lock:
                 arg = request.args.get('date')
                 day = _day(arg) if arg else datetime.fromtimestamp(now_ms() / 1000, tz).date()
-                return jsonify(view(day, p))
+                return jsonify(view(day, p, side_of(request.args.get('side'))))
         return answer(go)
 
     @app.route('/api/huddle/week')
@@ -603,17 +630,17 @@ def register(app, me, setups, ref, tz, hours=None, sections=None, timer_events=N
                 now = now_ms()
                 arg = request.args.get('date')
                 day = _day(arg) if arg else datetime.fromtimestamp(now / 1000, tz).date()
-                monday = _date.fromisoformat(week_of(day))
+                monday, side = _date.fromisoformat(week_of(day)), side_of(request.args.get('side'))
                 f, cells, days = fold(store.events.values()), [], [monday + timedelta(days=i) for i in range(6)]
                 for d in days:
-                    numbers = numbers_for(d, now)
+                    numbers = numbers_for(d, now, side)
                     for name, start, end in windows(d, store_hours(), tz):
-                        h = f['huddles'].get(f'{d.isoformat()}|foh|{name}') or {'pre': None, 'post': None}
+                        h = f['huddles'].get(f'{d.isoformat()}|{side}|{name}') or {'pre': None, 'post': None}
                         live, kept = numbers(name, start, end), (h['post'] or {}).get('numbers')
                         cells.append({'date': d.isoformat(), 'daypart': name, 'started': start <= now, 'pre': h['pre'], 'post': h['post'],
                                       'numbers': with_kept(live, kept) if live else kept})
                 return jsonify({'serverTime': now, 'tz': str(tz), 'today': datetime.fromtimestamp(now / 1000, tz).date().isoformat(),
-                                'date': day.isoformat(), 'week': monday.isoformat(), 'month': month_of(day),
+                                'date': day.isoformat(), 'week': monday.isoformat(), 'month': month_of(day), 'side': side,
                                 'days': [d.isoformat() for d in days], 'dayparts': [n for n, _ in DAYPARTS],
                                 **roll_up(cells, {s: f['focus'].get((s, period_of(s, day))) for s in ('week', 'month')})})
         return answer(go)
@@ -627,7 +654,7 @@ def register(app, me, setups, ref, tz, hours=None, sections=None, timer_events=N
             typ, d = body.get('type'), body.get('data') if isinstance(body.get('data'), dict) else {}
             if typ not in EVENT_TYPES:
                 raise Refused('Unknown step.')
-            p = lead_or_refuse()
+            p, side = lead_or_refuse(), side_of(d.get('side'))
             store.ensure()
             with store.lock:
                 now = now_ms()
@@ -644,14 +671,14 @@ def register(app, me, setups, ref, tz, hours=None, sections=None, timer_events=N
                     data = {'scope': d['scope'], 'period': period_of(d['scope'], day), 'text': text,
                             'why': _text(d.get('why'), 160) if text else '', 'tag': _text(d.get('tag'), 60) if text else ''}
                     store.append(typ, p['name'], data)
-                    return jsonify({'ok': True, **view(day, p)})
+                    return jsonify({'ok': True, **view(day, p, side)})
                 day = _day(d.get('date')) if d.get('date') else today
                 if day != today:
                     raise Refused('A huddle is filled in on its own day.')
                 win = next((w for w in windows(day, store_hours(), tz) if w[0] == d.get('daypart')), None)
                 if not win:
                     raise Refused('That daypart isn’t on today.')
-                key = {'date': day.isoformat(), 'side': 'foh', 'daypart': win[0]}
+                key = {'date': day.isoformat(), 'side': side, 'daypart': win[0]}
                 h = fold(store.events.values())['huddles'].get(huddle_key(key)) or {'pre': None, 'post': None}
                 if typ == 'pre':
                     if now < win[1] - PRE_OPENS_MIN * MIN:
@@ -665,7 +692,7 @@ def register(app, me, setups, ref, tz, hours=None, sections=None, timer_events=N
                     if now < win[1]:
                         raise Refused('The post-huddle opens once the daypart has started.')
                     # The shift's numbers as they stand now, kept with the post.
-                    data = {**key, **clean_post(d, h['pre']), 'numbers': numbers_for(day, now)(*win)}
+                    data = {**key, **clean_post(d, h['pre']), 'numbers': numbers_for(day, now, side)(*win)}
                 store.append(typ, p['name'], data)
-                return jsonify({'ok': True, **view(day, p)})
+                return jsonify({'ok': True, **view(day, p, side)})
         return answer(go)

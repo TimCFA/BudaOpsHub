@@ -149,12 +149,24 @@ only reads the saved state. Directors also get Day / Week at the top: the
 week's roll-up (`/api/huddle/week`, `roll_up`) of huddles set and closed,
 goals hit, goals written against each focus, each leader's huddles, each
 daypart's numbers and who won a shift; a huddle is expected once its daypart
-has started. The look is Know the Numbers' (the `knp-` classes). FOH
-only so far, so English only; BOH comes with its Spanish. Tim confirmed the
-four dayparts ("for now") and which handoff counts for which huddle (Nov 21
-2026). The other defaults (30 minutes, three goals, leaders only, any leader
-can close a huddle, FOH waste only) are the build's, not Tim's decisions,
-until he confirms them. Tests: `tests/test_huddle.py`.
+has started. The look is Know the Numbers' (the `knp-` classes).
+
+Front of house and the kitchen each have their own huddles (FOH / Kitchen at
+the top, remembered on the device; Tim, Nov 21 2026). FOH stays English
+only. On the kitchen's side every phrase carries its Spanish from the
+glossary's Huddle section through `L` / `es` / `P` in huddle.js, including
+the quick picks and what the server says when it refuses a save (keyed by
+their own English); tests/test_huddle.py fails if one is missing. The
+kitchen has no Lead Captain, its own quick picks (`PICKS['boh']`, the
+build's until Tim names them) and its own waste; the task timers and Zone
+Resets are front of house's, so its huddle carries neither. The directors'
+week is English and per side.
+
+Tim confirmed (Nov 21 2026): four dayparts "for now"; which handoff counts
+for which huddle; the pre-huddle opens 30 minutes before; leaders only, with
+nothing on team members' Right Now cards; any Team Lead or director can
+close another's huddle; each side's card shows its own waste; the week is
+directors only. Tests: `tests/test_huddle.py`.
 
 ## Deploying
 

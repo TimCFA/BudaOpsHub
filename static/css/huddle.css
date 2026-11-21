@@ -12,7 +12,12 @@ body.lt-hidden .tab-dropdown-item[data-view="huddle"]{display:none !important;}
 .hd-week{border:1px solid var(--border);border-radius:12px;background:var(--cfa-white);color:var(--text-secondary);font-size:20px;line-height:1;cursor:pointer;}
 .hd-week:hover{border-color:var(--cfa-navy);}
 
-/* Day / Week (directors): ink is selected. */
+/* Spanish beside the English on the kitchen's side: it takes the colour of what it sits on. */
+.hd-page :is(.hd-btn,.hd-focus,.hd-done,.knp-now,.hd-result,.hd-chip.is-focus,.hd-pick.is-on,.hd-pick[aria-pressed="true"],.hd-res[aria-pressed="true"],.hd-mode[aria-pressed="true"],.hd-error) .es{color:inherit;opacity:.82;}
+.hd-page .knp-title .es{font-size:.6em;}
+.hd-page .hd-hero.is-words b .es{display:block;font-size:.55em;font-weight:500;}
+.hd-switches{display:flex;flex-wrap:wrap;gap:0 10px;}
+/* FOH / Kitchen, and Day / Week (directors): ink is selected. */
 .hd-modes{display:inline-flex;gap:0;margin:0 0 10px;padding:3px;border-radius:999px;background:var(--cfa-soft);}
 .hd-mode{min-height:38px;padding:6px 18px;border:0;border-radius:999px;background:transparent;color:var(--text-primary);font-size:13px;font-weight:700;cursor:pointer;}
 .hd-mode[aria-pressed="true"]{background:var(--text-primary);color:var(--cfa-white);}

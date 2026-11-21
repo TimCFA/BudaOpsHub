@@ -6,8 +6,10 @@ Run: python3 -m unittest discover tests
 Firebase is a dict of paths (FakeRef); the clock is set by each test. Every
 name here is made up.
 """
+import json
 import os
 import re
+import subprocess
 import sys
 import unittest
 from datetime import date, datetime
@@ -174,6 +176,54 @@ class Numbers(unittest.TestCase):
         got = HA.with_kept(live, kept)
         self.assertEqual((got['productivity']['actual'], got['timers']['missed'], got['foodSafety'], got['zones']), (104.0, 1, 1, [{'handoff': 'X'}]))
         self.assertEqual(HA.with_kept(live, None), live)
+
+
+class Kitchen(unittest.TestCase):
+    """The kitchen's side carries Spanish next to the English (CLAUDE.md, Spanish)."""
+
+    @classmethod
+    def setUpClass(cls):
+        out = subprocess.run(['node', os.path.join(ROOT, 'tests', 'spanish_runner.js')], capture_output=True, text=True, check=True)
+        cls.G = json.loads(out.stdout)
+        cls.js = read('static', 'js', 'huddle.js')
+
+    def test_boh_set_ups_dayparts_match_and_fall_in_one_huddle(self):
+        js = read('static', 'js', 'zone-reset.js')
+        block = js[js.index('const bohDayparts'):js.index('];', js.index('const bohDayparts'))]
+        self.assertEqual(re.findall(r"name: '([^']+)', time: '([^']+)'", block), HA.BOH_DAYPARTS)
+        got = [HA.set_up_dayparts(n, 'boh') for n, _ in HA.DAYPARTS]
+        self.assertEqual([x for g in got for x in g], [n for n, _ in HA.BOH_DAYPARTS])
+
+    def test_every_phrase_the_page_asks_for_is_in_the_glossary(self):
+        call = re.compile(r"""\b(?:L|es|P|esOf|both)\(\s*(['"])((?:\\.|(?!\1).)*)\1\s*[,)]""")
+        asked = {m.group(2) for m in call.finditer(self.js)}
+        self.assertGreater(len(asked), 80)
+        self.assertEqual(sorted(k for k in asked if k not in self.G['keys']), [])
+
+    def test_every_quick_pick_has_its_spanish(self):
+        picks = {x for v in HA.PICKS['boh'].values() for x in v}
+        self.assertEqual(sorted(p for p in picks if not self.G['rendered'].get(p)), [])
+
+    def test_what_the_server_refuses_a_kitchen_leader_with_has_its_spanish(self):
+        src = read('huddle_api.py')
+        said = set(re.findall(r"Refused\('([^']+)'(?:\)|, 4)", src[src.index('def clean_pre'):]))
+        said |= {f'Keep it to {HA.MAX_GOALS} goals.', f'The pre-huddle opens {HA.PRE_OPENS_MIN} minutes before the daypart.', 'Pre-huddle saved', 'Shift closed',
+                 'The Huddle couldn’t reach the server. Try again in a moment.'}
+        directors = {'Directors set the focus.', 'A focus is for the week or the month.', 'That week or month is over.', 'The week’s roll-up is for directors.',
+                     'Too much at once.', 'Unknown step.', 'Pick a day.', 'Front of house or the kitchen.'}
+        self.assertGreater(len(said - directors), 10)
+        self.assertEqual(sorted(m for m in said - directors if not self.G['rendered'].get(m)), [])
+
+    def test_spanish_only_on_the_kitchens_side(self):
+        self.assertIn("const boh = () => S.side === 'boh';", self.js)
+        self.assertIn("const esOf = (en, ...a) => boh() && typeof esText === 'function' ? esText(en, ...a) : '';", self.js)
+        # Nothing else reaches the glossary, but the kitchen's own name on the switch.
+        self.assertEqual(re.findall(r"\bes(?:Text|Html|Line)\(", self.js.split("const esOf =")[1].split("\n", 1)[1]), ['esHtml('])
+        self.assertIn("esHtml('Kitchen')", self.js)
+
+    def test_a_quick_pick_fills_in_its_english_not_the_buttons_text(self):
+        self.assertIn('input.value = t.dataset.hdVal;', self.js)
+        self.assertNotIn('input.value = t.textContent', self.js)
 
 
 class Api(unittest.TestCase):
@@ -434,6 +484,37 @@ class Api(unittest.TestCase):
         w = self.week(10).get_json()
         self.assertEqual((w['week'], w['totals']['set'], w['totals']['expected'], w['leaders']), ('2026-11-09', 0, 24, []))
 
+    # ----- the kitchen -----
+
+    def test_the_kitchen_has_its_own_huddles(self):
+        self.posa.update({'boh||2026-11-18||Lunch (10:30-2:00)||Breader1': 'Rosa Vega', 'boh||2026-11-18||Lunch (10:30-2:00)||Primary': 'Luis Mora',
+                          'foh||2026-11-18||Lunch (10:30-1:00)||Lead Captain': 'Maya Torres'})
+        boh = lambda: next(d for d in self.c.get('/api/huddle/state?side=boh').get_json()['dayparts'] if d['name'] == LUNCH)
+        j = self.c.get('/api/huddle/state?side=boh').get_json()
+        self.assertEqual((j['side'], j['sides'], j['picks']), ('boh', ['foh', 'boh'], HA.PICKS['boh']))
+        self.assertEqual((boh()['people'], boh()['leads'], boh()['side']), (['Luis Mora', 'Rosa Vega'], [], 'boh'))   # no Lead Captain in the kitchen
+        self.assertEqual(self.send('pre', **{**PRE, 'side': 'boh', 'priority': 'Food quality'}).status_code, 200)
+        self.assertEqual((boh()['pre']['priority'], self.part()['pre']), ('Food quality', None))                       # FOH's Lunch is its own
+        self.send('pre', **PRE)
+        self.assertEqual((boh()['pre']['priority'], self.part()['pre']['priority']), ('Food quality', 'Speed of service'))
+        self.assertEqual([e['data']['side'] for e in self.events()], ['boh', 'foh'])
+        self.assertEqual(self.c.get('/api/huddle/state?side=patio').status_code, 400)
+        self.assertEqual(self.send('pre', **{**PRE, 'side': 'patio'}).status_code, 400)
+
+    def test_the_kitchens_numbers_are_its_own(self):
+        self.numbers_day()
+        self.sections['waste']['entries'].append({'ts': ms(WED, '12:10'), 'cost': 8, 'section': 'boh'})
+        self.sections['ops']['foodSafetyWalkthroughs'] = {'2026-11-18': {'completedAt': ms(WED, '11:45')}}
+        self.at(WED, '13:00')
+        n = next(d for d in self.c.get('/api/huddle/state?side=boh').get_json()['dayparts'] if d['name'] == LUNCH)['numbers']
+        self.assertEqual((n['waste'], n['timers'], n['zones'], n['foodSafety'], n['productivity']['goal']), ({'cost': 8.0, 'count': 1}, None, None, 1, 110.0))
+        self.assertEqual(self.part()['numbers']['waste'], {'cost': 3.5, 'count': 1})
+
+    def test_the_week_is_per_side(self):
+        self.send('pre', **{**PRE, 'side': 'boh'})
+        self.as_('Dana Reyes', 'director')
+        self.assertEqual((self.c.get('/api/huddle/week?side=boh').get_json()['totals']['set'], self.week().get_json()['totals']['set']), (1, 0))
+
     # ----- the focus -----
 
     def test_directors_set_the_focus_and_leads_see_it(self):
@@ -528,7 +609,7 @@ class Page(unittest.TestCase):
 
     def test_the_quick_picks_come_from_the_server(self):
         js = read('static', 'js', 'huddle.js')
-        for pick in HA.PICKS['purpose'] + HA.PICKS['priority'] + HA.PICKS['system']:
+        for pick in {x for side in HA.PICKS.values() for v in side.values() for x in v} - {'Huddle', 'Food safety'}:     # the page's own title, and a number's label
             self.assertNotIn(f"'{pick}'", js)
 
     def test_people_text_goes_through_the_escaper(self):
