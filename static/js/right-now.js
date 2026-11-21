@@ -724,6 +724,13 @@ function rnCardFor(v, day){
   // My level, PTO and uniform credit, and the Admin Team's requests to review
   // (team-extras.js; Tim, Oct 28 2026). Only the signed-in person's own.
   if(v.name && typeof apRightNowRows === 'function') card.rows = card.rows.concat(apRightNowRows().map(r => (card.fold && r.go === 'credit' ? {...r, more: true} : r)));
+  // The day's events: quiet lines after the person's own, above the way to
+  // sign in on a signed-out card. Not on a new hire's card.
+  if(!card.newHire){
+    const evs = rnEventRows(day, card.side === 'boh', !!card.team);
+    const at = card.sideSwitch && card.rows.length ? card.rows.length - 1 : card.rows.length;
+    card.rows = card.rows.slice(0, at).concat(evs, card.rows.slice(at));
+  }
   // What needs someone stays on top; the rest folds under "More about today".
   if(card.fold) card.rows = card.rows.filter(r => !r.more).concat(card.rows.filter(r => r.more));
   return card;
@@ -832,7 +839,7 @@ function rnCardForRole(v, day){
   return rnTeamCard(day);
 }
 
-// ----- Today on the calendar (Tim, Oct 25 2026) -----
+// ----- Today on the calendar (Tim, Oct 25 2026; quiet lines since Nov 21 2026: rnEventRows) -----
 // A store event on a Thursday was missed, and it cost us. So the day's
 // events from the Calendar (events.js) open every Right Now card, for every
 // role, signed in or not, in a block nobody scrolls past: what's on, and
@@ -894,27 +901,28 @@ function rnEvents(day, team){
 
 function rnWeekday(iso){ return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', {weekday: 'long'}); }
 
-function rnEventsHtml(day, boh, team){
+// Quiet lines among the card's others (Tim, Nov 21 2026: the navy block
+// under the title was louder than a person's own day; it had been there
+// since Oct 25, after a missed event). One line an event still to come or
+// on now ("Now" in red while it runs), one for the all-day and long ones, one for the
+// next open day. An event that's over drops off. A tap still opens the
+// event on its own. New hires don't get them (rnCardFor).
+function rnEventRows(day, boh, team){
   const m = rnEvents(day, team);
-  if(!m) return '';
-  const es = t => boh && t ? esSpan(t, false) : '';
-  const tap = (ev, date) => `data-rn-ev="${escapeHtml(ev.id)}" data-rn-ev-date="${escapeHtml(date)}" role="button" tabindex="0"`;
-  const color = ev => (EVENT_KINDS[ev.kind] || EVENT_KINDS.note).color;
-  const head = m.live ? 'Today on the calendar' : `${rnWeekday(m.date)} on the calendar`;
-  const headEs = m.live ? esText('Today on the calendar') : esText('Next on the calendar');
-  const items = m.special.map(({ev, when}) => `
-      <div class="rn-ev-item is-${when.state}" ${tap(ev, m.date)} style="--ev:${color(ev)}">
-        <span class="rn-ev-main"><b>${escapeHtml(ev.title)}</b>${ev.detail ? `<span class="rn-ev-detail">${escapeHtml(ev.detail)}</span>` : ''}<small>${when.state === 'now' ? '<i class="rn-ev-live" aria-hidden="true"></i>' : ''}${escapeHtml(when.text)}${es(when.es)}</small></span>
-        <span class="rn-go">${RN_ICON_GO}</span>
-      </div>`).join('');
-  const line = (label, labelEs, list, date) => `<div class="rn-ev-line"><b>${escapeHtml(label)}${es(labelEs)}</b>${list.map(ev =>
-    `<span class="rn-ev-chip" ${tap(ev, date)} style="--ev:${color(ev)}">${escapeHtml(ev.title)}${ev.from ? ` · ${escapeHtml(evClock(ev.from))}` : ''}</span>`).join('')}</div>`;
-  const nextLabel = m.next ? (m.next.date === rnAddDays(today, 1) ? 'Tomorrow' : rnWeekday(m.next.date)) : '';
-  return `<section class="rn-ev${m.special.length ? '' : ' is-quiet'}" aria-label="${escapeHtml(head)}">
-      ${m.special.length ? `<div class="rn-ev-head">${RN_ICON_CAL}<span>${escapeHtml(head)}${es(headEs)}</span></div>${items}` : ''}
-      ${m.ongoing.length ? line('Also running', esText('Also running'), m.ongoing, m.date) : ''}
-      ${m.next ? line(nextLabel, nextLabel === 'Tomorrow' ? esText('Tomorrow') : '', m.next.list, m.next.date) : ''}
-    </section>`;
+  if(!m) return [];
+  const go = (ev, date) => `event:${ev.id}|${date}`;
+  const head = m.live ? 'today' : rnWeekday(m.date);
+  const rows = m.special.filter(x => x.when.state !== 'done' && x.when.state !== 'allday').map(({ev, when}) =>
+    rnRow(when.state === 'now' ? 'Now' : '', `${head}: ${ev.title} · ${when.text}`, boh ? when.es || esText('Today on the calendar') : '', go(ev, m.date), when.state === 'now' ? 'bad' : ''));
+  // All day and the long ones share one line.
+  const also = m.special.filter(x => x.when.state === 'allday').map(x => x.ev).concat(m.ongoing);
+  if(also.length) rows.push(rnRow('', `${rows.length ? 'also ' : ''}${head}: ${also.map(ev => ev.title).join(', ')}`, boh ? esText('Also running') : '', go(also[0], m.date), ''));
+  if(m.next){
+    const label = m.next.date === rnAddDays(today, 1) ? 'tomorrow' : rnWeekday(m.next.date);
+    const ev = m.next.list[0], more = m.next.list.length - 1;
+    rows.push(rnRow('', `${label}: ${ev.title}${ev.from ? ` · ${evClock(ev.from)}` : ''}${more ? ` · +${more} more` : ''}`, boh && label === 'tomorrow' ? esText('Tomorrow') : '', go(ev, m.next.date), ''));
+  }
+  return rows;
 }
 
 // One event on its own: what it is, when, where it stands, the detail and
@@ -1023,7 +1031,6 @@ function renderRightNow(){
       ${card.sideSwitch ? rnSideSwitchHtml() : ''}
     </div>
     <h2 class="rn-title">${escapeHtml(title)}${day.closed ? '' : ` <span class="rn-time">${escapeHtml(rnClock(day.now))}</span>`}</h2>
-    ${rnEventsHtml(day, boh, !!card.team)}
     ${rnNewHireHtml(card.newHire, boh)}
     ${card.first ? `<div class="rn-first${card.first.go ? ' is-go' : ''}"${go(card.first.go)}><b>First thing${boh ? `<span class="es" lang="es"> · ${escapeHtml(esText('First thing'))}</span>` : ''}</b><span>${card.first.until ? rnBreakHtml(card.first) : escapeHtml(card.first.text)}</span>${es(card.first.es)}</div>` : ''}
     ${card.roster && card.rosterFirst ? rnRosterHtml(card.roster, card.rosterHead) : ''}
@@ -1070,6 +1077,7 @@ function rnGo(g){
     window.scrollTo({top: 0});
   }
   else if(what === 'waste'){ launchShowTab('wastelog'); window.scrollTo({top: 0}); }
+  else if(what === 'event') rnOpenEvent(parts[0], parts[1] || today, document.activeElement);
   else if(what === 'timers'){ launchShowTab('timers'); window.scrollTo({top: 0}); }
   else if(what === 'headcount'){ launchShowTab('headcount'); window.scrollTo({top: 0}); }
   else if(what === 'schedule' && typeof tsShowDay === 'function') tsShowDay(rest);

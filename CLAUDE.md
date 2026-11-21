@@ -84,7 +84,9 @@ roster's "In training" tag from HotSchedules, or a hire date in Our Team)
 gets a new hire's card: their day number, who is on their spot with them, who
 to find when they walk in, positions so far, and "Before your shift" lines a
 director types in Manage → Home Page (Tim, Nov 20 2026; the training plan
-comes later). What each role sees, and Tim's
+comes later). The day's calendar events are quiet lines after the person's
+own, not a block ("Now" in red while one runs), and a new hire's card has
+none (Tim, Nov 21 2026). What each role sees, and Tim's
 calls behind it, are in the comments at the top of right-now.js and in
 `tests/test_right_now.py`; ask before undoing one. Home is drawn in the first
 seconds of a load (`tests/test_first_load.py`), so anything new waits for the

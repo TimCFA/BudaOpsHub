@@ -573,7 +573,7 @@ class TeamEvents(unittest.TestCase):
         self.assertEqual(got['all'], [['Community Outreach', 'Halloween Week Promo'], ['Sample: Chicken & Waffles']])
         self.assertEqual(got['nextTeam'], ['Pack the Drive Thru'])                       # tomorrow's Drive Thru push still shows
         self.assertEqual((got['nobody'], got['member'], got['trainer'], got['lead']), (True, True, True, False))
-        self.assertIn("${rnEventsHtml(day, boh, !!card.team)}", read('static', 'js', 'right-now.js'))
+        self.assertIn("rnEventRows(day, card.side === 'boh', !!card.team)", read('static', 'js', 'right-now.js'))
 
 
 class PageWiring(unittest.TestCase):
