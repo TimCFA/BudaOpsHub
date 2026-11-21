@@ -35,7 +35,7 @@ class Tools(unittest.TestCase):
     def test_the_prep_board_is_in_lists_on_the_simplified_site(self):
         """Tim, Oct 28 2026: "Can we add prep board to the lists tab?" A pill
         in Lists on the simplified site; the full site keeps it in Tools."""
-        self.assertIn('data-views="zonereset timers foodsafety safecount prepboard">Lists', PAGE)
+        self.assertIn('data-views="zonereset huddle timers foodsafety safecount prepboard">Lists', PAGE)
         self.assertNotIn('class="tab-dropdown-item" role="menuitem" aria-controls="prepboardView"', PAGE)
         self.assertNotIn('data-view="forecast">Forecast', PAGE)
         lists = LAUNCH[LAUNCH.index('const LAUNCH_LISTS'):LAUNCH.index('const LAUNCH_TOOLS')]

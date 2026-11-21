@@ -3161,6 +3161,24 @@ def _timers_setups():
 timers_api.register(app, me=_pass_me, setups=_timers_setups, ref=lambda path: db.reference(path),
                     tz=levelset_sync.STORE_TZ)
 
+# ===== HUDDLE (Nov 18 2026) =====
+# The pre-huddle and post-huddle for each daypart and the store's focus for
+# the month and the week (huddle_api.py; the screen is static/js/huddle.js).
+# Events kept under huddle/ in Firebase, one record per event. The Lead
+# Captain and who a goal can be given to come from Set Ups.
+import huddle_api
+
+def _huddle_timer_events():
+    store = app.extensions['timer_store']
+    store.ensure()
+    return list(store.events.values())
+
+# The shift's numbers are read from what the hub already holds: Know the
+# Numbers, waste, food safety and Zone Resets in the saved state (read only),
+# and the Timers page's events.
+huddle_api.register(app, me=_pass_me, setups=_timers_setups, ref=lambda path: db.reference(path),
+                    tz=levelset_sync.STORE_TZ, sections=lambda: _read_sections(), timer_events=_huddle_timer_events)
+
 # ===== DIRECTORS' WEEK (Nov 18 2026) =====
 # A director's week, mirrored from one Google calendar they share with the
 # hub's service account, and the team's requests for their time
