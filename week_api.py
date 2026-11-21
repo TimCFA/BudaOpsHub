@@ -417,8 +417,6 @@ def register(app, me, signed_in, ref, tz, calendar, dayparts):
         held = taken(reqs, did)
         days = {}
         for b in m['blocks']:
-            if b['end'] <= day_start(local(now).date()):
-                continue
             out = {'type': b['type'] if b['show'] != 'busy' else 'busy', 'label': b['label'], 'show': b['show'],
                    'start': b['start'], 'end': b['end']}
             if b['show'] == 'book':
@@ -451,8 +449,8 @@ def register(app, me, signed_in, ref, tz, calendar, dayparts):
         out = {'live': cfg['live'], 'me': dict(p, director=director) if p else None, 'directors': [], 'mine': [], 'inbox': [],
                'requestTypes': list(REQUEST_TYPES), 'dayparts': list(dayparts), 'slotMinutes': SLOT_MIN}
         now = now_ms()
-        _, first, last = window(now)
-        out.update(today=local(now).date().isoformat(), bookFrom=first.isoformat(), bookTo=last.isoformat())
+        monday, first, last = window(now)
+        out.update(weekStart=monday.isoformat(), today=local(now).date().isoformat(), bookFrom=first.isoformat(), bookTo=last.isoformat())
         if director:
             mine = cfg['directors'].get(p['id'])
             out['setup'] = {'robot': calendar.email(), 'connected': bool(mine), 'calendarId': (mine or {}).get('calendarId', ''),

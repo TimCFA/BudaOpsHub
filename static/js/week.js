@@ -14,7 +14,7 @@
 // FOH-style English only (Tim hasn't asked for Spanish here).
 (function(){
   const TZ = 'America/Chicago';
-  const S = {data: null, page: 'store', director: '', pending: 0, layer: null, sheet: null, busy: false, loadedAt: 0};
+  const S = {data: null, page: 'store', director: '', week: -1, pending: 0, layer: null, sheet: null, busy: false, loadedAt: 0};
   const h = s => escapeHtml(String(s == null ? '' : s));
   const I = {
     x: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
@@ -53,6 +53,8 @@
       const me = S.data.me && S.data.directors.find(d => d.id === S.data.me.id);
       S.director = (me || S.data.directors[0] || {}).id || '';
     }
+    // Saturday or Sunday: nothing left to ask for this week, so open on the next.
+    if(S.data && S.week < 0) S.week = S.data.bookFrom >= addDays(S.data.weekStart, 6) ? 1 : 0;
     render();
     syncBadge();
   }
@@ -112,29 +114,58 @@
   }
   function firstName(n){ return String(n || '').trim().split(/\s+/)[0] || 'Director'; }
 
-  function weekHtml(dir, mine){
-    const D = S.data, byDay = {};
+  // The week as a calendar: days across, hours down, every block where it
+  // sits in the day. An Open door block is its 30-minute slots, each one a
+  // button; the red line is now.
+  const hm = ms => { const [a, b] = new Date(ms).toLocaleTimeString('en-GB', {timeZone: TZ, hour: '2-digit', minute: '2-digit'}).split(':'); return (+a % 24) * 60 + +b; };
+  const at = (top, len) => `top:calc(${top} * var(--dw-m));height:calc(${len} * var(--dw-m))`;
+  function addDays(iso, n){ const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return toLocalISODate(d); }
+  function weekDays(dir){
+    const D = S.data, start = addDays(D.weekStart, 7 * S.week), byDay = {};
     dir.days.forEach(d => { byDay[d.date] = d.blocks; });
-    return daysBetween(D.today, D.bookTo).map(date => {
-      const blocks = byDay[date] || [];
-      const sunday = new Date(date + 'T12:00:00').getDay() === 0;
-      if(!blocks.length && sunday) return '';
-      return `<section class="dw-day${date === D.today ? ' is-today' : ''}" aria-label="${h(dayName(date))}">
-        <h3 class="dw-day-h">${h(dayName(date))}${date === D.today ? '<span class="dw-tag">Today · set</span>' : ''}</h3>
-        ${blocks.length ? blocks.map(b => blockHtml(b, dir, mine)).join('') : '<p class="dw-none">Nothing planned yet.</p>'}
-      </section>`;
-    }).join('');
+    const days = [0, 1, 2, 3, 4, 5, 6].map(i => ({date: addDays(start, i), blocks: byDay[addDays(start, i)] || []}));
+    if(!days[6].blocks.length) days.pop();            // closed Sunday: a column only if something is on it
+    return days;
   }
-  function blockHtml(b, dir, mine){
-    if(b.show !== 'book') return `<div class="dw-row is-${h(b.show)}"><span class="dw-time">${span(b.start, b.end)}</span><span class="dw-what">${h(b.label)}</span></div>`;
-    const slots = b.slots.map(s => {
+  function weekHtml(dir, mine){
+    const D = S.data, days = weekDays(dir), all = dir.days.flatMap(d => d.blocks);
+    const from = Math.min(8 * 60, ...all.map(b => hm(b.start))), to = Math.max(17 * 60, ...all.map(b => hm(b.end) || 1440));
+    const h0 = Math.floor(from / 60), h1 = Math.ceil(to / 60), hours = [];
+    for(let x = h0; x <= h1; x++) hours.push(x);
+    const open = days.flatMap(d => d.blocks).flatMap(b => b.slots || []).filter(x => x.state === 'open').length;
+    const now = hm(Date.now());
+    const hour = x => (x % 12 || 12) + (x < 12 || x === 24 ? 'a' : 'p');
+    return `
+      <div class="dw-bar">
+        <div class="dw-weeks" role="tablist" aria-label="Week">${['This week', 'Next week'].map((w, i) =>
+          `<button type="button" class="dw-week-btn${S.week === i ? ' is-on' : ''}" role="tab" aria-selected="${S.week === i}" data-dw-week="${i}">${w}</button>`).join('')}</div>
+        <p class="dw-stat"><b>${open}</b> open slot${open === 1 ? '' : 's'}<span> · ${h(dayShort(days[0].date).replace(/^\w+, /, ''))} – ${h(dayShort(days[days.length - 1].date).replace(/^\w+, /, ''))}</span></p>
+      </div>
+      <div class="dw-grid" style="--dw-days:${days.length};--dw-mins:${(h1 - h0) * 60}">
+        <div class="dw-g-head"><span></span>${days.map(d => {
+          const dt = new Date(d.date + 'T12:00:00');
+          return `<div class="dw-g-day${d.date === D.today ? ' is-today' : d.date < D.today ? ' is-past' : ''}"><small>${dt.toLocaleDateString('en-US', {weekday: 'short'})}</small><b>${dt.getDate()}</b></div>`;
+        }).join('')}</div>
+        <div class="dw-g-body">
+          <div class="dw-g-times" aria-hidden="true">${hours.map(x => `<span style="top:calc(${(x - h0) * 60} * var(--dw-m))">${hour(x)}</span>`).join('')}</div>
+          ${days.map(d => `<div class="dw-g-col${d.date === D.today ? ' is-today' : d.date < D.today ? ' is-past' : ''}" role="group" aria-label="${h(dayName(d.date))}">
+            ${d.blocks.map(b => blockHtml(b, h0 * 60, mine)).join('')}
+            ${d.date === D.today && now >= h0 * 60 && now <= h1 * 60 ? `<i class="dw-now" style="top:calc(${now - h0 * 60} * var(--dw-m))"></i>` : ''}
+          </div>`).join('')}
+        </div>
+      </div>
+      <p class="dw-legend"><span><i class="dw-k is-open"></i>Open door: tap a slot to ask for it</span><span><i class="dw-k is-booked"></i>Booked</span><span><i class="dw-k is-named"></i>PEA or floor support window</span><span><i class="dw-k is-busy"></i>Busy</span></p>`;
+  }
+  function blockHtml(b, base, mine){
+    if(b.show !== 'book'){
+      const len = Math.max(15, (b.end - b.start) / 60000);
+      return `<div class="dw-b is-${h(b.show)}${len < 45 ? ' is-short' : ''}" style="${at(hm(b.start) - base, len)}" title="${h(b.label + ', ' + span(b.start, b.end))}"><b>${h(b.label)}</b><small>${span(b.start, b.end)}</small></div>`;
+    }
+    return b.slots.map(s => {
       const open = s.state === 'open' && !mine;
-      const label = s.state === 'booked' ? 'Booked' : s.state === 'mine' ? 'Yours' : '';
-      return `<button type="button" class="dw-slot is-${h(s.state)}" ${open ? `data-dw-slot="${s.at}"` : 'disabled'} aria-label="${h(clock(s.at) + (label ? ', ' + label : s.state === 'closed' ? ', closed' : ', open'))}">
-        <b>${clock(s.at)}</b>${label ? `<small>${label}</small>` : ''}</button>`;
+      const label = s.state === 'booked' ? 'Booked' : s.state === 'mine' ? 'Yours' : s.state === 'open' ? (b.group ? 'Group' : 'Open') : 'Open door';
+      return `<button type="button" class="dw-slot is-${h(s.state)}" style="top:calc(${hm(s.at) - base} * var(--dw-m));height:calc(${S.data.slotMinutes} * var(--dw-m) - 2px)" ${open ? `data-dw-slot="${s.at}"` : 'disabled'} aria-label="${h(slotText(s.at) + ', ' + (s.state === 'closed' ? 'closed' : label))}"><b>${clock(s.at).replace(/[ap]m$/, '')}</b><small>${label}</small></button>`;
     }).join('');
-    return `<div class="dw-row is-book"><span class="dw-time">${span(b.start, b.end)}</span><span class="dw-what">${h(b.label)}${b.group ? ' <small>group session</small>' : ''}</span>
-      <div class="dw-slots">${slots}</div></div>`;
   }
 
   /* ---------- requests ---------- */
@@ -329,6 +360,8 @@
     const seg = t.closest('[data-dw-page]');
     if(seg){ showPage(seg.dataset.dwPage); if(S.page === 'week'){ render(); if(Date.now() - S.loadedAt > 30000) load(); } return; }
     if(!t.closest('#weekRoot')) return;
+    const wk = t.closest('[data-dw-week]');
+    if(wk){ S.week = +wk.dataset.dwWeek; render(); return; }
     const who = t.closest('[data-dw-director]');
     if(who){ S.director = who.dataset.dwDirector; render(); return; }
     const slot = t.closest('[data-dw-slot]');
