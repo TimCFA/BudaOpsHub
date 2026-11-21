@@ -223,6 +223,11 @@ class Api(unittest.TestCase):
         tomorrow = days[at(1, 0).date().isoformat()]
         self.assertEqual([(b['label'], b['show']) for b in tomorrow], [('Busy', 'busy'), ('Open door', 'book')])
         self.assertNotIn('budget', str(s))
+        self.assertNotIn('focus', str(s['directors']).lower())                     # not even which kind of busy
+        self.as_('Dee Lopez', 'director')
+        own = {d['date']: d['blocks'] for d in self.state()['directors'][0]['days']}[at(1, 0).date().isoformat()]
+        self.assertEqual((own[0]['type'], own[0]['label'], own[0]['show']), ('focus', 'Focus', 'busy'))   # her own, as it is
+        self.as_('Ben Cole', 'member')
         self.assertEqual([x['state'] for x in tomorrow[1]['slots']], ['open', 'open'])
         self.assertEqual(days[at(2, 0).date().isoformat()][0]['label'], 'PEA window')
         # Today is set in stone: its Open door slot shows, closed.
@@ -315,7 +320,7 @@ class Api(unittest.TestCase):
                                    extendedProperties={'private': {'hubRequest': 'r1', 'hubRequestType': 'open'}}))
         self.connect()
         day = [d for d in self.state()['directors'][0]['days'] if d['date'] == at(1, 0).date().isoformat()][0]
-        self.assertEqual([b['label'] for b in day['blocks']], ['Busy', 'Open door'])
+        self.assertEqual([b['label'] for b in day['blocks']], ['Focus', 'Open door'])
 
     def test_google_refusing_the_booking_accepts_nothing(self):
         self.connect()

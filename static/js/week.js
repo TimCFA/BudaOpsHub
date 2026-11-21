@@ -105,7 +105,7 @@
       ${D.setup ? setupHtml() : ''}
       ${inboxHtml()}
       ${dir ? `
-        <p class="dw-lede">${mine ? 'This is what the team sees of your week.' : `How ${h(firstName(dir.name))} plans to spend the week. Tap an open slot to ask for it.`}</p>
+        <p class="dw-lede">${mine ? 'Your week, as you see it. The team sees Lunch peak, Focus, Admin and Weekly review only as “Busy”.' : `How ${h(firstName(dir.name))} plans to spend the week. Tap an open slot to ask for it.`}</p>
         <p class="dw-urgent">${I.phone}<span><b>Short this shift? Call or text.</b> Requests here are for tomorrow and later; today is already set.</span></p>
         ${mine ? '' : `<button type="button" class="dw-ask" data-dw-ask>${I.plus}Request ${h(firstName(dir.name))}’s time</button>`}
         ${dir.stale ? '<p class="dw-stale">Google Calendar isn’t answering right now, so this may be a few minutes old.</p>' : ''}
@@ -154,12 +154,14 @@
           </div>`).join('')}
         </div>
       </div>
-      <p class="dw-legend"><span><i class="dw-k is-open"></i>Open door: tap a slot to ask for it</span><span><i class="dw-k is-booked"></i>Booked</span><span><i class="dw-k is-named"></i>PEA or floor support window</span><span><i class="dw-k is-busy"></i>Busy</span></p>`;
+      <p class="dw-legend"><span><i class="dw-k t-open"></i>Open door: tap a slot to ask for it</span><span><i class="dw-k is-booked"></i>Booked</span><span><i class="dw-k t-pea"></i>PEA window</span><span><i class="dw-k t-support"></i>Floor support window</span>${mine
+        ? '<span><i class="dw-k t-peak"></i>Lunch peak</span><span><i class="dw-k t-focus"></i>Focus</span><span><i class="dw-k t-admin"></i>Admin</span><span><i class="dw-k t-review"></i>Weekly review</span><span class="dw-legend-note">The team sees those four as Busy.</span>'
+        : '<span><i class="dw-k is-busy"></i>Busy</span>'}</p>`;
   }
   function blockHtml(b, base, mine){
     if(b.show !== 'book'){
       const len = Math.max(15, (b.end - b.start) / 60000);
-      return `<div class="dw-b is-${h(b.show)}${len < 45 ? ' is-short' : ''}" style="${at(hm(b.start) - base, len)}" title="${h(b.label + ', ' + span(b.start, b.end))}"><b>${h(b.label)}</b><small>${span(b.start, b.end)}</small></div>`;
+      return `<div class="dw-b is-${h(b.show)} t-${h(b.type)}${len < 45 ? ' is-short' : ''}" style="${at(hm(b.start) - base, len)}" title="${h(b.label + ', ' + span(b.start, b.end))}"><b>${h(b.label)}</b><small>${span(b.start, b.end)}</small></div>`;
     }
     return b.slots.map(s => {
       const open = s.state === 'open' && !mine;

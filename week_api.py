@@ -209,6 +209,7 @@ def blocks_from(events, tz):
             continue
         t = None if ours else block_type(e.get('summary'), e.get('colorId'))
         out.append({'type': t['id'] if t else 'busy', 'label': t['label'] if t and t['show'] != 'busy' else 'Busy',
+                    'name': t['label'] if t else 'Busy',
                     'show': t['show'] if t else 'busy', 'start': start, 'end': end,
                     'group': bool(t and t['show'] == 'book' and re.search(r'\bgroup\b', str(e.get('summary') or '').lower()))})
     return sorted(out, key=lambda b: (b['start'], b['end']))
@@ -417,8 +418,10 @@ def register(app, me, signed_in, ref, tz, calendar, dayparts):
         held = taken(reqs, did)
         days = {}
         for b in m['blocks']:
-            out = {'type': b['type'] if b['show'] != 'busy' else 'busy', 'label': b['label'], 'show': b['show'],
-                   'start': b['start'], 'end': b['end']}
+            # The team sees a busy block as "Busy" and nothing more; the director sees their own as it is.
+            own = bool(p) and p['id'] == did
+            out = {'type': b['type'] if own or b['show'] != 'busy' else 'busy', 'label': b['name'] if own else b['label'],
+                   'show': b['show'], 'start': b['start'], 'end': b['end']}
             if b['show'] == 'book':
                 out['group'] = b['group']
                 out['slots'] = []

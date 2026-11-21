@@ -54,28 +54,43 @@
 .dw-b b{font-size:12.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;}
 .dw-b small{font-size:11px;color:inherit;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .dw-b.is-short{flex-direction:row;align-items:center;gap:6px;padding:0 7px;}
+.dw-b.is-short b{white-space:nowrap;}
 .dw-b.is-busy{background:repeating-linear-gradient(135deg,var(--cfa-soft) 0 6px,transparent 6px 12px),var(--cfa-light,var(--cfa-bg));color:var(--text-tertiary);}
 .dw-b.is-busy b{font-weight:600;}
-.dw-b.is-named{background:var(--cfa-soft);color:var(--text-primary);box-shadow:inset 3px 0 0 var(--text-primary);padding-left:10px;}
-.dw-slot{display:flex;align-items:center;justify-content:space-between;gap:4px;margin:0;padding:0 8px;border:1.5px solid var(--text-primary);border-radius:7px;background:var(--cfa-white);color:var(--text-primary);font-size:13px;transition:background .12s,color .12s,transform .08s;}
-.dw-slot b{font-weight:700;font-variant-numeric:tabular-nums;}
+/* Block colours are Google Calendar's own (Tim, Nov 21 2026: the one place
+   the hub's "one meaning a colour" gives way, so the week reads like the
+   calendar it comes from): blue Open door, green PEA, yellow Floor support;
+   a director's own busy blocks keep theirs, the team's are grey stripes. */
+.dw-root{--dw-open:#1A73E8;--dw-open-soft:#E3EEFD;--dw-pea:#0B8043;--dw-support:#F6BF26;--dw-peak:#D50000;--dw-focus:#8E24AA;--dw-admin:#616161;--dw-review:#E67C73;}
+html[data-theme="dark"] .dw-root{--dw-open:#5E9BF5;--dw-open-soft:#1D2C44;}
+.dw-b.is-named,.dw-b.is-busy:not(.t-busy){color:#fff;box-shadow:0 1px 2px rgba(0,0,0,.14);}
+.dw-b.is-named b,.dw-b.is-busy:not(.t-busy) b{font-weight:700;}
+.dw-b.t-pea,.dw-k.t-pea{background:var(--dw-pea);}
+.dw-b.t-support,.dw-k.t-support{background:var(--dw-support);}
+.dw-b.t-support{color:#3B2F00;}
+.dw-b.t-peak,.dw-k.t-peak{background:var(--dw-peak);}
+.dw-b.t-focus,.dw-k.t-focus{background:var(--dw-focus);}
+.dw-b.t-admin,.dw-k.t-admin{background:var(--dw-admin);}
+.dw-b.t-review,.dw-k.t-review{background:var(--dw-review);}
+.dw-slot{display:flex;align-items:center;justify-content:space-between;gap:4px;margin:0;padding:0 8px;border:1.5px solid var(--dw-open);border-radius:7px;background:var(--cfa-white);color:var(--dw-open);font-size:13px;transition:background .12s,color .12s,transform .08s;}
+.dw-slot b{font-weight:700;font-variant-numeric:tabular-nums;color:var(--text-primary);}
 .dw-slot small{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.dw-slot.is-open small{color:var(--cfa-red);}
-.dw-slot.is-open:hover,.dw-slot.is-open:focus-visible{background:var(--text-primary);color:var(--cfa-bg);outline:0;}
-.dw-slot.is-open:hover small,.dw-slot.is-open:focus-visible small{color:inherit;}
+.dw-slot.is-open{background:var(--dw-open-soft);}
+.dw-slot.is-open:hover,.dw-slot.is-open:focus-visible{background:var(--dw-open);color:#fff;outline:0;}
+.dw-slot.is-open:hover b,.dw-slot.is-open:focus-visible b,.dw-slot.is-mine b{color:inherit;}
 .dw-slot.is-open:active{transform:scale(.97);}
 .dw-slot.is-booked,.dw-slot.is-closed{background:var(--cfa-soft);color:var(--text-tertiary);border-color:var(--border);}
-.dw-slot.is-booked b{text-decoration:line-through;font-weight:600;}
-.dw-slot.is-closed b,.dw-slot.is-closed small{font-weight:500;}
-.dw-slot.is-mine{background:var(--text-primary);color:var(--cfa-bg);}
+.dw-slot.is-booked b,.dw-slot.is-closed b{color:inherit;font-weight:500;}
+.dw-slot.is-booked b{text-decoration:line-through;}
+.dw-slot.is-mine{background:var(--dw-open);color:#fff;}
 .dw-now{position:absolute;left:0;right:0;height:2px;margin-top:-1px;background:var(--cfa-red);z-index:2;pointer-events:none;}
 .dw-now::before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:999px;background:var(--cfa-red);}
 .dw-legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin:0 0 16px;font-size:12.5px;color:var(--text-secondary);}
 .dw-legend span{display:inline-flex;align-items:center;gap:6px;}
 .dw-k{width:14px;height:14px;border-radius:4px;box-sizing:border-box;}
-.dw-k.is-open{border:1.5px solid var(--text-primary);background:var(--cfa-white);}
+.dw-k.t-open{border:1.5px solid var(--dw-open);background:var(--dw-open-soft);}
 .dw-k.is-booked{background:var(--cfa-soft);border:1px solid var(--border);}
-.dw-k.is-named{background:var(--cfa-soft);box-shadow:inset 3px 0 0 var(--text-primary);}
+.dw-legend-note{color:var(--text-tertiary);}
 .dw-k.is-busy{background:repeating-linear-gradient(135deg,var(--cfa-soft) 0 3px,transparent 3px 6px);border:1px solid var(--border);}
 
 .dw-req{padding:10px 0;border-top:1px solid var(--border);}
@@ -130,7 +145,6 @@
   .dw-b{padding:4px;}
   .dw-b b{font-size:10.5px;}
   .dw-b small{font-size:9.5px;}
-  .dw-b.is-named{padding-left:6px;}
   .dw-b.is-short small,.dw-b.is-busy small{display:none;}
   .dw-slot{flex-direction:column;justify-content:center;gap:0;padding:0 2px;font-size:12px;}
   .dw-slot small{font-size:9px;}
