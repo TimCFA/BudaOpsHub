@@ -28,7 +28,7 @@
   --tm-display:var(--font-display,'Zilla Slab',Georgia,serif);
   font-family:var(--font-ui,'Figtree',system-ui,sans-serif);color:var(--tm-ink);
 }
-html[data-theme="dark"] .tm-root,html[data-theme="dark"] .tm-layer{--tm-dark-red:#E8636E;--tm-track:#2C3036;--tm-shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);}
+html[data-theme="dark"] .tm-root,html[data-theme="dark"] .tm-layer{--tm-dark-red:#F58A94;--tm-track:#2F4467;--tm-shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);}
 
 /* ----- head: the Lead Captain, and Now / Scoreboard / Setup ----- */
 .tm-head{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;margin-bottom:14px;}
