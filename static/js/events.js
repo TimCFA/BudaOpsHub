@@ -9,7 +9,7 @@
 // storeEvents in the manager section: every device is sent it, only a
 // manager session changes it (app.py MANAGER_ONLY_KEYS).
 //
-// An event: {id, title, detail, kind, date, end, days, from, to, notes}
+// An event: {id, title, detail, kind, date, end, days, from, to, notes, details}
 //   date / end  'YYYY-MM-DD', end inclusive (a one-day event has no end)
 //   days        weekdays it runs on within date..end (0 = Sunday), or none
 //               for every day
@@ -17,7 +17,10 @@
 //   kind        the calendar's color key (EVENT_KINDS); 'note' is a
 //               heads-up, and 'goal' / 'checklist' belong to the month (the
 //               goals box and the Pre-Checklist), never a day
-//   notes       bullet lines
+//   notes       bullet lines (the calendar's Notes box)
+//   details     lines from the events page (When, Where, What, Materials,
+//               the social post, Labor Needs; events-import.js): on the
+//               day and Right Now's sheet, not in the Notes box
 //   kn          true / false: counts as a Know the Numbers special event,
 //               when a manager overrode the rule (evCountsForNumbers)
 
@@ -307,6 +310,7 @@ function evDayPanelHtml(){
             ${ev.detail ? `<small>${escapeHtml(ev.detail)}</small>` : ''}
             <small>${escapeHtml(evWhenText(ev))}</small>
             ${Array.isArray(ev.notes) && ev.notes.length ? `<ul>${ev.notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : ''}
+            ${Array.isArray(ev.details) && ev.details.length ? `<details class="cal-dayp-more"><summary>More from the events page</summary><ul>${ev.details.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul></details>` : ''}
           </div>
         </li>`).join('')}</ul>` : `<p class="ev-empty">${evWeekday(calDay) === 0 ? 'Closed Sunday. ' : ''}Nothing on the calendar this day.</p>`}
       ${evCalendarShown() ? '<p class="cal-dayp-month">To add or change events: Manage → Events Calendar.</p>' : ''}
@@ -363,6 +367,36 @@ function evShowDayPanel(){
 
 // ----- Manage → Events Calendar: the only place events change -----
 
+// Clearing a month to read its calendar in again from scratch (Tim, Nov 5
+// 2026): the events that start in it go, whatever put them there. A run
+// that began the month before stays with that month, and leadership
+// meetings stay (they're typed in, not read from the calendar). Undo puts
+// them back until the page is left.
+function evMonthClearList(ym){
+  const first = ym + '-01', last = evMonthEnd(ym);
+  const all = Array.isArray(storeEvents) ? storeEvents : EVENTS_SEED;
+  return all.filter(ev => ev.date >= first && ev.date <= last && ev.kind !== 'meeting');
+}
+let evCleared = null;   // {ym, events}: the month just cleared, for Undo
+function evClearMonth(ym){
+  const gone = evMonthClearList(ym);
+  if(!gone.length) return 0;
+  evEnsureOwnList();
+  const ids = new Set(gone.map(ev => ev.id));
+  storeEvents = storeEvents.filter(ev => !ids.has(ev.id));
+  evCleared = {ym, events: JSON.parse(JSON.stringify(gone))};
+  return gone.length;
+}
+function evUndoClear(){
+  if(!evCleared) return 0;
+  evEnsureOwnList();
+  const have = new Set(storeEvents.map(ev => ev.id));
+  const back = evCleared.events.filter(ev => !have.has(ev.id));
+  storeEvents = storeEvents.concat(back);
+  evCleared = null;
+  return back.length;
+}
+
 function renderEventsManage(){
   const root = document.getElementById('eventsManageRoot');
   if(!root) return;
@@ -377,7 +411,9 @@ function renderEventsManage(){
       <b>${escapeHtml(evMonthLabel(evManageMonth))}</b>
       <button type="button" class="btn btn-ghost ev-m-step" data-ev-month="1" aria-label="Next month">›</button>
       <button type="button" class="btn btn-primary ev-m-add" data-ev-edit="new">+ Add event</button>
+      ${evMonthClearList(evManageMonth).length ? '<button type="button" class="btn btn-ghost ev-m-clear" data-ev-clear>Clear month</button>' : ''}
     </div>
+    ${evCleared && evCleared.ym === evManageMonth ? `<div class="ev-m-undo" role="status"><span>Cleared ${evCleared.events.length} event${evCleared.events.length === 1 ? '' : 's'} from ${escapeHtml(evMonthLabel(evCleared.ym))}. Read the calendar in again above, or put them back.</span><button type="button" class="btn btn-ghost" data-ev-undo>Undo</button></div>` : ''}
     ${editing ? evFormHtml(editing) : ''}
     ${list.length ? `<ul class="ev-m-list">${list.map(ev => `
       <li class="ev-m-row">
@@ -406,6 +442,7 @@ function evFormHtml(ev){
       <label class="ev-kn"><input type="checkbox" id="evKn" ${evCountsForNumbers(ev.id === 'new' ? {...ev, kn: undefined} : ev) ? 'checked' : ''} ${typeof ev.kn === 'boolean' ? 'data-touched="1"' : ''}><span><b>Special event in Know the Numbers</b> — shows on Set Ups' numbers line, counts toward Game Day and the forecast's unusual days. On by itself for In-Store, Drive Thru and App events of a week or less.</span></label>
       <label class="ev-kn"><input type="checkbox" id="evAttn" ${ev.attn ? 'checked' : ''}><span><b>Needs a director</b> — shows under Needs attention on the Directors page (meetings always do).</span></label>
       <div class="field"><label for="evNotes">Notes (one per line)</label><textarea id="evNotes" rows="4" maxlength="2000">${escapeHtml((ev.notes || []).join('\n'))}</textarea></div>
+      <div class="field"><label for="evDetails">From the events page (one per line)</label><textarea id="evDetails" rows="4" maxlength="8000">${escapeHtml((ev.details || []).join('\n'))}</textarea></div>
       <div class="ev-form-actions">
         <button type="submit" class="btn btn-primary">Save</button>
         <button type="button" class="btn btn-ghost" data-ev-cancel="1">Cancel</button>
@@ -432,6 +469,8 @@ function evReadForm(form){
   if(from) { ev.from = from; ev.to = to; }
   const notes = val('evNotes').split('\n').map(s => s.trim()).filter(Boolean);
   if(notes.length) ev.notes = notes;
+  const details = val('evDetails').split('\n').map(s => s.trim()).filter(Boolean);
+  if(details.length) ev.details = details;
   // Kept only when it differs from the rule, so the rule still decides
   // after a change of type or dates.
   const kn = document.getElementById('evKn');
@@ -490,6 +529,18 @@ document.addEventListener('click', e => {
   const edit = t.closest('[data-ev-edit]');
   if(edit){ evEditId = edit.dataset.evEdit; renderEventsManage(); const f = document.getElementById('evTitle'); if(f) f.focus(); return; }
   if(t.closest('[data-ev-cancel]')){ evEditId = null; renderEventsManage(); return; }
+  if(t.closest('[data-ev-clear]')){
+    const ym = evManageMonth, n = evMonthClearList(ym).length;
+    if(!n || !confirm(`Clear all ${n} event${n === 1 ? '' : 's'} that start in ${evMonthLabel(ym)}, to start this month's calendar from scratch?\n\nLeadership meetings stay, and so does anything that started the month before. You can undo right after.`)) return;
+    evClearMonth(ym);
+    evAfterChange(`${evMonthLabel(ym)} cleared`, ym + '-01');
+    return;
+  }
+  if(t.closest('[data-ev-undo]')){
+    const ym = evCleared && evCleared.ym, n = evUndoClear();
+    evAfterChange(`${n} event${n === 1 ? '' : 's'} put back`, ym ? ym + '-01' : null);
+    return;
+  }
   if(t.closest('[data-ev-delete]')){
     const ev = eventsList().find(x => x.id === evEditId);
     if(!ev || !confirm(`Delete "${ev.title}" (${ev.date}${ev.end ? ` to ${ev.end}` : ''}) from the calendar?`)) return;

@@ -64,7 +64,7 @@ class Wiring(unittest.TestCase):
         self.assertIn('<link rel="stylesheet" href="/static/css/pass.css">', PAGE)
         self.assertLess(PAGE.index('/static/css/dark.css'), PAGE.index('/static/css/pass.css'))
         self.assertLess(PAGE.index('/static/js/spanish.js'), PAGE.index('/static/js/pass.js'))
-        self.assertLess(PAGE.index('<script src="/static/js/pass-engine.js"></script>'), PAGE.index('<script src="/static/js/pass.js"></script>'))
+        self.assertLess(PAGE.index('<script src="/static/js/pass-engine.js" defer></script>'), PAGE.index('<script src="/static/js/pass.js" defer></script>'))
         self.assertNotIn('taskhub', PAGE)
         self.assertFalse(os.path.exists(os.path.join(ROOT, 'taskhub')))
 

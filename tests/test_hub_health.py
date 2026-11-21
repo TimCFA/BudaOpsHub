@@ -279,7 +279,7 @@ class PageWiring(unittest.TestCase):
         page = read('cfa-buda-ops-hub-complete.html')
         self.assertIn('data-manage-go="health"', page)
         self.assertIn('<section class="manage-group" data-manage-tab="health"', page)
-        self.assertIn('<script src="/static/js/hub-health.js"></script>', page)
+        self.assertIn('<script src="/static/js/hub-health.js" defer></script>', page)
         hh = read('static', 'js', 'hub-health.js')
         self.assertIn("hhSend({visit: 1, ready, app: typeof stateStandalone === 'function' && stateStandalone(), role: hhRole(), views, opens});", hh)
         self.assertIn('hhSend({views, opens}, beacon);', hh)

@@ -342,6 +342,12 @@ let saveAgain = false;
 const SAVE_RETRY_MS = [5000, 15000, 30000];
 let saveRetryTimer = null, saveRetryN = 0;
 function saveState(){
+  // Before the first load: Home and Set Ups are on screen from an early copy
+  // of the saved data (early-paint.js) and nothing can be tapped, so the only
+  // save that could ask is the page's own upkeep (a break that just ended).
+  // It's left for the real load, which finds it again: a save from here would
+  // start from a half-filled page and empty the outbox.
+  if(typeof hubWarming !== 'undefined' && hubWarming) return Promise.resolve();
   // The forecast refills Know the Numbers when what it reads has changed (forecast.js).
   if(typeof fcAutoCheck === 'function') fcAutoCheck();
   // A change made while a save is out goes in the outbox now, not when that save ends.
@@ -420,7 +426,12 @@ renderFullBackupStatus();
 async function loadState(){
   // Every script must have run first: the data goes into variables some of
   // them declare (a quick answer could otherwise arrive before they exist).
-  if(document.readyState === 'loading') await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve, {once: true}));
+  // They're deferred, so that's DOMContentLoaded (state-and-utils.js).
+  if(typeof hubScriptsRan !== 'undefined') await hubScriptsRan;
+  // From here the page starts for real: the early drawing of Home and Set
+  // Ups (early-paint.js) is over, and saves count again.
+  hubStarted = true;
+  hubWarming = false;
   stateStartSync();
   let data = null;
   // The page's first lines already asked (the head of the HTML), so the data

@@ -34,7 +34,9 @@ class Stamped(unittest.TestCase):
         import hashlib
         def stamp(u):
             with open(os.path.join(ROOT, u.split('?')[0].lstrip('/')), 'rb') as f:
-                return hashlib.sha256(f.read()).hexdigest()[:12]
+                data = f.read()
+            # A script's stamp also carries the trimming it's sent with (js_trim.py).
+            return hashlib.sha256(data + (appmod._TRIM_VERSION if u.split('?')[0].endswith('.js') else b'')).hexdigest()[:12]
         self.assertEqual([u for u in local if not u.endswith(f'?v={stamp(u)}')], [])
         self.assertGreater(len({u.split('?v=')[1] for u in local}), 50)
         self.assertEqual(self.c.get('/').headers['Cache-Control'], 'no-cache')       # the page itself is always fresh
@@ -47,7 +49,7 @@ class Stamped(unittest.TestCase):
             self.assertNotIn('immutable', self.c.get(url).headers.get('Cache-Control', ''), url)   # unstamped or stale: asked again
 
     def test_the_file_on_disk_is_unchanged(self):
-        self.assertIn('<script src="/static/js/storage.js"></script>', read('cfa-buda-ops-hub-complete.html'))
+        self.assertIn('<script src="/static/js/storage.js" defer></script>', read('cfa-buda-ops-hub-complete.html'))
 
 
 class Deferred(unittest.TestCase):

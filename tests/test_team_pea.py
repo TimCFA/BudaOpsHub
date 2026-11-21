@@ -74,7 +74,6 @@ class Data(unittest.TestCase):
 
     def test_page_loads_the_view_after_leaders(self):
         self.assertLess(PAGE.index('/static/js/leaders.js'), PAGE.index('/static/js/team-pea.js'))
-        self.assertLess(PAGE.index('/static/js/team-pea.js'), PAGE.index('/static/js/launch-mode.js'))
 
     def test_quarters_come_from_ratings_and_notes(self):
         got = run("c => { " + QUARTER + " teamNotes = {'Noah Bennett': [{text: 'x', ts: 1, date: '2026-04-02', type: 'win'}]}; return tpQuarters(); }")

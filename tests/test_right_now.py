@@ -408,7 +408,7 @@ class PageWiring(unittest.TestCase):
         page = read('cfa-buda-ops-hub-complete.html')
         home = page.split('id="homeView"')[1].split('Vision, Mission & Values')[0]
         self.assertLess(home.index('class="home-welcome"'), home.index('id="rightNow"'))
-        self.assertIn('<script src="/static/js/launch-mode.js"></script>\n<script src="/static/js/right-now.js"></script>', page)
+        self.assertIn('<script src="/static/js/launch-mode.js" defer></script>\n<script src="/static/js/right-now.js" defer></script>', page)
         self.assertIn("if(typeof renderRightNow === 'function') renderRightNow();", read('static', 'js', 'scoreboards-and-eoi.js'))
         self.assertIn("if(typeof renderRightNow === 'function') renderRightNow();", read('static', 'js', 'accounts.js'))
 

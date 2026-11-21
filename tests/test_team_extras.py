@@ -268,7 +268,7 @@ class Page(unittest.TestCase):
 
     def test_wired_in(self):
         page = read('cfa-buda-ops-hub-complete.html')
-        self.assertLess(page.index('<script src="/static/js/headcount.js"></script>'), page.index('<script src="/static/js/team-extras.js"></script>'))
+        self.assertLess(page.index('<script src="/static/js/headcount.js" defer></script>'), page.index('<script src="/static/js/team-extras.js" defer></script>'))
         hc = read('static', 'js', 'headcount.js')
         self.assertIn("${typeof apPanelHtml === 'function' ? apPanelHtml() : ''}", hc)
         self.assertIn("${hcProfile && !hcProfile.isNew && typeof apProfileHtml === 'function' ? apProfileHtml(hcProfile) : ''}", hc)

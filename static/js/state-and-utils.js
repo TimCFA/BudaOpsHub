@@ -1,4 +1,26 @@
 const SHEET_TITLE = 'CFA Buda Waste Log';
+// The page's scripts are deferred (the HTML's script list): they run in order
+// once the page is read, and DOMContentLoaded follows the last of them. What
+// has to wait for every script (the first load of the saved data, storage.js)
+// waits on this.
+const hubScriptsRan = new Promise(resolve => {
+  if(document.readyState === 'complete') resolve();
+  else document.addEventListener('DOMContentLoaded', resolve, {once: true});
+});
+// The first seconds of a load (early-paint.js): hubWarming while Home and Set
+// Ups are on screen from an early copy of the saved data, hubStarted once the
+// real load has begun (storage.js loadState).
+let hubWarming = false, hubStarted = false;
+// The toast every page uses (here, the first file, so it's there for all of them).
+function showToast(msg){
+  const t = document.querySelector('.toast') || document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  if(!document.querySelector('.toast')) document.body.appendChild(t);
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
 let currentSection = 'foh';
 let launchMode;   // undefined = on (the team sees the essentials only); false = off
 let entries = [];

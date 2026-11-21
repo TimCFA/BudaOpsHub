@@ -85,7 +85,7 @@ class Wiring(unittest.TestCase):
         # A zip of only PDFs (Smart Shop from Ops Hub) keeps its old reader.
         self.assertIn("if(!entries.length || entries.every(e => /\\.pdf$/i.test(e.name))) return null;", ub)
         self.assertIn("const DU_JSZIP = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';", ub)
-        self.assertIn('<script src="/static/js/data-uploads.js"></script>\n<script src="/static/js/upload-bundle.js"></script>', read('cfa-buda-ops-hub-complete.html'))
+        self.assertIn('<script src="/static/js/data-uploads.js" defer></script>\n<script src="/static/js/upload-bundle.js" defer></script>', read('cfa-buda-ops-hub-complete.html'))
 
     def test_the_next_roster_opens_when_one_is_saved_or_skipped(self):
         wr = read('static', 'js', 'weekly-roster-import.js')
@@ -144,7 +144,7 @@ process.stdout.write(JSON.stringify(vm.runInContext(`(() => {
 
     def test_a_screenshot_calendar_gets_a_second_look(self):
         evi = read('static', 'js', 'events-import.js')
-        self.assertIn('const grid = eviFindGrid(data, W, H) || eviFindGrid(data, W, H, true);', evi)
+        self.assertIn('grid = eviFindGrid(data, W, H) || eviFindGrid(data, W, H, true);', evi)
         self.assertIn('r < (light ? 222 : 175)', evi)
 
 

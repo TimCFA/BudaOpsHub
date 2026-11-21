@@ -272,3 +272,13 @@ html[data-theme="dark"] .ps-linkish{color:var(--ink-navy,#7FC1E1);}
 .ps-toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:1300;max-width:90vw;padding:11px 18px;border-radius:12px;
   background:var(--cfa-navy,#004F71);color:#fff;font-family:var(--font-ui,system-ui);font-weight:600;font-size:15px;box-shadow:0 10px 30px rgba(0,0,0,.35);}
 .ps-toast.is-bad{background:var(--cfa-dark-red,#AF272F);}
+
+/* On a touch screen the hub's own tab bar is at the bottom (theme-cfa.css,
+   "Bottom tab bar"), so the Pass's views go back to a row at the top of the
+   page and Delegate floats above the hub's bar: one bar at the bottom, never two. */
+@media (hover:none) and (pointer:coarse){
+  .ps-nav{position:static;margin:0 0 16px;border-radius:14px;gap:4px;padding:4px;background:var(--ps-soft);border-top:0;box-shadow:none;}
+  .ps-nav button[aria-current="page"]{background:var(--ps-card);box-shadow:0 1px 3px rgba(0,0,0,.12);}
+  .ps-fab{bottom:calc(16px + var(--bnav-h,0px));}
+  .ps-toast{bottom:calc(24px + var(--bnav-h,0px));}
+}

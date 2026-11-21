@@ -261,7 +261,7 @@ class InStep(unittest.TestCase):
         self.assertIn('data-view="forms">Forms <span class="sub"><i>Formularios</i></span></button>', page)
         self.assertIn('<div class="view" id="formsView">', page)
         self.assertIn('data-manage-go="forms" aria-selected="false">Forms</button>', page)
-        self.assertIn('<script src="/static/forms/form-definitions.js"></script>\n<script src="/static/forms/forms-engine.js"></script>\n<script src="/static/js/forms.js"></script>', page)
+        self.assertIn('<script src="/static/forms/form-definitions.js" defer></script>\n<script src="/static/forms/forms-engine.js" defer></script>\n<script src="/static/js/forms.js" defer></script>', page)
         # On the simplified site too (Tim, Oct 27 2026).
         self.assertIn('class="tab" role="tab" aria-selected="false" aria-controls="formsView"', page)
         self.assertIn("'forms'", read('static', 'js', 'launch-mode.js').split('const LAUNCH_VIEWS')[1].split(';')[0])

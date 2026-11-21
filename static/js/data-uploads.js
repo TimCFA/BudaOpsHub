@@ -596,7 +596,7 @@ async function duHandleFiles(fileList, hint){
   for(let i = 0; i < files.length; i++){
     const file = files[i];
     if(fromBundle.has(file) && /\.(png|jpe?g|webp)$/i.test(file.name)){
-      duResults[i] = {file: file.name, state: 'waiting', kind: 'Picture', text: 'If it’s the month’s marketing calendar, read it into Events. The reader shows what it found before anything is added.', action: {key: duBundleImage(file), label: 'Read into Events'}};
+      duResults[i] = {file: file.name, state: 'waiting', kind: 'Picture', text: 'If it’s the month’s marketing calendar or its events page, read it into Events. The reader shows what it found before anything is added.', action: {key: duBundleImage(file), label: 'Read into Events'}};
       continue;
     }
     try{
