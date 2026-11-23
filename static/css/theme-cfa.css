@@ -45,7 +45,15 @@
      (light only; dark is Midnight) and a pale blue inside each card, on its
      rows, headers, tracks and pills. */
   --card-shadow:0 1px 2px rgba(20,23,28,.06),0 6px 20px rgba(20,23,28,.08),0 0 0 1px rgba(20,23,28,.03);
-  --band:#003B5C;
+  /* The band (Tim, Nov 23 2026: the deep navy was too strong, so it is a pale
+     blue now with navy ink; the navy lives in the cards below). Its ink: text,
+     hover, the active tab, the rule under the tabs and the lip's shadow.
+     Stronger options, one line each: Sky --band:#C9DDEE; Steel --band:#5E87A6
+     with white ink (--band-ink:#FFFFFF, --band-ink-2:rgba(255,255,255,.8),
+     --band-hover:rgba(255,255,255,.1), --band-accent:#FFFFFF,
+     --band-rule:rgba(255,255,255,.22), --band-loc:#FFE3E8). */
+  --band:#E4EDF6;
+  --band-ink:#0B3A55; --band-ink-2:rgba(11,58,85,.62); --band-hover:rgba(0,59,92,.06); --band-accent:#DD0031; --band-rule:rgba(0,59,92,.12); --band-loc:#AF272F; --band-shadow:rgba(0,59,92,.18);
   --inset:#F1F6FB; --inset-strong:#E4EEF7; --inset-faint:#F7FAFD; --inset-track:#DCE8F3; --inset-line:#D3E1EE;
   --eyebrow:var(--cfa-navy);  /* section labels in small caps */
   --font-display:'Zilla Slab', Georgia, serif;
@@ -3155,7 +3163,7 @@ body.hub-warming::after{content:"Loading the rest… · Cargando…";position:fi
   .bnav-badge{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--cfa-red);color:#fff;font-size:11px;font-weight:700;display:inline-grid;place-items:center;}
   /* The day look (Nov 23 2026): the header alone is the navy band here, the bar floats on shadow, the More sheet is the pale blue with white rows. */
   :root{--band-gap:20px;}   /* the header alone is the band, so it carries the white gap below */
-  html:not([data-theme="dark"]) .app > .hdr::before{border-radius:0 0 26px 26px;box-shadow:0 10px 24px -8px rgba(0,59,92,.38);}
+  html:not([data-theme="dark"]) .app > .hdr::before{border-radius:0 0 26px 26px;box-shadow:0 10px 24px -8px var(--band-shadow);}
   .bnav{box-shadow:0 -6px 24px rgba(20,23,28,.10);border-top-color:transparent;}
   .bnav-sheet{background:var(--inset);}
 }
@@ -3310,7 +3318,7 @@ body.hub-warming::after{content:"Loading the rest… · Cargando…";position:fi
 .su-col-c .su-dp-head .zr-dp-lead,.su-col-c .su-dp-head .zr-dp-lead.is-none,.su-col-c .su-dp-head .su-dp-k{color:rgba(244,247,250,0.78);}
 
 
-/* ===== The day look: navy band, white floor, tinted insides (Tim, Nov 23 2026) =====
+/* ===== The day look: a pale blue band, white floor, tinted insides (Tim, Nov 23 2026) =====
    Light only: Midnight keeps its own header. The band is the page header and
    the tab row, painted by a pseudo-element that runs the full width of the
    screen (not clipped, so the tab dropdowns still open over it). On a touch
@@ -3322,15 +3330,15 @@ html:not([data-theme="dark"]) .app > .hdr::before,html:not([data-theme="dark"]) 
 html:not([data-theme="dark"]) .app > .hdr{margin-top:-24px;padding:24px 0 14px;margin-bottom:var(--band-gap,0px);}
 html:not([data-theme="dark"]) .app > .tabs-wrap{margin-bottom:22px;padding-bottom:0;}
 html:not([data-theme="dark"]) .app > .tabs-wrap .tabs{margin-bottom:0;}
-html:not([data-theme="dark"]) .hdr-title h1{color:#FFFFFF;}
-html:not([data-theme="dark"]) .hdr-title .location{color:#FFB3BF;}
-html:not([data-theme="dark"]) .tab,html:not([data-theme="dark"]) .tab-group-label{color:#FFFFFF;}
-html:not([data-theme="dark"]) .tab .sub,html:not([data-theme="dark"]) .tab-group-label .sub{color:rgba(255,255,255,.72);}
-html:not([data-theme="dark"]) .tab:hover,html:not([data-theme="dark"]) .tab-group-label:hover{color:#FFFFFF;background:rgba(255,255,255,.08);}
-html:not([data-theme="dark"]) .tab.active,html:not([data-theme="dark"]) .tab-group.active .tab-group-label{color:#FFFFFF;border-bottom-color:#FF5A74;}
-html:not([data-theme="dark"]) .app > .tabs-wrap .tabs{box-shadow:inset 0 -2px 0 rgba(255,255,255,.18);}
+html:not([data-theme="dark"]) .hdr-title h1{color:var(--band-ink);}
+html:not([data-theme="dark"]) .hdr-title .location{color:var(--band-loc);}
+html:not([data-theme="dark"]) .tab,html:not([data-theme="dark"]) .tab-group-label{color:var(--band-ink);}
+html:not([data-theme="dark"]) .tab .sub,html:not([data-theme="dark"]) .tab-group-label .sub{color:var(--band-ink-2);}
+html:not([data-theme="dark"]) .tab:hover,html:not([data-theme="dark"]) .tab-group-label:hover{color:var(--band-ink);background:var(--band-hover);}
+html:not([data-theme="dark"]) .tab.active,html:not([data-theme="dark"]) .tab-group.active .tab-group-label{color:var(--band-ink);border-bottom-color:var(--band-accent);}
+html:not([data-theme="dark"]) .app > .tabs-wrap .tabs{box-shadow:inset 0 -2px 0 var(--band-rule);}
 /* The band's lower edge is a soft rounded lip with a shadow, so it rests on the page instead of cutting across it. */
-html:not([data-theme="dark"]) .app > .tabs-wrap::before{border-radius:0 0 26px 26px;box-shadow:0 10px 24px -8px rgba(0,59,92,.38);}
+html:not([data-theme="dark"]) .app > .tabs-wrap::before{border-radius:0 0 26px 26px;box-shadow:0 10px 24px -8px var(--band-shadow);}
 
 /* Tinted insides: the cards stay white; what sits inside them takes the pale blue. */
 .su-sheet-list .su-rowwrap:nth-child(even),#allDayparts .su-sheet-list .su-rowwrap:nth-child(even){background:var(--inset);}

@@ -84,7 +84,8 @@ zone on both sides of the house and in Coach) and the daypart skies (`.su-col-*`
 Cards share `--card-shadow`; section labels in small caps are navy (`--eyebrow`).
 
 The day look (Tim, Nov 23 2026, picked from the palette options): a white floor
-and white cards that float on `--card-shadow`, a navy band (`--band`) across the
+and white cards that float on `--card-shadow`, a pale blue band (`--band`, navy
+ink, a rounded lip with a soft shadow; the deep navy was too strong) across the
 top that is the header plus the tab row (the header alone on a touch screen),
 and a pale blue inside each card (`--inset`, `-strong`, `-faint`, `-track`,
 `-line`) on its rows, headers, tracks and pills. The band is light only;
