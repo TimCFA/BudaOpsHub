@@ -1,6 +1,5 @@
 """Huddle (Tim, Nov 18 2026): the pre-huddle and post-huddle for each
-daypart, and the store's focus for the month and the week, on the Lists tab
-beside Leader Transition.
+daypart, and the store's focus for the month and the week, on the Lists tab.
 
 The focus. Directors set ONE focus for the month and ONE for the week for
 the whole store, each with a line on why it matters (and, if they like, the
@@ -96,7 +95,7 @@ PURPOSES = ['Serve guests well', 'Grow my people', 'Grow as a leader', 'Set the 
 PICKS = {
     'foh': {'purpose': PURPOSES,
             'priority': ['Speed of service', 'Second Mile Service', 'Food quality', 'Cleanliness', 'Order accuracy'],
-            'system': ['Zone Resets', 'Leader Transition List', 'OE Walkthrough', 'Food Safety Walkthrough', 'PEAs', 'Huddle']},
+            'system': ['Zone Resets', 'Food Safety Walkthrough', 'PEAs', 'Huddle']},
     'boh': {'purpose': PURPOSES,
             'priority': ['Food quality', 'Food safety', 'Speed of service', 'Cleanliness', 'Order accuracy'],
             'system': ['Food Safety Walkthrough', 'Prep Board', 'Waste logging', 'PEAs', 'Huddle']},

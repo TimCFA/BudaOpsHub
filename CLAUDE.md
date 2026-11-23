@@ -67,9 +67,9 @@ the waste chip, which keeps its own look (Tim, Nov 12 2026), sit on a second
 row.
 
 One meaning a colour (the Nov 2026 refresh): ink is "selected", red is "now"
-and "needs someone", navy is stats, green is done. On Set Ups and Lists the
-open daypart or handoff is one white card with its positions or zones as rows
-inside; a spot's zone colour is on its number badge. The Waste logger keeps
+and "needs someone", navy is stats, green is done. On Set Ups the open
+daypart is one white card with its positions as rows inside; a spot's zone
+colour is on its number badge. Zone Resets has its own page since Nov 23 2026 (see Zone Resets). The Waste logger keeps
 its own look (Tim's call); Home got its own redesign on Nov 21 2026 (see
 Home), on the same colour meanings. Tests: `tests/test_bottom_nav.py`.
 
@@ -105,6 +105,47 @@ at the top of right-now.js and in `tests/test_right_now.py`; ask before
 undoing one. Home is drawn in the first seconds of a load
 (`tests/test_first_load.py`), so anything new waits for the late scripts or
 is measured first.
+
+## Zone Resets
+
+The Zone Resets page under Lists (`static/js/zone-page.js`, "Zone Resets: the
+page" in theme-cfa.css; Tim, Nov 23 2026: "a lot of information and nothing
+stands out") is three steps, each one screen, in Home's language. The day:
+the five handoffs, always in the day's order, each wearing its time of day
+(its sky and start time) and saying where it stands (done, now, next, not
+finished); the one that's up is the bigger card. A tap opens a handoff: its
+zones as tiles, who owns each, how far along, a zone nobody owns in red. A tap
+on a zone opens its list on a sheet with big rows to tick. Nothing opens by
+itself, and the handoffs don't move with the clock (both were Oct 18 2026
+calls Tim reversed). Kept: a zone's last tick closes it and says what's left;
+Home's "zone" lines open their handoff. The helpers Home and Set Ups read
+(owners, completion, the current handoff) stay in `zone-reset.js`, in the
+first group of scripts; the page itself loads with the rest.
+
+Two views of the same three steps (Tim, Nov 23 2026: "Red flags should not
+be visible to team member. Reduce as much noise for team members as
+possible"). Leaders (Team Leads and up, a manager session: `zrLeaderView`)
+see the whole picture: the day's share done, the Lead Captain, what needs
+someone in red (no Lead Captain, zones with nobody, a handoff not finished),
+Hand off, who ticked what. Team Members, Trainers and a
+device nobody signed in on see only what they act on: the handoffs and where
+each stands, their own zone first and marked in ink ("Your zone"), the other
+zones with whose they are, the list. Nothing in red but "now"; no counts of
+what's wrong, no Hand off. The last six days and their star show to
+everyone (Tim: the team should have them). Anything new on this page goes on
+the leaders' view unless the team acts on it. Tests:
+`tests/test_zone_reset_flow.py` (runs the page in node) and
+`tests/test_zone_owners.py`.
+
+The Leader Transition List is off the hub for now (Tim, Nov 23 2026: it
+wasn't being used and added clutter; it comes back when list execution is
+stronger or leaders ask for it). Its pill, its page and its row in the
+leaders' weekly report are gone. Its items (`fohLeaderTransitionItems`) and
+what was saved (`fohLeaderTransitionChecked`, `fohLeaderTransitionDate`,
+`leaderTransitionHistory`, still in `STATE_SECTIONS`) are kept and still
+loaded and saved as they are, so nothing on the server changes. Don't bring
+it back without Tim asking. Neither it nor the OE Walkthrough (hidden since
+Sept 2026) is a Huddle quick pick. Tests: `tests/test_leader_transition_off.py`.
 
 ## Tasks
 
@@ -153,8 +194,7 @@ match `fohDayparts` in zone-reset.js (tests/test_timers.py checks).
 
 ## Huddle
 
-The Huddle page under Lists (OE on the full site), beside Leader Transition,
-is the pre-huddle and post-huddle for each daypart and the store's focus for
+The Huddle page under Lists (OE on the full site) is the pre-huddle and post-huddle for each daypart and the store's focus for
 the month and the week (`huddle_api.py`, `static/js/huddle.js`,
 `static/css/huddle.css`; Tim, Nov 18 2026). Team Leads and up, enforced by
 the server; directors set the focuses. The pre-huddle is Tim's Team Lead

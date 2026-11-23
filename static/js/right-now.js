@@ -1250,7 +1250,7 @@ function rnGo(g){
   }
   else if(what === 'zone'){
     currentZoneDaypart = rest;
-    zoneHandoffChosen = true;
+    currentChecklistZone = '';
     launchShowTab('zonereset');
     window.scrollTo({top: 0});
   }

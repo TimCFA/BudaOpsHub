@@ -173,7 +173,7 @@ const ES = {
   'Export CSV': 'Exportar CSV',
 
   // ----- Lists -----
-  'Leads sign in hint': 'Líderes de equipo: inicia sesión con tu PIN para la Transición de Líderes y el Conteo de la Caja Fuerte.',
+  'Leads sign in hint': 'Líderes de equipo: inicia sesión con tu PIN para la Reunión y el Conteo de la Caja Fuerte.',
 
   // ----- Food Safety -----
   'Complete': 'Completo',

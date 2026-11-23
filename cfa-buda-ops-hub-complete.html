@@ -191,6 +191,11 @@
   </div>
 
   <!-- Zone reset owner sheet: hand a zone's reset to someone (zone-reset.js zrOpenOwnerModal) -->
+  <!-- A zone's reset list (zone-page.js). Before the owner sheet, which opens over it. -->
+  <div class="overlay su-pick" id="zrZoneSheet" role="dialog" aria-modal="true" aria-labelledby="zrSheetTitle">
+    <div class="sheet su-pick-sheet zr-sheet" id="zrSheetBody"></div>
+  </div>
+
   <div class="overlay su-pick" id="zrOwnerModal" role="dialog" aria-modal="true" aria-labelledby="zrOwnerZone">
     <div class="sheet su-pick-sheet">
       <div class="su-pick-head">
@@ -508,17 +513,10 @@
   <div class="view" id="zoneresetView">
     <nav class="launch-subnav launch-only" aria-label="Lists" data-launch-subnav></nav>
 
-    <!-- On the simplified site Zone Resets and the Leader Transition List are
-         separate pills (launch-mode.js): data-launch-page says which pill a card belongs to. -->
-    <div class="standup-card" id="zoneResetCard" data-launch-page="zones">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <h3 style="margin:0;">Zone Reset</h3>
-        <span class="zone-overall-pct" id="zoneOverallPct">0%</span>
-      </div>
-      <div class="sub" style="margin-bottom:10px;">Open a handoff, then a zone, for its reset list</div>
-      <div id="zoneButtonRow"></div>
-      <div class="zr-history-label">Last 6 days</div>
-      <div class="zone-reset-scoreboard" id="zoneResetScoreboard"></div>
+    <!-- Zone Resets (zone-page.js; Tim, Nov 23 2026): the day's five handoffs, then a
+         handoff's zones, then a zone's list on a sheet (#zrZoneSheet). Nothing opens by itself. -->
+    <div class="zr-card" id="zoneResetCard">
+      <div id="zoneButtonRow" class="zr-page"></div>
     </div>
 
     <!-- OE Walkthrough: hidden from the page for now (Tim, Sept 2026). Its
@@ -537,14 +535,9 @@
       </div>
     </div>
 
-    <div class="standup-card" id="leaderTransitionCard" data-launch-page="leaders">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-        <h3 style="margin:0;">Leader Transition List <span class="sub"><i>Lista de Transición — Líderes</i></span></h3>
-        <span class="zone-overall-pct" id="leaderTransitionBadge">0%</span>
-      </div>
-      <div class="sub" style="margin-bottom:10px;">Open a handoff and complete its checklist before handing off to the next leader</div>
-      <div id="fohLeaderTransitionChecklist"></div>
-    </div>
+    <!-- The Leader Transition List sat here until Nov 23 2026 (Tim: off the hub for now, it
+         wasn't being used; back when leaders want it). Its items and saved history are kept
+         (zone-reset.js fohLeaderTransitionItems, leaderTransitionHistory). -->
   </div>
 
   <!-- Food Safety Walkthrough View (replaces the Google Form — see food-safety.js, TIM-5) -->
@@ -1195,7 +1188,7 @@
               <input type="checkbox" id="launchModeToggle" checked>
               <span><b>On</b> — team devices see only Home, Set Ups, Waste and Lists.</span>
             </label>
-            <details class="mv-more"><summary>What this means</summary><p>While the team is getting started, a device without the manager PIN sees Home, Set Ups, Waste and Lists (Zone Resets first, then Leader Transition, Timers, Food Safety, Safe Count and the Prep Board as pills). Devices signed in here see every tab. Turn it off and everyone sees everything.</p></details>
+            <details class="mv-more"><summary>What this means</summary><p>While the team is getting started, a device without the manager PIN sees Home, Set Ups, Waste and Lists (Zone Resets first, then Huddle, Timers, Food Safety, Safe Count and the Prep Board as pills). Devices signed in here see every tab. Turn it off and everyone sees everything.</p></details>
           </div>
 <div class="standup-card" id="signInCard" style="display:none;">
             <h3>Require sign-in</h3>
@@ -1289,6 +1282,7 @@
 <script src="/static/js/waste-log.js" defer></script>
 <script src="/static/js/waste-dash.js" defer></script>
 <script src="/static/js/waste-export.js" defer></script>
+<script src="/static/js/zone-page.js" defer></script>
 <script src="/static/js/fohoe-and-safecount.js" defer></script>
 <script src="/static/js/safe-order.js" defer></script>
 <script src="/static/js/food-safety.js" defer></script>

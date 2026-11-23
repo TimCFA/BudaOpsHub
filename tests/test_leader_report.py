@@ -1,6 +1,7 @@
 """Directors → Weekly report (static/js/leader-report.js, TIM-65): each FOH
-Lead Captain tied to how their dayparts went: Zone Reset and Leader
-Transition lists, PEAs, productivity against goal, waste and Food Safety.
+Lead Captain tied to how their dayparts went: the Zone Reset lists, PEAs,
+productivity against goal, waste and Food Safety. (The Leader Transition
+List was a measure too until it came off the hub; Tim, Nov 23 2026.)
 Monday Oct 12 2026 is "today"; last week is Oct 5–10."""
 import json
 import os
@@ -66,17 +67,6 @@ class Data(unittest.TestCase):
     def test_page_loads_report_after_directors(self):
         self.assertLess(PAGE.index('/static/js/directors.js'), PAGE.index('/static/js/leader-report.js'))
 
-    def test_leader_transition_history_recorded(self):
-        out = run("""c => {
-          fohLeaderTransitionChecked = {'Close': {0: {initials: 'TL', ts: 1}, 2: {initials: 'TL', ts: 2}}};
-          leaderTransitionHistory = {'2025-01-01': {}, '2026-01-01': {}};
-          ltRecordHistory();
-          return leaderTransitionHistory; }""")
-        self.assertEqual(out['2026-10-12']['Close'], [2, 4])
-        self.assertEqual(out['2026-10-12']['Lunch to Mid (1:00pm - 2:00pm)'], [0, 4])
-        self.assertNotIn('2025-01-01', out)     # past a year
-        self.assertIn('2026-01-01', out)
-
 
 class Report(unittest.TestCase):
     @classmethod
@@ -100,9 +90,10 @@ class Report(unittest.TestCase):
         # Breakfast→Lunch 3 of 4, Lunch→Mid 0 of 4; Dinner→Late Night 4 of 4.
         self.assertEqual(maya['zone'], {'checked': 3, 'total': 8})
         self.assertEqual(ava['zone'], {'checked': 4, 'total': 8})
-        # Leader Transition: a handoff with no record that day counts as 0.
-        self.assertEqual(maya['lt'], {'checked': 4, 'total': 8})
-        self.assertEqual(ava['lt'], {'checked': 0, 'total': 8})
+        # The Leader Transition List is off the hub (Tim, Nov 23 2026): no
+        # score for a list nobody can open, whatever its history holds.
+        self.assertNotIn('lt', maya)
+        self.assertNotIn('lt', ava)
 
     def test_peas(self):
         maya, ava = self.by['Maya Torres'], self.by['Ava Morales']
@@ -126,15 +117,13 @@ class Report(unittest.TestCase):
         prev = self.by['Maya Torres']['prev']
         self.assertEqual(prev['dayparts'], 1)
         self.assertEqual(prev['peasGiven'], 1)
-        # Before Leader Transition history began: no figure, not a zero.
-        self.assertEqual(prev['lt']['total'], 0)
         self.assertIsNone(self.by['Ava Morales']['prev'])
 
     def test_win_and_focus(self):
         maya, ava = self.by['Maya Torres']['coach'], self.by['Ava Morales']['coach']
         self.assertEqual(maya['win']['key'], 'waste')
         self.assertEqual(maya['focus']['key'], 'zone')
-        self.assertEqual(ava['focus']['key'], 'lt')
+        self.assertEqual(ava['focus']['key'], 'prod')   # not the Leader Transition List, which is off the hub
 
     def test_no_pea_given_is_the_focus(self):
         r = run(f"c => {{ {WEEK} peaRows = peaRows.filter(r => r.leader !== 'Ava Morales'); return lrReport(-1).leaders.find(L => L.name === 'Ava Morales').coach.focus; }}")

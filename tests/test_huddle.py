@@ -584,11 +584,11 @@ class Page(unittest.TestCase):
         self.assertIn("'huddle'", lm[lm.index('const LAUNCH_VIEWS'):lm.index('\n', lm.index('const LAUNCH_VIEWS'))])
         self.assertIn("'huddle'", re.search(r'const LISTS = \[[^\]]+\]', read('static', 'js', 'bottom-nav.js')).group(0))
 
-    def test_leaders_only_like_leader_transition(self):
+    def test_leaders_only_like_the_safe_count(self):
         lm = read('static', 'js', 'launch-mode.js')
         self.assertIn("{view: 'huddle', label: 'Huddle', sub: 'Reunión', leaders: true}", lm)
         nav = read('static', 'js', 'navigation.js')
-        self.assertIn("view === 'huddle' && typeof ltHidden === 'function' && ltHidden()", nav)
+        self.assertIn("view === 'huddle' && typeof scHidden === 'function' && scHidden()", nav)
 
     def test_it_loads_with_the_rest_never_the_first_group(self):
         names = re.findall(r'<script src="/static/(?:js|forms)/([\w.-]+)\.js" defer>', read('cfa-buda-ops-hub-complete.html'))

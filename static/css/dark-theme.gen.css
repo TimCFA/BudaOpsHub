@@ -39,10 +39,7 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .wt-sides span{background:rgba(53,48,37,0.12);}
 :where(html[data-theme="dark"]) .tape-row .r{color:var(--ink-dark-red);}
 :where(html[data-theme="dark"]) #zoneresetView{--su-ink:#DDDBD9;--su-muted:#BBB7B0;--su-line:#3C3933;}
-:where(html[data-theme="dark"]) .zone-acc-item.done .zone-acc-head{background:#262C27;}
-:where(html[data-theme="dark"]) .zone-acc-item.done .zone-acc-icon{background:#263E2C;color:#87D99E;}
-:where(html[data-theme="dark"]) .checklist-item-elevated.checked{background:#262C27;border-color:#366241;}
-:where(html[data-theme="dark"]) .checklist-item-elevated input[type="checkbox"],:where(html[data-theme="dark"]) .checklist-item input[type="checkbox"]{accent-color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .checklist-item input[type="checkbox"]{accent-color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .sc-type-grid .day-pill.active .sc-ic{background:rgba(29,29,29,0.18);}
 :where(html[data-theme="dark"]) .denom-sub.is-warn{color:var(--ink-red);}
 :where(html[data-theme="dark"]) .safe-log-variance.balanced{background:#27382B;color:#87D99E;}
@@ -105,15 +102,9 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .su-resets-body .su-reset:first-child{border-top:1px solid #37342F;}
 :where(html[data-theme="dark"]) .su-reset-who{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .su-reset.is-none .su-reset-zone,:where(html[data-theme="dark"]) .su-reset.is-none .su-reset-icon{color:var(--ink-red);}
-:where(html[data-theme="dark"]) .zone-acc-who{color:var(--ink-navy);}
-:where(html[data-theme="dark"]) .zone-acc-who.is-none{color:var(--ink-red);}
-:where(html[data-theme="dark"]) .zone-acc-item.is-unowned{background:#241E1E;}
-:where(html[data-theme="dark"]) .zone-acc-item.is-unowned .zone-acc-head{background:#241E1E;}
-:where(html[data-theme="dark"]) .zone-acc-item.is-unowned .zone-acc-icon{background:#3B2021;color:var(--ink-red);}
 :where(html[data-theme="dark"]) .zr-owner{background:#253239;color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .zr-owner-none{color:var(--ink-red);}
 :where(html[data-theme="dark"]) .zr-owner-hand:hover{color:var(--ink-navy);}
-:where(html[data-theme="dark"]) .zr-dp-unowned{background:#3B2021;color:var(--ink-red);}
 :where(html[data-theme="dark"]) .zr-owner-note.is-none{background:#3B2021;color:#FF4570;}
 :where(html[data-theme="dark"]) .su-skip-msg b{color:var(--ink-red);}
 :where(html[data-theme="dark"]) #allDayparts [data-su-tile].is-drop-target{background:#362421;}
@@ -250,6 +241,21 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
   :where(html[data-theme="dark"]) .rn-tile.is-go:hover .rn-tile-go{color:var(--ink-navy);}
   :where(html[data-theme="dark"]) .rn-hero.is-go:hover .rn-hero-go{background:rgba(29,29,29,0.32);}
 }
+:where(html[data-theme="dark"]) .zr-pct.is-high b{color:#78D091;}
+:where(html[data-theme="dark"]) .zr-h-sky{color:#DDDBD9;}
+:where(html[data-theme="dark"]) .zr-h-flag{color:var(--ink-dark-red);}
+:where(html[data-theme="dark"]) .zr-h.is-done{background:#262C27;border-color:#366241;}
+:where(html[data-theme="dark"]) .zr-h.is-done .zr-h-k{color:#7CDC9A;}
+:where(html[data-theme="dark"]) .zr-h.is-behind{border-color:#672C38;}
+:where(html[data-theme="dark"]) .zr-h.is-behind .zr-h-k{color:var(--ink-dark-red);}
+:where(html[data-theme="dark"]) .zr-hist-cell{border-top:4px solid rgba(41,41,41,0.35);background:rgba(29,29,29,0.1);}
+:where(html[data-theme="dark"]) .zr-hist-cell.is-today{background:rgba(29,29,29,0.2);}
+:where(html[data-theme="dark"]) .zr-back{color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .zr-zone.is-ok .zr-zone-n{color:#78D091;}
+:where(html[data-theme="dark"]) .zr-zone.is-bad .zr-zone-n{color:var(--ink-red);}
+:where(html[data-theme="dark"]) .zr-zone.is-bad .rn-ic{background:#3B2021;color:var(--ink-red);}
+:where(html[data-theme="dark"]) .zr-sheet .zr-owners.is-none{background:#342225;}
+:where(html[data-theme="dark"]) .zr-item.is-on{background:#262C27;border-color:#366241;}
 :where(html[data-theme="dark"]) .rn-evs-cal{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .rn-roster-ic{background:rgba(29,29,29,0.14);}
 :where(html[data-theme="dark"]) .rn-rg-h{color:var(--ink-navy);}
@@ -384,4 +390,3 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) #allDayparts .su-sheet-list .su-rowwrap + .su-rowwrap{border-top:1px solid #37342F;}
 :where(html[data-theme="dark"]) .su-row-choose{color:var(--ink-dark-red);}
 :where(html[data-theme="dark"]) .launch-subnav[aria-label="Lists"] .launch-pill.active{color:var(--cfa-bg);}
-:where(html[data-theme="dark"]) .zr-dp-body .zone-acc-item + .zone-acc-item{border-top:1px solid #37342F;}

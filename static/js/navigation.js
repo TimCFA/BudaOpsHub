@@ -14,8 +14,8 @@ function activateView(view){
   if(view === 'knownumbers' && typeof knPageShown === 'function' && !knPageShown()) view = 'prepboard';
   // Our Team: directors and the Admin Team (headcount.js).
   if(view === 'headcount' && !(typeof hcAllowed === 'function' && hcAllowed())) view = 'home';
-  // Huddle: Team Leads and up, like the Leader Transition List (huddle.js).
-  if(view === 'huddle' && typeof ltHidden === 'function' && ltHidden()) view = 'zonereset';
+  // Huddle: Team Leads and up, like the Safe Count (huddle.js).
+  if(view === 'huddle' && typeof scHidden === 'function' && scHidden()) view = 'zonereset';
   // Safe Count: not for Team Members or Trainers (fohoe-and-safecount.js).
   if(view === 'safecount' && typeof scHidden === 'function' && scHidden()) view = 'home';
   // An open (a tap) or a redraw of the page already showing (saved data
@@ -28,7 +28,7 @@ function activateView(view){
   if(view === 'positions') renderPositionsTab();
   if(view === 'schedule') renderTeamSchedule();
   if(view === 'wastelog'){ renderGrid(); renderTape(); }
-  if(view === 'zonereset'){ renderZoneResetView(); renderWalkthroughsPage(); }
+  if(view === 'zonereset'){ if(opened && typeof zrArrive === 'function') zrArrive(); renderZoneResetView(); renderWalkthroughsPage(); }   // zone-page.js: the cards rise in when the tab opens
   if(view === 'safecount') renderSafeCount();
   if(view === 'foodsafety'){ renderFoodSafety(); rpRenderFoodSafetyFindings(); }
   if(view === 'prepboard') renderPrepBoard();

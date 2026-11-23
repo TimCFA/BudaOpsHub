@@ -87,9 +87,6 @@ button,input,select,textarea{font-family:inherit;}
 .launch-pill.active{background:var(--cfa-navy);border-color:var(--cfa-navy);color:#F6F1E8;}
 .launch-pill.active span{color:rgba(246,241,232,0.75);}
 .launch-pill:hover:not(.active){border-color:var(--cfa-navy);}
-/* On the simplified site a list page shows only the cards of the open pill. */
-body.launch-mode #zoneresetView[data-launch-page="zones"] [data-launch-page="leaders"],
-body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="zones"]{display:none;}
 .week-toggle{background:var(--cfa-soft);border-radius:999px;}
 .su-week-toggle-btn,.week-toggle-btn{font-family:var(--font-ui);font-size:13px;text-transform:none;letter-spacing:0;color:var(--text-secondary);border-radius:999px;}
 .su-week-toggle-btn.active,.week-toggle-btn.active{background:var(--cfa-white);color:var(--cfa-dark-red);}
@@ -317,7 +314,7 @@ body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="z
 /* ===== Shared cards, buttons and fields (the shell every list page sits in) ===== */
 .standup-card{background:var(--cfa-white);border:1px solid var(--border);border-radius:16px;box-shadow:none;padding:18px;}
 .standup-card h3{font-family:var(--font-display);font-size:19px;font-weight:600;text-transform:none;letter-spacing:0;}
-.standup-card h3 .sub,#zoneresetView .standup-card h3 .sub{font-family:var(--font-display);font-style:italic;font-weight:400;font-size:13px;color:var(--text-tertiary);text-transform:none;}
+.standup-card h3 .sub{font-family:var(--font-display);font-style:italic;font-weight:400;font-size:13px;color:var(--text-tertiary);text-transform:none;}
 .standup-card .sub{font-family:var(--font-ui);}
 .section-intro{background:var(--cfa-light);border-radius:14px;font-family:var(--font-ui);font-size:13px;}
 .standup-btn,.btn{font-family:var(--font-ui);font-size:14px;font-weight:700;text-transform:none;letter-spacing:0;border-radius:999px;min-height:44px;}
@@ -331,42 +328,9 @@ body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="z
 
 /* ===== Zone Reset & Walkthroughs ===== */
 #zoneresetView{--su-card:var(--cfa-white);--su-ink:#1C1B19;--su-muted:#5F5A52;--su-line:#E4DCCF;}
-.zr-history-label{font-family:var(--font-ui);font-size:11px;font-weight:600;letter-spacing:0.12em;color:var(--text-secondary);}
-/* On Zone Reset the zone list sits under the banner, not inside it, so an
-   open banner keeps all four corners (Set Ups squares the bottom two for the
-   content that attaches there). */
-.zr-dp-list .su-dp.is-open .su-dp-head{border-radius:14px;}
-.zr-dp-track{background:var(--cfa-soft);}
-.zr-dp-bar,.su-dp .zr-dp-bar{background:var(--cfa-navy);}
-.su-dp.is-done .zr-dp-bar{background:var(--success);}
-.zr-dp-lead{font-family:var(--font-ui);}
-.zr-dp-now{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;background:var(--cfa-red);color:#fff;font-family:var(--font-ui);font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;vertical-align:2px;}
 .su-dp.is-now:not(.is-open) .su-dp-banner{border-color:var(--cfa-red);}
-.zone-acc-item{border:1px solid var(--border);border-radius:14px;background:var(--cfa-white);}
-.zone-acc-item.open{border-color:var(--cfa-navy);box-shadow:none;}
-.zone-acc-item.done{border-color:var(--success);}
-.zone-acc-head{background:var(--cfa-white);min-height:52px;padding:10px 12px;}
-.zone-acc-head:hover{background:var(--cfa-light);}
-.zone-acc-item.done .zone-acc-head{background:#EEF6F0;}
-.zone-acc-icon{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:9px;background:var(--cfa-soft);color:var(--text-primary);font-size:0;}
-.zone-acc-item.done .zone-acc-icon{background:#DCEFE1;color:#1F5B30;}
-.zone-acc-name{font-family:var(--font-ui);font-size:15px;font-weight:600;}
-.zone-acc-track{background:var(--cfa-soft);}
-.zone-acc-fill{background:var(--cfa-navy);}
-.zone-acc-count{font-family:var(--font-display);font-size:14px;}
-.zone-acc-body{background:var(--cfa-light);}
-.checklist-item-elevated{background:var(--cfa-white);border:1px solid var(--border);border-radius:12px;padding:11px 12px;}
-.checklist-item-elevated:hover{border-color:var(--cfa-navy);}
-.checklist-item-elevated.checked{background:#EEF6F0;border-color:#BFDCC6;}
-.checklist-item-elevated span{font-family:var(--font-ui);font-size:14px;}
-.checklist-item-elevated input[type="checkbox"],.checklist-item input[type="checkbox"]{accent-color:var(--cfa-navy);width:20px;height:20px;}
+.checklist-item input[type="checkbox"]{accent-color:var(--cfa-navy);width:20px;height:20px;}
 .checklist-cat{font-family:var(--font-ui);font-size:11px;font-weight:600;letter-spacing:0.12em;color:var(--text-secondary);}
-.zone-reset-scoreboard{margin-top:12px;}
-.scoreboard-day-label,.scoreboard-day-pct{font-family:var(--font-ui);}
-.scoreboard-day-bar-wrap{background:var(--cfa-soft);border-radius:6px;}
-.scoreboard-day-bar{background:var(--cfa-navy);border-radius:6px 6px 0 0;}
-.scoreboard-day.star .scoreboard-day-bar{background:var(--success);}
-.scoreboard-day.is-today .scoreboard-day-bar-wrap{outline-color:var(--cfa-red);}
 
 /* ===== Food Safety Walkthrough ===== */
 .fs-title{font-family:var(--font-display);font-size:24px;font-weight:600;}
@@ -889,19 +853,13 @@ body.launch-mode .su-row-notebtn{width:36px;height:36px;}
 .su-reset.is-none .su-reset-zone,.su-reset.is-none .su-reset-icon{color:var(--cfa-red);}
 .su-reset-pick{display:inline-flex;align-items:center;min-height:30px;padding:0 12px;border-radius:999px;background:var(--cfa-red);color:#fff;font-size:12px;font-weight:700;}
 
-/* Zone Reset page: owners on each zone, an unowned zone in red */
-.zone-acc-who{display:block;font-family:var(--font-ui);font-size:12.5px;font-weight:600;color:var(--cfa-navy);margin-top:1px;}
-.zone-acc-who.is-none{color:var(--cfa-red);}
-.zone-acc-item.is-unowned{border-color:var(--cfa-red);background:#FFF7F7;}
-.zone-acc-item.is-unowned .zone-acc-head{background:#FFF7F7;}
-.zone-acc-item.is-unowned .zone-acc-icon{background:#FBE3E4;color:var(--cfa-red);}
+/* Zone Resets: who owns a zone's reset (the zone's sheet and the owner sheet) */
 .zr-owners{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:2px 2px 8px;font-family:var(--font-ui);font-size:12.5px;color:var(--text-secondary);}
 .zr-owner{background:#E3EEF4;color:var(--cfa-navy);border-radius:999px;padding:3px 10px;font-weight:600;}
 .zr-owner.is-added{background:transparent;border:1px dashed var(--cfa-navy);}
 .zr-owner-none{color:var(--cfa-red);font-weight:600;}
 .zr-owner-hand{margin-left:auto;min-height:32px;border:1px solid var(--border);background:var(--cfa-white);border-radius:999px;padding:4px 12px;font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;}
 .zr-owner-hand:hover{border-color:var(--cfa-navy);color:var(--cfa-navy);}
-.zr-dp-unowned{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;background:#FBE3E4;color:var(--cfa-red);font-family:var(--font-ui);font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;vertical-align:2px;}
 .zr-owner-note.is-none{background:#FBE3E4;color:#B3002A;}
 #zrOwnerModal .pos-option-tag{font-size:12px;color:var(--text-secondary);white-space:nowrap;}
 #zrOwnerModal .su-pick-foot:empty{display:none;}
@@ -2018,6 +1976,129 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
   .rn-sec-cal .rn-pill.is-bad{animation:rnNow 1.8s ease-in-out infinite;}
 }
 
+/* ===== Zone Resets: the page (zone-page.js; Tim, Nov 23 2026) =====
+   Home's language on the Lists tab: the day's five handoffs in the day's
+   order, each wearing its time of day; a handoff's zones as tiles; a zone's
+   list on a sheet. Built from the Right Now pieces above (.rn-hero,
+   .rn-tile, .rn-bar, .rn-ic, .rn-pea, .rn-kicker), so the two pages change
+   together. Red is "now / needs someone", green is done, navy is stats. */
+.zr-card{margin:0 0 20px;}
+.zr-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 2px 10px;}
+.zr-top .rn-kicker{padding-top:0;}
+.zr-pct{flex:none;font-family:var(--font-ui);font-size:12.5px;font-weight:700;color:var(--text-secondary);}
+.zr-pct b{margin-right:3px;font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--text-primary);}
+.zr-pct.is-high b{color:#2E7D45;}
+
+/* 1. The day: a card a handoff, its sky and its start time down the left edge */
+.zr-list{display:grid;gap:10px;margin-bottom:14px;}
+.zr-h{-webkit-appearance:none;appearance:none;display:flex;align-items:stretch;width:100%;margin:0;padding:0;overflow:hidden;border:1px solid var(--border);border-radius:18px;background:var(--cfa-white);color:var(--text-primary);font:inherit;text-align:left;cursor:pointer;}
+.zr-h-sky{flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:76px;padding:10px 6px;background:var(--sky);color:#1C1B19;}
+.zr-h-sky svg{width:42px;height:30px;}
+.zr-h-sky b{font-family:var(--font-ui);font-size:15.5px;font-weight:800;letter-spacing:-.01em;font-variant-numeric:tabular-nums;}
+.zr-h.su-col-c .zr-h-sky{color:#F6F1E8;}
+.zr-h-main{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:2px;padding:12px 4px 12px 14px;font-family:var(--font-ui);}
+.zr-h-k{align-self:flex-start;display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--text-tertiary);}
+.zr-h-k svg{width:13px;height:13px;}
+.zr-h-name{font-family:var(--font-display);font-size:21px;font-weight:700;line-height:1.12;letter-spacing:-.005em;}
+.zr-h-meta{font-size:13.5px;font-weight:500;line-height:1.3;color:var(--text-secondary);}
+.zr-h-flag{font-size:13px;font-weight:700;line-height:1.3;color:var(--cfa-dark-red);}
+.zr-h-flag::before{content:"";display:inline-block;width:7px;height:7px;margin-right:6px;border-radius:50%;background:var(--cfa-red);vertical-align:1px;}
+.zr-h .rn-bar{margin-top:8px;}
+.zr-h-go{flex:none;display:inline-flex;align-items:center;padding:0 12px 0 6px;color:var(--text-tertiary);}
+.zr-h:focus-visible,.zr-back:focus-visible,.rn-tile.zr-zone:focus-visible,.zr-item:focus-visible,.zr-done:focus-visible{outline:2px solid var(--cfa-navy);outline-offset:2px;}
+/* The one that's up (on now, else next) is the bigger card; nothing opens by itself */
+.zr-h.is-up{border:2px solid var(--text-primary);box-shadow:0 8px 22px rgba(28,27,25,.10);}
+.zr-h.is-up .zr-h-sky{width:86px;}
+.zr-h.is-up .zr-h-sky svg{width:54px;height:39px;}
+.zr-h.is-up .zr-h-sky b{font-size:18px;}
+.zr-h.is-up .zr-h-main{padding:15px 4px 16px 14px;}
+.zr-h.is-up .zr-h-name{font-size:27px;}
+.zr-h.is-next .zr-h-k{color:var(--text-primary);}
+.zr-h.is-now{border-color:var(--cfa-red);}
+.zr-h.is-now .zr-h-k{padding:4px 9px;border-radius:999px;background:var(--cfa-red);color:#FFFFFF;}
+.zr-h.is-done{background:#EEF6F0;border-color:#BFDCC6;}
+.zr-h.is-done .zr-h-k{color:#1F6B37;}
+.zr-h.is-behind{border-color:#F3B8C4;}
+.zr-h.is-behind .zr-h-k{color:var(--cfa-dark-red);}
+/* The team's page (Team Members, Trainers, a signed-out device): nothing in
+   red but "now"; their own zone is the one thing marked, in ink ("selected"). */
+.zr-h-mine{color:var(--text-primary);}
+.zr-h-mine b{font-weight:800;}
+
+/* The last six days: a navy stats panel, as Home's PEA */
+.zr-hist{margin-bottom:0;}
+.zr-hist-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;}
+.zr-hist-cell{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px 9px;border-radius:10px;border-top:4px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);}
+.zr-hist-cell span{display:inline-flex;align-items:center;gap:3px;font-family:var(--font-ui);font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.8);}
+.zr-hist-cell b{font-family:var(--font-display);font-size:17px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums;}
+.zr-hist-cell.is-star{border-top-color:#7BD88F;}
+.zr-hist-cell.is-star svg{color:#F2C14E;}
+.zr-hist-cell.is-today{background:rgba(255,255,255,.2);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.7);}
+
+/* 2. A handoff: back, its banner, its zones as tiles */
+.zr-back{-webkit-appearance:none;appearance:none;display:inline-flex;align-items:center;gap:3px;min-height:44px;margin:-4px 0 4px -8px;padding:6px 14px 6px 8px;border:0;border-radius:999px;background:transparent;font-family:var(--font-ui);font-size:14.5px;font-weight:700;color:var(--cfa-navy);cursor:pointer;}
+.zr-back:active{background:var(--cfa-soft);}
+.zr-hero-sky{position:relative;z-index:1;flex:none;display:inline-flex;align-items:center;justify-content:center;width:62px;height:62px;border-radius:16px;background:var(--sky);}
+.zr-hero-sky svg{width:44px;height:32px;}
+.rn-tile.zr-zone{-webkit-appearance:none;appearance:none;width:100%;min-height:106px;margin:0;padding:10px 12px 12px;color:inherit;font-family:var(--font-ui);text-align:left;cursor:pointer;}
+.zr-zone-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px;}
+.zr-zone-top .rn-ic{width:36px;height:36px;}
+.zr-zone-top .rn-ic svg{width:20px;height:20px;}
+.zr-zone-n{font-family:var(--font-display);font-size:19px;font-weight:700;color:var(--text-secondary);font-variant-numeric:tabular-nums;}
+.zr-zone .rn-tile-l{padding-right:0;font-size:15.5px;}
+.zr-zone.is-ok .zr-zone-n{color:#2E7D45;}
+.zr-zone.is-bad .zr-zone-n{color:var(--cfa-red);}
+.zr-zone.is-bad .rn-ic{background:#FBE3E4;color:var(--cfa-red);}
+.zr-zone.is-mine{border:2px solid var(--text-primary);}
+.zr-zone.is-mine .rn-tile-d{font-weight:800;color:var(--text-primary);}
+.zr-zone:active{transform:scale(.98);}
+
+/* 3. A zone: its list on a sheet, big rows to tick */
+/* The dim layer behind a picker sheet had a green line down its left edge: main.css has another .su-pick (a suggestion card) whose border it picked up. */
+.overlay.su-pick{border:0;border-radius:0;}
+.zr-sheet-prog{display:flex;align-items:center;gap:10px;margin:0 0 10px;}
+.zr-sheet-prog b{flex:none;font-family:var(--font-ui);font-size:13px;font-weight:800;color:var(--text-primary);}
+.zr-sheet-prog .rn-bar{flex:1;height:8px;margin-top:0;}
+.zr-sheet .zr-owners{padding:0 0 10px;font-size:13.5px;}
+.zr-sheet .zr-owners.is-none{margin-bottom:10px;padding:8px 8px 8px 12px;border-radius:12px;background:#FDECEF;}
+.zr-sheet .zr-owner{display:inline-flex;align-items:center;gap:6px;padding:3px 11px 3px 3px;}
+.zr-owner i{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--cfa-navy);color:#FFFFFF;font-size:10.5px;font-style:normal;font-weight:800;}
+.zr-sheet .zr-owner-hand{min-height:40px;padding:6px 14px;font-size:13.5px;font-weight:700;}
+.zr-sheet .zr-owners.is-none .zr-owner-hand{border-color:var(--cfa-red);background:var(--cfa-red);color:#FFFFFF;}
+.zr-items{display:flex;flex-direction:column;gap:8px;max-height:min(54vh,480px);margin:0 -4px;padding:2px 4px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+.zr-item{-webkit-appearance:none;appearance:none;flex:none;display:flex;align-items:center;gap:12px;width:100%;min-height:56px;margin:0;padding:10px 12px;border:1px solid var(--border);border-radius:14px;background:var(--cfa-white);color:var(--text-primary);font-family:var(--font-ui);font-size:16px;font-weight:600;line-height:1.25;text-align:left;cursor:pointer;}
+.zr-box{flex:none;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:2px solid var(--text-tertiary);border-radius:9px;color:transparent;}
+.zr-item-t{flex:1;min-width:0;}
+.zr-item small{flex:none;font-family:var(--font-display);font-size:11.5px;font-style:italic;font-weight:400;color:var(--text-tertiary);white-space:nowrap;}
+.zr-item.is-on{background:#EEF6F0;border-color:#BFDCC6;color:var(--text-secondary);}
+.zr-item.is-on .zr-box{border-color:#2E7D45;background:#2E7D45;color:#FFFFFF;}
+.zr-sheet .su-pick-foot{margin-top:12px;}
+.zr-done{-webkit-appearance:none;appearance:none;flex:1;min-height:52px;border:0;border-radius:14px;background:var(--text-primary);color:var(--cfa-white);font-family:var(--font-ui);font-size:15.5px;font-weight:800;cursor:pointer;}
+
+/* A tablet or a computer: the day across the screen, morning to night; the zones three across */
+@media (min-width:860px){
+  .zr-list{grid-template-columns:repeat(5,minmax(0,1fr));}
+  .zr-h{flex-direction:column;}
+  .zr-h-sky,.zr-h.is-up .zr-h-sky{flex-direction:row;justify-content:space-between;width:auto;padding:12px 14px;}
+  .zr-h-sky b,.zr-h.is-up .zr-h-sky b{font-size:19px;}
+  .zr-h-main,.zr-h.is-up .zr-h-main{justify-content:flex-start;padding:12px 14px 14px;}
+  .zr-h.is-up .zr-h-name{font-size:23px;}
+  .zr-h-go{display:none;}
+  .zr-zones{grid-template-columns:repeat(3,minmax(0,1fr));}
+  .zr-zones > :last-child:nth-child(odd){grid-column:auto;}
+  .zr-hist{max-width:560px;}
+}
+@media (prefers-reduced-motion:no-preference){
+  .zr-h,.rn-tile.zr-zone{transition:transform .12s ease-out;}
+  .zr-h:active{transform:scale(.985);}
+  .zr-enter .zr-h,.zr-enter .rn-hero,.zr-enter .rn-tile,.zr-enter .zr-hist{animation:rnRise .36s cubic-bezier(.2,.7,.2,1) both;}
+  .zr-enter .zr-h:nth-child(2),.zr-enter .rn-tile:nth-child(n+3){animation-delay:.04s;}
+  .zr-enter .zr-h:nth-child(3),.zr-enter .rn-tile:nth-child(n+5){animation-delay:.08s;}
+  .zr-enter .zr-h:nth-child(4),.zr-enter .rn-tile:nth-child(n+7){animation-delay:.12s;}
+  .zr-enter .zr-h:nth-child(5),.zr-enter .zr-hist{animation-delay:.16s;}
+  .zr-enter .rn-bar i{animation:rnFill .7s .15s cubic-bezier(.2,.7,.2,1) both;}
+}
+
 /* The one event, on its own: a sheet from the bottom on a phone, a card in
    the middle on a computer. */
 .rn-evs{position:fixed;inset:0;z-index:1200;display:none;align-items:flex-end;justify-content:center;background:rgba(20,18,15,.5);}
@@ -2413,8 +2494,6 @@ body.rn-evs-on{overflow:hidden;}
 .wd-bar-row.is-wide{grid-template-columns:96px 1fr 92px;}
 /* Safe Count: hidden from Team Members and Trainers (fohoe-and-safecount.js scSyncVisibility) */
 body.sc-hidden [data-view="safecount"]{display:none !important;}
-/* Leader Transition List: Team Lead and above (fohoe-and-safecount.js ltHidden) */
-body.lt-hidden #leaderTransitionCard{display:none !important;}
 
 /* Waste Summary: correct an entry logged as the wrong item (waste-dash.js) */
 .wd-entry-go{display:inline-flex;align-items:center;gap:6px;flex:none;}
@@ -2543,8 +2622,8 @@ button.fs-history-row:hover > span:first-child{color:var(--cfa-red);}
   body.launch-mode .tab{flex:0 0 auto;padding:12px 10px;}
 }
 
-/* Lists on a device nobody signed in on: where Leader Transition and Safe
-   Count went (launch-mode.js; Tim, Oct 21 2026). */
+/* Lists on a device nobody signed in on: where Huddle and Safe Count went
+   (launch-mode.js; Tim, Oct 21 2026). */
 .launch-signin-hint{margin:18px 0 6px;font-family:var(--font-ui);font-size:13px;color:var(--text-secondary);}
 .launch-signin-hint button{padding:0;border:0;background:none;color:var(--cfa-red);font:inherit;font-weight:700;text-decoration:underline;text-underline-offset:2px;cursor:pointer;}
 .launch-signin-hint .es-line{display:block;margin-top:2px;}
@@ -3273,7 +3352,7 @@ body.hub-warming::after{content:"Loading the rest… · Cargando…";position:fi
 .su-col-c.is-open .su-dp-head{color:var(--text-primary);}
 .su-col-c.is-open .su-dp-head .su-dp-time,.su-col-c.is-open .su-dp-head .su-dp-chev{color:var(--text-secondary);}
 .su-dp.is-open .su-dp-fill:not(.is-short){background:var(--cfa-soft);}
-#allDayparts .su-dp.is-open,.zr-dp-list .su-dp.is-open{border-radius:16px;box-shadow:0 6px 18px rgba(28,27,25,0.07);}
+#allDayparts .su-dp.is-open{border-radius:16px;box-shadow:0 6px 18px rgba(28,27,25,0.07);}
 
 /* Set Ups: the banner and its positions read as one card */
 #allDayparts .su-dp.is-open .su-dp-banner{border-radius:16px 16px 0 0;}
@@ -3295,19 +3374,6 @@ body.hub-warming::after{content:"Loading the rest… · Cargando…";position:fi
 .launch-subnav[aria-label="Lists"] .launch-pill span{font-size:10.5px;color:var(--text-secondary);}
 .launch-subnav[aria-label="Lists"] .launch-pill.active{background:var(--text-primary);color:#F6F1E8;}
 .launch-subnav[aria-label="Lists"] .launch-pill.active span{color:rgba(246,241,232,0.75);}
-
-/* Zone Reset: the open handoff and its zones are one card; a finished zone
-   shows a green check where its icon was */
-.zr-dp-list .su-dp.is-open .su-dp-banner{border-radius:16px 16px 0 0;}
-.zr-dp-list .su-dp.is-open .su-dp-head{border-radius:16px 16px 0 0;}
-.zr-dp-list .su-dp.is-open .zr-dp-body{padding:0;}
-.zr-dp-body .zone-acc{gap:0;background:var(--cfa-white);border:1px solid var(--border);border-top:0;border-radius:0 0 16px 16px;overflow:hidden;}
-.zr-dp-body .zone-acc-item{border:0;border-radius:0;}
-.zr-dp-body .zone-acc-item + .zone-acc-item{border-top:1px solid #EFE9DE;}
-.zr-dp-body .zone-acc-item.open .zone-acc-head{background:var(--cfa-light);}
-.zr-dp-body .zone-acc-icon{border-radius:999px;}
-.zr-dp-body .zone-acc-item.done .zone-acc-icon svg{display:none;}
-.zr-dp-body .zone-acc-item.done .zone-acc-icon::after{content:"";width:17px;height:17px;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E") center/contain no-repeat;}
 
 /* ===== Set Ups on a computer: the name beside its position (Tim, Nov 13 2026) =====
    On a wide screen the name sat at the far right of the row, a screen's
