@@ -275,6 +275,18 @@ Nothing shows to the team until a director turns it on (Tim's call). A
 director is told by a row on Right Now and a badge on the tab; there is no
 email yet. English only. Tests: `tests/test_week.py`.
 
+## PEA scores in Set Ups
+
+A Team Lead placing someone sees that person's PEA score at the position (the
+picker's dot and "Crushing It · 2.90", the person sheet; Tim, Nov 22 2026).
+The ratings stay private: the saved `pea` section still goes to manager
+sessions only. A lead's phone asks `/api/setups/pea` for a cut-down copy
+(`pea_mine.lead_view`: no raters, nobody whose latest Levelset role is a
+leader's) and keeps it in memory only (`peaLead` in pea-ratings.js), never in
+`peaRatings`, so it can't be saved back or left on the phone. Anything Set Ups
+reads goes through `peaShown()` / `peaAliasesShown()`, not `peaRatings`
+directly. Tests: `tests/test_lead_pea.py`.
+
 ## Deploying
 
 Merging to `main` deploys to Render and restarts the server for about a

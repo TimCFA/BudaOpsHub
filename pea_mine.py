@@ -131,3 +131,53 @@ def scores_for(pea, roster_name):
                     'last': list_[0][0][:10], 'tier': key, 'tierLabel': label})
     out.sort(key=lambda x: (-x['avg'], x['position']))
     return {'name': who, 'positions': out}
+
+
+# ----- What a Team Lead sees in Set Ups (Tim, Nov 22 2026) -----
+#
+# A Team Lead placing someone sees that person's score at the position. The
+# ratings stay private: the lead's phone gets a copy cut down to what Set Ups
+# reads, held in memory only (pea-ratings.js peaLead), never the saved 'pea'
+# section. Cut out: who gave each rating, and every rating of someone whose
+# latest Levelset role is a leader's (a lead doesn't see another lead's
+# scores, nor a director's). Same shape as peaRatings, so the page reads it
+# the same way.
+LEADER_ROLE = re.compile(r'lead|director|manager|operator|admin', re.I)
+
+
+def lead_view(pea):
+    """{'peaRatings': {...}, 'peaNameAliases': {...}} for a Team Lead."""
+    pea = pea if isinstance(pea, dict) else {}
+    ratings = pea.get('peaRatings') if isinstance(pea.get('peaRatings'), dict) else {}
+    lst = lambda k: ratings.get(k) if isinstance(ratings.get(k), list) else []
+    names, positions, roles, rows = lst('names'), lst('positions'), lst('roles'), lst('rows')
+    aliases = pea.get('peaNameAliases') if isinstance(pea.get('peaNameAliases'), dict) else {}
+
+    good, latest = [], {}                      # rows that read cleanly; name index -> (at, role) of the latest
+    for r in rows:
+        try:
+            at, who, role = str(r[0]), names[r[1]], roles[r[2]] if 0 <= r[2] < len(roles) else ''
+            if not isinstance(who, str) or not who or r[1] < 0 or not positions[r[4]] or r[4] < 0 or len(r) < 11:
+                continue
+        except (IndexError, TypeError):
+            continue
+        good.append(r)
+        if r[1] not in latest or at >= latest[r[1]][0]:
+            latest[r[1]] = (at, str(role or ''))
+    shown = {i for i, (_, role) in latest.items() if not LEADER_ROLE.search(role)}
+
+    out_names, index = [], {}
+    out_rows = []
+    for r in good:
+        if r[1] not in shown:
+            continue
+        if r[1] not in index:
+            index[r[1]] = len(out_names)
+            out_names.append(names[r[1]])
+        out_rows.append([r[0], index[r[1]], r[2], -1, r[4]] + list(r[5:11]))     # -1: no rater
+    kept = set(out_names)
+    coverage = ratings.get('coverage') if isinstance(ratings.get('coverage'), dict) else {}
+    labels = ratings.get('labels') if isinstance(ratings.get('labels'), dict) else {}
+    return {'peaRatings': {'names': out_names, 'positions': positions, 'roles': roles, 'rows': out_rows,
+                           'uploads': [], 'coverage': coverage, 'labels': labels},
+            'peaNameAliases': {k: v for k, v in aliases.items() if v == NOT_IN_LEVELSET or v in kept}}

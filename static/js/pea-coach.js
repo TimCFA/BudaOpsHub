@@ -26,7 +26,7 @@ const PEA_COACH_GAP = 0.25;         // weakest category this far below the best
 // Ratings by person and position, newest first; rebuilt when ratings change.
 let peaByPersonPosCache = {rows: null, len: -1, map: null};
 function peaByPersonPos(){
-  const rows = peaRatings.rows;
+  const rows = peaShown().rows;
   if(peaByPersonPosCache.rows === rows && peaByPersonPosCache.len === rows.length) return peaByPersonPosCache.map;
   const map = {};
   peaAllRatings().forEach(r => { (map[r.employee + '||' + r.position] = map[r.employee + '||' + r.position] || []).push(r); });
@@ -36,7 +36,7 @@ function peaByPersonPos(){
 }
 
 function peaCategoryName(position, i){
-  const names = (peaRatings.labels || {})[position];
+  const names = (peaShown().labels || {})[position];
   return names && names[i] ? names[i] : `Category ${i + 1}`;
 }
 
