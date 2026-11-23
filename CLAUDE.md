@@ -85,12 +85,15 @@ Cards share `--card-shadow`; section labels in small caps are navy (`--eyebrow`)
 
 The day look (Tim, Nov 23 2026, picked from the palette options): a white floor
 and white cards that float on `--card-shadow`, a pale blue band (`--band`, navy
-ink, a rounded lip with a soft shadow; the deep navy was too strong) across the
+ink; the deep navy was too strong) that melts into the white at its lower edge
+(no line, no rounded corners) across the
 top that is the header plus the tab row (the header alone on a touch screen),
 and a pale blue inside each card (`--inset`, `-strong`, `-faint`, `-track`,
 `-line`) on its rows, headers, tracks and pills. The band is light only;
 dark is Midnight (deep navy ground, `#142238` cards; dark.css). The waste chip
-and the initials badge sit on the band as they always did. Never put a tan or
+and the initials badge sit on the band as they always did. The title
+("Ops Hub Buda", top left) is a link home: it presses the Home tab
+(navigation.js), and a new-tab click opens the front page. Never put a tan or
 cream back: ground and cards are white, tints are the cool `--inset` family.
 
 ## Tasks

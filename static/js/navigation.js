@@ -128,6 +128,23 @@ document.addEventListener('click', (e)=>{
   if(!e.target.closest('.tab-group')) closeAllTabDropdowns();
 });
 
+// The title top left goes Home (Tim, Nov 23 2026). It presses the Home tab the
+// way the bottom bar does, so the active tab, the scroll and everything that
+// follows a tab press stay the same. A new-tab click (ctrl, cmd, shift, middle)
+// is left alone and opens the front page as any link would.
+(function(){
+  const home = document.getElementById('hdrHome');
+  if(!home) return;
+  home.addEventListener('click', (e)=>{
+    if(e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+    e.preventDefault();
+    const tab = document.querySelector('.tabs .tab[data-view="home"]');
+    if(tab) tab.click();
+    window.scrollTo(0, 0);
+    if(typeof window.bnavSync === 'function') window.bnavSync();   // bottom-nav.js: its Home button lights up
+  });
+})();
+
 // Scrolling closes an open menu, except the nudge the browser can give the
 // page as the tapped button takes focus (that would close it as it opens).
 let tabDropdownOpenedAt = 0;
