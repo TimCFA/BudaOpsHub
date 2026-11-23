@@ -108,7 +108,8 @@ class Refresh(unittest.TestCase):
         self.assertIn('#allDayparts .su-sheet-list .su-rowwrap{background:transparent;border:0;border-radius:0;}', self.css)
         self.assertIn('#allDayparts .su-sheet-list .su-row{box-shadow:none;', self.css)        # no stripe down the left edge
         self.assertIn('color-mix(in srgb,var(--zc) 22%,var(--cfa-white))', self.css)            # the zone colour is on the number
-        self.assertIn('.zr-dp-body .zone-acc-item{border:0;border-radius:0;}', self.css)
+        # Zone Resets left this for tiles on Nov 23 2026 (tests/test_zone_reset_flow.py); the Leader Transition List is still one card.
+        self.assertIn('.zr-dp-list .su-dp.is-open .zr-dp-body{padding:0;}', self.css)
 
     def test_waste_keeps_its_navy_pills(self):
         # Only the Lists pills became the one-row ink switch; Waste's are as they were.

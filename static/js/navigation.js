@@ -28,7 +28,7 @@ function activateView(view){
   if(view === 'positions') renderPositionsTab();
   if(view === 'schedule') renderTeamSchedule();
   if(view === 'wastelog'){ renderGrid(); renderTape(); }
-  if(view === 'zonereset'){ renderZoneResetView(); renderWalkthroughsPage(); }
+  if(view === 'zonereset'){ if(opened && typeof zrArrive === 'function') zrArrive(); renderZoneResetView(); renderWalkthroughsPage(); }   // zone-page.js: the cards rise in when the tab opens
   if(view === 'safecount') renderSafeCount();
   if(view === 'foodsafety'){ renderFoodSafety(); rpRenderFoodSafetyFindings(); }
   if(view === 'prepboard') renderPrepBoard();

@@ -67,9 +67,10 @@ the waste chip, which keeps its own look (Tim, Nov 12 2026), sit on a second
 row.
 
 One meaning a colour (the Nov 2026 refresh): ink is "selected", red is "now"
-and "needs someone", navy is stats, green is done. On Set Ups and Lists the
-open daypart or handoff is one white card with its positions or zones as rows
-inside; a spot's zone colour is on its number badge. The Waste logger keeps
+and "needs someone", navy is stats, green is done. On Set Ups the open
+daypart is one white card with its positions as rows inside (the Leader
+Transition List's handoffs too); a spot's zone colour is on its number
+badge. Zone Resets has its own page since Nov 23 2026 (see Zone Resets). The Waste logger keeps
 its own look (Tim's call); Home got its own redesign on Nov 21 2026 (see
 Home), on the same colour meanings. Tests: `tests/test_bottom_nav.py`.
 
@@ -105,6 +106,25 @@ at the top of right-now.js and in `tests/test_right_now.py`; ask before
 undoing one. Home is drawn in the first seconds of a load
 (`tests/test_first_load.py`), so anything new waits for the late scripts or
 is measured first.
+
+## Zone Resets
+
+The Zone Resets page under Lists (`static/js/zone-page.js`, "Zone Resets: the
+page" in theme-cfa.css; Tim, Nov 23 2026: "a lot of information and nothing
+stands out") is three steps, each one screen, in Home's language. The day:
+the five handoffs, always in the day's order, each wearing its time of day
+(its sky and start time) and saying where it stands (done, now, next, not
+finished); the one that's up is the bigger card. A tap opens a handoff: its
+zones as tiles, who owns each, how far along, a zone nobody owns in red. A tap
+on a zone opens its list on a sheet with big rows to tick. Nothing opens by
+itself, and the handoffs don't move with the clock (both were Oct 18 2026
+calls Tim reversed). Kept: a zone's last tick closes it and says what's left;
+Home's "zone" lines open their handoff. The helpers Home and Set Ups read
+(owners, completion, the current handoff) stay in `zone-reset.js`, in the
+first group of scripts; the page itself loads with the rest. The Leader
+Transition List still wears the sky banners. Tests:
+`tests/test_zone_reset_flow.py` (runs the page in node) and
+`tests/test_zone_owners.py`.
 
 ## Tasks
 

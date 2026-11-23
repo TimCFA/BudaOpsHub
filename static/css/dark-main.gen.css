@@ -38,7 +38,6 @@ html[data-theme="dark"]{--cfa-white:#1D1D1D;--cfa-bg:#262626;--cfa-light:#222222
 :where(html[data-theme="dark"]) .stepper button:hover{color:var(--ink-red);}
 :where(html[data-theme="dark"]) .cost-preview b{color:var(--ink-red);}
 :where(html[data-theme="dark"]) .btn-add-tm{color:var(--ink-red);}
-:where(html[data-theme="dark"]) .zone-acc-item.done .zone-acc-head{background:#222722;}
 :where(html[data-theme="dark"]) #zoneresetView{--su-card:#1D1D1D;--su-ink:#DDDBD9;--su-muted:#B4B0A9;--su-line:#3A3732;}
 :where(html[data-theme="dark"]) .zr-dp-track{background:rgba(255,255,255,0.12);}
 :where(html[data-theme="dark"]) .checklist-tile.done{background:#222722;}

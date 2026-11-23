@@ -191,6 +191,11 @@
   </div>
 
   <!-- Zone reset owner sheet: hand a zone's reset to someone (zone-reset.js zrOpenOwnerModal) -->
+  <!-- A zone's reset list (zone-page.js). Before the owner sheet, which opens over it. -->
+  <div class="overlay su-pick" id="zrZoneSheet" role="dialog" aria-modal="true" aria-labelledby="zrSheetTitle">
+    <div class="sheet su-pick-sheet zr-sheet" id="zrSheetBody"></div>
+  </div>
+
   <div class="overlay su-pick" id="zrOwnerModal" role="dialog" aria-modal="true" aria-labelledby="zrOwnerZone">
     <div class="sheet su-pick-sheet">
       <div class="su-pick-head">
@@ -510,15 +515,10 @@
 
     <!-- On the simplified site Zone Resets and the Leader Transition List are
          separate pills (launch-mode.js): data-launch-page says which pill a card belongs to. -->
-    <div class="standup-card" id="zoneResetCard" data-launch-page="zones">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <h3 style="margin:0;">Zone Reset</h3>
-        <span class="zone-overall-pct" id="zoneOverallPct">0%</span>
-      </div>
-      <div class="sub" style="margin-bottom:10px;">Open a handoff, then a zone, for its reset list</div>
-      <div id="zoneButtonRow"></div>
-      <div class="zr-history-label">Last 6 days</div>
-      <div class="zone-reset-scoreboard" id="zoneResetScoreboard"></div>
+    <!-- Zone Resets (zone-page.js; Tim, Nov 23 2026): the day's five handoffs, then a
+         handoff's zones, then a zone's list on a sheet (#zrZoneSheet). Nothing opens by itself. -->
+    <div class="zr-card" id="zoneResetCard" data-launch-page="zones">
+      <div id="zoneButtonRow" class="zr-page"></div>
     </div>
 
     <!-- OE Walkthrough: hidden from the page for now (Tim, Sept 2026). Its
@@ -1289,6 +1289,7 @@
 <script src="/static/js/waste-log.js" defer></script>
 <script src="/static/js/waste-dash.js" defer></script>
 <script src="/static/js/waste-export.js" defer></script>
+<script src="/static/js/zone-page.js" defer></script>
 <script src="/static/js/fohoe-and-safecount.js" defer></script>
 <script src="/static/js/safe-order.js" defer></script>
 <script src="/static/js/food-safety.js" defer></script>

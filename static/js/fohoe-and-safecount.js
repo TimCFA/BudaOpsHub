@@ -104,7 +104,8 @@ function getLeaderTransitionOverall(){
 
 let leaderHandoffChosen = false;
 
-// Same handoff banners as Zone Reset; the open one shows its checklist.
+// The handoffs as sky banners (zone-reset.js zrHandoffBannersHtml); the open one shows its checklist.
+// Zone Resets wore these too until Nov 23 2026 (zone-page.js).
 function renderLeaderTransitionCard(){
   const container = document.getElementById('fohLeaderTransitionChecklist');
   const daypart = currentLeaderTransitionDaypart;
