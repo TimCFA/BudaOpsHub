@@ -2,7 +2,9 @@
 // tests/test_zone_reset_flow.py: reads {cases: [{op, at}]} on stdin, writes
 // back one result per case. `at` is the store's clock for the case
 // (America/Chicago). The real handoffs, zones and lists are loaded; who owns
-// a zone and the rest of the page are stubbed. Names are made up.
+// a zone and the rest of the page are stubbed. Names are made up. Each case
+// starts signed in as a Team Lead (the leaders' view); a case sets acUser or
+// launchManager itself to see the team's.
 process.env.TZ = 'America/Chicago';
 const fs = require('fs');
 const path = require('path');
@@ -32,6 +34,7 @@ vm.runInContext(zr.slice(zr.indexOf('const fohDayparts'), zr.indexOf('// leadFro
 vm.runInContext(zr.slice(zr.indexOf('const zoneResetDayparts'), zr.indexOf('const fohPositions')), ctx);
 vm.runInContext(`
   let today = '', zoneChecklistState = {}, zoneChecklistHistory = {}, posAssignments = {}, initials = 'TL';
+  let acUser = null, launchManager = false;
   let owners = {}, setUps = {};            // owners['handoff|zone'] = [names]; setUps[handoff] = true
   function getInitials(){ return initials; }
   function zrZoneOwners(date, h, z){ const all = owners[h + '|' + z] || []; return {all, added: [], dp: {name: 'Lunch (10:30-1:00)'}}; }
@@ -42,12 +45,13 @@ vm.runInContext(`
 // The page's helpers that stay in zone-reset.js, then the page.
 vm.runInContext(zr.slice(zr.indexOf('function getZoneItems'), zr.indexOf('function pruneZoneChecklistData')), ctx);
 vm.runInContext(zr.slice(zr.indexOf('let currentChecklistZone'), zr.indexOf('function getHandoffZoneCompletion')), ctx);
+{ const rn = js('right-now.js'); vm.runInContext(rn.match(/function rnSame\([\s\S]*?\n}\n/)[0], ctx); }   // "Maya Torres" is "Maya Torres Ruiz"
 vm.runInContext(js('zone-page.js'), ctx);
 
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 process.stdout.write(JSON.stringify(input.cases.map(c => {
   ctx.Date = fixedDate(c.at || '2026-11-23T12:20:00-06:00');
   vm.runInContext(`today = toLocalISODate(new Date()); zrPageDay = today; zoneChecklistState = {}; zoneChecklistHistory = {}; posAssignments = {}; owners = {}; setUps = {}; initials = 'TL';
-    currentZoneDaypart = ''; currentChecklistZone = ''; toasts.length = 0; saved = 0;`, ctx);
+    currentZoneDaypart = ''; currentChecklistZone = ''; toasts.length = 0; saved = 0; acUser = {name: 'Priya Shah', role: 'lead'}; launchManager = false;`, ctx);
   return vm.runInContext(`(${c.op})`, ctx)(c);
 })));

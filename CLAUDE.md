@@ -120,7 +120,19 @@ itself, and the handoffs don't move with the clock (both were Oct 18 2026
 calls Tim reversed). Kept: a zone's last tick closes it and says what's left;
 Home's "zone" lines open their handoff. The helpers Home and Set Ups read
 (owners, completion, the current handoff) stay in `zone-reset.js`, in the
-first group of scripts; the page itself loads with the rest. Tests:
+first group of scripts; the page itself loads with the rest.
+
+Two views of the same three steps (Tim, Nov 23 2026: "Red flags should not
+be visible to team member. Reduce as much noise for team members as
+possible"). Leaders (Team Leads and up, a manager session: `zrLeaderView`)
+see the whole picture: the day's share done, the Lead Captain, what needs
+someone in red (no Lead Captain, zones with nobody, a handoff not finished),
+Hand off, who ticked what, the last six days. Team Members, Trainers and a
+device nobody signed in on see only what they act on: the handoffs and where
+each stands, their own zone first and marked in ink ("Your zone"), the other
+zones with whose they are, the list. Nothing in red but "now"; no counts of
+what's wrong, no Hand off, no history. Anything new on this page goes on the
+leaders' view unless the team acts on it. Tests:
 `tests/test_zone_reset_flow.py` (runs the page in node) and
 `tests/test_zone_owners.py`.
 

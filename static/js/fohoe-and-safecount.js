@@ -205,7 +205,10 @@ function scSyncVisibility(){
   if(typeof hcSyncTab === 'function') hcSyncTab();   // Our Team: directors and the Admin Team
   const hide = scHidden();
   document.body.classList.toggle('sc-hidden', hide);
-  if(typeof launchSubnavRender === 'function' && document.getElementById('zoneresetView').classList.contains('active')) launchSubnavRender('zonereset');
+  if(typeof launchSubnavRender === 'function' && document.getElementById('zoneresetView').classList.contains('active')){
+    launchSubnavRender('zonereset');
+    if(typeof renderZoneResetCard === 'function') renderZoneResetCard();   // leaders and the team see different pages (zone-page.js)
+  }
   if(hide && document.getElementById('safecountView').classList.contains('active') && typeof launchShowTab === 'function') launchShowTab('home');
   // The change order on its way leaves a device with its Team Lead.
   if(typeof safeOrderLead !== 'undefined' && !scIsLead()){ safeOrderLead = null; renderSafeOrderStatus(); }

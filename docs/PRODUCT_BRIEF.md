@@ -251,7 +251,10 @@ next, not finished); a handoff's zones as tiles; a zone's list on a sheet.
 Nothing opens by itself. Each zone carries who owns its reset (from the Set
 Ups positions, see Set Ups); a zone nobody owns is red ("Nobody yet · tap to
 pick") and the handoff's card counts them; Hand off inside a zone gives it to
-someone else on the clock. The Leader Transition List is off the hub for now
+someone else on the clock. That is the leaders' view (Team Leads and up);
+Team Members, Trainers and a signed-out device get a lighter page: no red
+but "now", no counts of what's wrong, no Hand off, no history, and their own
+zone first, marked "Your zone". The Leader Transition List is off the hub for now
 (Tim, Nov 23 2026: it wasn't being used; its items and saved history are
 kept). The OE walkthrough is kept but hidden; the Food Safety Walkthrough has its own page and no longer
 appears here. A daily safe count is its own page too: cashier tills, coin

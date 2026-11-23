@@ -2019,6 +2019,10 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .zr-h.is-done .zr-h-k{color:#1F6B37;}
 .zr-h.is-behind{border-color:#F3B8C4;}
 .zr-h.is-behind .zr-h-k{color:var(--cfa-dark-red);}
+/* The team's page (Team Members, Trainers, a signed-out device): nothing in
+   red but "now"; their own zone is the one thing marked, in ink ("selected"). */
+.zr-h-mine{color:var(--text-primary);}
+.zr-h-mine b{font-weight:800;}
 
 /* The last six days: a navy stats panel, as Home's PEA */
 .zr-hist{margin-bottom:0;}
@@ -2044,6 +2048,8 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .zr-zone.is-ok .zr-zone-n{color:#2E7D45;}
 .zr-zone.is-bad .zr-zone-n{color:var(--cfa-red);}
 .zr-zone.is-bad .rn-ic{background:#FBE3E4;color:var(--cfa-red);}
+.zr-zone.is-mine{border:2px solid var(--text-primary);}
+.zr-zone.is-mine .rn-tile-d{font-weight:800;color:var(--text-primary);}
 .zr-zone:active{transform:scale(.98);}
 
 /* 3. A zone: its list on a sheet, big rows to tick */

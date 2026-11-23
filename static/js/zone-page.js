@@ -15,10 +15,20 @@
 // lines open their handoff here (right-now.js rnGo). Changed at Tim's ask:
 // the page no longer opens on the current handoff, and the handoffs no longer
 // move with the clock (Oct 18 2026: the current one first).
+//
+// Two views of the same three steps (Tim, Nov 23 2026: "reduce as much noise
+// for team members as possible"). Leaders (Team Leads and up, zrLeaderView)
+// get the whole picture: the day's share done, the Lead Captain, what needs
+// someone in red (no Lead Captain, zones with nobody, a handoff not
+// finished), Hand off, who ticked what, the last six days. Everyone else
+// (Team Members, Trainers, a device nobody signed in on) gets only what they
+// act on: the handoffs and where each stands, their own zone first and
+// marked, the zones, the list. No red but "now", no counts of what's wrong,
+// no Hand off, no history.
+//
 // The helpers it reads (who owns a zone, how complete, the current handoff)
 // stay in zone-reset.js, which Home and Set Ups load first; this file comes
-// with the rest. The Leader Transition List still uses the banners
-// (zone-reset.js zrHandoffBannersHtml).
+// with the rest.
 
 const ZR_ICON_BACK = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>';
 const ZR_ICON_GO = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
@@ -41,6 +51,23 @@ function zrDur(min){ const m = Math.max(0, Math.round(min)); return m >= 60 ? `$
 function zrBar(part, tone){
   const pct = Math.round(Math.max(0, Math.min(1, part)) * 100);
   return `<span class="rn-bar${tone ? ' is-' + tone : ''}" aria-hidden="true"><i style="width:${pct}%"></i></span>`;
+}
+// Leaders see the whole picture: Team Leads and up, and a manager session
+// (the same people the Safe Count shows to; fohoe-and-safecount.js scHidden).
+function zrLeaderView(){
+  if(typeof launchManager !== 'undefined' && launchManager) return true;
+  return typeof acUser !== 'undefined' && !!acUser && !['member', 'trainer'].includes(acUser.role);
+}
+// Whether the person signed in is one of a zone's owners (names from the PIN
+// list and Set Ups can differ by a middle name: right-now.js rnSame).
+function zrIsMine(owners){
+  const me = typeof acUser !== 'undefined' && acUser && acUser.name ? acUser.name : '';
+  if(!me) return false;
+  const same = typeof rnSame === 'function' ? rnSame : (a, b) => String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+  return owners.some(n => same(n, me));
+}
+function zrMyZones(handoffName){
+  return ALL_ZONE_NAMES.filter(z => zrIsMine(zrZoneOwners(today, handoffName, z).all));
 }
 function zrInitials(name){
   const w = String(name || '').trim().split(/\s+/).filter(Boolean);
@@ -91,33 +118,39 @@ function zrHandoffFacts(h){
 // ----- 1. The day -----
 function zrDayHtml(nowMin){
   const list = zrDay(today, nowMin);
+  const leader = zrLeaderView();
   const overall = getOverallCompletion(today);
   const cards = list.map(h => {
     const {title} = zrHandoffParts(h.dp.name);
     const {lead, unowned} = zrHandoffFacts(h);
     const label = zrStateLabel(h, nowMin);
     const busy = h.up || h.state === 'behind';
+    const count = h.checked || busy || h.done ? `${h.zonesDone} of ${h.zonesTotal} zones` : '';
     // The cards still to come stay quiet: a name, a time, a leader if there is one.
-    const meta = [h.checked || busy || h.done ? `${h.zonesDone} of ${h.zonesTotal} zones` : '', lead ? `Lead ${suDisplayName(lead)}` : ''].filter(Boolean).join(' · ');
-    const flags = busy ? [!lead ? 'No Lead Captain yet' : '', unowned ? `${unowned} zone${unowned === 1 ? '' : 's'} with nobody` : ''].filter(Boolean) : [];
-    return `<button type="button" class="zr-h su-col-${suDaypartColor(h.dp.leadFrom)} is-${h.state}${h.up ? ' is-up' : ''}" data-zr-handoff="${escapeHtml(h.dp.name)}">
+    // The team's card says their own zone instead, and never what's wrong.
+    const mine = leader || h.done ? [] : zrMyZones(h.dp.name);
+    const meta = leader ? escapeHtml([count, lead ? `Lead ${suDisplayName(lead)}` : ''].filter(Boolean).join(' · '))
+      : mine.length ? `Your zone${mine.length === 1 ? '' : 's'}: <b>${escapeHtml(mine.join(', '))}</b>` : escapeHtml(count);
+    const flags = leader && busy ? [!lead ? 'No Lead Captain yet' : '', unowned ? `${unowned} zone${unowned === 1 ? '' : 's'} with nobody` : ''].filter(Boolean) : [];
+    const behind = leader && h.state === 'behind';
+    return `<button type="button" class="zr-h su-col-${suDaypartColor(h.dp.leadFrom)} is-${h.state === 'behind' && !leader ? 'past' : h.state}${h.up ? ' is-up' : ''}" data-zr-handoff="${escapeHtml(h.dp.name)}">
         <span class="zr-h-sky">${suSkyArt(ZR_HANDOFF_SKIES[h.i] || 'midday')}<b>${zrClock(h.start)}</b></span>
         <span class="zr-h-main">
           ${label ? `<small class="zr-h-k">${h.state === 'done' ? ZR_ICON_CHECK : ''}${escapeHtml(label)}</small>` : ''}
           <b class="zr-h-name">${escapeHtml(title)}</b>
-          ${meta ? `<span class="zr-h-meta">${escapeHtml(meta)}</span>` : ''}
+          ${meta ? `<span class="zr-h-meta${mine.length ? ' zr-h-mine' : ''}">${meta}</span>` : ''}
           ${flags.map(f => `<span class="zr-h-flag">${escapeHtml(f)}</span>`).join('')}
-          ${h.checked && !h.done || busy ? zrBar(h.total ? h.checked / h.total : 0, h.state === 'behind' ? 'bad' : '') : ''}
+          ${h.checked && !h.done || busy ? zrBar(h.total ? h.checked / h.total : 0, behind ? 'bad' : '') : ''}
         </span>
         <span class="zr-h-go">${ZR_ICON_GO}</span>
       </button>`;
   }).join('');
   return `<div class="zr-top">
       <h2 class="rn-kicker">Zone resets · today</h2>
-      <span class="zr-pct${overall >= ZR_STAR ? ' is-high' : ''}"><b>${overall}%</b> done</span>
+      ${leader ? `<span class="zr-pct${overall >= ZR_STAR ? ' is-high' : ''}"><b>${overall}%</b> done</span>` : ''}
     </div>
     <div class="zr-list">${cards}</div>
-    ${zrHistoryHtml()}`;
+    ${leader ? zrHistoryHtml() : ''}`;
 }
 
 // The last six open days (Sundays are closed), today last: the day's share
@@ -145,15 +178,22 @@ function zrHistoryHtml(){
 function zrHandoffHtml(h, nowMin){
   const {title, time} = zrHandoffParts(h.dp.name);
   const {lead, setUp} = zrHandoffFacts(h);
+  const leader = zrLeaderView();
   const label = [zrStateLabel(h, nowMin), time].filter(Boolean).join(' · ');
-  const tone = h.done ? 'ok' : h.state === 'behind' ? 'bad' : '';
-  const tiles = ALL_ZONE_NAMES.map(zone => {
+  const tone = h.done ? 'ok' : leader && h.state === 'behind' ? 'bad' : '';
+  const zones = ALL_ZONE_NAMES.map(zone => {
+    const owners = zrZoneOwners(today, h.dp.name, zone);
+    return {zone, owners, mine: !leader && zrIsMine(owners.all)};
+  });
+  // The team's own zones come first, marked; nobody's zone is a leader's to see.
+  const tiles = zones.filter(z => z.mine).concat(zones.filter(z => !z.mine)).map(({zone, owners, mine}) => {
     const {checked, total} = getZoneCompletion(today, h.dp.name, zone);
     const done = total > 0 && checked === total;
-    const owners = zrZoneOwners(today, h.dp.name, zone);
-    const none = setUp && !owners.all.length && !done;
-    const who = owners.all.length ? owners.all.map(suDisplayName).join(', ') : none ? 'Nobody yet · tap to pick' : setUp || done ? '' : `No ${owners.dp ? suShortDaypart(owners.dp.name) : ''} set up yet`;
-    return `<button type="button" class="rn-tile zr-zone${done ? ' is-ok' : none ? ' is-bad' : ''}" data-zone="${escapeHtml(zone)}">
+    const none = leader && setUp && !owners.all.length && !done;
+    const others = mine ? owners.all.filter(n => !zrIsMine([n])) : owners.all;
+    const who = mine ? `Your zone${others.length ? ` · with ${others.map(suDisplayName).join(', ')}` : ''}`
+      : owners.all.length ? owners.all.map(suDisplayName).join(', ') : none ? 'Nobody yet · tap to pick' : !leader || setUp || done ? '' : `No ${owners.dp ? suShortDaypart(owners.dp.name) : ''} set up yet`;
+    return `<button type="button" class="rn-tile zr-zone${done ? ' is-ok' : none ? ' is-bad' : ''}${mine ? ' is-mine' : ''}" data-zone="${escapeHtml(zone)}">
         <span class="zr-zone-top"><i class="rn-ic${done ? ' is-ok' : ''}">${done ? ZR_ICON_CHECK : ZONE_ICONS[zone] || ''}</i><b class="zr-zone-n">${checked}/${total}</b></span>
         <span class="rn-tile-l">${escapeHtml(zone)}</span>
         ${who ? `<small class="rn-tile-d">${escapeHtml(who)}</small>` : ''}
@@ -166,7 +206,7 @@ function zrHandoffHtml(h, nowMin){
       <span class="rn-hero-b">
         ${label ? `<small>${escapeHtml(label)}</small>` : ''}
         <span class="rn-hero-big">${escapeHtml(title)}</span>
-        <span class="rn-hero-sub">${escapeHtml([`${h.zonesDone} of ${h.zonesTotal} zones reset`, lead ? `Lead ${suDisplayName(lead)}` : h.done ? '' : 'No Lead Captain yet'].filter(Boolean).join(' · '))}</span>
+        <span class="rn-hero-sub">${escapeHtml([`${h.zonesDone} of ${h.zonesTotal} zones reset`, !leader ? '' : lead ? `Lead ${suDisplayName(lead)}` : h.done ? '' : 'No Lead Captain yet'].filter(Boolean).join(' · '))}</span>
         ${zrBar(h.total ? h.checked / h.total : 0)}
       </span>
     </div>
@@ -180,20 +220,23 @@ function zrSheetHtml(handoffName, zone){
   const state = ((zoneChecklistState[today] || {})[handoffName] || {})[zone] || {};
   const {checked, total} = getZoneCompletion(today, handoffName, zone);
   const owners = zrZoneOwners(today, handoffName, zone);
-  const none = zrSetupExists(today, handoffName) && !owners.all.length;
+  const leader = zrLeaderView();
+  const none = leader && zrSetupExists(today, handoffName) && !owners.all.length;
   const who = none ? '<span class="zr-owner-none">Nobody owns this reset</span>'
     : owners.all.length ? owners.all.map(n => `<span class="zr-owner${owners.added.includes(n) ? ' is-added' : ''}"><i>${escapeHtml(zrInitials(n))}</i>${escapeHtml(suDisplayName(n))}</span>`).join('')
-    : `<span class="zr-owner-wait">No ${owners.dp ? escapeHtml(suShortDaypart(owners.dp.name)) : ''} set up yet</span>`;
+    : leader ? `<span class="zr-owner-wait">No ${owners.dp ? escapeHtml(suShortDaypart(owners.dp.name)) : ''} set up yet</span>` : '';
+  // Handing a zone to someone, and who ticked what, are a leader's (the team just ticks).
+  const hand = leader ? `<button type="button" class="zr-owner-hand" data-zr-hand>${owners.all.length ? 'Hand off' : 'Pick someone'}</button>` : '';
   return `<div class="su-pick-head">
       <div class="su-pick-titles"><span class="su-pick-kicker">${escapeHtml(title)} · reset</span><h2 id="zrSheetTitle">${escapeHtml(zone)}</h2></div>
       <button type="button" class="su-sheet-close" data-zr-sheet-close aria-label="Close">${ZR_ICON_X}</button>
     </div>
     <div class="zr-sheet-prog"><b>${checked} of ${total}</b>${zrBar(total ? checked / total : 0, total && checked === total ? 'ok' : '')}</div>
-    <div class="zr-owners${none ? ' is-none' : ''}">${who}<button type="button" class="zr-owner-hand" data-zr-hand>${owners.all.length ? 'Hand off' : 'Pick someone'}</button></div>
+    ${who || hand ? `<div class="zr-owners${none ? ' is-none' : ''}">${who}${hand}</div>` : ''}
     <div class="zr-items">${items.map((item, i) => {
       const entry = state[item];
       return `<button type="button" class="zr-item${entry ? ' is-on' : ''}" data-zone-item="${i}" role="checkbox" aria-checked="${!!entry}">
-          <i class="zr-box">${ZR_ICON_CHECK}</i><span class="zr-item-t">${escapeHtml(item)}</span>${entry ? `<small>${escapeHtml(entry.initials)} · ${escapeHtml(formatShortTime(entry.ts))}</small>` : ''}
+          <i class="zr-box">${ZR_ICON_CHECK}</i><span class="zr-item-t">${escapeHtml(item)}</span>${entry && leader ? `<small>${escapeHtml(entry.initials)} · ${escapeHtml(formatShortTime(entry.ts))}</small>` : ''}
         </button>`;
     }).join('')}</div>
     <div class="su-pick-foot"><button type="button" class="zr-done" data-zr-sheet-close>Done</button></div>`;
@@ -208,7 +251,7 @@ function renderZoneResetCard(){
   const h = currentZoneDaypart ? zrDay(today, nowMin).find(x => x.dp.name === currentZoneDaypart) : null;
   if(!h){ currentZoneDaypart = ''; currentChecklistZone = ''; }
   if(h && !ALL_ZONE_NAMES.includes(currentChecklistZone)) currentChecklistZone = '';
-  root.className = `zr-page${h ? ' is-handoff' : ''}${zrEnter ? ' zr-enter' : ''}`;
+  root.className = `zr-page${h ? ' is-handoff' : ''}${zrLeaderView() ? '' : ' is-team'}${zrEnter ? ' zr-enter' : ''}`;
   zrEnter = false;
   root.innerHTML = h ? zrHandoffHtml(h, nowMin) : zrDayHtml(nowMin);
   const sheet = document.getElementById('zrZoneSheet');
@@ -251,7 +294,7 @@ document.getElementById('zrZoneSheet').addEventListener('click', async e => {
   if(e.target === e.currentTarget || e.target.closest('[data-zr-sheet-close]')){ zrCloseSheet(); return; }
   const zoneName = currentChecklistZone, daypart = currentZoneDaypart;
   if(!zoneName || !daypart) return;
-  if(e.target.closest('[data-zr-hand]')){ zrOpenOwnerModal(today, daypart, zoneName, renderZoneResetCard); return; }
+  if(e.target.closest('[data-zr-hand]')){ if(zrLeaderView()) zrOpenOwnerModal(today, daypart, zoneName, renderZoneResetCard); return; }
   const row = e.target.closest('[data-zone-item]');
   if(!row) return;
   const itemText = getZoneItems(zoneName)[parseInt(row.dataset.zoneItem, 10)];

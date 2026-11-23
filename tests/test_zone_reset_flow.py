@@ -6,6 +6,11 @@ open on the handoff happening now: Oct 18 2026), and the handoffs no longer
 move with the clock. Kept: a zone's last tick closes it and says what's left
 (Oct 18 2026), and no intro box at the top (Oct 28 2026).
 
+Leaders (Team Leads and up) see the whole picture; Team Members, Trainers and
+a device nobody signed in on get a lighter page with nothing in red but
+"now" (Tim, Nov 23 2026: TheTeamsPage below). The other tests run as a Team
+Lead.
+
 Run: python3 -m unittest discover tests
 Runs zone-page.js in node (tests/zone_page_runner.js) with the real handoffs,
 zones and lists; who owns a zone is stubbed. Names are made up.
@@ -178,6 +183,105 @@ class AHandoffAndAZone(unittest.TestCase):
         self.assertIn('<i>LC</i>Lena', got[4])                                         # their initials lead their name
         self.assertNotIn('<i>Name', got[4])
         self.assertIn('role="checkbox" aria-checked="false"', got[4])
+
+
+MAYA = "acUser = {name: 'Maya Torres', role: 'member'};"
+
+
+class TheTeamsPage(unittest.TestCase):
+    """Tim, Nov 23 2026: "Red flags should not be visible to team member.
+    Reduce as much noise for team members as possible so it is extremely
+    light weight and clutter free for them." """
+
+    def test_who_gets_which_page(self):
+        got = run({'op': """c => { const out = ['', 'member', 'trainer', 'lead', 'admin', 'director'].map(r => { acUser = r ? {name: 'Jordan Testcase', role: r} : null; launchManager = false; return zrLeaderView(); });
+                     acUser = {name: 'x', role: 'member'}; launchManager = true; out.push(zrLeaderView());
+                     acUser = null; launchManager = false; renderZoneResetView(); out.push(document.getElementById('zoneButtonRow').className);
+                     return out; }"""})[0]
+        # A signed-out device, a Team Member and a Trainer get the team's page; a manager session is a leader.
+        self.assertEqual(got, [False, False, False, True, True, True, True, 'zr-page is-team zr-enter'])
+
+    def test_the_day_has_no_red_flags_no_counts_of_whats_wrong_and_no_stats(self):
+        """4:20 PM: Lunch to Mid wasn't finished, Mid to Dinner is on with no
+        Lead Captain and zones nobody owns. A leader sees all of it in red;
+        the team sees where each handoff stands, and their own zone."""
+        setup = f"""{HELPERS} tick({json.dumps(B_L)}); tick({json.dumps(L_M)}, ['Dining Room']); setUps[{json.dumps(L_M)}] = true; setUps[{json.dumps(M_D)}] = true;
+                    owners[{json.dumps(M_D)} + '|Drinks Zone'] = ['Sadie Lowe', 'Maya Torres Ruiz'];"""
+        lead, team, out = run({'op': f"c => {{ {setup} return zrDayHtml(nowMin()); }}", 'at': '2026-11-23T16:20:00-06:00'},
+                              {'op': f"c => {{ {setup} {MAYA} return zrDayHtml(nowMin()); }}", 'at': '2026-11-23T16:20:00-06:00'},
+                              {'op': f"c => {{ {setup} acUser = null; return zrDayHtml(nowMin()); }}", 'at': '2026-11-23T16:20:00-06:00'})
+        for red in ('is-behind', 'rn-bar is-bad', '<span class="zr-h-flag">No Lead Captain yet</span>', 'zones with nobody', 'zr-pct', 'Last 6 days'):
+            self.assertIn(red, lead)
+            self.assertNotIn(red, team)
+            self.assertNotIn(red, out)
+        cards = team.split('<button type="button" class="zr-h ')[1:]
+        self.assertEqual(len(cards), 5)                                          # the same five handoffs, in the same order
+        self.assertTrue(cards[1].startswith('su-col-l is-past"'))                # not finished: said plainly, not in red
+        self.assertIn('Not finished', cards[1])
+        self.assertIn('<span class="zr-h-meta">1 of 9 zones</span>', cards[1])
+        self.assertTrue(cards[2].startswith('su-col-m is-now is-up"'))           # "now" is the one red thing left
+        self.assertIn('Now · until 5:00', cards[2])
+        self.assertIn('<span class="zr-h-meta zr-h-mine">Your zone: <b>Drinks Zone</b></span>', cards[2])   # the PIN list's name and the schedule's can differ
+        self.assertNotIn('Lead ', team)
+        self.assertNotIn('zr-h-mine', out)                                       # nobody signed in: nobody's zone
+        self.assertIn('<span class="zr-h-meta">0 of 9 zones</span>', out.split('<button type="button" class="zr-h ')[3])
+
+    def test_their_own_zone_comes_first_and_nobodys_zone_is_not_theirs_to_see(self):
+        setup = f"""{HELPERS} const h = {json.dumps(L_M)}; tick(h, ['Dining Room']); setUps[h] = true;
+                    owners[h + '|Dining Room'] = ['Theo Vance']; owners[h + '|The Spot'] = ['Lena Castillo', 'Maya Torres'];
+                    currentZoneDaypart = h;"""
+        page = "renderZoneResetView(); return document.getElementById('zoneButtonRow').innerHTML;"
+        team, out, lead = run({'op': f"c => {{ {setup} {MAYA} {page} }}", 'at': '2026-11-23T14:30:00-06:00'},
+                              {'op': f"c => {{ {setup} acUser = null; {page} }}", 'at': '2026-11-23T14:30:00-06:00'},
+                              {'op': f"c => {{ {setup} {page} }}", 'at': '2026-11-23T14:30:00-06:00'})
+        order = lambda html: [t.split('data-zone="')[1].split('"')[0] for t in html.split('<button type="button" class="rn-tile zr-zone')[1:]]
+        tiles = {t.split('data-zone="')[1].split('"')[0]: t for t in team.split('<button type="button" class="rn-tile zr-zone')[1:]}
+        self.assertEqual(order(team)[0], 'The Spot')                             # hers, first
+        self.assertEqual(order(team)[1:4], ['Dining Room', 'Restrooms', 'Front Counter'])   # the rest where they always are
+        self.assertTrue(tiles['The Spot'].startswith(' is-mine"'))
+        self.assertIn('<small class="rn-tile-d">Your zone · with Lena</small>', tiles['The Spot'])
+        self.assertIn('<small class="rn-tile-d">Theo</small>', tiles['Dining Room'])           # whose the others are: how a shared tablet finds a zone
+        self.assertEqual(order(out), order(lead))                                # nobody signed in: the usual order
+        self.assertIn('<small class="rn-tile-d">Lena, Maya</small>', out)
+        for html in (team, out):
+            for red in ('is-bad', 'Nobody yet', 'tap to pick', 'Lead Captain', 'set up yet'):
+                self.assertNotIn(red, html)
+            self.assertIn('<span class="rn-hero-sub">1 of 9 zones reset</span>', html)
+            self.assertIn('Not finished', html)                                  # 2:30 PM, its hour is over: said, on a navy banner
+        self.assertIn('zr-hero su-col-l is-bad', lead)                           # the leader's is red, and counts who's missing
+        self.assertTrue(lead.split('data-zone="Restrooms"')[0].endswith('zr-zone is-bad" '))
+        self.assertIn('Nobody yet · tap to pick', lead)
+        self.assertIn('1 of 9 zones reset · No Lead Captain yet', lead)
+
+    def test_the_list_is_just_the_list(self):
+        """No Hand off, no "nobody owns this", no who-ticked-what: the team ticks."""
+        setup = f"""{HELPERS} const h = {json.dumps(L_M)}; setUps[h] = true; owners[h + '|The Spot'] = ['Lena Castillo']; tick(h, ['The Spot'], 1); tick(h, ['Restrooms'], 1);
+                    let opened = 0; zrOpenOwnerModal = () => {{ opened++; }};
+                    const sheet = document.getElementById('zrZoneSheet'), body = () => document.getElementById('zrSheetBody').innerHTML;
+                    const hand = () => sheet.listeners.click({{target: {{closest: s => s === '[data-zr-hand]' ? {{}} : null}}, currentTarget: sheet}});
+                    const show = z => {{ currentZoneDaypart = h; currentChecklistZone = z; renderZoneResetView(); return body(); }};"""
+        team, lead = run({'op': f"c => {{ {setup} {MAYA} const owned = show('The Spot'), nobody = show('Restrooms'); hand(); return [owned, nobody, opened]; }}"},
+                         {'op': f"c => {{ {setup} const owned = show('The Spot'), nobody = show('Restrooms'); hand(); return [owned, nobody, opened]; }}"})
+        for html in team[:2]:
+            for gone in ('data-zr-hand', 'Hand off', 'Pick someone', 'Nobody owns this reset', 'TL · '):
+                self.assertNotIn(gone, html)
+            self.assertIn('role="checkbox" aria-checked="true"', html)            # the tick itself still shows
+            self.assertIn('data-zr-sheet-close>Done</button>', html)
+        self.assertIn('<div class="zr-owners"><span class="zr-owner"><i>LC</i>Lena</span></div>', team[0])   # who's on it with them
+        self.assertNotIn('zr-owners', team[1])                                    # nobody on it: nothing to say
+        self.assertEqual(team[2], 0)                                              # and the owner sheet never opens for them
+        self.assertIn('data-zr-hand>Hand off</button>', lead[0])
+        self.assertIn('<small>TL · ', lead[0])
+        self.assertIn('Nobody owns this reset</span><button type="button" class="zr-owner-hand" data-zr-hand>Pick someone</button>', lead[1])
+        self.assertEqual(lead[2], 1)
+
+    def test_a_sign_in_redraws_the_page_and_their_zone_is_marked_in_ink(self):
+        self.assertIn("""    launchSubnavRender('zonereset');
+    if(typeof renderZoneResetCard === 'function') renderZoneResetCard();""", read('static', 'js', 'fohoe-and-safecount.js'))
+        css = read('static', 'css', 'theme-cfa.css')
+        self.assertIn('.zr-zone.is-mine{border:2px solid var(--text-primary);}', css)   # ink is "selected"; red stays for "now"
+        self.assertIn('.zr-h-mine{color:var(--text-primary);}', css)
+        self.assertNotIn('.zr-h.is-past', css)                                          # a handoff the team didn't finish has no colour of its own
 
 
 class Wiring(unittest.TestCase):
