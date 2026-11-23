@@ -48,6 +48,7 @@ function acApplyStatus(d){
   if(!siIdentity.name && !siIdentity.device && !getInitials() && typeof siAskToday === 'function' && siAskToday()) siOpen();
   if(typeof renderRightNow === 'function') renderRightNow();   // the card is the signed-in person's
   if(typeof scSyncVisibility === 'function') scSyncVisibility();   // Safe Count: not for Team Members or Trainers
+  if(typeof peaLeadLoad === 'function') peaLeadLoad();   // a Team Lead's scores for Set Ups (pea-ratings.js)
   // Who has left, for every list that offers people (state-and-utils.js teamHasLeft).
   if((siIdentity.name || siIdentity.device) && typeof teamNamesLoad === 'function'){
     afterIdle(() => teamNamesLoad().then(() => { if(teamLeftList.length && typeof stateRerender === 'function') stateRerender(); }));
@@ -84,6 +85,7 @@ async function acSignedIn(result, stay){
   // 2026: Settings showed only Launch mode and Full Backup until a reload).
   if(typeof siRender === 'function') siRender();
   if(typeof scSyncVisibility === 'function') scSyncVisibility();   // Safe Count: not for Team Members or Trainers
+  if(typeof peaLeadLoad === 'function') peaLeadLoad();   // a Team Lead's scores for Set Ups (pea-ratings.js)
 }
 
 async function acSignOut(device){
