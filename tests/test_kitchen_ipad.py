@@ -29,8 +29,9 @@ const store = {};
 const ctx = {today: '2026-10-23', completedBreaks: {}, localStorage: {getItem: k => store[k] ?? null, setItem: (k, v) => { store[k] = v; }},
   breakKeyFor: (name, day, side) => `${side}||${day}||${name}`,
   breakPlanFor: () => ({breaks: [
-    {name: 'Ana Test', from: 330, start: 600}, {name: 'Ben Test', from: 360, start: 630}, {name: 'Cy Test', from: 600, start: 780},
-    {name: 'Dee Test', from: 840, start: 1080}, {name: 'Eli Test', from: 900, start: 1140}]}),
+    {name: 'Ana Test', from: 330, to: 840, start: 600}, {name: 'Ben Test', from: 360, to: 840, start: 630}, {name: 'Cy Test', from: 600, to: 1110, start: 780},
+    {name: 'Fay Test', from: 660, to: 1230, start: 945},
+    {name: 'Dee Test', from: 840, to: 1350, start: 1080}, {name: 'Eli Test', from: 900, to: 1350, start: 1140}]}),
   pbForecast: () => ({stats: [{name: 'Cobb Salad', buildTo: 20}, {name: 'Wrap', buildTo: 10}, {name: 'Parfait', buildTo: 0}]}),
   pbMade: (iso, item) => ({'Cobb Salad': 15, 'Wrap': 10}[item] || 0)};
 vm.createContext(ctx);
@@ -60,9 +61,12 @@ class KitchenCard(unittest.TestCase):
 
     def test_morning_breaks_until_2_then_the_afternoons(self):
         # Before 2 PM: the shifts starting before 2, one already taken.
-        self.assertEqual(self.d['am'], {'pm': False, 'total': 3, 'left': ['Ben Test', 'Cy Test']})
-        # From 2 PM: the shifts starting at 2 or later.
-        self.assertEqual(self.d['pm'], {'pm': True, 'total': 2, 'left': ['Dee Test', 'Eli Test']})
+        self.assertEqual(self.d['am'], {'pm': False, 'total': 4, 'left': ['Ben Test', 'Cy Test', 'Fay Test']})
+        # From 2 PM: the shifts starting at 2 or later, plus what's still owed
+        # from earlier shifts (Tim, Nov 23 2026: Home has to match the breaks
+        # roster): Fay's mid shift has its break at 3:45, and Cy, still on,
+        # hasn't taken the 1:00 one. Ben went home at 2, so his drops off.
+        self.assertEqual(self.d['pm'], {'pm': True, 'total': 4, 'left': ['Cy Test', 'Fay Test', 'Dee Test', 'Eli Test']})
 
     def test_whats_still_to_prep(self):
         # Cobb 5 to go; the wrap is made; an item with nothing to build doesn't count.
