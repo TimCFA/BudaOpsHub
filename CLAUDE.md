@@ -46,7 +46,7 @@ Spanish is hidden (`esSyncSides`, the `es-off-*` classes in theme-cfa.css).
 
 `static/css/theme-cfa.css` loads after `main.css` and carries the look: Chick-fil-A
 red (#DD0031) for actions and limits, Chick-fil-A navy (#004F71) for dark "stats"
-cards, an ivory ground, slab-serif headings and hero numbers (Zilla Slab) with a
+cards, a white ground (no tan or cream; Tim, Nov 23 2026), slab-serif headings and hero numbers (Zilla Slab) with a
 grotesque body (Figtree); both fonts stand in for Caecilia and Apercu until the
 brand fonts are licensed (swap `--font-display` / `--font-ui`). Line icons (inline
 SVG), never emoji. New components go in the theme's conventions.
@@ -82,6 +82,15 @@ the token, and dark.css already carries its dark value (a rule on the tokens
 needs no dark twin). Identity colours are the zones (`--zone-*`, one colour a
 zone on both sides of the house and in Coach) and the daypart skies (`.su-col-*`).
 Cards share `--card-shadow`; section labels in small caps are navy (`--eyebrow`).
+
+The day look (Tim, Nov 23 2026, picked from the palette options): a white floor
+and white cards that float on `--card-shadow`, a navy band (`--band`) across the
+top that is the header plus the tab row (the header alone on a touch screen),
+and a pale blue inside each card (`--inset`, `-strong`, `-faint`, `-track`,
+`-line`) on its rows, headers, tracks and pills. The band is light only;
+dark is Midnight (deep navy ground, `#142238` cards; dark.css). The waste chip
+and the initials badge sit on the band as they always did. Never put a tan or
+cream back: ground and cards are white, tints are the cool `--inset` family.
 
 ## Tasks
 

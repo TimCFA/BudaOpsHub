@@ -112,8 +112,8 @@ class Refresh(unittest.TestCase):
 
     def test_waste_keeps_its_navy_pills(self):
         # Only the Lists pills became the one-row ink switch; Waste's are as they were.
-        self.assertIn('.launch-pill.active{background:var(--cfa-navy);border-color:var(--cfa-navy);color:#F6F1E8;}', self.css)
-        self.assertIn('.launch-subnav[aria-label="Lists"] .launch-pill.active{background:var(--text-primary);color:#F6F1E8;}', self.css)
+        self.assertIn('.launch-pill.active{background:var(--cfa-navy);border-color:var(--cfa-navy);color:#F4F7FA;}', self.css)
+        self.assertIn('.launch-subnav[aria-label="Lists"] .launch-pill.active{background:var(--text-primary);color:#F4F7FA;}', self.css)
 
     def test_selected_text_stays_readable_in_the_dark(self):
         dark = read('static', 'css', 'dark.css')

@@ -35,6 +35,8 @@ html[data-theme="dark"]{
   --ok-soft:var(--good-fill);
   --card-shadow:0 1px 2px rgba(0,0,0,0.4),0 4px 16px rgba(0,0,0,0.35);
   --eyebrow:var(--ink-navy);
+  --band:#142238;
+  --inset:#18283F; --inset-strong:#203352; --inset-faint:#112038; --inset-track:#2A3F5E; --inset-line:#2E4468;
   --zone-ipos:#4FA3C8; --zone-raw:#8A9AAB; --zone-extra:#7C8798;
   /* Set Ups */
   --su-bg:var(--cfa-bg); --su-card:var(--cfa-white); --su-ink:#EEF3F8; --su-muted:#B4C2D2; --su-line:#27395A; --su-soft:var(--cfa-soft); --su-unrated:#2F4467;

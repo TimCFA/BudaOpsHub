@@ -13,13 +13,13 @@
    thing under a heat lamp. */
 
 .ps-root,.ps-layer{
-  --ps-ground:var(--cfa-bg,#F6F1E8);
-  --ps-card:var(--cfa-white,#FFFDF9);
-  --ps-soft:var(--cfa-soft,#EBE4D8);
-  --ps-ink:var(--text-primary,#1C1B19);
-  --ps-muted:var(--text-secondary,#5F5A52);
-  --ps-faint:var(--text-tertiary,#7C766C);
-  --ps-line:var(--border,#E4DCCF);
+  --ps-ground:var(--cfa-bg,#F4F7FA);
+  --ps-card:var(--cfa-white,#FFFFFF);
+  --ps-soft:var(--cfa-soft,#EDF1F5);
+  --ps-ink:var(--text-primary,#14171C);
+  --ps-muted:var(--text-secondary,#596170);
+  --ps-faint:var(--text-tertiary,#7E8694);
+  --ps-line:var(--border,#E3E8EE);
   --ps-red:var(--cfa-red,#DD0031);
   --ps-dark-red:var(--cfa-dark-red,#AF272F);
   --ps-navy:var(--cfa-navy,#004F71);
@@ -29,7 +29,7 @@
   --ps-heat-soft:var(--warn-fill);
   --ps-ok-soft:var(--ok-soft,#E5F1E8);
   --ps-navy-soft:var(--info-fill);
-  --ps-paper:#FFFDF6; --ps-paper-2:#F1ECE1; --ps-paper-ink:#1C1B19; --ps-paper-muted:#5F5A52; --ps-paper-rule:#D6CEC0;
+  --ps-paper:#FFFFFF; --ps-paper-2:#EEF2F6; --ps-paper-ink:#14171C; --ps-paper-muted:#596170; --ps-paper-rule:#D3DAE2;
   --ps-display:var(--font-display,'Zilla Slab',Georgia,serif);
   --ps-ui:var(--font-ui,'Figtree','DM Sans',system-ui,sans-serif);
   --ps-safe-b:env(safe-area-inset-bottom,0px);
@@ -126,7 +126,7 @@ button.ps-ticket:active{transform:translateY(1px);}
 .ps-stamp.s-heard{color:#004F71;} .ps-stamp.s-in{color:var(--warn-ink);} .ps-stamp.s-ok{color:var(--good-ink);}
 .ps-stamp.s-elite{color:var(--good-ink);border-style:double;border-width:4px;}
 .ps-stamp.s-late,.ps-stamp.s-redo,.ps-stamp.s-block{color:var(--bad-ink);}
-.ps-stamp.s-new,.ps-stamp.s-x{color:#8A8378;}
+.ps-stamp.s-new,.ps-stamp.s-x{color:#8A93A0;}
 
 /* ----- the rail ----- */
 .ps-board{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(272px,1fr);gap:18px;overflow-x:auto;scroll-snap-type:x mandatory;padding:0 16px 12px;margin:0 -16px;}
@@ -233,7 +233,7 @@ html[data-theme="dark"] .ps-linkish{color:var(--ink-navy,#7FC1E1);}
 .ps-detail .ps-stamp{bottom:auto;top:46px;}
 .ps-detail .ps-t-title{padding-right:110px;}
 .ps-dl{margin:12px 0 0;display:grid;gap:10px;}
-.ps-dl dt{font-size:12px;font-weight:700;color:#8A8378;}
+.ps-dl dt{font-size:12px;font-weight:700;color:#8A93A0;}
 .ps-dl dd{margin:2px 0 0;font-size:15px;white-space:pre-wrap;}
 .ps-photo{display:block;max-width:100%;margin-top:8px;border-radius:8px;}
 .ps-panel{margin:14px 0;padding:14px 16px;border:1px solid var(--ps-line);border-radius:16px;background:var(--ps-card);}
