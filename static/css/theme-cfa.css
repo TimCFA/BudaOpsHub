@@ -3154,7 +3154,8 @@ body.hub-warming::after{content:"Loading the rest… · Cargando…";position:fi
   .bnav-row.active .bnav-row-es{color:rgba(244,247,250,0.75);}
   .bnav-badge{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--cfa-red);color:#fff;font-size:11px;font-weight:700;display:inline-grid;place-items:center;}
   /* The day look (Nov 23 2026): the header alone is the navy band here, the bar floats on shadow, the More sheet is the pale blue with white rows. */
-  html:not([data-theme="dark"]) .app > .hdr{margin-bottom:20px;}
+  :root{--band-gap:20px;}   /* the header alone is the band, so it carries the white gap below */
+  html:not([data-theme="dark"]) .app > .hdr::before{border-radius:0 0 26px 26px;box-shadow:0 10px 24px -8px rgba(0,59,92,.38);}
   .bnav{box-shadow:0 -6px 24px rgba(20,23,28,.10);border-top-color:transparent;}
   .bnav-sheet{background:var(--inset);}
 }
@@ -3318,7 +3319,7 @@ html:not([data-theme="dark"]) .app > .hdr,html:not([data-theme="dark"]) .app > .
 html:not([data-theme="dark"]) .app > .hdr::before,html:not([data-theme="dark"]) .app > .tabs-wrap::before{content:"";position:absolute;top:0;bottom:0;left:-20px;right:-20px;background:var(--band);z-index:-1;pointer-events:none;}
 @media (min-width:1101px){ html:not([data-theme="dark"]) .app > .hdr::before,html:not([data-theme="dark"]) .app > .tabs-wrap::before{left:calc(50% - 50vw);right:calc(50% - 50vw);} }
 @media (max-width:520px){ html:not([data-theme="dark"]) .hdr-theme{top:24px;} }
-html:not([data-theme="dark"]) .app > .hdr{margin-top:-24px;padding:24px 0 14px;margin-bottom:0;}
+html:not([data-theme="dark"]) .app > .hdr{margin-top:-24px;padding:24px 0 14px;margin-bottom:var(--band-gap,0px);}
 html:not([data-theme="dark"]) .app > .tabs-wrap{margin-bottom:22px;padding-bottom:0;}
 html:not([data-theme="dark"]) .app > .tabs-wrap .tabs{margin-bottom:0;}
 html:not([data-theme="dark"]) .hdr-title h1{color:#FFFFFF;}
@@ -3328,6 +3329,8 @@ html:not([data-theme="dark"]) .tab .sub,html:not([data-theme="dark"]) .tab-group
 html:not([data-theme="dark"]) .tab:hover,html:not([data-theme="dark"]) .tab-group-label:hover{color:#FFFFFF;background:rgba(255,255,255,.08);}
 html:not([data-theme="dark"]) .tab.active,html:not([data-theme="dark"]) .tab-group.active .tab-group-label{color:#FFFFFF;border-bottom-color:#FF5A74;}
 html:not([data-theme="dark"]) .app > .tabs-wrap .tabs{box-shadow:inset 0 -2px 0 rgba(255,255,255,.18);}
+/* The band's lower edge is a soft rounded lip with a shadow, so it rests on the page instead of cutting across it. */
+html:not([data-theme="dark"]) .app > .tabs-wrap::before{border-radius:0 0 26px 26px;box-shadow:0 10px 24px -8px rgba(0,59,92,.38);}
 
 /* Tinted insides: the cards stay white; what sits inside them takes the pale blue. */
 .su-sheet-list .su-rowwrap:nth-child(even),#allDayparts .su-sheet-list .su-rowwrap:nth-child(even){background:var(--inset);}
