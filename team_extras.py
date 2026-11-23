@@ -469,7 +469,10 @@ def register(app, *, ref, get_all, access, me, people, key_of, today, is_owner, 
         k, year = key_of(p['name']), today()[:4]
         mine = next((x for x in everyone(levels) if x['key'] == k), None)
         lv = mine['level'] if mine else level_of(levels.get(k), p.get('role'))
+        prof = (profile_of(k) if profile_of else None) or {}
+        # hireDate: for a new hire's day count on Home (right-now.js; Tim, Nov 20 2026). Their own only.
         out = {'name': p['name'], 'level': lv, 'levelLabel': LEVEL_LABEL.get(lv, ''), 'year': year,
+               'hireDate': (prof.get('hireDate') or '') if isinstance(prof, dict) else '',
                'pto': pto_summary([e for e in pto.values() if e.get('key') == k], allowance_for(lv, hours), year, lv)}
         if (mine and mine['director']) or lv in DIRECTOR_TIER:
             out['credit'] = credit_summary([r for r in credit.values() if r.get('key') == k], year)

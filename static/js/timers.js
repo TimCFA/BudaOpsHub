@@ -707,5 +707,11 @@
   window.tmFullSync = applyFull;
   // A device left in full screen opens on the timers again after a reload.
   if(fullOn()) window.addEventListener('load', () => setTimeout(() => { if(typeof launchShowTab === 'function' && !shown()) launchShowTab('timers'); }, 400));
-  window.TimersPage = {S, cycle, cyclesOf, pausesOf, agg, ownerNow, onTheFloor};
+  // Home's Right Now card (right-now.js): where each timer stands, without opening the page.
+  async function peek(){
+    take(await api('/state' + (S.cursor ? '?since=' + encodeURIComponent(S.cursor) : '')));
+    S.status = 'ready'; S.error = '';
+    return S.config.timers.map(t => Object.assign({id: t.id, name: t.name}, cycle(t)));
+  }
+  window.TimersPage = {S, cycle, cyclesOf, pausesOf, agg, ownerNow, onTheFloor, peek};
 })();

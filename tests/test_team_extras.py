@@ -272,7 +272,7 @@ class Page(unittest.TestCase):
         hc = read('static', 'js', 'headcount.js')
         self.assertIn("${typeof apPanelHtml === 'function' ? apPanelHtml() : ''}", hc)
         self.assertIn("${hcProfile && !hcProfile.isNew && typeof apProfileHtml === 'function' ? apProfileHtml(hcProfile) : ''}", hc)
-        self.assertIn("if(v.name && typeof apRightNowRows === 'function') card.rows = card.rows.concat(apRightNowRows());", read('static', 'js', 'right-now.js'))
+        self.assertIn("if(v.name && typeof apRightNowRows === 'function') card.rows = card.rows.concat(apRightNowRows()", read('static', 'js', 'right-now.js'))
         forms = read('static', 'js', 'forms.js')
         self.assertIn("const FM_CREDIT_CARD = {id: 'uniform_credit'", forms)
         self.assertIn('...(fmCreditShown() ? [FM_CREDIT_CARD] : [])', forms)

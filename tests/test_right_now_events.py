@@ -5,6 +5,10 @@ get the block; month-long ones ride on an "Also running" line; the next
 open day's sit under it. Before opening it's today's; after close and on
 Sunday, the next open day's. Leadership meetings only for managers.
 
+Nov 21 2026 (Tim): the navy block was louder than a person's own day, so the
+events are quiet lines among the card's others, after the person's own; a
+new hire's card has none.
+
 Run: python3 -m unittest discover tests
 Runs right-now.js with events.js in node (tests/right_now_runner.js).
 """
@@ -75,33 +79,58 @@ class TodayOnTheCalendar(unittest.TestCase):
         self.assertIn(['mtg', 'done', 'Ended at 4 PM'], mgr['special'])
 
     def test_nothing_on_the_calendar_nothing_shown(self):
-        got = run({'at': '2026-11-03T12:00:00-06:00', 'op': f"c => {{ {EVENTS} return [rnEvents(rnDay()), rnEventsHtml(rnDay(), false)]; }}"})[0]
-        self.assertEqual(got, [None, ''])
+        got = run({'at': '2026-11-03T12:00:00-06:00', 'op': f"c => {{ {EVENTS} return [rnEvents(rnDay()), rnEventRows(rnDay(), false)]; }}"})[0]
+        self.assertEqual(got, [None, []])
 
-    def test_the_block_and_the_sheet(self):
-        got = run({'at': THU_6PM, 'op': f"""c => {{ {EVENTS} const fam = storeEvents[0];
-          return [rnEventsHtml(rnDay(), true), rnEventSheetHtml(fam, '2026-10-22', true)]; }}"""})[0]
-        block, sheet = got
-        self.assertIn('Today on the calendar', block)
-        self.assertIn('Hoy en el calendario', block)                          # the kitchen's card carries Spanish
-        self.assertIn('data-rn-ev="fam" data-rn-ev-date="2026-10-22"', block)
-        self.assertIn('Also running', block)
-        self.assertIn('Tomorrow', block)
+    def test_quiet_lines_and_the_sheet(self):
+        rows = "rnEventRows(rnDay(), %s, %s).map(r => [r.n, r.text, r.go, r.es, r.tone])"
+        got = run({'at': THU_4PM, 'op': f"c => {{ {EVENTS} return {rows % ('false', 'false')}; }}"},
+                  {'at': THU_6PM, 'op': f"c => {{ {EVENTS} return {rows % ('true', 'true')}; }}"},
+                  {'at': THU_8PM, 'op': f"c => {{ {EVENTS} return {rows % ('false', 'true')}; }}"},
+                  {'at': THU_6PM, 'op': f"c => {{ {EVENTS} return rnEventSheetHtml(storeEvents[0], '2026-10-22', true); }}"})
+        self.assertEqual(got[0], [['', 'today: Family Night · 5 PM–7 PM · starts in 1 h', 'event:fam|2026-10-22', '', ''],
+                                  ['', 'also today: No School, Sample: Coffee', 'event:ns|2026-10-22', '', ''],      # all day and the long ones: one line
+                                  ['', 'tomorrow: Pack the Drive Thru · 12 PM', 'event:dt|2026-10-23', '', '']])
+        # On now: "Now" in red, and the kitchen's line carries Spanish. Team members: the marketing events only.
+        self.assertEqual(got[1], [['Now', 'today: Family Night · Happening now · until 7 PM', 'event:fam|2026-10-22', 'Ahora, hasta las 7 PM', 'bad'],
+                                  ['', 'tomorrow: Pack the Drive Thru · 12 PM', 'event:dt|2026-10-23', 'Mañana', '']])
+        self.assertEqual([r[1] for r in got[2]], ['tomorrow: Pack the Drive Thru · 12 PM'])       # over: it drops off
         for part in ('Family Night', 'Pumpkins &amp; Play', 'Thursday, October 22 · 5 PM–7 PM', 'Happening now · until 7 PM',
                      '<li>Paint pumpkins</li>', 'What to know', 'Open the calendar', 'aria-modal="true"'):
-            self.assertIn(part, sheet)
+            self.assertIn(part, got[3])
+
+    def test_after_the_persons_own_lines_and_not_for_a_new_hire(self):
+        card = """c => { %s fohRoster[today] = [{name: 'Kai Mercer', start: '12:00p', end: '8:00p'%s}];
+          posAssignments['foh||' + today + '||Dinner (5:00-8:00)||Drinks 1'] = 'Kai Mercer';
+          acUser = %s; const c2 = rnCardFor(rnViewer(), rnDay()); return c2.rows.map(r => r.text); }"""
+        member, hire, out = run({'at': THU_6PM, 'op': card % (EVENTS, '', "{role: 'member', name: 'Kai Mercer'}")},
+                                {'at': THU_6PM, 'op': card % (EVENTS, ', training: true', "{role: 'member', name: 'Kai Mercer'}")},
+                                {'at': THU_6PM, 'op': card % (EVENTS, '', 'null')})
+        self.assertEqual(member[0], 'Your shift: 12:00p–8:00p')
+        self.assertEqual(member[-2:], ['today: Family Night · Happening now · until 7 PM', 'tomorrow: Pack the Drive Thru · 12 PM'])
+        self.assertFalse(any('Family Night' in t or 'Drive Thru' in t for t in hire))
+        self.assertEqual(out[-1], 'Sign in with your clock-in PIN to see your spot')            # the events sit above it
+        self.assertIn('today: Family Night · Happening now · until 7 PM', out)
 
     def test_event_text_is_escaped(self):
         got = run({'at': THU_6PM, 'op': """c => { storeEvents = [{id: 'x', kind: 'instore', title: '<img src=x onerror=alert(1)>', date: '2026-10-22', notes: ['<b>hi</b>']}];
-          return rnEventsHtml(rnDay(), false) + rnEventSheetHtml(storeEvents[0], '2026-10-22', false); }"""})[0]
+          return JSON.stringify(rnEventRows(rnDay(), false)) + rnEventSheetHtml(storeEvents[0], '2026-10-22', false) + (() => { acUser = null; renderRightNow(); return ''; })(); }"""})[0]
+        got = got.split('rn-evs-card')[1]                                         # the sheet's own HTML; a row's text goes through escapeHtml in renderRightNow
         self.assertNotIn('<img', got)
         self.assertNotIn('<b>hi', got)
 
 
 class Wiring(unittest.TestCase):
-    def test_on_every_card_under_the_title(self):
+    def test_quiet_lines_on_the_card(self):
         js = read('static', 'js', 'right-now.js')
-        self.assertIn("</h2>\n    ${rnEventsHtml(day, boh, !!card.team)}", js)
+        self.assertNotIn('rnEventsHtml', js)
+        self.assertIn("const evs = rnEventRows(day, card.side === 'boh', !!card.team);", js)
+        self.assertIn("else if(what === 'event') rnOpenEvent(parts[0], parts[1] || today, document.activeElement);", js)
+        # A line's label, words and detail all go through escapeHtml (rnLineHtml).
+        self.assertIn('<b class="rn-v">${escapeHtml(rnCap(p.value))}</b>', js)
+        self.assertIn('<small class="rn-k">${escapeHtml(p.kicker)}</small>', js)
+        self.assertIn('<span class="rn-d">${escapeHtml(detail)}</span>', js)
+        self.assertIn('style="--dot:${escapeHtml(r.color)}"', js)                 # each event by its calendar colour
         self.assertIn("if(ev){ rnOpenEvent(ev.dataset.rnEv, ev.dataset.rnEvDate, ev); return; }", js)
         page = read('cfa-buda-ops-hub-complete.html')
         self.assertLess(page.index('/static/js/events.js'), page.index('/static/js/right-now.js'))
