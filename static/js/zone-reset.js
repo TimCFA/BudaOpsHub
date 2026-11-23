@@ -79,10 +79,7 @@ function pruneZoneChecklistData(){
 let currentChecklistZone = '';
 let currentZoneDaypart = '';
 
-// Handoffs as sky banners, the same look as the Set Ups dayparts: every
-// handoff down the page (Close included, no sideways scrolling), its progress
-// and the Lead Captain answerable for it on the banner, tap to open. Since
-// Nov 23 2026 only the Leader Transition List wears these (fohoe-and-safecount.js).
+// Each handoff's sky, by its place in the day (suSkyArt).
 const ZR_HANDOFF_SKIES = ['morning', 'midday', 'afternoon', 'dusk', 'night'];
 
 function zrHandoffParts(name){
@@ -103,41 +100,6 @@ function zrCurrentHandoff(){
 function zrHandoffLead(handoff){
   const dp = fohDayparts.find(d => d.name.startsWith(handoff.leadFrom + ' ('));
   return dp ? (posAssignments['foh||' + today + '||' + dp.name + '||' + SU_LEAD_CAPTAIN] || '') : '';
-}
-
-// The handoffs in the order shown (Tim, Oct 18 2026): the one happening now
-// first, then the rest of the day, then the ones already past. Each keeps
-// its own sky (by its place in the day).
-function zrHandoffOrder(nowName){
-  const i = zoneResetDayparts.findIndex(dp => dp.name === nowName);
-  if(i < 0) return zoneResetDayparts.map((dp, n) => n);
-  return zoneResetDayparts.map((dp, n) => n).slice(i).concat(zoneResetDayparts.map((dp, n) => n).slice(0, i));
-}
-
-function zrHandoffBannersHtml(kind, current, progressFor, bodyHtml){
-  const nowName = zrCurrentHandoff();
-  return `<div class="su-dp-list zr-dp-list">${zrHandoffOrder(nowName).map(i => [zoneResetDayparts[i], i]).map(([dp, i])=>{
-    const open = dp.name === current;
-    const isNow = dp.name === nowName;
-    const {title, time} = zrHandoffParts(dp.name);
-    const {checked, total} = progressFor(dp.name);
-    const done = total > 0 && checked === total;
-    const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
-    const sky = ZR_HANDOFF_SKIES[i] || 'midday';
-    const lead = zrHandoffLead(dp);
-    const unowned = kind === 'zone' && !done && zrSetupExists(today, dp.name) ? zrUnownedZones(today, dp.name).length : 0;
-    return `<section class="su-dp su-col-${suDaypartColor(dp.leadFrom)} ${open ? 'is-open' : ''} ${done ? 'is-done' : ''} ${isNow ? 'is-now' : ''}">
-      <div class="su-dp-banner">
-        <button type="button" class="su-dp-head" data-zr-handoff="${escapeHtml(dp.name)}" aria-expanded="${open}">
-          <span class="su-dp-art">${suSkyArt(sky)}</span>
-          <span class="su-dp-name">${escapeHtml(title)}${time ? ` <span class="su-dp-time">${escapeHtml(time)}</span>` : ''}${isNow && !done ? '<span class="zr-dp-now">now</span>' : ''}${lead ? `<span class="zr-dp-lead"><span class="su-dp-k">Lead</span> ${escapeHtml(suDisplayName(lead))}</span>` : `<span class="zr-dp-lead is-none">No Lead Captain set</span>`}${unowned ? `<span class="zr-dp-unowned">${unowned} unowned</span>` : ''}</span>
-          <span class="zr-dp-progress"><span class="zr-dp-track"><span class="zr-dp-bar" style="width:${pct}%"></span></span><span class="su-dp-fill">${done ? '✓ ' : ''}${checked}/${total}</span></span>
-          <span class="su-dp-chev" aria-hidden="true">▾</span>
-        </button>
-      </div>
-      ${open ? `<div class="zr-dp-body" data-zr-kind="${kind}">${bodyHtml}</div>` : ''}
-    </section>`;
-  }).join('')}</div>`;
 }
 
 function getHandoffZoneCompletion(dateISO, daypart){
@@ -402,6 +364,10 @@ const fohOEChecklistData = [
   ]}
 ];
 
+// The Leader Transition List is off the hub for now (Tim, Nov 23 2026: it
+// wasn't being used; back when leaders want it). Its items and what was
+// saved stay, so it can come back with its history: the three values below
+// are still loaded and saved as they are (storage.js, app.py STATE_SECTIONS).
 const fohLeaderTransitionItems = [
   'Review labor vs. guest count for next daypart',
   'Update communication board',
@@ -418,9 +384,8 @@ let fohOEStreak = 0;
 let fohOEChecked = {};
 let fohOECheckedDate = null;
 let fohLeaderTransitionChecked = {};
-// The Leader Transition list resets each day, so each day's count per
-// handoff is kept here for the weekly leader report (leader-report.js):
-// {date: {handoff: [checked, total]}}, a year of it.
+// Each day's count per handoff while the list was on the hub:
+// {date: {handoff: [checked, total]}}.
 let leaderTransitionHistory = {};
 let fohLeaderTransitionDate = null;
 

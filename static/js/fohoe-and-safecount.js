@@ -1,8 +1,10 @@
-// ===== WALKTHROUGHS (OE Walkthrough + Leader Transition List + Food Safety summary card) =====
+// ===== WALKTHROUGHS (OE Walkthrough + Food Safety summary card) =====
+// The Leader Transition List lived here until Nov 23 2026 (Tim: off the hub
+// for now, it wasn't being used; back when leaders want it). Its items and
+// what was saved are kept (zone-reset.js, storage.js).
 
 let currentWalkthroughCat = '';
 let currentOEWalkthroughDaypart = '';
-let currentLeaderTransitionDaypart = '';
 
 // fohOEChecked is keyed [daypart][cat][itemIndex] — same daypart set as Zone
 // Reset (getZoneDayparts()), so a leader picks a daypart the same way a TM
@@ -70,76 +72,11 @@ function renderOEWalkthroughCard(){
   }
 }
 
-// ===== Leader Transition List =====
-// Same daypart set and daily reset as the OE Walkthrough:
-// fohLeaderTransitionChecked is keyed [daypart][itemIndex] = {initials, ts}.
-function getLeaderTransitionCompletion(daypart){
-  const state = fohLeaderTransitionChecked[daypart] || {};
-  const checked = fohLeaderTransitionItems.filter((_, i) => state[i]).length;
-  return {checked, total: fohLeaderTransitionItems.length};
-}
-
-const LT_HISTORY_KEEP_DAYS = 365;
-// Today's count for every handoff into leaderTransitionHistory, and days
-// past a year dropped.
-function ltRecordHistory(){
-  const day = {};
-  getZoneDayparts().forEach(h => { const c = getLeaderTransitionCompletion(h); day[h] = [c.checked, c.total]; });
-  leaderTransitionHistory[today] = day;
-  const cut = new Date(today + 'T00:00:00');
-  cut.setDate(cut.getDate() - LT_HISTORY_KEEP_DAYS);
-  const cutISO = toLocalISODate(cut);
-  Object.keys(leaderTransitionHistory).forEach(d => { if(d < cutISO) delete leaderTransitionHistory[d]; });
-}
-
-function getLeaderTransitionOverall(){
-  let checked = 0, total = 0;
-  getZoneDayparts().forEach(daypart=>{
-    const c = getLeaderTransitionCompletion(daypart);
-    checked += c.checked;
-    total += c.total;
-  });
-  return total > 0 ? Math.round((checked/total)*100) : 0;
-}
-
-let leaderHandoffChosen = false;
-
-// The handoffs as sky banners (zone-reset.js zrHandoffBannersHtml); the open one shows its checklist.
-// Zone Resets wore these too until Nov 23 2026 (zone-page.js).
-function renderLeaderTransitionCard(){
-  const container = document.getElementById('fohLeaderTransitionChecklist');
-  const daypart = currentLeaderTransitionDaypart;
-  const state = (daypart && fohLeaderTransitionChecked[daypart]) || {};
-  const listHtml = daypart ? fohLeaderTransitionItems.map((item,i)=>{
-    const entry = state[i];
-    const isChecked = !!entry;
-    const stamp = isChecked ? `<span style="font-size:10px;color:var(--text-tertiary);font-style:italic;margin-left:auto;white-space:nowrap;">${escapeHtml(entry.initials)} · ${formatShortTime(entry.ts)}</span>` : '';
-    return `<div class="checklist-item-elevated ${isChecked?'checked':''}" data-lidx="${i}">
-      <input type="checkbox" ${isChecked?'checked':''}>
-      <span>${escapeHtml(item)}</span>
-      ${stamp}
-    </div>`;
-  }).join('') : '';
-  container.innerHTML = zrHandoffBannersHtml('leader', daypart, getLeaderTransitionCompletion, listHtml);
-  const overall = getLeaderTransitionOverall();
-  const badge = document.getElementById('leaderTransitionBadge');
-  badge.textContent = overall + '%';
-  badge.classList.toggle('high', overall >= 95);
-}
-
 function renderWalkthroughsPage(){
   if(fohOECheckedDate !== today){ fohOEChecked = {}; fohOECheckedDate = today; }
-  // Older saves kept one flat list ({itemIndex: ...}); per-daypart state is
-  // keyed by daypart name, so a flat entry means old data — start fresh.
-  const ltIsOldFormat = Object.values(fohLeaderTransitionChecked).some(v => v && v.initials);
-  if(fohLeaderTransitionDate !== today || ltIsOldFormat){ fohLeaderTransitionChecked = {}; fohLeaderTransitionDate = today; }
 
   renderOEDaypartPicker();
   renderOEWalkthroughCard();
-
-  // Every handoff starts closed; the leader opens the one they're handing off.
-  if(!leaderHandoffChosen) currentLeaderTransitionDaypart = '';
-  renderLeaderTransitionCard();
 }
 
 window.openWalkthroughCategory = function(cat){
@@ -206,36 +143,6 @@ document.getElementById('btnMarkFOHOEDone').addEventListener('click', async ()=>
   showToast('✓ OE Walkthrough Marked Complete!');
 });
 
-document.getElementById('fohLeaderTransitionChecklist').addEventListener('click', async (e)=>{
-  const handoff = e.target.closest('[data-zr-handoff]');
-  if(handoff){
-    const name = handoff.dataset.zrHandoff;
-    currentLeaderTransitionDaypart = currentLeaderTransitionDaypart === name ? '' : name;
-    leaderHandoffChosen = true;
-    renderLeaderTransitionCard();
-    const head = [...document.querySelectorAll('#fohLeaderTransitionChecklist [data-zr-handoff]')].find(h => h.dataset.zrHandoff === name);
-    if(currentLeaderTransitionDaypart && head) head.scrollIntoView({block: 'nearest'});
-    return;
-  }
-  const row = e.target.closest('.checklist-item-elevated');
-  const daypart = currentLeaderTransitionDaypart;
-  if(!row || !daypart) return;
-  const idx = row.dataset.lidx;
-  if(!fohLeaderTransitionChecked[daypart]) fohLeaderTransitionChecked[daypart] = {};
-  const bucket = fohLeaderTransitionChecked[daypart];
-  if(bucket[idx]){
-    delete bucket[idx];
-  } else {
-    const initials = getInitials();
-    if(!initials){ showToast('Sign in first (top right)'); beginEditInitials(); renderLeaderTransitionCard(); return; }
-    bucket[idx] = {initials, ts: Date.now()};
-  }
-  fohLeaderTransitionDate = today;
-  ltRecordHistory();
-  await saveState();
-  renderLeaderTransitionCard();
-});
-
 // ===== DAILY SAFE COUNT =====
 const SAFE_COUNT_ENTRY_TYPES = ['Opening Count', 'Transition Count', 'Closing Count', 'Additional Count'];
 const SAFE_COUNT_TYPE_ICONS = {'Opening Count': '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3"/><path d="M12 19v3"/><path d="M4.2 4.2l2.1 2.1"/><path d="M17.7 17.7l2.1 2.1"/><path d="M2 12h3"/><path d="M19 12h3"/><path d="M4.2 19.8l2.1-2.1"/><path d="M17.7 6.3l2.1-2.1"/></svg>', 'Transition Count': '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15.5-6.3L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.3L3 16"/><path d="M3 21v-5h5"/></svg>', 'Closing Count': '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>', 'Additional Count': '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>'};
@@ -293,16 +200,11 @@ function scHidden(){
 function scSignedOut(){
   return !(typeof launchManager !== 'undefined' && launchManager) && !(typeof acUser !== 'undefined' && acUser);
 }
-// The Leader Transition List is a Team Lead and above item (Tim, Oct 20
-// 2026): hidden from the same people as the Safe Count, a signed-out
-// device included.
-function ltHidden(){ return scHidden(); }
 function scSyncVisibility(){
   if(typeof fmSync === 'function') fmSync();   // Forms: leader forms, Submissions
   if(typeof hcSyncTab === 'function') hcSyncTab();   // Our Team: directors and the Admin Team
   const hide = scHidden();
   document.body.classList.toggle('sc-hidden', hide);
-  document.body.classList.toggle('lt-hidden', ltHidden());
   if(typeof launchSubnavRender === 'function' && document.getElementById('zoneresetView').classList.contains('active')) launchSubnavRender('zonereset');
   if(hide && document.getElementById('safecountView').classList.contains('active') && typeof launchShowTab === 'function') launchShowTab('home');
   // The change order on its way leaves a device with its Team Lead.

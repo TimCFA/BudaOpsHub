@@ -377,23 +377,9 @@
   .btn-ghost{background:transparent;color:var(--text-secondary);margin-top:12px;border:1px solid var(--border);}
   .btn-add-tm{background:var(--cfa-white);color:var(--cfa-red);border:1.5px solid var(--cfa-red);border-radius:var(--radius);padding:8px 14px;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s ease;}
   .btn-add-tm:hover{background:var(--cfa-red);color:var(--cfa-white);}
-  /* Zone Reset: dropdown rows (tap a zone to open its checklist in place) */
-  /* Zone Reset + Leader Transition: handoffs as the Set Ups daypart banners. */
+  /* Zone Resets (the page itself is in theme-cfa.css) */
   #zoneresetView{--su-card:#FFFFFF; --su-ink:#1C1B19; --su-muted:#6B665E; --su-line:#E6E0D6;}
-  #zoneresetView .standup-card h3 .sub{display:block;margin-top:2px;font-family:inherit;font-size:11px;text-transform:none;font-weight:500;}
-  .zr-dp-progress{flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;}
-  .zr-dp-track{width:56px;height:6px;border-radius:3px;background:rgba(28,27,25,0.10);overflow:hidden;}
-  .zr-dp-bar{display:block;height:100%;background:var(--cfa-red);border-radius:3px;transition:width .2s ease;}
-  .su-dp .zr-dp-bar{background:var(--dpc);}
-  .su-dp.is-done .zr-dp-bar{background:var(--success);}
   .su-dp.is-done .su-dp-fill{color:var(--success);}
-  .zr-dp-body{padding:10px 0 4px;}
-  .zr-dp-list .su-dp-name{font-size:16px;line-height:1.25;}
-  .zr-dp-list .su-dp-time{display:block;margin-left:0;margin-top:2px;font-size:12.5px;}
-  .zr-dp-lead{display:block;margin-top:4px;font-size:13px;font-weight:700;}
-  .zr-dp-lead .su-dp-k{margin-right:4px;}
-  .zr-dp-lead.is-none{font-weight:500;font-style:italic;color:var(--su-muted);}
-  @media (max-width:420px){ .zr-dp-track{display:none;} }
   .checklist-tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px;}
   .checklist-tile{display:flex;flex-direction:column;gap:8px;background:var(--cfa-light);border:1.5px solid var(--border);border-radius:12px;padding:14px 12px;cursor:pointer;transition:all .15s ease;text-align:left;font-family:inherit;}
   .checklist-tile:hover{border-color:var(--cfa-red);transform:translateY(-1px);box-shadow:0 4px 10px rgba(0,0,0,0.07);}
@@ -491,15 +477,6 @@
   .checklist-item span{font-size:13px;color:var(--text-primary);line-height:1.4;}
   .checklist-item.checked span{color:var(--text-secondary);text-decoration:line-through;}
 
-  /* Elevated checklist row — same rounded/bordered card language as .checklist-tile,
-     for flat action-item lists (like Leader Transition) that don't fit the tile grid. */
-  .checklist-item-elevated{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;margin-bottom:8px;background:var(--cfa-light);border:1.5px solid var(--border);border-radius:10px;cursor:pointer;user-select:none;transition:all .15s ease;}
-  .checklist-item-elevated:last-child{margin-bottom:0;}
-  .checklist-item-elevated:hover{border-color:var(--cfa-red);}
-  .checklist-item-elevated.checked{border-color:var(--success);background:#F3FBF4;}
-  .checklist-item-elevated input[type="checkbox"]{width:18px;height:18px;flex-shrink:0;margin-top:1px;accent-color:var(--cfa-red);cursor:pointer;}
-  .checklist-item-elevated span{font-size:13px;color:var(--text-primary);line-height:1.4;}
-  .checklist-item-elevated.checked span{color:var(--text-secondary);text-decoration:line-through;}
   .streak-number{font-family:'Outfit';font-size:48px;font-weight:700;color:var(--cfa-red);line-height:1;}
   .streak-label{font-family:'Outfit';font-size:12px;text-transform:uppercase;color:var(--text-secondary);margin-top:8px;letter-spacing:0.05em;}
 

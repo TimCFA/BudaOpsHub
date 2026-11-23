@@ -41,7 +41,7 @@ vm.runInContext(`
 `, ctx);
 // The page's helpers that stay in zone-reset.js, then the page.
 vm.runInContext(zr.slice(zr.indexOf('function getZoneItems'), zr.indexOf('function pruneZoneChecklistData')), ctx);
-vm.runInContext(zr.slice(zr.indexOf('let currentChecklistZone'), zr.indexOf('// The handoffs in the order shown')), ctx);
+vm.runInContext(zr.slice(zr.indexOf('let currentChecklistZone'), zr.indexOf('function getHandoffZoneCompletion')), ctx);
 vm.runInContext(js('zone-page.js'), ctx);
 
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));

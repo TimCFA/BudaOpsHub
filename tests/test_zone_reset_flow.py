@@ -188,7 +188,7 @@ class Wiring(unittest.TestCase):
         self.assertNotIn('section-intro', view)
         self.assertNotIn('Open a handoff, then a zone', view)                     # the page says it by itself now
         self.assertLess(view.index('data-launch-subnav'), view.index('id="zoneResetCard"'))
-        self.assertIn('<div class="zr-card" id="zoneResetCard" data-launch-page="zones">', view)
+        self.assertIn('<div class="zr-card" id="zoneResetCard">', view)
         self.assertIn('root.appendChild(hint);', read('static', 'js', 'launch-mode.js'))   # the sign-in line goes last
 
     def test_the_page_loads_with_the_rest_and_the_sheet_sits_under_the_owner_sheet(self):
@@ -214,22 +214,16 @@ class Wiring(unittest.TestCase):
         self.assertEqual(block.count('animation:'), motion.count('animation:'))
         self.assertNotIn('zone-acc', css + read('static', 'css', 'main.css'))     # the old accordion's styles are gone
 
-    def test_the_leader_list_keeps_its_banners_and_their_order(self):
-        """The Leader Transition List still wears the sky banners, the one
-        happening now first (Tim, Oct 18 2026); it always started closed."""
+    def test_the_sky_banners_are_gone(self):
+        """The Leader Transition List was the last thing wearing the handoff
+        banners (the one happening now first; Tim, Oct 18 2026). It came off
+        the hub on Nov 23 2026 (tests/test_leader_transition_off.py), and the
+        banners with it; each handoff's sky stays, on the new cards."""
         js = read('static', 'js', 'zone-reset.js')
-        dayparts = js[js.index('const zoneResetDayparts'):js.index('const fohPositions')]
-        fn = js[js.index('function zrHandoffOrder'):js.index('function zrHandoffBannersHtml')]
-        script = dayparts + fn + "\nconsole.log(JSON.stringify(['Mid to Dinner (4:00pm - 5:00pm)', 'Breakfast to Lunch (10:30am - 11:30am)', 'Close', 'nope'].map(n => zrHandoffOrder(n).map(i => zoneResetDayparts[i].name.split(' (')[0]))));"
-        out = subprocess.run(['node', '-e', script], capture_output=True, text=True, check=True)
-        self.assertEqual(json.loads(out.stdout), [
-            ['Mid to Dinner', 'Dinner to Late Night', 'Close', 'Breakfast to Lunch', 'Lunch to Mid'],
-            ['Breakfast to Lunch', 'Lunch to Mid', 'Mid to Dinner', 'Dinner to Late Night', 'Close'],
-            ['Close', 'Breakfast to Lunch', 'Lunch to Mid', 'Mid to Dinner', 'Dinner to Late Night'],
-            ['Breakfast to Lunch', 'Lunch to Mid', 'Mid to Dinner', 'Dinner to Late Night', 'Close'],
-        ])
-        self.assertIn("zrHandoffBannersHtml('leader', daypart, getLeaderTransitionCompletion, listHtml)", read('static', 'js', 'fohoe-and-safecount.js'))
-        self.assertIn('.zr-dp-list .su-dp.is-open .su-dp-head{border-radius:14px;}', read('static', 'css', 'theme-cfa.css'))
+        for gone in ('function zrHandoffOrder', 'function zrHandoffBannersHtml'):
+            self.assertNotIn(gone, js)
+        self.assertIn("const ZR_HANDOFF_SKIES = ['morning', 'midday', 'afternoon', 'dusk', 'night'];", js)
+        self.assertNotIn('zr-dp-', read('static', 'css', 'theme-cfa.css') + read('static', 'css', 'main.css'))
 
 
 if __name__ == '__main__':

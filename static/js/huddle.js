@@ -1,7 +1,6 @@
 // ===== HUDDLE (Tim, Nov 18 2026) =====
 // The pre-huddle and post-huddle for each daypart, and the store's focus for
-// the month and the week, on the Lists tab beside Leader Transition. Team
-// Leads and up.
+// the month and the week, on the Lists tab. Team Leads and up.
 //
 // The look is Know the Numbers' (kn-page.js; the knp- classes in
 // theme-cfa.css), dressed in Home's language (the Right Now card, Nov 21

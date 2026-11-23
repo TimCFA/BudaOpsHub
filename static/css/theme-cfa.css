@@ -87,9 +87,6 @@ button,input,select,textarea{font-family:inherit;}
 .launch-pill.active{background:var(--cfa-navy);border-color:var(--cfa-navy);color:#F6F1E8;}
 .launch-pill.active span{color:rgba(246,241,232,0.75);}
 .launch-pill:hover:not(.active){border-color:var(--cfa-navy);}
-/* On the simplified site a list page shows only the cards of the open pill. */
-body.launch-mode #zoneresetView[data-launch-page="zones"] [data-launch-page="leaders"],
-body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="zones"]{display:none;}
 .week-toggle{background:var(--cfa-soft);border-radius:999px;}
 .su-week-toggle-btn,.week-toggle-btn{font-family:var(--font-ui);font-size:13px;text-transform:none;letter-spacing:0;color:var(--text-secondary);border-radius:999px;}
 .su-week-toggle-btn.active,.week-toggle-btn.active{background:var(--cfa-white);color:var(--cfa-dark-red);}
@@ -316,7 +313,7 @@ body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="z
 /* ===== Shared cards, buttons and fields (the shell every list page sits in) ===== */
 .standup-card{background:var(--cfa-white);border:1px solid var(--border);border-radius:16px;box-shadow:none;padding:18px;}
 .standup-card h3{font-family:var(--font-display);font-size:19px;font-weight:600;text-transform:none;letter-spacing:0;}
-.standup-card h3 .sub,#zoneresetView .standup-card h3 .sub{font-family:var(--font-display);font-style:italic;font-weight:400;font-size:13px;color:var(--text-tertiary);text-transform:none;}
+.standup-card h3 .sub{font-family:var(--font-display);font-style:italic;font-weight:400;font-size:13px;color:var(--text-tertiary);text-transform:none;}
 .standup-card .sub{font-family:var(--font-ui);}
 .section-intro{background:var(--cfa-light);border-radius:14px;font-family:var(--font-ui);font-size:13px;}
 .standup-btn,.btn{font-family:var(--font-ui);font-size:14px;font-weight:700;text-transform:none;letter-spacing:0;border-radius:999px;min-height:44px;}
@@ -330,21 +327,8 @@ body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="z
 
 /* ===== Zone Reset & Walkthroughs ===== */
 #zoneresetView{--su-card:var(--cfa-white);--su-ink:#1C1B19;--su-muted:#5F5A52;--su-line:#E4DCCF;}
-/* On Zone Reset the zone list sits under the banner, not inside it, so an
-   open banner keeps all four corners (Set Ups squares the bottom two for the
-   content that attaches there). */
-.zr-dp-list .su-dp.is-open .su-dp-head{border-radius:14px;}
-.zr-dp-track{background:var(--cfa-soft);}
-.zr-dp-bar,.su-dp .zr-dp-bar{background:var(--cfa-navy);}
-.su-dp.is-done .zr-dp-bar{background:var(--success);}
-.zr-dp-lead{font-family:var(--font-ui);}
-.zr-dp-now{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;background:var(--cfa-red);color:#fff;font-family:var(--font-ui);font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;vertical-align:2px;}
 .su-dp.is-now:not(.is-open) .su-dp-banner{border-color:var(--cfa-red);}
-.checklist-item-elevated{background:var(--cfa-white);border:1px solid var(--border);border-radius:12px;padding:11px 12px;}
-.checklist-item-elevated:hover{border-color:var(--cfa-navy);}
-.checklist-item-elevated.checked{background:#EEF6F0;border-color:#BFDCC6;}
-.checklist-item-elevated span{font-family:var(--font-ui);font-size:14px;}
-.checklist-item-elevated input[type="checkbox"],.checklist-item input[type="checkbox"]{accent-color:var(--cfa-navy);width:20px;height:20px;}
+.checklist-item input[type="checkbox"]{accent-color:var(--cfa-navy);width:20px;height:20px;}
 .checklist-cat{font-family:var(--font-ui);font-size:11px;font-weight:600;letter-spacing:0.12em;color:var(--text-secondary);}
 
 /* ===== Food Safety Walkthrough ===== */
@@ -875,7 +859,6 @@ body.launch-mode .su-row-notebtn{width:36px;height:36px;}
 .zr-owner-none{color:var(--cfa-red);font-weight:600;}
 .zr-owner-hand{margin-left:auto;min-height:32px;border:1px solid var(--border);background:var(--cfa-white);border-radius:999px;padding:4px 12px;font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;}
 .zr-owner-hand:hover{border-color:var(--cfa-navy);color:var(--cfa-navy);}
-.zr-dp-unowned{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;background:#FBE3E4;color:var(--cfa-red);font-family:var(--font-ui);font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;vertical-align:2px;}
 .zr-owner-note.is-none{background:#FBE3E4;color:#B3002A;}
 #zrOwnerModal .pos-option-tag{font-size:12px;color:var(--text-secondary);white-space:nowrap;}
 #zrOwnerModal .su-pick-foot:empty{display:none;}
@@ -2500,8 +2483,6 @@ body.rn-evs-on{overflow:hidden;}
 .wd-bar-row.is-wide{grid-template-columns:96px 1fr 92px;}
 /* Safe Count: hidden from Team Members and Trainers (fohoe-and-safecount.js scSyncVisibility) */
 body.sc-hidden [data-view="safecount"]{display:none !important;}
-/* Leader Transition List: Team Lead and above (fohoe-and-safecount.js ltHidden) */
-body.lt-hidden #leaderTransitionCard{display:none !important;}
 
 /* Waste Summary: correct an entry logged as the wrong item (waste-dash.js) */
 .wd-entry-go{display:inline-flex;align-items:center;gap:6px;flex:none;}
@@ -2630,8 +2611,8 @@ button.fs-history-row:hover > span:first-child{color:var(--cfa-red);}
   body.launch-mode .tab{flex:0 0 auto;padding:12px 10px;}
 }
 
-/* Lists on a device nobody signed in on: where Leader Transition and Safe
-   Count went (launch-mode.js; Tim, Oct 21 2026). */
+/* Lists on a device nobody signed in on: where Huddle and Safe Count went
+   (launch-mode.js; Tim, Oct 21 2026). */
 .launch-signin-hint{margin:18px 0 6px;font-family:var(--font-ui);font-size:13px;color:var(--text-secondary);}
 .launch-signin-hint button{padding:0;border:0;background:none;color:var(--cfa-red);font:inherit;font-weight:700;text-decoration:underline;text-underline-offset:2px;cursor:pointer;}
 .launch-signin-hint .es-line{display:block;margin-top:2px;}
@@ -3360,7 +3341,7 @@ body.hub-warming::after{content:"Loading the rest… · Cargando…";position:fi
 .su-col-c.is-open .su-dp-head{color:var(--text-primary);}
 .su-col-c.is-open .su-dp-head .su-dp-time,.su-col-c.is-open .su-dp-head .su-dp-chev{color:var(--text-secondary);}
 .su-dp.is-open .su-dp-fill:not(.is-short){background:var(--cfa-soft);}
-#allDayparts .su-dp.is-open,.zr-dp-list .su-dp.is-open{border-radius:16px;box-shadow:0 6px 18px rgba(28,27,25,0.07);}
+#allDayparts .su-dp.is-open{border-radius:16px;box-shadow:0 6px 18px rgba(28,27,25,0.07);}
 
 /* Set Ups: the banner and its positions read as one card */
 #allDayparts .su-dp.is-open .su-dp-banner{border-radius:16px 16px 0 0;}
@@ -3382,12 +3363,6 @@ body.hub-warming::after{content:"Loading the rest… · Cargando…";position:fi
 .launch-subnav[aria-label="Lists"] .launch-pill span{font-size:10.5px;color:var(--text-secondary);}
 .launch-subnav[aria-label="Lists"] .launch-pill.active{background:var(--text-primary);color:#F6F1E8;}
 .launch-subnav[aria-label="Lists"] .launch-pill.active span{color:rgba(246,241,232,0.75);}
-
-/* The Leader Transition List: the open handoff and its list are one card.
-   (Zone Resets left these banners on Nov 23 2026: "Zone Resets: the page".) */
-.zr-dp-list .su-dp.is-open .su-dp-banner{border-radius:16px 16px 0 0;}
-.zr-dp-list .su-dp.is-open .su-dp-head{border-radius:16px 16px 0 0;}
-.zr-dp-list .su-dp.is-open .zr-dp-body{padding:0;}
 
 /* ===== Set Ups on a computer: the name beside its position (Tim, Nov 13 2026) =====
    On a wide screen the name sat at the far right of the row, a screen's

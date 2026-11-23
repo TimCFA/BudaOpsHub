@@ -14,8 +14,8 @@ function activateView(view){
   if(view === 'knownumbers' && typeof knPageShown === 'function' && !knPageShown()) view = 'prepboard';
   // Our Team: directors and the Admin Team (headcount.js).
   if(view === 'headcount' && !(typeof hcAllowed === 'function' && hcAllowed())) view = 'home';
-  // Huddle: Team Leads and up, like the Leader Transition List (huddle.js).
-  if(view === 'huddle' && typeof ltHidden === 'function' && ltHidden()) view = 'zonereset';
+  // Huddle: Team Leads and up, like the Safe Count (huddle.js).
+  if(view === 'huddle' && typeof scHidden === 'function' && scHidden()) view = 'zonereset';
   // Safe Count: not for Team Members or Trainers (fohoe-and-safecount.js).
   if(view === 'safecount' && typeof scHidden === 'function' && scHidden()) view = 'home';
   // An open (a tap) or a redraw of the page already showing (saved data

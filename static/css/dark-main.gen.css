@@ -39,7 +39,6 @@ html[data-theme="dark"]{--cfa-white:#1D1D1D;--cfa-bg:#262626;--cfa-light:#222222
 :where(html[data-theme="dark"]) .cost-preview b{color:var(--ink-red);}
 :where(html[data-theme="dark"]) .btn-add-tm{color:var(--ink-red);}
 :where(html[data-theme="dark"]) #zoneresetView{--su-card:#1D1D1D;--su-ink:#DDDBD9;--su-muted:#B4B0A9;--su-line:#3A3732;}
-:where(html[data-theme="dark"]) .zr-dp-track{background:rgba(255,255,255,0.12);}
 :where(html[data-theme="dark"]) .checklist-tile.done{background:#222722;}
 :where(html[data-theme="dark"]) .wri-week-btn.active{color:var(--ink-red);}
 :where(html[data-theme="dark"]) .rolling-arrow-expanded{color:var(--ink-red);}
@@ -50,8 +49,6 @@ html[data-theme="dark"]{--cfa-white:#1D1D1D;--cfa-bg:#262626;--cfa-light:#222222
 :where(html[data-theme="dark"]) .who-chip:hover{color:var(--ink-red);}
 :where(html[data-theme="dark"]) .checklist-cat{color:var(--ink-red);}
 :where(html[data-theme="dark"]) .checklist-item input[type="checkbox"]{accent-color:var(--ink-red);}
-:where(html[data-theme="dark"]) .checklist-item-elevated.checked{background:#222722;}
-:where(html[data-theme="dark"]) .checklist-item-elevated input[type="checkbox"]{accent-color:var(--ink-red);}
 :where(html[data-theme="dark"]) .streak-number{color:var(--ink-red);}
 :where(html[data-theme="dark"]) .metrics-table tbody tr:hover{background:#312522;}
 :where(html[data-theme="dark"]) .rating-1{background:#3A1E1E;color:#E74560;}

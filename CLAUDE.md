@@ -68,9 +68,8 @@ row.
 
 One meaning a colour (the Nov 2026 refresh): ink is "selected", red is "now"
 and "needs someone", navy is stats, green is done. On Set Ups the open
-daypart is one white card with its positions as rows inside (the Leader
-Transition List's handoffs too); a spot's zone colour is on its number
-badge. Zone Resets has its own page since Nov 23 2026 (see Zone Resets). The Waste logger keeps
+daypart is one white card with its positions as rows inside; a spot's zone
+colour is on its number badge. Zone Resets has its own page since Nov 23 2026 (see Zone Resets). The Waste logger keeps
 its own look (Tim's call); Home got its own redesign on Nov 21 2026 (see
 Home), on the same colour meanings. Tests: `tests/test_bottom_nav.py`.
 
@@ -121,10 +120,18 @@ itself, and the handoffs don't move with the clock (both were Oct 18 2026
 calls Tim reversed). Kept: a zone's last tick closes it and says what's left;
 Home's "zone" lines open their handoff. The helpers Home and Set Ups read
 (owners, completion, the current handoff) stay in `zone-reset.js`, in the
-first group of scripts; the page itself loads with the rest. The Leader
-Transition List still wears the sky banners. Tests:
+first group of scripts; the page itself loads with the rest. Tests:
 `tests/test_zone_reset_flow.py` (runs the page in node) and
 `tests/test_zone_owners.py`.
+
+The Leader Transition List is off the hub for now (Tim, Nov 23 2026: it
+wasn't being used and added clutter; it comes back when list execution is
+stronger or leaders ask for it). Its pill, its page and its row in the
+leaders' weekly report are gone. Its items (`fohLeaderTransitionItems`) and
+what was saved (`fohLeaderTransitionChecked`, `fohLeaderTransitionDate`,
+`leaderTransitionHistory`, still in `STATE_SECTIONS`) are kept and still
+loaded and saved as they are, so nothing on the server changes. Don't bring
+it back without Tim asking. Tests: `tests/test_leader_transition_off.py`.
 
 ## Tasks
 
@@ -173,8 +180,7 @@ match `fohDayparts` in zone-reset.js (tests/test_timers.py checks).
 
 ## Huddle
 
-The Huddle page under Lists (OE on the full site), beside Leader Transition,
-is the pre-huddle and post-huddle for each daypart and the store's focus for
+The Huddle page under Lists (OE on the full site) is the pre-huddle and post-huddle for each daypart and the store's focus for
 the month and the week (`huddle_api.py`, `static/js/huddle.js`,
 `static/css/huddle.css`; Tim, Nov 18 2026). Team Leads and up, enforced by
 the server; directors set the focuses. The pre-huddle is Tim's Team Lead

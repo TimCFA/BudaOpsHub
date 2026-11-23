@@ -41,10 +41,9 @@ A landing page with the day's key info (content set in Manage → Home Page).
 
 ### Simplified site (launch mode)
 While the team is getting started, a device without the manager PIN sees
-only Home, Set Ups, Waste and Lists. Lists opens Zone Resets in one tap; the
-Leader Transition List, Food Safety Walkthrough, Daily Safe Count and the Prep
-Board are pills at the top of each list page (Zone Resets and the Leader
-Transition List are one page on the full site, two pills here). Set Ups opens in the plain set-up
+only Home, Set Ups, Waste and Lists. Lists opens Zone Resets in one tap;
+Huddle, Timers, the Food Safety Walkthrough, Daily Safe Count and the Prep
+Board are pills at the top of each list page. Set Ups opens in the plain set-up
 sheet with the roster's break timer; Coach and the planned break times wait
 for the full site. Managers turn launch mode off for everyone in Manage.
 
@@ -246,13 +245,15 @@ is good). Bilingual. **Temperature targets are still waiting on Tim (TIM-5) —
 never invent them.**
 
 ### Zone Reset & Walkthroughs (OE)
-Two lists, each a set of handoff drop-downs that all start closed (the
-current handoff is marked "now"): Zone Reset (open a handoff, then a zone,
-for its reset list) and the Leader Transition List. Each zone carries who
-owns its reset (from the Set Ups positions, see Set Ups); a zone nobody owns
-is red ("No one yet · tap to pick") and the handoff banner counts them; Hand
-off inside a zone gives it to someone else on the clock. The OE walkthrough is
-kept but hidden; the Food Safety Walkthrough has its own page and no longer
+Zone Resets is three steps, each one screen (Tim, Nov 23 2026): the day's
+five handoffs in the day's order, each saying where it stands (done, now,
+next, not finished); a handoff's zones as tiles; a zone's list on a sheet.
+Nothing opens by itself. Each zone carries who owns its reset (from the Set
+Ups positions, see Set Ups); a zone nobody owns is red ("Nobody yet · tap to
+pick") and the handoff's card counts them; Hand off inside a zone gives it to
+someone else on the clock. The Leader Transition List is off the hub for now
+(Tim, Nov 23 2026: it wasn't being used; its items and saved history are
+kept). The OE walkthrough is kept but hidden; the Food Safety Walkthrough has its own page and no longer
 appears here. A daily safe count is its own page too: cashier tills, coin
 rolls (entered as rolls: quarters $10, dimes $5, nickels $2), loose coin, and
 bills entered as the **dollar amount in each denomination** (seventeen $20s is

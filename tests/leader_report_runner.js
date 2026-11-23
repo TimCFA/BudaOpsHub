@@ -33,10 +33,6 @@ vm.runInContext(`
 `, ctx);
 vm.runInContext(grab(zr, 'getZoneItems') + grab(zr, 'getZoneCompletion') + grab(zr, 'getHandoffZoneCompletion'), ctx);
 vm.runInContext(js('know-numbers.js'), ctx);
-// Today's Leader Transition counts into leaderTransitionHistory.
-const lt = js('fohoe-and-safecount.js');
-vm.runInContext('let fohLeaderTransitionChecked = {};\n' + grab(zr, 'getZoneDayparts') + grab(lt, 'getLeaderTransitionCompletion')
-  + lt.slice(lt.indexOf('const LT_HISTORY_KEEP_DAYS'), lt.indexOf('function getLeaderTransitionOverall')), ctx);
 vm.runInContext(js('setup-history.js'), ctx);
 const dp = js('daypicker-and-positions.js');
 vm.runInContext(dp.slice(dp.indexOf('function parseShiftTimeToMinutes'), dp.indexOf('function parseDaypartTimeToMinutes')), ctx);
