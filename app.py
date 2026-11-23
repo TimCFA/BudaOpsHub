@@ -2074,6 +2074,18 @@ def my_pea():
     resp.headers['Cache-Control'] = 'no-store'
     return resp
 
+@app.route('/api/setups/pea')
+def setups_pea():
+    """What Set Ups shows a Team Lead about the person they're placing (Tim,
+    Nov 22 2026): the ratings cut down by pea_mine.lead_view (no raters, no
+    leader's scores). Team Leads signed in with their own PIN, and up; the
+    saved 'pea' section itself still goes to manager sessions only."""
+    if not _lead_or_up():
+        return jsonify({'error': 'Team Leads and up: sign in with your clock-in PIN.'}), 403
+    resp = jsonify(pea_mine.lead_view((_read_sections() or {}).get('pea')))
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
+
 @app.route('/api/pea/notes', methods=['POST'])
 def pea_notes():
     """One person's Levelset notes, newest first. Director sessions only."""

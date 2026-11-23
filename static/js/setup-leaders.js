@@ -33,7 +33,7 @@ function suRosterEntryFor(section, date, name){
 let suLeaderNamesCache = {sig: null, names: []};
 function suLeaderNames(){
   const roster = Array.isArray(leaderRoster) ? leaderRoster : [];
-  const rows = typeof peaRatings === 'object' && peaRatings && Array.isArray(peaRatings.rows) ? peaRatings.rows.length : 0;
+  const rows = typeof peaShown === 'function' ? peaShown().rows.length : 0;
   const notes = typeof leaderNotes === 'object' && leaderNotes ? Object.keys(leaderNotes).length : 0;
   const sig = [today, rows, notes, JSON.stringify(roster)].join('|');
   if(suLeaderNamesCache.sig === sig) return suLeaderNamesCache.names;

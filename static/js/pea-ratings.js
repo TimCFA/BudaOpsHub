@@ -48,6 +48,32 @@ const PEA_SLOT_RULES = [
 ];
 
 let peaRatings = emptyPeaRatings();
+// A Team Lead's copy for Set Ups (Tim, Nov 22 2026): the score of the person
+// they're placing. The ratings are private, so a lead's phone never gets the
+// saved section: the server hands it a copy without raters or leaders'
+// scores (/api/setups/pea, pea_mine.py lead_view), kept here in memory only
+// and never in peaRatings, so it can't be saved back or left on the phone.
+// Everything Set Ups reads goes through peaShown() / peaAliasesShown().
+let peaLead = null;      // {ratings, aliases}
+function peaShown(){ return peaLead && !peaRatings.rows.length ? peaLead.ratings : peaRatings; }
+function peaAliasesShown(){ return peaLead && !peaRatings.rows.length ? peaLead.aliases : peaNameAliases; }
+async function peaLeadLoad(){
+  const id = typeof siIdentity !== 'undefined' ? siIdentity : {};
+  const lead = !!id.name && id.role === 'lead' && !(typeof launchManager !== 'undefined' && launchManager);
+  if(!lead){ if(peaLead){ peaLead = null; peaLeadChanged(); } return; }
+  try{
+    const r = await fetch('/api/setups/pea', {credentials: 'same-origin', cache: 'no-store'});
+    if(!r.ok) return;
+    const d = await r.json();
+    const aliases = d.peaNameAliases && typeof d.peaNameAliases === 'object' ? d.peaNameAliases : {};
+    peaLead = {ratings: normalizePeaRatings(d.peaRatings), aliases};
+    peaLeadChanged();
+  }catch(e){ /* no signal: Set Ups works without the scores */ }
+}
+function peaLeadChanged(){
+  if(typeof peaNameMatchCache !== 'undefined') peaNameMatchCache.clear();
+  if(typeof stateRerender === 'function') stateRerender();
+}
 let peaMapView = 'position';   // 'position' | 'person'
 let peaOpenPosition = '';
 let peaPersonFilter = '';
@@ -100,7 +126,7 @@ function peaAddCoverage(coverage, areas, start, end){
 // Stretches from the first covered day up to today that no upload covers,
 // per area; ranges missing from both areas are listed once.
 function peaCoverageGaps(){
-  const cov = peaRatings.coverage;
+  const cov = peaShown().coverage;
   const starts = PEA_AREAS.map(a => (cov[a][0] || [])[0]).filter(Boolean).sort();
   if(!starts.length) return [];
   const from = starts[0];
@@ -124,7 +150,7 @@ function peaCoverageGaps(){
 
 // How many areas (FOH/BOH) an upload covers on this date: 0, 1 or 2.
 function peaAreasCovered(iso){
-  return PEA_AREAS.filter(a => peaRatings.coverage[a].some(([s0, e0]) => iso >= s0 && iso <= e0)).length;
+  return PEA_AREAS.filter(a => peaShown().coverage[a].some(([s0, e0]) => iso >= s0 && iso <= e0)).length;
 }
 
 function peaPositionsForSlot(section, slot){
@@ -144,7 +170,7 @@ function peaRowKey(at, employee, leader, position, criteria){
 // Every saved rating, decoded: {at, date, employee, role, leader, position, criteria, overall}.
 // `source` defaults to the saved ratings (another copy, e.g. a backup, works too).
 function peaAllRatings(source){
-  const {names, positions, roles, rows} = source || peaRatings;
+  const {names, positions, roles, rows} = source || peaShown();
   return rows.map(r => ({
     at: r[0], date: r[0].slice(0, 10),
     employee: names[r[1]], role: roles[r[2]] || '', leader: names[r[3]] || '',
@@ -603,7 +629,7 @@ function peaMatchInfo(rosterName, peaNames){
   const key = rosterName + '\u0000' + peaNames.length;
   if(peaNameMatchCache.has(key)) return peaNameMatchCache.get(key);
   let info;
-  const linked = peaNameAliases[peaRosterKey(rosterName)];
+  const linked = peaAliasesShown()[peaRosterKey(rosterName)];
   if(linked === PEA_NOT_IN_LEVELSET){
     info = {match: null, how: 'none', candidates: []};
   } else if(linked && peaNames.includes(linked)){
