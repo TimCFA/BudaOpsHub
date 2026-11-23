@@ -266,7 +266,7 @@ class SofterLook(unittest.TestCase):
         css = read('static', 'css', 'theme-cfa.css')
         self.assertRegex(css, r'#allDayparts \.su-sheet-list \.su-rowwrap\{background:var\(--cfa-white\);border:1px solid var\(--border\);border-radius:14px;')
         self.assertIn('#allDayparts .su-sheet-list .su-row-who{color:var(--cfa-navy);}', css)
-        self.assertIn('#allDayparts .su-sheet-list .su-row-name{justify-content:flex-end;text-align:right;', css)
+        self.assertIn('#allDayparts .su-sheet-list .su-row-name{flex-direction:column;flex-wrap:nowrap;align-items:flex-end;text-align:right;', css)
         self.assertRegex(css, r'#posModalOptions\{display:grid;grid-template-columns:1fr 1fr;')
         # The wide choices still span the sheet.
         self.assertIn('#posModalOptions .more-option,#posModalOptions .split-option,#posModalOptions .unassign-option{grid-column:1 / -1;}', css)

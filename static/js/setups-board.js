@@ -361,7 +361,12 @@ function suNumbersLineHtml(date, dp, pill){
   const n = typeof knDaypartOf === 'function' ? knDaypartOf(dp) : null;
   const more = goal && n && typeof knPageShown === 'function' && knPageShown()
     ? `<button type="button" class="su-dp-kn" data-launch-go="knownumbers" data-kn-open="${escapeHtml(n.name.replace(/\s*\(.*$/, ''))}" data-kn-date="${escapeHtml(date)}">Goals${esHtml('Goals')}</button>` : '';
-  return `<div class="su-dp-nums"${pill ? '' : ` data-su-dp-toggle="${escapeHtml(dp.name)}"`}>${sales ? `<span class="su-dp-num"><b>${escapeHtml(sales)}</b> projected${esHtml('projected')}</span>` : ''}${actual ? `<span class="su-dp-num"><b>${escapeHtml(actual)}</b> actual${esHtml('actual')}${off}</span>` : ''}${goal ? `<span class="su-dp-num"><b>${escapeHtml(goal)}</b>/labor hr${esHtml('per labor hour')}</span>` : ''}${ev ? `<span class="su-dp-num is-event" title="${escapeHtml(ev)}">${escapeHtml(ev)}</span>` : ''}${more}</div>`;
+  // The events sit on a line of their own under the numbers and wrap, each
+  // title kept whole where it fits, so a long one is never cut off (Tim,
+  // Nov 23 2026).
+  const evs = ev ? ev.split(' · ').filter(Boolean) : [];
+  const evHtml = evs.length ? `<span class="su-dp-num is-event">${evs.map((t, k) => `<span class="su-dp-ev">${escapeHtml(t)}${k < evs.length - 1 ? ' ·' : ''}</span>`).join(' ')}</span>` : '';
+  return `<div class="su-dp-nums"${pill ? '' : ` data-su-dp-toggle="${escapeHtml(dp.name)}"`}>${sales ? `<span class="su-dp-num"><b>${escapeHtml(sales)}</b> projected${esHtml('projected')}</span>` : ''}${actual ? `<span class="su-dp-num"><b>${escapeHtml(actual)}</b> actual${esHtml('actual')}${off}</span>` : ''}${goal ? `<span class="su-dp-num"><b>${escapeHtml(goal)}</b>/labor hr${esHtml('per labor hour')}</span>` : ''}${more}${evHtml}</div>`;
 }
 
 // ----- Layout: daypart pills (Oct 2026) or the stacked cards -----

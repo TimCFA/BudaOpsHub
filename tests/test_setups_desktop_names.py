@@ -18,9 +18,9 @@ class DesktopNames(unittest.TestCase):
         block = css[css.index('@media (hover:hover) and (pointer:fine) and (min-width:900px){\n  #allDayparts .su-sheet-list .su-row{'):]
         block = block[:block.index('\n}\n') + 3]
         self.assertIn('#allDayparts .su-sheet-list .su-row{grid-template-columns:300px minmax(0,1fr);gap:20px;}', block)
-        self.assertIn('#allDayparts .su-sheet-list .su-row-name{justify-content:flex-start;text-align:left;max-width:none;}', block)
+        self.assertIn('#allDayparts .su-sheet-list .su-row-name{align-items:flex-start;text-align:left;max-width:none;}', block)
         # Outside that block, the phone and tablet rule is untouched.
-        self.assertIn('#allDayparts .su-sheet-list .su-row-name{justify-content:flex-end;text-align:right;max-width:58vw;}', css)
+        self.assertIn('#allDayparts .su-sheet-list .su-row-name{flex-direction:column;flex-wrap:nowrap;align-items:flex-end;text-align:right;max-width:58vw;}', css)
 
 
 if __name__ == '__main__':
