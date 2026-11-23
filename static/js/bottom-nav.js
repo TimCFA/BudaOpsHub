@@ -68,8 +68,8 @@
       b.classList.toggle('active', on);
       if(on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
-    const badge = document.getElementById('tasksTabBadge');
-    bar.querySelector('.bnav-dot').hidden = !(badge && !badge.hidden);
+    // Something waiting under More: a ticket (Tasks) or a request for a director's time (Calendar).
+    bar.querySelector('.bnav-dot').hidden = !['tasksTabBadge', 'weekTabBadge'].some(id => { const badge = document.getElementById(id); return badge && !badge.hidden; });
   }
 
   // What More lists: every tab the top row shows that isn't in the bar, in
@@ -162,8 +162,10 @@
       return out;
     };
   }
-  const badge = document.getElementById('tasksTabBadge');
-  if(badge && typeof MutationObserver === 'function') new MutationObserver(sync).observe(badge, {attributes: true, childList: true});
+  ['tasksTabBadge', 'weekTabBadge'].forEach(id => {
+    const badge = document.getElementById(id);
+    if(badge && typeof MutationObserver === 'function') new MutationObserver(sync).observe(badge, {attributes: true, childList: true});
+  });
   window.bnavSync = sync;
   sync();
 })();

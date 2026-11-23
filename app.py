@@ -3179,6 +3179,25 @@ def _huddle_timer_events():
 huddle_api.register(app, me=_pass_me, setups=_timers_setups, ref=lambda path: db.reference(path),
                     tz=levelset_sync.STORE_TZ, sections=lambda: _read_sections(), timer_events=_huddle_timer_events)
 
+# ===== DIRECTORS' WEEK (Nov 18 2026) =====
+# A director's week, mirrored from one Google calendar they share with the
+# hub's service account, and the team's requests for their time
+# (week_api.py; the screen is static/js/week.js on the Calendar tab). Events
+# under week/ in Firebase, one record each; who shares which calendar under
+# secure/week. Shown to the team only once a director turns it on.
+import week_api
+
+def _week_service_account():
+    try:
+        return json.loads(_cred_json) if _cred_json else None
+    except ValueError:
+        return None
+
+week_api.register(app, me=_pass_me, ref=lambda path: db.reference(path), tz=levelset_sync.STORE_TZ,
+                  signed_in=lambda: bool(session.get('user') or session.get('manager') or session.get('device')),
+                  calendar=week_api.GoogleCalendar(_week_service_account()),
+                  dayparts=[name for name, _ in timers_api.FOH_DAYPARTS])
+
 # ===== START SERVER =====
 
 if __name__ == '__main__':

@@ -436,11 +436,17 @@ function rnPeaHtml(pea, boh){
 }
 const PEA_RECENT_RATINGS_RN = 5;   // pea_mine.py RECENT, pea-ratings.js PEA_RECENT_RATINGS
 
+// A director's requests for their time, waiting on an answer (week.js,
+// Directors' Week on the Calendar tab; Tim, Nov 18 2026): the first row.
+function rnWeekRows(){
+  const n = typeof dwPendingCount === 'function' ? dwPendingCount() : 0;
+  return n ? [rnRow(String(n), `request${n === 1 ? '' : 's'} for your time waiting on you`, '', 'week', 'bad')] : [];
+}
 function rnLeadCard(v, day, store){
   const on = v.name ? rnOnRoster(v.name, today) : [];
   const onFloor = on.filter(o => RN_FLOOR.includes(o.side));
   const sides = store || !onFloor.length ? ['foh', 'boh'] : [...new Set(onFloor.map(o => o.side))];
-  const rows = [];
+  const rows = rnWeekRows();
   let first = null;
 
   if(day.closed){
@@ -1259,6 +1265,7 @@ function rnGo(g){
   else if(what === 'mine' && typeof mpOpenMine === 'function') mpOpenMine();
   else if(what === 'credit' && typeof apOpenCredit === 'function') apOpenCredit();
   else if(what === 'ticket' || what === 'tickets'){ launchShowTab('tasks'); window.scrollTo({top: 0}); if(what === 'ticket' && typeof psOpenTicket === 'function') psOpenTicket(rest); }
+  else if(what === 'week' && typeof dwShow === 'function') dwShow();
   else if(what === 'signin' && typeof siOpen === 'function') siOpen();
   else if(what === 'signin'){ launchShowTab('manage'); window.scrollTo({top: 0}); const pin = document.getElementById('pinInput'); if(pin) pin.focus(); }
 }
