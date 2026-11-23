@@ -673,15 +673,21 @@ function rnPrepLeft(){
   return {left, units: left.reduce((t, x) => t + x.left, 0)};
 }
 
-// The kitchen's breaks not yet marked taken: the morning shifts' until 2 PM,
-// then the afternoon's (Tim: PM shifts start at 2).
+// The breaks not yet marked taken: the morning shifts' until 2 PM, then the
+// afternoon's (Tim: PM shifts start at 2). After the switch the count still
+// carries the earlier shifts' breaks that fall in the afternoon, and any
+// earlier one not yet taken by someone still on the clock, so it matches the
+// breaks roster on Set Ups (Tim, Nov 23 2026: a mid shift from 11 with its
+// break at 3:45 was missing from "PM breaks left").
 function rnBreaksLeft(side, now, pmShownFrom){
   const plan = typeof breakPlanFor === 'function' ? breakPlanFor(side, today) : {breaks: []};
   const all = (plan.breaks || []).filter(b => b.start !== null);
   const open = b => !completedBreaks[breakKeyFor(b.name, today, side)];
-  const am = all.filter(b => b.from < RN_PM_FROM), pm = all.filter(b => b.from >= RN_PM_FROM);
-  const pmNow = now >= (pmShownFrom || RN_PM_FROM);
-  const list = pmNow ? pm : am;
+  const from = pmShownFrom || RN_PM_FROM;
+  const pmNow = now >= from;
+  const list = pmNow
+    ? all.filter(b => b.from >= RN_PM_FROM || b.start >= from || (open(b) && !(b.to <= now)))
+    : all.filter(b => b.from < RN_PM_FROM);
   const left = list.filter(open).sort((a, b) => a.start - b.start);
   return {pm: pmNow, total: list.length, left};
 }
