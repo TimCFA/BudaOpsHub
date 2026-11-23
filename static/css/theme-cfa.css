@@ -255,7 +255,8 @@ body.launch-mode #zoneresetView[data-launch-page="leaders"] [data-launch-page="z
 /* Know the Numbers on the daypart card */
 .su-dp-nums{display:flex;flex-wrap:wrap;gap:4px 14px;padding:0 14px 8px;margin-top:-4px;font-family:var(--font-ui);font-size:12.5px;color:var(--text-secondary);cursor:pointer;}
 .su-dp-nums b{font-family:var(--font-display);font-size:14px;color:var(--text-primary);font-weight:600;}
-.su-dp-num.is-event{color:#7A4C00;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.su-dp-num.is-event{color:#7A4C00;font-weight:600;flex:0 0 100%;min-width:0;line-height:1.35;overflow-wrap:anywhere;}
+.su-dp-ev{display:inline-block;max-width:100%;}
 .su-col-c.is-open .su-dp-nums{color:inherit;}
 .su-dp.is-open .su-dp-nums{background:var(--sky);padding-top:0;margin-top:-6px;padding-bottom:10px;}
 .su-col-c.is-open .su-dp-nums,.su-col-c.is-open .su-dp-nums b{color:#F6F1E8;} .su-col-c.is-open .su-dp-num.is-event{color:#FFD9A0;}
@@ -2792,7 +2793,7 @@ body:not(.hc-allowed) .hc-only{display:none !important;}
 .knp-actual{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:13px;color:var(--text-secondary);}
 .knp-actual b{color:var(--text-primary);}
 .knp-foot{margin:12px 0 0;font-size:12px;color:var(--text-tertiary);}
-.su-dp-kn{margin-left:auto;padding:3px 10px;border:1px solid var(--border);border-radius:999px;background:var(--cfa-white);color:var(--cfa-navy);font-family:var(--font-ui);font-size:12px;font-weight:700;cursor:pointer;}
+.su-dp-kn{margin-left:auto;align-self:center;padding:3px 10px;border:1px solid var(--border);border-radius:999px;background:var(--cfa-white);color:var(--cfa-navy);font-family:var(--font-ui);font-size:12px;font-weight:700;cursor:pointer;}
 .su-dp-kn:hover{border-color:var(--cfa-navy);}
 
 /* The change order on its way (safe-order.js; Tim, Oct 23 2026) */
