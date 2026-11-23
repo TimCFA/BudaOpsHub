@@ -127,12 +127,13 @@ be visible to team member. Reduce as much noise for team members as
 possible"). Leaders (Team Leads and up, a manager session: `zrLeaderView`)
 see the whole picture: the day's share done, the Lead Captain, what needs
 someone in red (no Lead Captain, zones with nobody, a handoff not finished),
-Hand off, who ticked what, the last six days. Team Members, Trainers and a
+Hand off, who ticked what. Team Members, Trainers and a
 device nobody signed in on see only what they act on: the handoffs and where
 each stands, their own zone first and marked in ink ("Your zone"), the other
 zones with whose they are, the list. Nothing in red but "now"; no counts of
-what's wrong, no Hand off, no history. Anything new on this page goes on the
-leaders' view unless the team acts on it. Tests:
+what's wrong, no Hand off. The last six days and their star show to
+everyone (Tim: the team should have them). Anything new on this page goes on
+the leaders' view unless the team acts on it. Tests:
 `tests/test_zone_reset_flow.py` (runs the page in node) and
 `tests/test_zone_owners.py`.
 
@@ -143,7 +144,8 @@ leaders' weekly report are gone. Its items (`fohLeaderTransitionItems`) and
 what was saved (`fohLeaderTransitionChecked`, `fohLeaderTransitionDate`,
 `leaderTransitionHistory`, still in `STATE_SECTIONS`) are kept and still
 loaded and saved as they are, so nothing on the server changes. Don't bring
-it back without Tim asking. Tests: `tests/test_leader_transition_off.py`.
+it back without Tim asking. Neither it nor the OE Walkthrough (hidden since
+Sept 2026) is a Huddle quick pick. Tests: `tests/test_leader_transition_off.py`.
 
 ## Tasks
 

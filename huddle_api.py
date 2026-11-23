@@ -95,7 +95,7 @@ PURPOSES = ['Serve guests well', 'Grow my people', 'Grow as a leader', 'Set the 
 PICKS = {
     'foh': {'purpose': PURPOSES,
             'priority': ['Speed of service', 'Second Mile Service', 'Food quality', 'Cleanliness', 'Order accuracy'],
-            'system': ['Zone Resets', 'OE Walkthrough', 'Food Safety Walkthrough', 'PEAs', 'Huddle']},
+            'system': ['Zone Resets', 'Food Safety Walkthrough', 'PEAs', 'Huddle']},
     'boh': {'purpose': PURPOSES,
             'priority': ['Food quality', 'Food safety', 'Speed of service', 'Cleanliness', 'Order accuracy'],
             'system': ['Food Safety Walkthrough', 'Prep Board', 'Waste logging', 'PEAs', 'Huddle']},

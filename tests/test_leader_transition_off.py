@@ -81,7 +81,8 @@ class OffTheHub(unittest.TestCase):
 
     def test_nothing_else_points_at_it(self):
         self.assertNotIn('Leader Transition List', huddle_api.PICKS['foh']['system'])           # a huddle goal can't be a list nobody can open
-        self.assertIn('Zone Resets', huddle_api.PICKS['foh']['system'])
+        self.assertNotIn('OE Walkthrough', huddle_api.PICKS['foh']['system'])                   # nor the OE Walkthrough, hidden since Sept 2026 (Tim, Nov 23 2026)
+        self.assertEqual(huddle_api.PICKS['foh']['system'], ['Zone Resets', 'Food Safety Walkthrough', 'PEAs', 'Huddle'])
         report = read('static', 'js', 'leader-report.js')
         self.assertNotIn("key: 'lt'", report)                                                   # nor a leader's weekly score
         self.assertNotIn('leaderTransitionHistory', report)

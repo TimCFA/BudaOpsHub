@@ -20,11 +20,12 @@
 // for team members as possible"). Leaders (Team Leads and up, zrLeaderView)
 // get the whole picture: the day's share done, the Lead Captain, what needs
 // someone in red (no Lead Captain, zones with nobody, a handoff not
-// finished), Hand off, who ticked what, the last six days. Everyone else
+// finished), Hand off, who ticked what. Everyone else
 // (Team Members, Trainers, a device nobody signed in on) gets only what they
 // act on: the handoffs and where each stands, their own zone first and
 // marked, the zones, the list. No red but "now", no counts of what's wrong,
-// no Hand off, no history.
+// no Hand off. The last six days and their star are for everyone (Tim: the
+// team should see them).
 //
 // The helpers it reads (who owns a zone, how complete, the current handoff)
 // stay in zone-reset.js, which Home and Set Ups load first; this file comes
@@ -150,7 +151,7 @@ function zrDayHtml(nowMin){
       ${leader ? `<span class="zr-pct${overall >= ZR_STAR ? ' is-high' : ''}"><b>${overall}%</b> done</span>` : ''}
     </div>
     <div class="zr-list">${cards}</div>
-    ${leader ? zrHistoryHtml() : ''}`;
+    ${zrHistoryHtml()}`;
 }
 
 // The last six open days (Sundays are closed), today last: the day's share

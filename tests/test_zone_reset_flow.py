@@ -201,7 +201,7 @@ class TheTeamsPage(unittest.TestCase):
         # A signed-out device, a Team Member and a Trainer get the team's page; a manager session is a leader.
         self.assertEqual(got, [False, False, False, True, True, True, True, 'zr-page is-team zr-enter'])
 
-    def test_the_day_has_no_red_flags_no_counts_of_whats_wrong_and_no_stats(self):
+    def test_the_day_has_no_red_flags_and_no_counts_of_whats_wrong(self):
         """4:20 PM: Lunch to Mid wasn't finished, Mid to Dinner is on with no
         Lead Captain and zones nobody owns. A leader sees all of it in red;
         the team sees where each handoff stands, and their own zone."""
@@ -210,10 +210,14 @@ class TheTeamsPage(unittest.TestCase):
         lead, team, out = run({'op': f"c => {{ {setup} return zrDayHtml(nowMin()); }}", 'at': '2026-11-23T16:20:00-06:00'},
                               {'op': f"c => {{ {setup} {MAYA} return zrDayHtml(nowMin()); }}", 'at': '2026-11-23T16:20:00-06:00'},
                               {'op': f"c => {{ {setup} acUser = null; return zrDayHtml(nowMin()); }}", 'at': '2026-11-23T16:20:00-06:00'})
-        for red in ('is-behind', 'rn-bar is-bad', '<span class="zr-h-flag">No Lead Captain yet</span>', 'zones with nobody', 'zr-pct', 'Last 6 days'):
+        for red in ('is-behind', 'rn-bar is-bad', '<span class="zr-h-flag">No Lead Captain yet</span>', 'zones with nobody', 'zr-pct'):
             self.assertIn(red, lead)
             self.assertNotIn(red, team)
             self.assertNotIn(red, out)
+        # The last six days and their star are the team's too (Tim, Nov 23 2026: "Yes team members should have the 6 day strip and star").
+        for html in (lead, team, out):
+            self.assertIn('Last 6 days', html)
+            self.assertIn('95% or more earns a star', html)
         cards = team.split('<button type="button" class="zr-h ')[1:]
         self.assertEqual(len(cards), 5)                                          # the same five handoffs, in the same order
         self.assertTrue(cards[1].startswith('su-col-l is-past"'))                # not finished: said plainly, not in red
