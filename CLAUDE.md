@@ -78,7 +78,9 @@ Home), on the same colour meanings. Tests: `tests/test_bottom_nav.py`.
 Home is one glance at your own day (Tim, Nov 18 2026): the greeting and the
 quote (culture first, always), then the Right Now card
 (`static/js/right-now.js`), which changes by who is signed in; every line
-taps through to where it lives. Vision, Mission and Values and the Monthly
+taps through to where it lives, the item itself and not the top of its
+page (Tim, Nov 23 2026): a break line opens Set Ups at the roster on Breaks
+left (`rnOpenBreaks`; tests/test_home_links.py). Vision, Mission and Values and the Monthly
 Leadership Wins are off Home (still kept in Manage as `homeData`, for a page
 of their own later). Someone in their first 30 days (the roster's "In
 training" tag from HotSchedules, or a hire date in Our Team) gets a new
