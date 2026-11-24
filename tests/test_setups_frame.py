@@ -174,7 +174,7 @@ class DaypartCards(unittest.TestCase):
         # Tim, Oct 27 2026: assigned / on shift again, not "1 open"; red while short.
         self.assertIn("return onShift ? `${filled}/${onShift}` : filled ? `${filled} placed${esLine('N placed', filled)}` : '—';", text)
         self.assertNotIn(" open${esLine('N open'", board)
-        self.assertIn("""`<span class="su-dp-fill ${count.open && !suDaypartIsOver(section, date, dp) ? 'is-short' : ''}">""", board)
+        self.assertIn("""`<span class="su-dp-fill ${count.open && !suDaypartIsOver(section, date, dp) ? 'is-short' : full ? 'is-full' : ''}">""", board)
         over = block(board, 'function suDaypartIsOver(section, date, dp){', '\n}\n')
         self.assertIn("if(date < today) return true;", over)
         self.assertIn("return date === today && i < nowIdx;", over)
@@ -182,7 +182,7 @@ class DaypartCards(unittest.TestCase):
         self.assertIn('<span class="su-chip-fill">${suDaypartFillText(section, date, dp, i)}</span>', chips)
         self.assertNotIn('filled}/${onShift}', chips)
         css = read('static', 'css', 'theme-cfa.css')
-        self.assertIn('.su-dp .su-dp-fill.is-short{background:#FBE3E4;color:var(--cfa-dark-red);}', css)
+        self.assertIn('.su-dp .su-dp-fill.is-short{background:var(--bad-fill);color:var(--cfa-dark-red);}', css)
 
     def test_arrival_redraw_waits_for_open_sheets(self):
         """The half-minute arrival check looked for `.modal.active`, a class

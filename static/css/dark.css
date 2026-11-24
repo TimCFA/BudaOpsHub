@@ -8,23 +8,38 @@
 
 html[data-theme="dark"]{
   color-scheme:dark;
-  --cfa-bg:#121418;           /* ground */
-  --cfa-white:#1B1E23;        /* cards */
-  --cfa-light:#171A1E;
-  --cfa-soft:#272B32;         /* segmented controls, quiet fills */
-  --text-primary:#ECE7DF;
-  --text-secondary:#B8B1A6;
-  --text-tertiary:#928B80;
-  --border:#30343B;
-  --success:#3C9A57;
-  --ok:#3C9A57;
-  --ok-soft:#1C3324;
+  /* Midnight (Tim, Nov 21 2026, from the palette options): a deep navy
+     night, cards a shade lighter, red and gold glowing against it. */
+  --cfa-bg:#0B1524;           /* ground */
+  --cfa-white:#142238;        /* cards */
+  --cfa-light:#101C2F;
+  --cfa-soft:#1E2F49;         /* segmented controls, quiet fills */
+  --cfa-navy:#1F4B6E;         /* the stats cards, a step up from the ground */
+  --text-primary:#EEF3F8;
+  --text-secondary:#B4C2D2;
+  --text-tertiary:#8597AB;
+  --border:#27395A;
   /* Brand colours as text on the dark ground (tools/dark_css.py swaps them in). */
-  --ink-navy:#7FC1E1;
+  --ink-navy:#8FC7E8;
   --ink-red:#FF5A74;
-  --ink-dark-red:#F27C84;
+  --ink-dark-red:#F58A94;
+  /* Status tokens (theme-cfa.css names them): the same meanings, lit for a
+     dark ground. -ink stays readable text, -fill a dark wash, -bright as is. */
+  --good:#3C9A57; --good-ink:#7CCB98; --good-fill:#17352A; --good-line:#2A5A40; --good-bright:#9FD9AE;
+  --warn:#D99A2B; --warn-ink:#E8C66A; --warn-fill:#3A3115; --warn-line:#5A4A1E; --warn-bright:#F3C76A;
+  --bad:#DD0031;  --bad-ink:#F27C84;  --bad-fill:#3D1E2B;  --bad-line:#6A2A3C;  --bad-bright:#FF8FA6;
+  --info:#2B7CB3; --info-ink:#003B57; --info-fill:#173552; --info-line:#2A5A85; --info-bright:#8FC7E8;
+  --off:#8597AB;  --off-ink:#B4C2D2;  --off-fill:#1E2F49;  --off-line:#2F4467;
+  --success:var(--good);
+  --ok:var(--good);
+  --ok-soft:var(--good-fill);
+  --card-shadow:0 1px 2px rgba(0,0,0,0.4),0 4px 16px rgba(0,0,0,0.35);
+  --eyebrow:var(--ink-navy);
+  --band:#142238;
+  --inset:#18283F; --inset-strong:#203352; --inset-faint:#112038; --inset-track:#2A3F5E; --inset-line:#2E4468;
+  --zone-ipos:#4FA3C8; --zone-raw:#8A9AAB; --zone-extra:#7C8798;
   /* Set Ups */
-  --su-bg:var(--cfa-bg); --su-card:var(--cfa-white); --su-ink:#ECE7DF; --su-muted:#B8B1A6; --su-line:#30343B; --su-soft:var(--cfa-soft); --su-unrated:#3A3E46;
+  --su-bg:var(--cfa-bg); --su-card:var(--cfa-white); --su-ink:#EEF3F8; --su-muted:#B4C2D2; --su-line:#27395A; --su-soft:var(--cfa-soft); --su-unrated:#2F4467;
 }
 html[data-theme="dark"] body{background:var(--cfa-bg);color:var(--text-primary);}
 html[data-theme="dark"] img{opacity:.92;}

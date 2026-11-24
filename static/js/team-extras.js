@@ -168,6 +168,8 @@ function apPanelHtml(){
 
 // ----- the signed-in person's own -----
 function apMineLoad(force){
+  // View as (view-as.js): the server would send Tim's own, not theirs.
+  if(typeof vaActive === 'function' && vaActive()){ apMine = null; apMineWho = ''; return; }
   const who = typeof acUser !== 'undefined' && acUser && acUser.name ? acUser.name : '';
   if(!who){ if(apMine){ apMine = null; apMineWho = ''; } return; }
   if(!force && apMineWho === who && Date.now() - apMineAt < AP_MINE_EVERY) return;

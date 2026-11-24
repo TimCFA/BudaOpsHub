@@ -32,11 +32,13 @@ const acRoleLabel = r => AC_ROLE_LABELS[r] || r || '';
 
 // ----- Status from the server -----
 function acApplyStatus(d){
+  if(typeof vaQuit === 'function') vaQuit();   // View as: who's really here comes first
   acUser = d && d.user && d.user.name !== undefined ? d.user : null;
   acOwner = !!(d && d.isOwner);
   acGoogleClientId = (d && d.googleClientId) || acGoogleClientId;
   siIdentity = {name: (acUser && acUser.name) || (d && d.isManager ? 'Director' : ''), role: acUser ? acUser.role : '',
                 device: (d && d.device) || '', required: !!(d && d.requireSignIn), known: true};
+  if(typeof vaSetAllowed === 'function') vaSetAllowed(d && d.viewAs);   // View as: Tim only (view-as.js)
   acRenderGate();
   acRenderSettings();
   if(typeof siRender === 'function') siRender();
@@ -61,9 +63,11 @@ function acInitials(name){
 
 // After any sign-in (PIN or Google): the server's reply says who and what.
 async function acSignedIn(result, stay){
+  if(typeof vaQuit === 'function') vaQuit();   // View as: a real sign-in ends it
   acUser = {name: result.name || '', role: result.role, via: result.via || 'pin'};
   acOwner = !!result.owner;
   siIdentity = Object.assign({}, siIdentity, {name: acUser.name || (result.manager ? 'Director' : ''), role: acUser.role, known: true});
+  if(typeof vaSetAllowed === 'function') vaSetAllowed(result.viewAs);
   if(typeof siRender === 'function') siRender();
   if(result.manager){
     await stateLoaded;
@@ -90,6 +94,7 @@ async function acSignedIn(result, stay){
 
 async function acSignOut(device){
   try{ await fetch(`${API_BASE}/api/manager/logout`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({device: !!device})}); }catch(err){ /* offline: signed out here; the server's sign-in ends when it next hears */ }
+  if(typeof vaQuit === 'function') vaQuit();
   acUser = null; acOwner = false;
   location.reload();
 }

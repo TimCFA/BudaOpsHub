@@ -42,10 +42,11 @@
 <div class="app">
 
   <div class="hdr">
-    <div class="hdr-title">
+    <!-- The title goes Home (navigation.js presses the Home tab); without the script it is a plain link to the front page. -->
+    <a class="hdr-title hdr-home" id="hdrHome" href="/" title="Home" aria-label="Ops Hub Buda, go to Home">
       <h1>Ops Hub</h1>
       <span class="location">Buda</span>
-    </div>
+    </a>
     <div class="hdr-meta" style="display:flex;align-items:center;gap:12px;">
       <span id="initialsBadge" title="Tap to change who's using this device" style="cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:var(--text-secondary);padding:4px 10px;border:1px solid var(--border);border-radius:14px;background:var(--cfa-white);user-select:none;"></span>
       <!-- Today's waste against the daily limit, always in view (waste-log.js renderWasteMeters). Tap for the Waste tab. -->
@@ -1322,6 +1323,7 @@
 <script src="/static/js/team-list.js" defer></script>
 <script src="/static/js/leaders.js" defer></script>
 <script src="/static/js/roles.js" defer></script>
+<script src="/static/js/view-as.js" defer></script>
 <script src="/static/js/team-pea.js" defer></script>
 <script src="/static/js/leader-report.js" defer></script>
 <script src="/static/js/points-engine.js" defer></script>
