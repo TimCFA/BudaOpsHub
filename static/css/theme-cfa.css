@@ -2248,6 +2248,8 @@ body.rn-evs-on{overflow:hidden;}
 .su-dp .su-dp-lead.is-static{display:inline-flex;align-items:center;padding:4px 10px;border:1px solid var(--border);border-radius:999px;background:var(--cfa-white);cursor:default;}
 .su-dp-now{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--cfa-red);color:#fff;font-family:var(--font-ui);font-size:9.5px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;vertical-align:2px;}
 .su-dp{scroll-margin-top:70px;}
+/* Home's break lines land here (right-now.js rnOpenBreaks): clear of the pinned day strip. */
+#rosterContainer{scroll-margin-top:70px;}
 .su-dp-list + .su-tier-key{margin-top:4px;}
 
 /* ===== Set Ups: the softer look from the mock (Tim, Oct 19 2026) =====

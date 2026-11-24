@@ -2163,6 +2163,93 @@ def _state_reply(names):
         'now': int(time.time() * 1000),   # the shared clock for timers (serverNow)
     }
 
+# ===== LISTS: THE LEADERS' TALLY AND THE 14-DAY TRIM (Nov 23 2026) =====
+# Once a day (list_tally.py has the rules): each finished day's Zone Resets
+# become one small record per handoff (its Lead Captain, items done, items in
+# all), kept for good under lists/tally; only then ticks and finished breaks
+# older than 14 days leave the saved sections, which every tick used to carry
+# to the database and back to every phone. Before the first trim the three
+# sections are copied whole to backups/preTrim. Runs in the background off a
+# load or a sync, never before the server has been up ten minutes (clear of a
+# deploy's overlap), and never fails a request.
+import list_tally
+
+PRE_TRIM_BACKUP = 'backups/preTrim'
+LISTS_UPKEEP_AFTER_BOOT_SECONDS = 600
+_lists = {'day': None, 'running': False, 'tally': None}
+
+def _lists_tally():
+    """Every day's record, read from Firebase once and kept in memory."""
+    if _lists['tally'] is None:
+        got = db.reference(list_tally.TALLY_PATH).get()
+        _lists['tally'] = got if isinstance(got, dict) else {}
+    return _lists['tally']
+
+def _lists_upkeep(today):
+    """One run. Returns (days written to the tally, sections trimmed)."""
+    tally = _lists_tally()
+    with _state_lock:
+        sections = {name: (_cache.get(name) or {}).get('data') or {} for name in ('ops', 'setups', 'history')}
+    todo = list_tally.plan(sections, today, tally)
+    for day, rec in todo['tally'].items():
+        db.reference(f'{list_tally.TALLY_PATH}/{day}').set(rec)       # the record first: a trim never runs ahead of it
+        tally[day] = rec
+    trimmed = []
+    if todo['ops']:
+        if not db.reference(f'{ONCE_PATH}/preTrimBackup').get():
+            raw = db.reference(STATE_ROOT).get()
+            if not isinstance(raw, dict):
+                raise RuntimeError('nothing stored to back up')
+            for name in ('ops', 'setups', 'history'):
+                if raw.get(name) is not None:
+                    db.reference(f'{PRE_TRIM_BACKUP}/{name}').set(raw[name])
+            db.reference(f'{ONCE_PATH}/preTrimBackup').set(int(time.time()))
+        with _state_lock:
+            for name, ops in todo['ops'].items():
+                entry = _cache.get(name)
+                if not entry:
+                    continue
+                fresh = apply_ops(entry['data'], ops)
+                if canon(fresh) != entry['canon']:
+                    _write_section(name, fresh, ops)
+                    trimmed.append(name)
+    return sorted(todo['tally']), trimmed
+
+def _lists_upkeep_if_due():
+    today = datetime.now(levelset_sync.STORE_TZ).date().isoformat()
+    with _state_lock:
+        if _lists['running'] or _lists['day'] == today or _cache_cold() or time.monotonic() - _booted_at < LISTS_UPKEEP_AFTER_BOOT_SECONDS:
+            return
+        _lists['running'] = True
+    def run():
+        try:
+            days, trimmed = _lists_upkeep(today)
+            _lists['day'] = today
+            if days or trimmed:
+                print(f"[LISTS] tally: {len(days)} day(s) written; trimmed: {', '.join(trimmed) or 'nothing'}")
+        except Exception as e:
+            print(f"[LISTS] upkeep not done: {type(e).__name__}: {e}")
+        finally:
+            _lists['running'] = False
+    threading.Thread(target=run, daemon=True).start()
+
+@app.route('/api/lists/tally')
+def lists_tally():
+    """Each Lead Captain's Zone Reset lists, added up (directors). ?since=YYYY-MM-DD."""
+    if not session.get('manager'):
+        return jsonify({'error': 'Directors only.'}), 403
+    since = request.args.get('since') or None
+    if since and not re.match(r'^\d{4}-\d{2}-\d{2}$', since):
+        return jsonify({'error': 'since must be YYYY-MM-DD'}), 400
+    try:
+        tally = _lists_tally()
+    except Exception as e:
+        print(f"[LISTS] tally not read: {type(e).__name__}")
+        return jsonify({'error': 'Could not read the tally'}), 503
+    resp = jsonify({'days': len([d for d in tally if not since or d >= since]), 'leaders': list_tally.scores(tally, since)})
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
+
 @app.route('/api/state/load', methods=['POST'])
 def state_load():
     try:
@@ -2170,6 +2257,7 @@ def state_load():
         # then in the background.
         _ensure_cache(migrate=True)
         _refresh_if_due()
+        _lists_upkeep_if_due()
         with _state_lock:
             return jsonify(_state_reply(list(_cache)))
     except Exception as e:
@@ -2194,6 +2282,7 @@ def state_sync():
         if not _ensure_cache():
             return jsonify({'sections': {}, 'versions': {}, 'build': BUILD, 'now': int(time.time() * 1000)})
         _refresh_if_due()
+        _lists_upkeep_if_due()
         with _state_lock:
             names = [n for n in _cache if have.get(n) != _cache[n]['ver'] and (only is None or n in only)]
             return jsonify(_state_reply(names))

@@ -78,7 +78,9 @@ Home), on the same colour meanings. Tests: `tests/test_bottom_nav.py`.
 Home is one glance at your own day (Tim, Nov 18 2026): the greeting and the
 quote (culture first, always), then the Right Now card
 (`static/js/right-now.js`), which changes by who is signed in; every line
-taps through to where it lives. Vision, Mission and Values and the Monthly
+taps through to where it lives, the item itself and not the top of its
+page (Tim, Nov 23 2026): a break line opens Set Ups at the roster on Breaks
+left (`rnOpenBreaks`; tests/test_home_links.py). Vision, Mission and Values and the Monthly
 Leadership Wins are off Home (still kept in Manage as `homeData`, for a page
 of their own later). Someone in their first 30 days (the roster's "In
 training" tag from HotSchedules, or a hire date in Our Team) gets a new
@@ -288,6 +290,27 @@ leader's) and keeps it in memory only (`peaLead` in pea-ratings.js), never in
 `peaRatings`, so it can't be saved back or left on the phone. Anything Set Ups
 reads goes through `peaShown()` / `peaAliasesShown()`, not `peaRatings`
 directly. Tests: `tests/test_lead_pea.py`.
+
+## Lists tally and the 14-day trim
+
+Zone Reset ticks and finished breaks are kept 14 days in the saved sections
+(Tim, Nov 23 2026: every tick was carrying months of old ticks to the
+database and back to every phone; Render's bandwidth). Once a day the server
+(`list_tally.py` has the rules, app.py "LISTS" runs them in the background
+off a load or sync, never in a start's first ten minutes) writes one record
+per finished day under `lists/tally/<date>` in Firebase: each handoff's Lead
+Captain (from Set Ups, else its history), items done, items in all. That is
+the leaders' accumulating list score (Tim: credit the Lead Captain; which
+items were ticked needn't be kept), kept for good, never a saved-state
+section. Only after the record is written, and after a one-time whole copy
+of `ops`, `setups` and `history` under `backups/preTrim`, do ticks
+(`zoneChecklistState`) and finished breaks (`completedBreaks`) older than 14
+days leave their sections, with a conditional write so a save another server
+took is kept. A day whose ticks sit under handoffs or zones the hub no longer
+has is left as it is, never trimmed uncounted. Nothing else in those sections
+is touched and no saved setting changed. `/api/lists/tally` (directors) adds
+the records up per leader; no page shows it yet. Tests:
+`tests/test_list_tally.py`.
 
 ## Deploying
 
