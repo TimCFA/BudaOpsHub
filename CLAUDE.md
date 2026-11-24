@@ -73,6 +73,21 @@ colour is on its number badge. Zone Resets has its own page since Nov 23 2026 (s
 its own look (Tim's call); Home got its own redesign on Nov 21 2026 (see
 Home), on the same colour meanings. Tests: `tests/test_bottom_nav.py`.
 
+## Page links
+
+Every page has its own address (Tim, Nov 23 2026): `/setups`,
+`/lists/timers`, `/tasks` and so on (`PL_PATHS` in `static/js/page-links.js`;
+app.py `PAGE_PATHS` answers each with the same page; `tests/test_page_links.py`
+keeps the two lists the same, and every view needs one). The hub is still one
+page and loads nothing more for it: the address follows `activateView`. A tap
+adds a step back can undo (pushState); a page the hub opens by itself (a
+redirect, a redraw, a sign-in moving someone on) replaces the address, so
+back never lands somewhere the person didn't choose. An address opens its
+page once every script has run; one that needs a sign-in (Directors, Huddle,
+Know the Numbers) opens once the sign-in is known, unless the person has
+moved on. Every file the page loads is referenced from the root (`/static/…`,
+`${API_BASE}/api/…`) so it works at any address; keep it that way.
+
 ## Home
 
 Home is one glance at your own day (Tim, Nov 18 2026): the greeting and the
