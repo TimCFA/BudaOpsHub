@@ -15,7 +15,7 @@
   --cfa-dark-red:#AF272F;
   --cfa-navy:#004F71;
   --cfa-white:#FFFFFF;        /* cards */
-  --cfa-bg:#FFFFFF;           /* ground: white, the colour is in the band and the insides */
+  --cfa-bg:#F2F4F7;           /* ground: a soft cool grey, so white cards lift off it (Tim, Nov 23 2026: pure white was too bright) */
   --cfa-light:#F6F8FA;
   --cfa-soft:#EDF1F5;         /* segmented controls, quiet fills */
   --text-primary:#14171C;
@@ -3468,7 +3468,17 @@ body.hub-warming::after{content:"Loading the rest… · Cargando…";position:fi
 .standup-card,.home-vmv-card:nth-child(n),.home-win-card:nth-child(n),.streak-display,.gx-section,.gx-hero,.gx-hero-alt,.gx-satisfaction,
 .celeb-banner,.fc-kpi,.hh-tile,.hc-card,.hc-form,.ts-card,.ap-block,.mp-sec,.su-dp .su-dp-banner,.tm-card,.ps-card,
 .rn-card,.wt-today,.waste-today-card,.sb-card{box-shadow:var(--card-shadow);}
-.su-dp.is-open .su-dp-banner{box-shadow:0 0 0 2px var(--cfa-red),0 8px 20px rgba(20,23,28,0.08);}
+/* An open daypart wears its red ring round the whole card, banner and rows together (Tim, Nov 23 2026: the ring stopped under the banner and looked chopped off). */
+#allDayparts .su-dp.is-open{box-shadow:0 0 0 2px var(--cfa-red),0 6px 18px rgba(20,23,28,0.07);}
+/* Inside the ring the card has no edges of its own, so the banner and the rows start at the same line: the banner's daypart stripe and the list's border would sit just inside the ring and look like a second, broken outline. */
+#allDayparts .su-dp.is-open .su-dp-banner,#allDayparts .su-dp.is-open .su-sheet-zone.su-sheet-list{border:0;}
+/* The day's events under an open daypart's name (Tim, Nov 23 2026: the dark block there looked unbalanced and glitchy; it was the old sky header's colour carried on under a header that is white now). On the card's own white: the promo as an amber callout, padded the same on every side, and the calendar chips beside it. */
+#allDayparts .su-dp.is-open .su-dp-nums,#allDayparts .su-dp.is-open .su-dp-events{background:transparent;margin-top:0;color:var(--text-secondary);}
+#allDayparts .su-dp.is-open .su-dp-nums{padding:0 12px 10px;}
+#allDayparts .su-dp.is-open .su-dp-nums b{color:var(--text-primary);}
+#allDayparts .su-dp.is-open .su-dp-num.is-event{display:block;padding:9px 12px;border-radius:10px;background:var(--warn-fill);color:var(--warn-ink);font-size:13.5px;line-height:1.35;}
+#allDayparts .su-dp.is-open .su-dp-events{padding:0 12px 10px;}
+#allDayparts .su-dp.is-open .su-dp-events .ev-chip{border:1px solid var(--border);}
 
 /* Section labels (small caps) in navy: structure is navy, so a label is
    never mistaken for a quiet note. */

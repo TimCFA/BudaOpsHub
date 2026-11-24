@@ -46,7 +46,7 @@ Spanish is hidden (`esSyncSides`, the `es-off-*` classes in theme-cfa.css).
 
 `static/css/theme-cfa.css` loads after `main.css` and carries the look: Chick-fil-A
 red (#DD0031) for actions and limits, Chick-fil-A navy (#004F71) for dark "stats"
-cards, a white ground (no tan or cream; Tim, Nov 23 2026), slab-serif headings and hero numbers (Zilla Slab) with a
+cards, a soft cool grey ground (`--cfa-bg:#F2F4F7`) under white cards (no tan or cream; Tim, Nov 23 2026: pure white was too bright), slab-serif headings and hero numbers (Zilla Slab) with a
 grotesque body (Figtree); both fonts stand in for Caecilia and Apercu until the
 brand fonts are licensed (swap `--font-display` / `--font-ui`). Line icons (inline
 SVG), never emoji. New components go in the theme's conventions.
@@ -80,7 +80,7 @@ row.
 
 One meaning a colour (the Nov 2026 refresh): ink is "selected", red is "now"
 and "needs someone", navy is stats, green is done. On Set Ups the open
-daypart is one white card with its positions as rows inside; a spot's zone
+daypart is one white card with its positions as rows inside, and a red ring round the whole card; a spot's zone
 colour is on its number badge. Zone Resets has its own page since Nov 23 2026 (see Zone Resets). The Waste logger keeps
 its own look (Tim's call); Home got its own redesign on Nov 21 2026 (see
 Home), on the same colour meanings. Tests: `tests/test_bottom_nav.py`.
@@ -187,9 +187,9 @@ needs no dark twin). Identity colours are the zones (`--zone-*`, one colour a
 zone on both sides of the house and in Coach) and the daypart skies (`.su-col-*`).
 Cards share `--card-shadow`; section labels in small caps are navy (`--eyebrow`).
 
-The day look (Tim, Nov 23 2026, picked from the palette options): a white floor
+The day look (Tim, Nov 23 2026, picked from the palette options): a soft cool grey floor
 and white cards that float on `--card-shadow`, a pale blue band (`--band`, navy
-ink; the deep navy was too strong) that melts into the white at its lower edge
+ink; the deep navy was too strong) that melts into the floor at its lower edge
 (no line, no rounded corners) across the
 top that is the header plus the tab row (the header alone on a touch screen),
 and a pale blue inside each card (`--inset`, `-strong`, `-faint`, `-track`,
@@ -198,7 +198,7 @@ dark is Midnight (deep navy ground, `#142238` cards; dark.css). The waste chip
 and the initials badge sit on the band as they always did. The title
 ("Ops Hub Buda", top left) is a link home: it presses the Home tab
 (navigation.js), and a new-tab click opens the front page. Never put a tan or
-cream back: ground and cards are white, tints are the cool `--inset` family.
+cream back: the ground is the cool grey, cards are white, tints are the cool `--inset` family.
 
 ## Tasks
 
