@@ -630,7 +630,7 @@ PAGE_PATHS = (
     '/lists/safe-count', '/prep', '/waste', '/scoreboard', '/schedule', '/tasks',
     '/calendar', '/forms', '/team', '/roles', '/directors', '/numbers',
     '/numbers/forecast', '/numbers/cem', '/experience/gx', '/experience/tx',
-    '/experience/lx', '/manage',
+    '/experience/lx', '/manage', '/hub',
 )
 
 @app.route('/')

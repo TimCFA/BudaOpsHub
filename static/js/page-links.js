@@ -30,7 +30,8 @@ const PL_PATHS = {
   gx: '/experience/gx',
   tx: '/experience/tx',
   lx: '/experience/lx',
-  manage: '/manage'
+  manage: '/manage',
+  hub: '/hub'
 };
 
 (function(){
