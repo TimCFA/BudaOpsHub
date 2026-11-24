@@ -36,6 +36,11 @@ class Who(unittest.TestCase):
     def test_tim_alone(self):
         self.assertTrue(self.may(TIM))
         self.assertTrue(self.may(dict(TIM, user={'name': 'timothy  lane', 'role': 'director', 'via': 'pin'})))
+        # As a Google profile or the PIN list may write his name (Nov 24 2026).
+        for n in ('Tim Lane', 'Timothy J Lane', 'TIM LANE'):
+            self.assertTrue(self.may(dict(TIM, user={'name': n, 'role': 'director', 'via': 'google'})), n)
+        for n in ('Ti Lane', 'Tom Lane', 'Tim Lang', 'Lane'):
+            self.assertFalse(self.may(dict(TIM, user={'name': n, 'role': 'director', 'via': 'google'})), n)
         self.assertTrue(self.may({'manager': True, 'director': True, 'owner': True, 'user': {'name': 'Owner', 'role': 'director', 'via': 'google'}}))
         # Another director, the Admin Team, the shared PINs, a team PIN with his name: no.
         self.assertFalse(self.may(dict(TIM, user={'name': 'Kianna Ramos', 'role': 'director', 'via': 'pin'})))
@@ -74,6 +79,28 @@ class Pea(unittest.TestCase):
         self.assertEqual(self.c.get('/api/me/pea?as=Ana%20Ruiz').get_json(), {'name': None, 'positions': []})
         self.as_(dict(TIM, user={'name': 'Kianna Ramos', 'role': 'director', 'via': 'pin'}))
         self.assertEqual(self.c.get('/api/me/pea?as=Ana%20Ruiz').get_json(), {'name': None, 'positions': []})
+
+
+class ManagePinsAreNobodysOwn(unittest.TestCase):
+    # Tim, Nov 24 2026: his clock-in PIN was the director PIN too, so it
+    # signed him in as "Director" and never by name. Neither shared PIN can
+    # be set to someone's own clock-in PIN now.
+    def test_refused(self):
+        c = appmod.app.test_client()
+        with c.session_transaction() as s:
+            s.update(manager=True, director=True)
+        look, check, ref = appmod._team_pin_lookup, appmod._pin_taken, appmod.db.reference
+        appmod._team_pin_lookup = lambda pin: {'name': 'Timothy Lane', 'role': 'director', 'pinKey': 'k'} if pin == '246810' else None
+        appmod._pin_taken = lambda path, pin: False
+        from tests.test_accounts import FakeRef
+        appmod.db.reference = lambda path: FakeRef(path)
+        try:
+            for url in ('/api/director/set-pin', '/api/manager/set-pin'):
+                r = c.post(url, json={'pin': '246810'})
+                self.assertEqual(r.status_code, 400, url)
+                self.assertIn('own clock-in PIN', r.get_json()['error'])
+        finally:
+            appmod._team_pin_lookup, appmod._pin_taken, appmod.db.reference = look, check, ref
 
 
 # The page: view-as.js run in node with the globals it sets.
