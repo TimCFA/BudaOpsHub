@@ -1,6 +1,6 @@
 # BudaOpsHub
 
-Ops web app for Chick-fil-A Buda (Flask + vanilla JS). Tests: `python3 -m unittest discover tests`.
+Ops web app for Chick-fil-A Buda (Flask + vanilla JS). Tests: `python3 -m unittest discover tests`. GitHub runs them on every pull request and on main (`.github/workflows/tests.yml`; Tim, Nov 23 2026), so a PR shows a green check or a red X before it's merged; don't merge on a red X.
 
 ## Leadership resources
 
