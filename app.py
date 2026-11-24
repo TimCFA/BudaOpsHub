@@ -741,6 +741,7 @@ def manager_status():
     user = session.get('user') if isinstance(session.get('user'), dict) else None
     out = {'isManager': manager, 'isDirector': manager and bool(session.get('director')),
            'isOwner': manager and bool(session.get('owner')),
+           'viewAs': _may_view_as(),
            'directorPinSet': manager and bool(db.reference(DIRECTOR_PIN_PATH).get()),
            'user': {k: user.get(k) for k in ('name', 'role', 'via')} if user else None,
            'device': (session.get('device') or {}).get('name') if isinstance(session.get('device'), dict) else None,
@@ -888,8 +889,27 @@ def _sign_in(who):
         session['gen'] = int((_auth_lists().get('gen') or {}).get(_person_key(name), 0) or 0)
     session['user'] = {'name': name, 'role': role, 'via': who.get('via') or 'pin', 'email': who.get('email') or ''}
     return {'success': True, 'director': role in ('director', 'admin'), 'manager': manager,
-            'owner': bool(session.get('owner')), 'role': role, 'roleLabel': ROLE_LABELS[role], 'name': name,
+            'owner': bool(session.get('owner')), 'viewAs': _may_view_as(), 'role': role, 'roleLabel': ROLE_LABELS[role], 'name': name,
             'device': (device or {}).get('name') if isinstance(device, dict) else None}
+
+# ===== VIEW AS (Tim, Nov 23 2026) =====
+# Tim, and only Tim, can look at the hub as a Team Member, Trainer, Team
+# Lead or the Admin Team would see it (view-as.js), to check what each level
+# sees when a change goes in. Who: the hub's owner (an ACCOUNT_OWNER_EMAILS
+# Google sign-in) or a director signed in by name on VIEW_AS_NAMES (Tim's
+# clock-in PIN). It's a look only: the page draws as that role, and the only
+# thing the server adds is that person's own PEA scores (/api/me/pea?as=),
+# which a director session already has in the 'pea' section.
+VIEW_AS_NAMES = tuple(n.strip() for n in os.environ.get('VIEW_AS_NAMES', 'Timothy Lane').split(',') if n.strip())
+
+def _may_view_as():
+    if not session.get('manager') or not session.get('director'):
+        return False
+    if session.get('owner'):
+        return True
+    user = session.get('user') if isinstance(session.get('user'), dict) else {}
+    name = str(user.get('name') or '').strip()
+    return bool(name) and user.get('role') == 'director' and _turnover_key(name) in {_turnover_key(n) for n in VIEW_AS_NAMES}
 
 def _sign_out(device_too=False):
     """Signs the person out; a shared device stays the device unless device_too."""
@@ -2065,12 +2085,18 @@ def _note_out(key, v):
 def my_pea():
     """The signed-in person's own PEA scores (pea_mine.py), for their Right
     Now card: only theirs, only per position, never a rater or a note. A
-    session without a name (the shared PINs, nobody) gets none."""
-    me = _pass_me()
-    if not me or me['id'] == 'director':
-        return jsonify({'name': None, 'positions': []})
+    session without a name (the shared PINs, nobody) gets none. Tim viewing
+    as someone (View as) gets that person's, with ?as=."""
+    as_name = str(request.args.get('as') or '').strip()[:80]
+    if as_name and _may_view_as():
+        name = as_name
+    else:
+        me = _pass_me()
+        if not me or me['id'] == 'director':
+            return jsonify({'name': None, 'positions': []})
+        name = me['name']
     sections = _read_sections() or {}
-    resp = jsonify(pea_mine.scores_for(sections.get('pea'), me['name']))
+    resp = jsonify(pea_mine.scores_for(sections.get('pea'), name))
     resp.headers['Cache-Control'] = 'no-store'
     return resp
 

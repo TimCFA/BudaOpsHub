@@ -35,6 +35,7 @@ function siLeadOrUp(){
   return !!siIdentity.name && ['lead', 'admin', 'director', 'manager'].includes(siIdentity.role);
 }
 function siMayChange(key){
+  if(typeof vaActive === 'function' && vaActive()) return false;   // View as is a look only (view-as.js)
   if(siIdentity.known && siLeadKey(key) && !siLeadOrUp()) return false;
   if(!siIdentity.required) return true;
   if(typeof launchManager !== 'undefined' && launchManager) return true;
@@ -46,6 +47,7 @@ function siMayChange(key){
 }
 // Why a change was put back, in a line.
 function siWhy(keys){
+  if(typeof vaActive === 'function' && vaActive()) return 'You’re viewing as someone else, so changes aren’t saved. Tap Back to me to make changes.';
   const sections = new Set(keys.map(k => STATE_SECTION_OF[k] || 'misc'));
   if(sections.has('setups') || sections.has('rosters')) return 'Team Leads change Set Ups. Sign in with your clock-in PIN.';
   if(!siSignedIn() && !siIdentity.device) return 'Sign in with your clock-in PIN to make changes.';

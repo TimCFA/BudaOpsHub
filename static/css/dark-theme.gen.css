@@ -390,3 +390,6 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) #allDayparts .su-sheet-list .su-rowwrap + .su-rowwrap{border-top:1px solid #37342F;}
 :where(html[data-theme="dark"]) .su-row-choose{color:var(--ink-dark-red);}
 :where(html[data-theme="dark"]) .launch-subnav[aria-label="Lists"] .launch-pill.active{color:var(--cfa-bg);}
+:where(html[data-theme="dark"]) .va-btn{color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .va-link{border:1px solid rgba(41,41,41,0.6);}
+:where(html[data-theme="dark"]) .va-back{background:#1D1D1D;border:1px solid #292929;color:var(--ink-navy);}

@@ -1,7 +1,7 @@
 """Home's Right Now card (Tim, Oct 19 2026): the welcome banner and quote
 first, then what matters this minute for whoever holds the phone. A Team
-Member sees their own spot, shift, break and zone; a Trainer adds the open
-spots on their side; a Team Lead gets their side's shift; a director or the
+Member sees their own spot, shift, break and zone; a Trainer the same (no
+open spots count since Nov 23 2026); a Team Lead gets their side's shift; a director or the
 manager PIN gets the whole store, the rest of the day and the leaders on; a
 phone nobody signed in on gets the shift as a whole and a way to sign in.
 
@@ -249,7 +249,7 @@ class NewHire(unittest.TestCase):
         self.assertIn('id="home-newhire-en"', mv)
         self.assertIn("mvTakeId('home-newhire-es'", mv)
         # Trainers, leads and directors keep their own cards.
-        self.assertIn("if(v.role === 'member') return rnNewHireCard(rnPersonCard(v, day, false), v, day);", read('static', 'js', 'right-now.js'))
+        self.assertIn("if(v.role === 'member') return rnNewHireCard(rnPersonCard(v, day), v, day);", read('static', 'js', 'right-now.js'))
 
 
 class TheLook(unittest.TestCase):
@@ -423,9 +423,10 @@ class OneGlance(unittest.TestCase):
 
 
 class Trainer(unittest.TestCase):
-    def test_adds_the_open_spots_on_their_side(self):
+    def test_no_open_spots_count(self):
+        # Tim, Nov 23 2026: trainers don't need the count of open spots on their side.
         got = run({'op': card('trainer', 'Sam Ortiz', extra="gaps['boh|Dinner'] = {open: ['Breader 2', 'Fries'], unplaced: [], filled: 5};")})[0]
-        self.assertIn(['2', 'open spots on BOH for Dinner', 'spot:boh|Dinner (5:00-8:00)|Breader 2', 'Lugares abiertos ahora'], got['rows'])
+        self.assertFalse([r for r in got['rows'] if 'open spot' in r[1]])
         self.assertEqual(got['first'], 'You’re on Breader 1 until 8:00.')
 
 
@@ -833,6 +834,7 @@ class WhatsMine(unittest.TestCase):
         js = read('static', 'js', 'right-now.js')
         # The PEA scores are a Team Member's and a Trainer's; leaders read their tickets too (Nov 18 2026).
         self.assertIn("const team = ['member', 'trainer'].includes(v.role);", js)
-        self.assertIn("Promise.all([team ? get('/api/me/pea') : null, get('/api/pass/state')])", js)
+        # View as (Tim, Nov 23 2026): the person's PEA, and no tickets.
+        self.assertIn("Promise.all([team ? get('/api/me/pea' + (as ? '?as=' + encodeURIComponent(as) : '')) : null, as ? null : get('/api/pass/state')])", js)
         self.assertIn("if(what === 'ticket' && typeof psOpenTicket === 'function') psOpenTicket(rest);", js)
         self.assertIn('window.psOpenTicket = openTicket;', read('static', 'js', 'pass.js'))

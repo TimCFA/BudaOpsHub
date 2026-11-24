@@ -291,6 +291,22 @@ leader's) and keeps it in memory only (`peaLead` in pea-ratings.js), never in
 reads goes through `peaShown()` / `peaAliasesShown()`, not `peaRatings`
 directly. Tests: `tests/test_lead_pea.py`.
 
+## View as
+
+Tim, and only Tim, can see the hub as each level sees it (`static/js/view-as.js`,
+app.py `_may_view_as`; Tim, Nov 23 2026: "I need to know what everyone at
+every level is seeing"). Who: the owner's Google sign-in, or a director
+signed in by name on `VIEW_AS_NAMES` (default Timothy Lane: his clock-in
+PIN). A "View as" button by the badge picks Team Member, Trainer, Team Lead,
+Admin Team or Director (himself), and for the team's roles whose day (from
+the schedule). It sets `acUser`, `siIdentity` and `launchManager` and draws
+again, so a change to what a role sees needs nothing here: keep reading who's
+here from those. It's a look only: `siMayChange` says no while it's on, Manage
+closes for the team's roles, his own tickets and uniform credit stay off the
+card, and a reload is him again. The server adds only that person's PEA
+(`/api/me/pea?as=`, which his director session already holds). Tests:
+`tests/test_view_as.py`.
+
 ## Lists tally and the 14-day trim
 
 Zone Reset ticks and finished breaks are kept 14 days in the saved sections
