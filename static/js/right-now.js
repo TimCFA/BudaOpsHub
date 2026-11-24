@@ -505,12 +505,12 @@ function rnLeadCard(v, day, store){
       const br = rnBreaksLeft(side, day.now, side === 'foh' ? RN_PM_SHOWN_FROM : RN_PM_FROM);
       if(!br.total) return;
       const next = br.left[0];
-      rows.push(rnWith(rnRow(String(br.left.length), `${side.toUpperCase()} ${br.pm ? 'PM' : 'AM'} break${br.left.length === 1 ? '' : 's'} left (of ${br.total})${next ? ` · next: ${suDisplayName(next.name)} ${rnClock(next.start)}` : ''}`, '', `setups:${side}|${today}|`, br.left.length ? '' : 'ok'), {bar: (br.total - br.left.length) / br.total}));
+      rows.push(rnWith(rnRow(String(br.left.length), `${side.toUpperCase()} ${br.pm ? 'PM' : 'AM'} break${br.left.length === 1 ? '' : 's'} left (of ${br.total})${next ? ` · next: ${suDisplayName(next.name)} ${rnClock(next.start)}` : ''}`, '', `breaks:${side}`, br.left.length ? '' : 'ok'), {bar: (br.total - br.left.length) / br.total}));
     });
   } else {
     const soon = sides.flatMap(side => rnBreaksSoon(side, day.now).map(b => ({...b, side})));
     if(soon.length){
-      rows.push(rnRow(String(soon.length), `break${soon.length === 1 ? '' : 's'} due: ${soon.slice(0, 3).map(b => `${suDisplayName(b.name)} ${rnClock(b.start)}`).join(', ')}`, sides.includes('boh') ? esText('Breaks due soon') : '', `setups:${soon[0].side}|${today}|`, ''));
+      rows.push(rnRow(String(soon.length), `break${soon.length === 1 ? '' : 's'} due: ${soon.slice(0, 3).map(b => `${suDisplayName(b.name)} ${rnClock(b.start)}`).join(', ')}`, sides.includes('boh') ? esText('Breaks due soon') : '', `breaks:${soon[0].side}`, ''));
     }
   }
   // What's waiting on them on the Tasks tab.
@@ -718,7 +718,7 @@ function rnKitchenCard(day){
       const label = br.pm ? 'PM' : 'AM';
       rows.push(rnWith(rnRow(String(br.left.length), `${label} break${br.left.length === 1 ? '' : 's'} left (of ${br.total})${next ? ` · next: ${suDisplayName(next.name)} ${rnClock(next.start)}` : ''}`,
         [esText(br.pm ? 'PM breaks left' : 'AM breaks left', br.left.length, br.total), next ? esText('Next break', suDisplayName(next.name), rnClock(next.start)) : ''].filter(Boolean).join(' · '),
-        `setups:boh|${today}|`, br.left.length ? '' : 'ok'), {bar: (br.total - br.left.length) / br.total}));
+        `breaks:boh`, br.left.length ? '' : 'ok'), {bar: (br.total - br.left.length) / br.total}));
     }
     const fs = rnFoodSafety();
     rows.push(rnRow(fs ? `${fs.done}/${fs.total}` : '0', 'Food Safety walkthrough today', esText('Food Safety walkthrough'), 'foodsafety', fs && fs.done === fs.total ? 'ok' : ''));
@@ -1245,10 +1245,22 @@ function rnOpenSetups(side, date, dpName){
   }
 }
 
+// A line about breaks opens Set Ups on that side today, at the roster, showing
+// who still has a break to take (Tim, Nov 23 2026: a line on Home goes
+// straight to its item, not to the top of its page). The roster's own
+// All / Breaks left choice on this device isn't changed for next time.
+function rnOpenBreaks(side){
+  rnOpenSetups(side, today, '');
+  if(typeof rosterView !== 'undefined' && typeof renderRoster === 'function'){ rosterView = 'breaks'; renderRoster(); }
+  const card = document.getElementById('rosterContainer');
+  if(card && card.style.display !== 'none') card.scrollIntoView({block: 'start'});
+}
+
 function rnGo(g){
   const [what, rest = ''] = g.split(/:(.*)/s);
   const parts = rest.split('|');
   if(what === 'setups') rnOpenSetups(parts[0], parts[1] || today, parts[2] || '');
+  else if(what === 'breaks') rnOpenBreaks(parts[0] === 'boh' ? 'boh' : 'foh');
   else if(what === 'spot'){
     const [side, dpName, slot] = parts;
     rnOpenSetups(side, today, dpName);
