@@ -923,7 +923,21 @@ def _may_view_as():
         return True
     user = session.get('user') if isinstance(session.get('user'), dict) else {}
     name = str(user.get('name') or '').strip()
-    return bool(name) and user.get('role') == 'director' and _turnover_key(name) in {_turnover_key(n) for n in VIEW_AS_NAMES}
+    return bool(name) and user.get('role') == 'director' and any(_view_as_same(name, n) for n in VIEW_AS_NAMES)
+
+def _view_as_same(a, b):
+    """The same person by name: equal, or the same last name and one first
+    name the start of the other ("Tim Lane" / "Timothy Lane"), as a Google
+    profile or a PIN list may write it."""
+    x, y = _name_key(a).split(), _name_key(b).split()
+    if not x or not y:
+        return False
+    if x == y:
+        return True
+    if len(x) < 2 or len(y) < 2 or x[-1] != y[-1]:
+        return False
+    f, g = sorted((x[0], y[0]), key=len)
+    return len(f) >= 3 and g.startswith(f)
 
 def _sign_out(device_too=False):
     """Signs the person out; a shared device stays the device unless device_too."""

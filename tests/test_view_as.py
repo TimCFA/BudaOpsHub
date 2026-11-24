@@ -36,6 +36,11 @@ class Who(unittest.TestCase):
     def test_tim_alone(self):
         self.assertTrue(self.may(TIM))
         self.assertTrue(self.may(dict(TIM, user={'name': 'timothy  lane', 'role': 'director', 'via': 'pin'})))
+        # As a Google profile or the PIN list may write his name (Nov 24 2026).
+        for n in ('Tim Lane', 'Timothy J Lane', 'TIM LANE'):
+            self.assertTrue(self.may(dict(TIM, user={'name': n, 'role': 'director', 'via': 'google'})), n)
+        for n in ('Ti Lane', 'Tom Lane', 'Tim Lang', 'Lane'):
+            self.assertFalse(self.may(dict(TIM, user={'name': n, 'role': 'director', 'via': 'google'})), n)
         self.assertTrue(self.may({'manager': True, 'director': True, 'owner': True, 'user': {'name': 'Owner', 'role': 'director', 'via': 'google'}}))
         # Another director, the Admin Team, the shared PINs, a team PIN with his name: no.
         self.assertFalse(self.may(dict(TIM, user={'name': 'Kianna Ramos', 'role': 'director', 'via': 'pin'})))
