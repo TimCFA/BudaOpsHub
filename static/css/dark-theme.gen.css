@@ -381,6 +381,7 @@ html[data-theme="dark"]{--cfa-white:#23211D;--cfa-bg:#353025;--cfa-light:#2F2C25
 :where(html[data-theme="dark"]) .mp-bad{color:var(--ink-red) !important;}
 :where(html[data-theme="dark"]) .mp-link{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .mp-steps li.is-done{border-color:#336440;background:#263128;}
+:where(html[data-theme="dark"]) .mp-badge:not(.is-none) .mp-badge-ic{color:var(--ink-navy);}
 @media (hover:none) and (pointer:coarse){
   :where(html[data-theme="dark"]) .bnav-btn.active{color:var(--ink-dark-red);}
   :where(html[data-theme="dark"]) .bnav-btn.active .bnav-ic{background:#3B2021;}

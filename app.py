@@ -3299,6 +3299,126 @@ week_api.register(app, me=_pass_me, ref=lambda path: db.reference(path), tz=leve
                   calendar=week_api.GoogleCalendar(_week_service_account()),
                   dayparts=[name for name, _ in timers_api.FOH_DAYPARTS])
 
+# ===== ACHIEVEMENT BADGES (Nov 23 2026) =====
+# Badges worked out from what the hub already keeps for good (badges.py has
+# the rules): the list tally, Levelset PEAs, the Pass, Timers, Huddle and the
+# hire date. An earned level is kept under badges/earned/<person id>, never
+# a saved-state section. Your own on your Me page; Team Leads and up see
+# everyone's (Tim, Nov 23 2026). Reading never fails a page: a source that
+# can't be read counts for nothing this time, and what was earned stays.
+import badges
+
+BADGES_INDEX_SECONDS = 300
+BADGES_RECENT_DAYS = 7
+_badges = {'index': None, 'at': 0.0, 'earned': None, 'lock': threading.Lock()}
+
+def _badges_events(name):
+    store = app.extensions.get(name)
+    try:
+        store.ensure()
+        with store.lock:
+            return list(store.events.values())
+    except Exception as e:
+        print(f'[BADGES] {name} not read: {type(e).__name__}')
+        return []
+
+def _badges_index():
+    with _badges['lock']:
+        if _badges['index'] is not None and time.monotonic() - _badges['at'] < BADGES_INDEX_SECONDS:
+            return _badges['index']
+    sections = _read_sections() or {}
+    try:
+        tally = _lists_tally()
+    except Exception as e:
+        print(f'[BADGES] tally not read: {type(e).__name__}')
+        tally = {}
+    idx = badges.Index(pea=sections.get('pea'), tally=tally, timer_events=_badges_events('timer_store'),
+                       huddle_events=_badges_events('huddle_store'), pass_events=_badges_events('pass_store'),
+                       tz=levelset_sync.STORE_TZ)
+    with _badges['lock']:
+        _badges['index'], _badges['at'] = idx, time.monotonic()
+    return idx
+
+def _badges_earned():
+    if _badges['earned'] is None:
+        got = db.reference(badges.EARNED_PATH).get()
+        _badges['earned'] = got if isinstance(got, dict) else {}
+    return _badges['earned']
+
+def _badges_for(people, today):
+    """[(person, view)] for each {name, role}; anything newly earned is written."""
+    idx, earned = _badges_index(), _badges_earned()
+    try:
+        profiles = db.reference(PROFILES_PATH).get() if people else {}
+    except Exception as e:
+        print(f'[BADGES] profiles not read: {type(e).__name__}')
+        profiles = {}
+    profiles = profiles if isinstance(profiles, dict) else {}
+    now, out = int(time.time() * 1000), []
+    for p in people:
+        pid = _pass_key(p['name'])
+        prof = profiles.get(_profile_key(p['name']))
+        person = {'name': p['name'], 'id': pid, 'role': p.get('role') or 'member',
+                  'hireDate': prof.get('hireDate') if isinstance(prof, dict) else ''}
+        view, changed = badges.board(idx, person, today, earned.get(pid), now)
+        if changed is not None:
+            try:
+                db.reference(f'{badges.EARNED_PATH}/{pid}').set(changed)
+                earned[pid] = changed
+            except Exception as e:
+                print(f'[BADGES] earned not written: {type(e).__name__}')
+        out.append((person, view))
+    return out
+
+def _badges_today():
+    return datetime.now(levelset_sync.STORE_TZ).date().isoformat()
+
+def _badges_leader():
+    p = _pass_me()
+    return bool(session.get('manager')) or bool(p and p.get('role') in ('lead', 'director', 'manager', 'admin'))
+
+def _badges_reply(body, status=200):
+    resp = jsonify(body)
+    resp.status_code = status
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
+
+@app.route('/api/me/badges')
+def my_badges():
+    """The signed-in person's own badges (me-page.js; Home's "New badge")."""
+    p = _pass_me()
+    if not p or p.get('id') == 'director':
+        return _badges_reply({'name': None})
+    try:
+        _, view = _badges_for([p], _badges_today())[0]
+    except Exception as e:
+        print(f'[BADGES] not worked out: {type(e).__name__}: {e}')
+        return _badges_reply({'error': 'Couldn’t load badges.'}, 503)
+    return _badges_reply({'name': p['name'], **view})
+
+@app.route('/api/team/badges')
+def team_badges():
+    """Someone's badges (?name=), or with no name the badges the team earned
+    in the last week, newest first: Team Leads and up."""
+    if not _badges_leader():
+        return _badges_reply({'error': 'Team Leads and up.'}, 403)
+    name = re.sub(r'\s+', ' ', str(request.args.get('name') or '')).strip()[:80]
+    try:
+        people = _pass_people()
+        if name:
+            match = next((x for x in people if _turnover_key(x['name']) == _turnover_key(name)), {'name': name, 'role': 'member'})
+            _, view = _badges_for([match], _badges_today())[0]
+            return _badges_reply({'name': match['name'], **view})
+        now, recent = int(time.time() * 1000), []
+        for person, view in _badges_for(people, _badges_today()):
+            for b in badges.fresh(_badges_earned().get(person['id']), now, BADGES_RECENT_DAYS):
+                recent.append({'person': person['name'], **b})
+    except Exception as e:
+        print(f'[BADGES] team not worked out: {type(e).__name__}: {e}')
+        return _badges_reply({'error': 'Couldn’t load badges.'}, 503)
+    recent.sort(key=lambda r: -r['at'])
+    return _badges_reply({'recent': recent[:40], 'quarterLabel': badges.quarter_label(badges.quarter_of(_badges_today()))})
+
 # ===== START SERVER =====
 
 if __name__ == '__main__':

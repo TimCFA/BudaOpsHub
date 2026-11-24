@@ -308,9 +308,33 @@ of `ops`, `setups` and `history` under `backups/preTrim`, do ticks
 days leave their sections, with a conditional write so a save another server
 took is kept. A day whose ticks sit under handoffs or zones the hub no longer
 has is left as it is, never trimmed uncounted. Nothing else in those sections
-is touched and no saved setting changed. `/api/lists/tally` (directors) adds
+is touched and no saved setting changed. A day whose ticks are already
+trimmed is never written again (Set Ups still naming its Lead Captain would
+count it as 0). `/api/lists/tally` (directors) adds
 the records up per leader; no page shows it yet. Tests:
 `tests/test_list_tally.py`.
+
+## Badges
+
+Achievement badges (`badges.py`, app.py "ACHIEVEMENT BADGES", the Badges
+section of `me-page.js`, "Me page: badges" in theme-cfa.css; Tim, Nov 23
+2026: "commit to this for now", more to come as he thinks it through). The
+server works every badge out from records the hub already keeps for good:
+the list tally (`closers` per handoff: who ticked in a zone that got
+finished), Levelset PEAs, Pass tickets verified Elite, Timers, Huddle and
+the hire date. Nobody types anything in. Milestones are kept; season badges
+count per quarter (the PEA boards' quarters) and earlier quarters' show as a
+trophy row. Bronze / Silver / Gold; the thresholds are data in `CATALOG`.
+An earned level is kept under `badges/earned/<Pass id>` in Firebase, never a
+saved-state section, so a trim or a dipped score never takes one away.
+Who sees whose (Tim): your own on your Me page; Team Leads and up see
+everyone's (`/api/team/badges`; a leader's own Me page lists the team's
+badges this week). No public ranking. Left out on purpose: accountability
+points and waste. Home gets one "New badge" line (`rnBadgeRow`) for a
+badge first seen in the last three days, until its owner opens their Me
+page on that device. Medal colours (bronze, silver, gold) appear only on
+badges. Badge names carry Spanish from the glossary. Tests:
+`tests/test_badges.py`.
 
 ## Deploying
 

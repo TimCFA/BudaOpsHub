@@ -833,6 +833,7 @@ class WhatsMine(unittest.TestCase):
         js = read('static', 'js', 'right-now.js')
         # The PEA scores are a Team Member's and a Trainer's; leaders read their tickets too (Nov 18 2026).
         self.assertIn("const team = ['member', 'trainer'].includes(v.role);", js)
-        self.assertIn("Promise.all([team ? get('/api/me/pea') : null, get('/api/pass/state')])", js)
+        # Anyone signed in by name also asks for a badge earned lately (Nov 23 2026; tests/test_badges.py).
+        self.assertIn("Promise.all([team ? get('/api/me/pea') : null, get('/api/pass/state'), v.name ? get('/api/me/badges') : null])", js)
         self.assertIn("if(what === 'ticket' && typeof psOpenTicket === 'function') psOpenTicket(rest);", js)
         self.assertIn('window.psOpenTicket = openTicket;', read('static', 'js', 'pass.js'))
