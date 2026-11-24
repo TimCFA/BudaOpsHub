@@ -2225,11 +2225,35 @@ def _lists_tally():
         _lists['tally'] = got if isinstance(got, dict) else {}
     return _lists['tally']
 
+def _lists_zones_from_backup(tally, sections):
+    """Once: the days trimmed before a record carried its zones (the first
+    trim, Nov 23 2026) get them from the copy taken before that trim. Only
+    days whose ticks the hub no longer holds; a day it still holds gets its
+    zones from the ordinary run. Marked done only when it ran through."""
+    if db.reference(f'{ONCE_PATH}/tallyZonesFromBackup').get():
+        return
+    backed = _parse_section(db.reference(f'{PRE_TRIM_BACKUP}/ops').get()) or {}
+    old_ticks = backed.get('zoneChecklistState') if isinstance(backed.get('zoneChecklistState'), dict) else {}
+    held = (sections.get('ops') or {}).get('zoneChecklistState') or {}
+    filled = 0
+    for day, ticks in sorted(old_ticks.items()):
+        if day in held or not isinstance(tally.get(day), dict):
+            continue
+        rec = list_tally.with_zones(tally[day], ticks)
+        if rec != tally[day]:
+            db.reference(f'{list_tally.TALLY_PATH}/{day}').set(rec)
+            tally[day] = rec
+            filled += 1
+    db.reference(f'{ONCE_PATH}/tallyZonesFromBackup').set(int(time.time()))
+    if filled:
+        print(f"[LISTS] zones filled in from the pre-trim copy: {filled} day(s)")
+
 def _lists_upkeep(today):
     """One run. Returns (days written to the tally, sections trimmed)."""
     tally = _lists_tally()
     with _state_lock:
         sections = {name: (_cache.get(name) or {}).get('data') or {} for name in ('ops', 'setups', 'history')}
+    _lists_zones_from_backup(tally, sections)
     todo = list_tally.plan(sections, today, tally)
     for day, rec in todo['tally'].items():
         db.reference(f'{list_tally.TALLY_PATH}/{day}').set(rec)       # the record first: a trim never runs ahead of it
@@ -2286,7 +2310,8 @@ def lists_tally():
     except Exception as e:
         print(f"[LISTS] tally not read: {type(e).__name__}")
         return jsonify({'error': 'Could not read the tally'}), 503
-    resp = jsonify({'days': len([d for d in tally if not since or d >= since]), 'leaders': list_tally.scores(tally, since)})
+    resp = jsonify({'days': len([d for d in tally if not since or d >= since]), 'leaders': list_tally.scores(tally, since),
+                    'zones': list_tally.zone_scores(tally, since)})
     resp.headers['Cache-Control'] = 'no-store'
     return resp
 

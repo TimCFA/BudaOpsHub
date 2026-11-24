@@ -366,7 +366,11 @@ database and back to every phone; Render's bandwidth). Once a day the server
 (`list_tally.py` has the rules, app.py "LISTS" runs them in the background
 off a load or sync, never in a start's first ten minutes) writes one record
 per finished day under `lists/tally/<date>` in Firebase: each handoff's Lead
-Captain (from Set Ups, else its history), items done, items in all. That is
+Captain (from Set Ups, else its history), items done, items in all, and each
+zone's share (`zones`, Tim, Nov 24 2026: which zones are the weak ones over
+time; a list, since a zone's name holds a '/'). A day whose ticks are
+trimmed is never counted again (Set Ups can still name its Lead Captain, and
+no ticks would write it back as nothing done). That is
 the leaders' accumulating list score (Tim: credit the Lead Captain; which
 items were ticked needn't be kept), kept for good, never a saved-state
 section. Only after the record is written, and after a one-time whole copy
@@ -376,7 +380,9 @@ days leave their sections, with a conditional write so a save another server
 took is kept. A day whose ticks sit under handoffs or zones the hub no longer
 has is left as it is, never trimmed uncounted. Nothing else in those sections
 is touched and no saved setting changed. `/api/lists/tally` (directors) adds
-the records up per leader; no page shows it yet. Tests:
+the records up per leader and per zone (weakest first); no page shows it
+yet. The days trimmed on Nov 23, before zones were kept, got theirs once from
+the pre-trim copy. Tests:
 `tests/test_list_tally.py`.
 
 ## Deploying

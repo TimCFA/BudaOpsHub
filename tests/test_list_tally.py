@@ -31,6 +31,11 @@ def marks(n, zone='Dining Room'):
     return {zone: {f'item {i}': {'initials': 'AR', 'at': 1} for i in range(n)}}
 
 
+def zones(n=0, zone='Dining Room'):
+    """A handoff's zones on the record, with n ticked in one of them."""
+    return [[z, min(n, t) if z == zone else 0, t] for z, t in huddle_api.ZONE_ITEMS.items()]
+
+
 def sections():
     return {
         'ops': {'zoneChecklistState': {
@@ -85,8 +90,8 @@ class Rules(unittest.TestCase):
         s = sections()
         rec = list_tally.tally_day('2026-11-22', s['ops']['zoneChecklistState']['2026-11-22'], s['setups']['posAssignments'], s['history']['setupHistory'])
         self.assertEqual(rec, {
-            H[1]: {'lead': 'Ben Cole/Ana Ruiz', 'checked': 8, 'total': 74},
-            H[3]: {'lead': 'Ben Cole', 'checked': 0, 'total': 74},                 # led it and nothing was ticked: it counts
+            H[1]: {'lead': 'Ben Cole/Ana Ruiz', 'checked': 8, 'total': 74, 'zones': zones(8)},
+            H[3]: {'lead': 'Ben Cole', 'checked': 0, 'total': 74, 'zones': zones()},   # led it and nothing was ticked: it counts
         })
         # No ticks and no Lead Captain anywhere: nothing to say.
         self.assertEqual(list_tally.tally_day('2026-11-15', None, {}, {}), {})
@@ -94,7 +99,17 @@ class Rules(unittest.TestCase):
     def test_a_lead_the_hub_can_no_longer_name_keeps_the_one_on_record(self):
         kept = {H[0]: {'lead': 'Dana Reyes', 'checked': 1, 'total': 74}}
         rec = list_tally.tally_day('2026-09-04', {H[0]: marks(3)}, {}, {}, kept)
-        self.assertEqual(rec, {H[0]: {'lead': 'Dana Reyes', 'checked': 3, 'total': 74}})
+        self.assertEqual(rec, {H[0]: {'lead': 'Dana Reyes', 'checked': 3, 'total': 74, 'zones': zones(3)}})
+
+    def test_every_zone_is_on_the_record_in_the_pages_order(self):
+        got = list_tally.zones_in({'Restrooms': {'a': True, 'b': True, 'c': False}, 'Soda Room / Tea Station': {str(i): True for i in range(99)}, 'Not a zone': {'a': True}})
+        self.assertEqual([z[0] for z in got], list(huddle_api.ZONE_ITEMS))
+        self.assertEqual({z[0]: z[1] for z in got if z[1]}, {'Restrooms': 2, 'Soda Room / Tea Station': 6})      # never over its size
+        self.assertEqual([z[2] for z in got], list(huddle_api.ZONE_ITEMS.values()))
+        self.assertEqual(sum(z[1] for z in got), list_tally.checked_in({'Restrooms': {'a': True, 'b': True}, 'Soda Room / Tea Station': {str(i): True for i in range(99)}}))
+        # A list, because a Firebase key can't hold the '/' in a zone's name.
+        self.assertTrue(any('/' in z for z in huddle_api.ZONE_ITEMS))
+        self.assertIsInstance(got, list)
 
     def test_a_breaks_day(self):
         self.assertEqual(list_tally.break_day('foh||2026-11-08||Ana Ruiz'), '2026-11-08')
@@ -109,9 +124,9 @@ class Plan(unittest.TestCase):
 
     def test_every_finished_day_gets_its_record_and_today_none(self):
         self.assertEqual(sorted(self.plan['tally']), ['2026-09-04', '2026-11-08', '2026-11-09', '2026-11-22'])
-        self.assertEqual(self.plan['tally']['2026-09-04'], {H[0]: {'lead': '', 'checked': 3, 'total': 74}})      # no name to be had: kept without one
-        self.assertEqual(self.plan['tally']['2026-11-08'][H[0]], {'lead': 'Dana Reyes', 'checked': 10, 'total': 74})
-        self.assertEqual(self.plan['tally']['2026-11-08'][H[1]], {'lead': 'Ben Cole/Dana Reyes', 'checked': 4, 'total': 74})
+        self.assertEqual(self.plan['tally']['2026-09-04'], {H[0]: {'lead': '', 'checked': 3, 'total': 74, 'zones': zones(3)}})      # no name to be had: kept without one
+        self.assertEqual(self.plan['tally']['2026-11-08'][H[0]], {'lead': 'Dana Reyes', 'checked': 10, 'total': 74, 'zones': zones(10)})
+        self.assertEqual(self.plan['tally']['2026-11-08'][H[1]], {'lead': 'Ben Cole/Dana Reyes', 'checked': 4, 'total': 74, 'zones': zones(4)})
 
     def test_only_days_before_the_fourteen_are_trimmed(self):
         self.assertEqual(self.plan['ops']['ops'], [{'o': 'del', 'p': ['zoneChecklistState', '2026-09-04']}, {'o': 'del', 'p': ['zoneChecklistState', '2026-11-08']}])
@@ -152,6 +167,34 @@ class Plan(unittest.TestCase):
         self.assertEqual(list(again['tally']), ['2026-11-22'])
         self.assertEqual(again['tally']['2026-11-22'][H[1]]['checked'], 10)
 
+    def test_a_trimmed_day_is_never_counted_again(self):
+        """Set Ups can still name a day's Lead Captain after its ticks are
+        trimmed: counting again from no ticks would write the day back as
+        nothing done (found Nov 24 2026, before it could happen live)."""
+        tally = dict(self.plan['tally'])
+        after = {name: appmod.apply_ops(self.s[name], self.plan['ops'].get(name, [])) for name in self.s}
+        after['setups']['posAssignments'][f'foh||2026-11-08||{DP["Breakfast"]}||{LEAD}'] = 'Dana Reyes'      # still on the phone that prunes it tomorrow
+        again = list_tally.plan(after, TODAY, tally)
+        self.assertEqual(again, {'tally': {}, 'ops': {}})
+        self.assertEqual(tally['2026-11-08'][H[0]]['checked'], 10)
+        # A day that never had ticks and has no record yet still gets one (led, nothing ticked).
+        after['setups']['posAssignments'][f'foh||2026-11-15||{DP["Lunch"]}||{LEAD}'] = 'Ben Cole'
+        self.assertEqual(list(list_tally.plan(after, TODAY, tally)['tally']), ['2026-11-15'])
+
+    def test_a_handoff_led_with_nothing_ticked_gets_its_zones_at_none(self):
+        kept = {'2026-11-18': {H[0]: {'lead': 'Ben Cole', 'checked': 0, 'total': 74}, H[1]: {'lead': 'Ana Ruiz', 'checked': 6, 'total': 74}}}
+        s = sections()
+        s['ops']['zoneChecklistState'].pop('2026-11-22')
+        got = list_tally.plan({'ops': {'zoneChecklistState': {}}, 'setups': {'posAssignments': {f'foh||2026-11-18||{DP["Breakfast"]}||{LEAD}': 'Ben Cole'}}}, TODAY, kept)['tally']
+        self.assertEqual(got['2026-11-18'][H[0]], {'lead': 'Ben Cole', 'checked': 0, 'total': 74, 'zones': zones()})
+        self.assertEqual(got['2026-11-18'][H[1]], {'lead': 'Ana Ruiz', 'checked': 6, 'total': 74})          # a count with no ticks to split: left as it is
+
+    def test_a_record_written_before_zones_were_kept_gets_them_while_its_ticks_are_held(self):
+        old = {d: {h: {k: v for k, v in rec.items() if k != 'zones'} for h, rec in day.items()} for d, day in self.plan['tally'].items()}
+        again = list_tally.plan(self.s, TODAY, old)['tally']
+        self.assertEqual(sorted(again), sorted(old))
+        self.assertEqual(again['2026-11-22'][H[1]]['zones'], zones(8))
+
     def test_nothing_saved_yet(self):
         for nothing in (None, {}, {'ops': 'x', 'setups': None}, {'ops': {'zoneChecklistState': {'not a day': {}, 5: {}}}}):
             self.assertEqual(list_tally.plan(nothing, TODAY, None), {'tally': {}, 'ops': {}})
@@ -167,6 +210,32 @@ class Scores(unittest.TestCase):
         self.assertEqual(got['']['checked'], 3)                                # no Lead Captain known
         self.assertEqual({r['lead'] for r in list_tally.scores(tally, since='2026-11-20')}, {'Ben Cole', 'Ana Ruiz'})
         self.assertEqual(list_tally.scores(None), [])
+
+
+class Zones(unittest.TestCase):
+    def test_a_trimmed_days_zones_come_from_its_ticks_and_nothing_else_changes(self):
+        rec = {H[0]: {'lead': 'Dana Reyes', 'checked': 10, 'total': 74}, H[1]: {'lead': '', 'checked': 4, 'total': 74}}
+        got = list_tally.with_zones(rec, {H[0]: marks(10), H[1]: marks(4, 'Restrooms')})
+        self.assertEqual(got[H[0]], {'lead': 'Dana Reyes', 'checked': 10, 'total': 74, 'zones': zones(10)})
+        self.assertEqual(got[H[1]]['zones'], zones(4, 'Restrooms'))
+        self.assertNotIn('zones', rec[H[0]])                                       # the record handed in isn't changed
+
+    def test_ticks_that_dont_bear_the_count_out_fill_nothing_in(self):
+        rec = {H[0]: {'lead': 'Dana Reyes', 'checked': 10, 'total': 74}}
+        self.assertEqual(list_tally.with_zones(rec, {H[0]: marks(7)}), rec)
+        self.assertEqual(list_tally.with_zones(rec, None), rec)
+        done = {H[0]: {'lead': '', 'checked': 3, 'total': 74, 'zones': zones(3)}}
+        self.assertEqual(list_tally.with_zones(done, {H[0]: marks(3, 'Restrooms')}), done)      # zones already there stay
+
+    def test_each_zone_over_time_weakest_first(self):
+        tally = {'2026-11-20': {H[0]: {'lead': 'A', 'checked': 14, 'total': 74, 'zones': zones(10)[:1] + [['Restrooms', 4, 8]]}},
+                 '2026-11-21': {H[0]: {'lead': 'A', 'checked': 5, 'total': 74, 'zones': [['Dining Room', 5, 10], ['Restrooms', 0, 8]]},
+                                H[1]: {'lead': 'B', 'checked': 2, 'total': 74}}}                  # no zones on it: left out
+        self.assertEqual(list_tally.zone_scores(tally), [
+            {'zone': 'Restrooms', 'handoffs': 2, 'checked': 4, 'total': 16, 'pct': 25},
+            {'zone': 'Dining Room', 'handoffs': 2, 'checked': 15, 'total': 20, 'pct': 75}])
+        self.assertEqual([z['zone'] for z in list_tally.zone_scores(tally, since='2026-11-21')], ['Restrooms', 'Dining Room'])
+        self.assertEqual(list_tally.zone_scores(None), [])
 
 
 class Store:
@@ -287,6 +356,36 @@ class Server(unittest.TestCase):
         self.assertEqual(self.stored('ops')['zoneChecklistState'][TODAY][H[2]], marks(1))
         self.assertNotIn('2026-09-04', self.stored('ops')['zoneChecklistState'])
 
+    def test_zones_for_the_days_already_trimmed_come_from_the_copy_once(self):
+        """Nov 23's first trim ran before a record carried its zones."""
+        appmod._lists_upkeep(TODAY)
+        for day in ('2026-09-04', '2026-11-08'):                                   # as that first run left them: no zones
+            path = f'{list_tally.TALLY_PATH}/{day}'
+            self.store.data[path] = {h: {k: v for k, v in rec.items() if k != 'zones'} for h, rec in self.store.data[path].items()}
+        self.store.data.pop(f'{appmod.ONCE_PATH}/tallyZonesFromBackup', None)
+        appmod._lists.update(tally=None)
+        self.store.writes.clear()
+        appmod._lists_upkeep(TODAY)
+        self.assertEqual(self.store.data[f'{list_tally.TALLY_PATH}/2026-11-08'][H[0]], {'lead': 'Dana Reyes', 'checked': 10, 'total': 74, 'zones': zones(10)})
+        self.assertEqual(self.store.data[f'{list_tally.TALLY_PATH}/2026-09-04'][H[0]]['zones'], zones(3))
+        self.assertEqual(sorted(p for p in self.store.writes if p.startswith(list_tally.TALLY_PATH)), [f'{list_tally.TALLY_PATH}/2026-09-04', f'{list_tally.TALLY_PATH}/2026-11-08'])
+        self.assertFalse([p for p in self.store.writes if p.startswith(appmod.STATE_ROOT) or p.startswith(appmod.PRE_TRIM_BACKUP)])     # no saved section, and the copy is only read
+        # Once: a third run reads no copy and writes nothing.
+        self.store.writes.clear()
+        appmod._lists_upkeep(TODAY)
+        self.assertEqual(self.store.writes, [])
+
+    def test_a_trimmed_day_keeps_its_record_while_set_ups_still_names_its_lead(self):
+        appmod._lists_upkeep(TODAY)
+        good = json.loads(json.dumps(self.store.data[f'{list_tally.TALLY_PATH}/2026-11-08']))
+        data = json.loads(json.dumps(appmod._cache['setups']['data']))
+        data['posAssignments'][f'foh||2026-11-08||{DP["Breakfast"]}||{LEAD}'] = 'Dana Reyes'
+        appmod._cache['setups'] = {'data': data, 'ver': 'v2', 'canon': canon(data)}
+        self.store.writes.clear()
+        appmod._lists_upkeep(TODAY)
+        self.assertEqual(self.store.data[f'{list_tally.TALLY_PATH}/2026-11-08'], good)
+        self.assertEqual(self.store.writes, [])
+
     def test_the_totals_are_for_directors(self):
         c = appmod.app.test_client()
         self.assertEqual(c.get('/api/lists/tally').status_code, 403)
@@ -301,6 +400,7 @@ class Server(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.get_json()['days'], 4)
         self.assertEqual(r.get_json()['leaders'][0]['lead'], 'Ben Cole')
+        self.assertEqual(r.get_json()['zones'][-1]['zone'], 'Dining Room')         # weakest first, so the one that got ticked is last
         self.assertEqual(c.get('/api/lists/tally?since=nope').status_code, 400)
 
 

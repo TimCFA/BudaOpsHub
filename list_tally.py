@@ -27,7 +27,7 @@ import huddle_api
 import timers_api
 
 KEEP_DAYS = 14                      # days of ticks and finished breaks kept in the saved sections
-TALLY_PATH = 'lists/tally'          # {date: {handoff: {lead, checked, total}}}
+TALLY_PATH = 'lists/tally'          # {date: {handoff: {lead, checked, total, zones: [[zone, ticked, items]]}}}
 _ISO = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 _ISO_END = re.compile(r'(\d{4}-\d{2}-\d{2})$')
 HANDOFF_TOTAL = sum(huddle_api.ZONE_ITEMS.values())
@@ -99,10 +99,24 @@ def all_counted(ticks):
     return True
 
 
+def zones_in(marks):
+    """One handoff's zones: [[zone, ticked, items in it], ...] in the page's
+    order, every zone (a skipped one reads 0), a zone never over its size. A
+    list, not a dict: a zone's name can hold a '/' and a Firebase key can't."""
+    marks = marks if isinstance(marks, dict) else {}
+    out = []
+    for zone, total in huddle_api.ZONE_ITEMS.items():
+        items = marks.get(zone)
+        out.append([zone, min(sum(1 for v in items.values() if v), total) if isinstance(items, dict) else 0, total])
+    return out
+
+
 def tally_day(day, ticks, assignments, setup_history, kept=None):
-    """{handoff: {lead, checked, total}} for one day, or {} when there is
-    nothing to say (no ticks and no Lead Captain on any handoff). A lead the
-    hub can no longer name keeps the one already on the record."""
+    """{handoff: {lead, checked, total, zones}} for one day, or {} when there
+    is nothing to say (no ticks and no Lead Captain on any handoff). `zones`
+    is each zone's share (Tim, Nov 24 2026: which zones are the weak ones
+    over time). A lead the hub can no longer name keeps the one already on
+    the record."""
     ticks = ticks if isinstance(ticks, dict) else {}
     kept = kept if isinstance(kept, dict) else {}
     out = {}
@@ -110,7 +124,22 @@ def tally_day(day, ticks, assignments, setup_history, kept=None):
         lead = lead_of(day, lead_from, assignments, setup_history) or str((kept.get(handoff) or {}).get('lead') or '')
         checked = checked_in(ticks.get(handoff))
         if lead or checked:
-            out[handoff] = {'lead': lead, 'checked': checked, 'total': HANDOFF_TOTAL}
+            out[handoff] = {'lead': lead, 'checked': checked, 'total': HANDOFF_TOTAL, 'zones': zones_in(ticks.get(handoff))}
+    return out
+
+
+def with_zones(record, ticks):
+    """A day's record with each handoff's zones filled in from that day's
+    ticks, for a day trimmed before zones were kept (the ticks come from the
+    copy taken before the first trim). Nothing else on the record changes,
+    and a handoff whose count the ticks don't bear out is left without."""
+    record = record if isinstance(record, dict) else {}
+    ticks = ticks if isinstance(ticks, dict) else {}
+    out = {}
+    for handoff, h in record.items():
+        out[handoff] = h
+        if isinstance(h, dict) and 'zones' not in h and checked_in(ticks.get(handoff)) == h.get('checked'):
+            out[handoff] = dict(h, zones=zones_in(ticks.get(handoff)))
     return out
 
 
@@ -140,6 +169,16 @@ def plan(sections, today_iso, kept_tally, keep_days=KEEP_DAYS):
     tally = {}
     days = {d for d in ticks if isinstance(d, str) and _ISO.match(d)} | _days_with_a_lead(assignments)
     for day in sorted(d for d in days if d < today_iso):
+        if day not in ticks and day in kept_tally:
+            # Its ticks are gone (trimmed) and its record is written: the
+            # record is all there is. Set Ups can still name that day's Lead
+            # Captain for a while, and counting again from no ticks would
+            # write the day back as nothing done. (A handoff that was led with
+            # nothing ticked does get its zones, all at none: they add nothing.)
+            rec = with_zones(kept_tally[day], None)
+            if rec != kept_tally[day]:
+                tally[day] = rec
+            continue
         rec = tally_day(day, ticks.get(day), assignments, history.get('setupHistory'), kept_tally.get(day))
         if rec and rec != kept_tally.get(day):
             tally[day] = rec
@@ -162,6 +201,28 @@ def break_day(key):
         return parts[1]
     m = _ISO_END.search(str(key))
     return m.group(1) if m else None
+
+
+def zone_scores(tally, since=None):
+    """Each zone over time, the weakest first: [{zone, handoffs, checked,
+    total, pct}], from the handoffs whose record carries its zones."""
+    by = {}
+    for day, rec in (tally or {}).items():
+        if since and day < since or not isinstance(rec, dict):
+            continue
+        for h in rec.values():
+            for z in (h.get('zones') if isinstance(h, dict) and isinstance(h.get('zones'), list) else []):
+                try:
+                    name, checked, total = str(z[0]), int(z[1]), int(z[2])
+                except (IndexError, TypeError, ValueError):
+                    continue
+                row = by.setdefault(name, {'zone': name, 'handoffs': 0, 'checked': 0, 'total': 0})
+                row['handoffs'] += 1
+                row['checked'] += checked
+                row['total'] += total
+    for row in by.values():
+        row['pct'] = round(100 * row['checked'] / row['total']) if row['total'] else 0
+    return sorted(by.values(), key=lambda r: (r['pct'], r['zone'].lower()))
 
 
 def scores(tally, since=None):
