@@ -15,7 +15,7 @@
   --cfa-dark-red:#AF272F;
   --cfa-navy:#004F71;
   --cfa-white:#FFFFFF;        /* cards */
-  --cfa-bg:#FFFFFF;           /* ground: white, the colour is in the band and the insides */
+  --cfa-bg:#F2F4F7;           /* ground: a soft cool grey, so white cards lift off it (Tim, Nov 23 2026: pure white was too bright) */
   --cfa-light:#F6F8FA;
   --cfa-soft:#EDF1F5;         /* segmented controls, quiet fills */
   --text-primary:#14171C;
@@ -3434,7 +3434,8 @@ body.hub-warming::after{content:"Loading the rest… · Cargando…";position:fi
 .standup-card,.home-vmv-card:nth-child(n),.home-win-card:nth-child(n),.streak-display,.gx-section,.gx-hero,.gx-hero-alt,.gx-satisfaction,
 .celeb-banner,.fc-kpi,.hh-tile,.hc-card,.hc-form,.ts-card,.ap-block,.mp-sec,.su-dp .su-dp-banner,.tm-card,.ps-card,
 .rn-card,.wt-today,.waste-today-card,.sb-card{box-shadow:var(--card-shadow);}
-.su-dp.is-open .su-dp-banner{box-shadow:0 0 0 2px var(--cfa-red),0 8px 20px rgba(20,23,28,0.08);}
+/* An open daypart wears its red ring round the whole card, banner and rows together (Tim, Nov 23 2026: the ring stopped under the banner and looked chopped off). */
+#allDayparts .su-dp.is-open{box-shadow:0 0 0 2px var(--cfa-red),0 6px 18px rgba(20,23,28,0.07);}
 
 /* Section labels (small caps) in navy: structure is navy, so a label is
    never mistaken for a quiet note. */
