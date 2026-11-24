@@ -495,14 +495,15 @@ class Director(unittest.TestCase):
         until 1 PM and the PM shifts' after (the kitchen's switch at 2 PM, as
         on its iPad: Nov 20 2026); what doesn't need someone now folds under
         More about today."""
-        brk = """breaks.boh = [{name: 'Sam Ortiz', start: 11 * 60, from: 6 * 60}, {name: 'Rosa Vela', start: 19 * 60, from: 15 * 60}];
-                 breaks.foh = [{name: 'Mia Cole', start: 9 * 60, from: 6 * 60}, {name: 'Ana Ruiz Lopez', start: 12 * 60, from: 8 * 60}, {name: 'Leo Park', start: 18 * 60, from: 14 * 60}];
+        brk = """breaks.boh = [{name: 'Sam Ortiz', start: 11 * 60, from: 6 * 60, to: 14 * 60}, {name: 'Rosa Vela', start: 19 * 60, from: 15 * 60, to: 22 * 60}];
+                 breaks.foh = [{name: 'Mia Cole', start: 9 * 60, from: 6 * 60, to: 13 * 60}, {name: 'Ana Ruiz Lopez', start: 12 * 60, from: 8 * 60, to: 16 * 60}, {name: 'Leo Park', start: 18 * 60, from: 14 * 60, to: 22 * 60}];
                  completedBreaks['foh||' + today + '||Mia Cole'] = true;
+                 completedBreaks['foh||' + today + '||Ana Ruiz Lopez'] = true;
                  gaps['foh|Close'] = {open: ['Floors'], unplaced: [], filled: 4};"""
         op = """c => { %s acUser = null; launchManager = true; const card = rnCardFor(rnViewer(), rnDay());
                  return card.rows.map(r => [r.n, r.text, !!r.more]); }""" % (SETUP + brk)
         am, pm = run({'op': op, 'at': '2026-10-19T12:50:00-05:00'}, {'op': op, 'at': '2026-10-19T13:05:00-05:00'})
-        self.assertIn(['1', 'FOH AM break left (of 2) · next: Ana 12:00', False], am)
+        self.assertIn(['0', 'FOH AM breaks left (of 2)', False], am)
         self.assertIn(['1', 'FOH PM break left (of 1) · next: Leo 6:00', False], pm)
         self.assertIn(['1', 'BOH AM break left (of 1) · next: Sam 11:00', False], pm)      # the kitchen: 2 PM
         late = run({'op': op, 'at': '2026-10-19T14:05:00-05:00'})[0]
@@ -516,6 +517,33 @@ class Director(unittest.TestCase):
         self.assertIn('<details class="rn-more rn-sec" data-rn-more', js)
         # The Admin Team's card is the director's, under their own name.
         self.assertIn("acUser.role === 'admin' ? RN_ROLE_LABELS.admin : RN_ROLE_LABELS[v.role]", js)
+
+    def test_pm_breaks_carry_the_mid_shifts_and_whats_still_owed(self):
+        """Tim, Nov 23 2026: at 3 PM Home said "4 FOH PM breaks left (of 4),
+        next: Daniel M. 6:30" while the breaks roster on Set Ups still had
+        Isaac at 2:45, Victoria 3:15, Leeland 3:30 ... none taken: the count
+        only took shifts starting at 2 PM or later. It now carries the earlier
+        shifts' afternoon breaks and any break still owed by someone on the
+        clock, so it matches the roster; whoever has gone home drops off."""
+        brk = """breaks.foh = [
+                   {name: 'Kim Lee', start: 9 * 60, from: 6 * 60, to: 14 * 60},
+                   {name: 'Isaac Bledsoe', start: 14 * 60 + 45, from: 11 * 60 + 30, to: 19 * 60},
+                   {name: 'Victoria Rodriguez', start: 15 * 60 + 15, from: 11 * 60, to: 20 * 60 + 30},
+                   {name: 'Jacob Cantu', start: 15 * 60 + 45, from: 11 * 60, to: 20 * 60 + 30},
+                   {name: 'Ana Ruiz Lopez', start: 12 * 60 + 30, from: 8 * 60, to: 16 * 60},
+                   {name: 'Daniel Millan', start: 18 * 60 + 30, from: 15 * 60, to: 22 * 60},
+                   {name: 'Asia Bothne', start: 19 * 60 + 15, from: 16 * 60, to: 22 * 60 + 30}];
+                 breaks.boh = [
+                   {name: 'Nestor Reyes', start: 17 * 60 + 30, from: 13 * 60, to: 22 * 60 + 30},
+                   {name: 'Vanessa Cruz', start: 19 * 60, from: 15 * 60, to: 22 * 60 + 30}];
+                 completedBreaks['foh||' + today + '||Victoria Rodriguez'] = true;"""
+        op = """c => { %s acUser = null; launchManager = true; const card = rnCardFor(rnViewer(), rnDay());
+                 return card.rows.map(r => r.text).filter(t => /break/.test(t)); }""" % (SETUP + brk)
+        got = run({'op': op, 'at': '2026-10-19T15:02:00-05:00'})[0]
+        # Kim went home at 2 with no break taken: not on the count. Ana, still
+        # on, owes the 12:30 one; Victoria's is taken.
+        self.assertIn('FOH PM breaks left (of 6) · next: Ana 12:30', got)
+        self.assertIn('BOH PM breaks left (of 2) · next: Nestor 5:30', got)
 
     def test_after_close_tomorrows_set_ups(self):
         got = run({'op': card('director', '', extra="gaps['foh|Lunch'] = {open: ['Host 2', 'OMD 2'], unplaced: [], filled: 10};"), 'at': '2026-10-19T22:30:00-05:00'})[0]
