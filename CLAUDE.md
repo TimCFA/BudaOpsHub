@@ -46,7 +46,7 @@ Spanish is hidden (`esSyncSides`, the `es-off-*` classes in theme-cfa.css).
 
 `static/css/theme-cfa.css` loads after `main.css` and carries the look: Chick-fil-A
 red (#DD0031) for actions and limits, Chick-fil-A navy (#004F71) for dark "stats"
-cards, an ivory ground, slab-serif headings and hero numbers (Zilla Slab) with a
+cards, a white ground (no tan or cream; Tim, Nov 23 2026), slab-serif headings and hero numbers (Zilla Slab) with a
 grotesque body (Figtree); both fonts stand in for Caecilia and Apercu until the
 brand fonts are licensed (swap `--font-display` / `--font-ui`). Line icons (inline
 SVG), never emoji. New components go in the theme's conventions.
@@ -148,6 +148,30 @@ what was saved (`fohLeaderTransitionChecked`, `fohLeaderTransitionDate`,
 loaded and saved as they are, so nothing on the server changes. Don't bring
 it back without Tim asking. Neither it nor the OE Walkthrough (hidden since
 Sept 2026) is a Huddle quick pick. Tests: `tests/test_leader_transition_off.py`.
+
+Colour has three jobs, kept apart so a page sorts itself at a glance (Tim, Nov 4
+2026): brand (red acts and limits, navy sums up and labels sections), status and
+identity. Status is the token set at the top of theme-cfa.css: `--good`,
+`--warn`, `--bad`, `--info`, `--off`, each with `-ink` (text on the page),
+`-fill` and `-line` (a washed card and its edge) and `-bright` (text on navy).
+Never type a new green, amber or pink hex into a stylesheet or a script; use
+the token, and dark.css already carries its dark value (a rule on the tokens
+needs no dark twin). Identity colours are the zones (`--zone-*`, one colour a
+zone on both sides of the house and in Coach) and the daypart skies (`.su-col-*`).
+Cards share `--card-shadow`; section labels in small caps are navy (`--eyebrow`).
+
+The day look (Tim, Nov 23 2026, picked from the palette options): a white floor
+and white cards that float on `--card-shadow`, a pale blue band (`--band`, navy
+ink; the deep navy was too strong) that melts into the white at its lower edge
+(no line, no rounded corners) across the
+top that is the header plus the tab row (the header alone on a touch screen),
+and a pale blue inside each card (`--inset`, `-strong`, `-faint`, `-track`,
+`-line`) on its rows, headers, tracks and pills. The band is light only;
+dark is Midnight (deep navy ground, `#142238` cards; dark.css). The waste chip
+and the initials badge sit on the band as they always did. The title
+("Ops Hub Buda", top left) is a link home: it presses the Home tab
+(navigation.js), and a new-tab click opens the front page. Never put a tan or
+cream back: ground and cards are white, tints are the cool `--inset` family.
 
 ## Tasks
 

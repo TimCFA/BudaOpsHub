@@ -109,12 +109,12 @@ class Refresh(unittest.TestCase):
         self.assertIn('#allDayparts .su-sheet-list .su-row{box-shadow:none;', self.css)        # no stripe down the left edge
         self.assertIn('color-mix(in srgb,var(--zc) 22%,var(--cfa-white))', self.css)            # the zone colour is on the number
         # Zone Resets left this for tiles on Nov 23 2026 (tests/test_zone_reset_flow.py), and the Leader Transition List came off the hub.
-        self.assertIn('#allDayparts .su-dp.is-open{border-radius:16px;box-shadow:0 6px 18px rgba(28,27,25,0.07);}', self.css)
+        self.assertIn('#allDayparts .su-dp.is-open{border-radius:16px;box-shadow:0 6px 18px rgba(20,23,28,0.07);}', self.css)
 
     def test_waste_keeps_its_navy_pills(self):
         # Only the Lists pills became the one-row ink switch; Waste's are as they were.
-        self.assertIn('.launch-pill.active{background:var(--cfa-navy);border-color:var(--cfa-navy);color:#F6F1E8;}', self.css)
-        self.assertIn('.launch-subnav[aria-label="Lists"] .launch-pill.active{background:var(--text-primary);color:#F6F1E8;}', self.css)
+        self.assertIn('.launch-pill.active{background:var(--cfa-navy);border-color:var(--cfa-navy);color:#F4F7FA;}', self.css)
+        self.assertIn('.launch-subnav[aria-label="Lists"] .launch-pill.active{background:var(--text-primary);color:#F4F7FA;}', self.css)
 
     def test_selected_text_stays_readable_in_the_dark(self):
         dark = read('static', 'css', 'dark.css')

@@ -491,7 +491,7 @@ class Look(unittest.TestCase):
                      '.tm-tile.is-paused .tm-ring{background:repeating-linear-gradient(135deg,var(--tm-hue) 0 8px,var(--tm-track) 8px 16px);',
                      '.tm-counter{width:var(--tm-size);height:var(--tm-size);border-radius:50%;',
                      '.tm-now{--tm-size:210px;}',
-                     '--tm-dark-red:#E8636E;'):                                    # readable on the dark theme
+                     '--tm-dark-red:#F58A94;'):                                    # readable on the dark theme
             self.assertIn(rule, self.css)
         self.assertIsNone(re.search('[\U0001F300-\U0001FAFF]', self.css + self.js))     # line icons, never emoji
 

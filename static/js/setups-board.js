@@ -205,7 +205,8 @@ function suDaypartFillText(section, date, dp, i, count){
 // today, or any daypart of a past day) shows its open count in grey.
 function suDaypartFillHtml(section, date, dp, i){
   const count = suDaypartOpenCount(section, date, dp, i);
-  return `<span class="su-dp-fill ${count.open && !suDaypartIsOver(section, date, dp) ? 'is-short' : ''}">${suDaypartFillText(section, date, dp, i, count)}</span>`;
+  const full = count.onShift && !count.open && count.filled >= count.onShift;   // every spot placed: green
+  return `<span class="su-dp-fill ${count.open && !suDaypartIsOver(section, date, dp) ? 'is-short' : full ? 'is-full' : ''}">${suDaypartFillText(section, date, dp, i, count)}</span>`;
 }
 
 // Where this daypart sits against the clock: its index and today's.
@@ -584,7 +585,7 @@ function suZonesHtml(m){
     const count = z.key === 'extra' && !filled ? 'when staffing allows' : `${filled} placed${needed ? ` · ${needed} needed` : ''}`;
     const leaders = z.tiles.filter(t => t.leaderRole).map(t => `<span class="su-zone-leader" title="${escapeHtml(t.leaderRole)}">${escapeHtml(suDisplayName(t.names[0]))} · ${t.leaderRole === 'Team Lead' ? 'TL' : 'Trainer'}</span>`).join('');
     return `
-      <section class="su-zone" aria-label="${escapeHtml(z.name)}">
+      <section class="su-zone su-z-${z.key}" aria-label="${escapeHtml(z.name)}">
         <div class="su-zone-head"><h3>${escapeHtml(z.name)}</h3><span>${count}</span></div>
         ${leaders ? `<div class="su-zone-leaders">${leaders}</div>` : ''}
         ${shown.length ? `<div class="su-tiles">${shown.map(suTileHtml).join('')}</div>` : ''}
