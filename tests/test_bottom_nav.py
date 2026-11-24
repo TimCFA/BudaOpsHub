@@ -71,7 +71,8 @@ class BottomNav(unittest.TestCase):
     def test_a_bar_for_each_role(self):
         self.assertIn("if(who === 'kitchen') return ['home', 'positions', 'prepboard', 'wastelog'];", self.js)
         self.assertIn("if(who === 'director') return ['home', 'positions', 'tasks', typeof hcAllowed === 'function' && hcAllowed() ? 'headcount' : 'calendar'];", self.js)
-        self.assertIn("return ['home', 'positions', 'zonereset', 'tasks'];", self.js)
+        self.assertIn("if(who === 'lead') return ['home', 'positions', 'zonereset', 'tasks'];", self.js)
+        self.assertIn("return ['home', 'positions', 'zonereset', 'wastelog'];", self.js)   # team members keep Waste (Tim, Nov 23 2026)
         self.assertIn("items.concat('hub')", self.js)
         # The kitchen bar is a signed-out iPad on Back (right-now.js).
         self.assertIn("rnDeviceSide() === 'boh') return 'kitchen';", self.js)

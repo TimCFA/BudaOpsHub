@@ -5,7 +5,8 @@
 // tab bar": hover:none and pointer:coarse).
 //
 // The bars (Tim approved the mock-up, Nov 23 2026):
-//   Team Member, Trainer, a signed-out phone: Home, Set Ups, Lists, Tasks
+//   Team Member, Trainer, a signed-out phone: Home, Set Ups, Lists, Waste
+//     (Tim, Nov 23 2026: the team logs waste; their Tasks are in Hub)
 //   Team Lead:                                Home, Set Ups, Lists, Tasks
 //   Director, Admin Team, the manager PIN:    Home, Set Ups, Tasks, Our Team
 //   A signed-out kitchen iPad (Right Now on Back): Home, Set Ups, Prep, Waste
@@ -96,7 +97,8 @@
   function barFor(who){
     if(who === 'kitchen') return ['home', 'positions', 'prepboard', 'wastelog'];
     if(who === 'director') return ['home', 'positions', 'tasks', typeof hcAllowed === 'function' && hcAllowed() ? 'headcount' : 'calendar'];
-    return ['home', 'positions', 'zonereset', 'tasks'];
+    if(who === 'lead') return ['home', 'positions', 'zonereset', 'tasks'];
+    return ['home', 'positions', 'zonereset', 'wastelog'];
   }
 
   // Who can open a page: the same rules activateView keeps (navigation.js).

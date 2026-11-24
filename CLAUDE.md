@@ -56,8 +56,10 @@ SVG), never emoji. New components go in the theme's conventions.
 On a touch screen (phones and every tablet) the tabs are a bar at the bottom
 (`static/js/bottom-nav.js`, "Bottom tab bar" in theme-cfa.css; Tim, Nov 12
 2026), with four places chosen for who is holding the device, then Hub (Tim,
-Nov 23 2026, from the navigation mock-up): Team Members, Trainers, Team Leads
-and a signed-out phone get Home, Set Ups, Lists, Tasks; directors, the Admin
+Nov 23 2026, from the navigation mock-up): Team Members, Trainers and a
+signed-out phone get Home, Set Ups, Lists, Waste (their Tasks are in Hub,
+with a dot on Hub when one waits); Team Leads get Home, Set Ups, Lists,
+Tasks; directors, the Admin
 Team and the manager PIN get Home, Set Ups, Tasks, Our Team (Calendar if Our
 Team isn't theirs); a signed-out kitchen iPad (Right Now on Back) gets Home,
 Set Ups, Prep, Waste. Hub (`/hub`, "Hub" in theme-cfa.css) is a page, not a
