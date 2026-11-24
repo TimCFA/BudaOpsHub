@@ -358,6 +358,26 @@ card, and a reload is him again. The server adds only that person's PEA
 (`/api/me/pea?as=`, which his director session already holds). Tests:
 `tests/test_view_as.py`.
 
+## Off the roster
+
+The X on a Set Ups roster card asks why (Tim, Nov 24 2026: "an option to
+specify why they're being removed and have it documented"): a sheet of
+reasons (called in, no call no show, sent home, left early, shift swap or
+change, added by mistake, something else with a note), then one red button
+(`static/js/roster-off.js`, "Off the roster" in theme-cfa.css). The roster
+changes as it always did (`removeFromRoster`, saved through Set Ups); the
+record goes to `roster_off_api.py`, one event each under
+`rosterOff/events/<id>` in Firebase, never a saved-state section. It is
+kept on the phone first (an outbox in localStorage, each with its own id so
+the server never keeps it twice) and sent from there. Team Leads and up only,
+enforced by the server: under the day's roster they see who came off and
+why, with Put back (an `undo` event; the spot isn't restored), and Look back
+(7 / 30 / 90 days, each person's call-ins and no-shows, every record by day);
+a director's Our Team profile carries the person's 90-day count. Someone
+taken off a day stays off it when the schedule is imported again
+(`roKeptOff`). The note asks for no medical details. Kitchen side carries
+Spanish (glossary). Tests: `tests/test_roster_off.py`.
+
 ## Lists tally and the 14-day trim
 
 Zone Reset ticks and finished breaks are kept 14 days in the saved sections

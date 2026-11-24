@@ -3339,6 +3339,15 @@ week_api.register(app, me=_pass_me, ref=lambda path: db.reference(path), tz=leve
                   calendar=week_api.GoogleCalendar(_week_service_account()),
                   dayparts=[name for name, _ in timers_api.FOH_DAYPARTS])
 
+# ===== OFF THE ROSTER (Nov 24 2026) =====
+# Why someone came off a day's roster on Set Ups (called in, no-show, sent
+# home...), kept for good for Team Leads and up (roster_off_api.py; the
+# screen is static/js/roster-off.js). Events under rosterOff/ in Firebase,
+# one record each; the roster itself still saves as it always has.
+import roster_off_api
+
+roster_off_api.register(app, me=_pass_me, ref=lambda path: db.reference(path))
+
 # ===== ACHIEVEMENT BADGES (Nov 23 2026) =====
 # Badges worked out from what the hub already keeps for good (badges.py has
 # the rules): the list tally, Levelset PEAs, the Pass, Timers, Huddle and the

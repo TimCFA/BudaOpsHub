@@ -223,6 +223,67 @@ button,input,select,textarea{font-family:inherit;}
 .su-break-done{grid-area:done;min-height:40px;padding:0 18px;border-radius:999px;border:1px solid rgba(244,247,250,0.55);background:transparent;color:#F4F7FA;font-family:var(--font-ui);font-size:13px;font-weight:700;cursor:pointer;}
 .su-break-done:hover{background:#F4F7FA;color:var(--cfa-navy);}
 
+/* Off the roster (roster-off.js; Tim, Nov 24 2026): the X asks why, on a
+   sheet of big reason tiles, and the day's roster ends with who came off and
+   why, for Team Leads and up. One meaning a colour: the reason's chip is
+   amber for a call-in or leaving early, red for a no call no show, quiet
+   grey for the rest; the chosen tile is ink. */
+.ro-sheet{border-radius:22px 22px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));max-width:520px;max-height:100%;overflow-y:auto;font-family:var(--font-ui);}
+@media (min-width:600px){ .ro-sheet{border-radius:22px;} }
+.ro-head{display:flex;align-items:center;gap:12px;margin:0 0 16px;}
+.ro-sheet .ro-title{margin:0;font-family:var(--font-display);font-weight:600;font-size:22px;line-height:1.15;color:var(--text-primary);text-transform:none;letter-spacing:0;}
+.ro-when{margin-top:2px;font-size:13px;color:var(--text-secondary);font-variant-numeric:tabular-nums;}
+.ro-initials{flex:none;width:44px;height:44px;border-radius:999px;background:var(--inset-strong);color:var(--cfa-navy);display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;letter-spacing:0.02em;}
+.ro-initials.is-sm{width:34px;height:34px;font-size:12px;}
+.ro-eyebrow{display:block;font-size:11px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--eyebrow);margin:0 0 8px;}
+.ro-reasons{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 16px;}
+.ro-reason{display:flex;align-items:center;gap:10px;min-height:56px;padding:10px 12px;border:1px solid var(--inset-line);border-radius:14px;background:var(--inset);color:var(--text-primary);font-size:14px;font-weight:700;text-align:left;cursor:pointer;}
+.ro-reason.is-wide{grid-column:1 / -1;}
+.ro-reason-icon{flex:none;width:34px;height:34px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:var(--cfa-white);color:var(--off-ink);}
+.ro-reason.is-warn .ro-reason-icon{color:var(--warn-ink);background:var(--warn-fill);}
+.ro-reason.is-bad .ro-reason-icon{color:var(--bad-ink);background:var(--bad-fill);}
+.ro-reason-label{min-width:0;line-height:1.2;}
+.ro-reason:hover{border-color:var(--text-tertiary);}
+.ro-reason.is-on{background:var(--text-primary);border-color:var(--text-primary);color:var(--cfa-white);}
+.ro-reason.is-on .ro-reason-icon{background:rgba(255,255,255,0.14);color:var(--cfa-white);}
+.ro-reason.is-on .es{color:inherit;opacity:0.78;}
+.ro-note-label{display:block;font-size:13px;font-weight:700;color:var(--text-primary);margin:0 0 6px;}
+.ro-note{width:100%;box-sizing:border-box;padding:12px;border:1px solid var(--border);border-radius:12px;font:inherit;font-size:15px;resize:vertical;background:var(--cfa-white);color:var(--text-primary);}
+.ro-hint{margin:8px 0 14px;font-size:12.5px;color:var(--text-secondary);line-height:1.45;}
+.ro-go{width:100%;}
+.ro-go:disabled{opacity:0.45;cursor:default;}
+.ro-link{border:0;background:transparent;padding:6px 2px;font:inherit;font-size:13px;font-weight:700;color:var(--cfa-navy);cursor:pointer;}
+.ro-link:hover{text-decoration:underline;}
+.ro-off{margin-top:12px;padding:12px 12px 4px;border-radius:14px;background:var(--inset-faint);border:1px solid var(--inset-line);}
+.ro-off.is-empty{padding:4px 12px;background:transparent;border-color:transparent;}
+.ro-off-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.ro-off-head .ro-eyebrow{margin:0;}
+.ro-off.is-empty .ro-eyebrow{color:var(--text-tertiary);}
+.ro-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:start;padding:10px 0;border-top:1px solid var(--inset-line);}
+.ro-off-head + .ro-row,.ro-day .ro-eyebrow + .ro-row{border-top:0;}
+.ro-row-main{min-width:0;}
+.ro-row-name{font-size:15px;font-weight:700;color:var(--text-primary);}
+.ro-row-shift{font-weight:500;font-size:13px;color:var(--text-secondary);font-variant-numeric:tabular-nums;margin-left:4px;}
+.ro-chip{display:inline-flex;flex-wrap:wrap;align-items:center;gap:2px 5px;margin-top:4px;padding:3px 9px 3px 7px;border-radius:999px;font-size:12px;font-weight:700;background:var(--off-fill);color:var(--off-ink);}
+.ro-chip.is-warn{background:var(--warn-fill);color:var(--warn-ink);}
+.ro-chip.is-bad{background:var(--bad-fill);color:var(--bad-ink);}
+.ro-chip .es{font-weight:500;}
+.ro-row-note{margin-top:5px;font-size:13px;color:var(--text-primary);line-height:1.4;}
+.ro-row-by{margin-top:3px;font-size:12px;color:var(--text-tertiary);font-variant-numeric:tabular-nums;}
+.ro-back{min-height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--border);background:var(--cfa-white);color:var(--text-primary);font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.ro-back:hover{border-color:var(--cfa-navy);color:var(--cfa-navy);}
+.ro-log-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px;}
+.ro-range{margin:0 0 12px;}
+.ro-everyone{margin:0 0 8px;}
+.ro-people{display:flex;flex-direction:column;gap:6px;margin:0 0 18px;}
+.ro-person{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--inset-line);border-radius:14px;background:var(--inset);text-align:left;font:inherit;color:var(--text-primary);cursor:pointer;}
+.ro-person-main{display:flex;flex-direction:column;min-width:0;}
+.ro-person-main b{font-size:15px;}
+.ro-person-main span{font-size:12.5px;color:var(--text-secondary);}
+.ro-person-n{font-family:var(--font-display);font-weight:700;font-size:26px;color:var(--cfa-navy);font-variant-numeric:tabular-nums;}
+.ro-person-sum{margin:0 0 14px;font-size:14px;font-weight:600;color:var(--text-primary);}
+.ro-day{margin:0 0 14px;}
+
 /* Coach view: the game plan and the tool bar in Chick-fil-A navy */
 #positionsView .su-plan{background:var(--cfa-navy);}
 #positionsView .su-plan-head h2{font-family:var(--font-display);font-weight:600;font-size:22px;}
