@@ -797,8 +797,10 @@ function renderRoster(){
       </div>`;
   }).join('');
 
+  // Who came off this day's roster and why, for Team Leads and up (roster-off.js).
+  const off = rosterView !== 'breaks' && typeof roOffHtml === 'function' ? roOffHtml(dayName, currentPosSection) : '';
   if(roster.length === 0){
-    panel.innerHTML = '<div class="su-roster-empty">No roster for ' + escapeHtml(formatVerboseDate(dayName)) + ' yet. Import the weekly HotSchedules CSV in Manage to populate.' + esLine('No roster yet') + '</div>';
+    panel.innerHTML = '<div class="su-roster-empty">No roster for ' + escapeHtml(formatVerboseDate(dayName)) + ' yet. Import the weekly HotSchedules CSV in Manage to populate.' + esLine('No roster yet') + '</div>' + off;
   } else {
     const empty = !shown.length
       ? `<div class="su-roster-empty">${leftCount === 0 && sortedRoster.some(rosterOwesBreak) ? `Every break is done.${esLine('Every break is done.')}` : `No one today works 6 hours or more, so no breaks are owed.${esLine('No breaks owed')}`}</div>`
@@ -806,7 +808,7 @@ function renderRoster(){
     // Who has the Truck shift, apart from the people on the floor (truck.js).
     // All only: truck is off the floor, so it has no place in Breaks Left (Tim).
     const truck = rosterView !== 'breaks' && typeof truckRosterHtml === 'function' ? truckRosterHtml(dayName) : '';
-    panel.innerHTML = rosterViewHtml(sortedRoster.length, leftCount) + truck + (html || empty);
+    panel.innerHTML = rosterViewHtml(sortedRoster.length, leftCount) + truck + (html || empty) + off;
     breakTickStart();
   }
 
@@ -857,13 +859,22 @@ document.getElementById('rosterPanel').addEventListener('click', e=>{
   const undo = e.target.closest('[data-break-undo]');
   if(undo) return undoBreakComplete(undo.dataset.breakUndo);
   const remove = e.target.closest('[data-roster-remove]');
-  if(remove) return removeFromRoster(remove.dataset.rosterRemove);
+  if(remove){
+    // Why they're coming off, on a sheet (roster-off.js; Tim, Nov 24 2026).
+    if(typeof siMayChange === 'function' && !siMayChange('fohRoster')){ siOpen(siWhy(['fohRoster'])); return; }
+    if(typeof roOpen === 'function') return roOpen(remove.dataset.rosterRemove);
+    return removeFromRoster(remove.dataset.rosterRemove);
+  }
+  if(typeof roRosterClick === 'function') roRosterClick(e);
 });
 
-window.removeFromRoster = async function(name){
+// Takes someone off the day's roster and out of its spots. `why` (from the
+// Off the roster sheet, roster-off.js) means the leader already said why, so
+// no confirm and no toast here: the sheet says what happened.
+window.removeFromRoster = async function(name, why){
   const dayName = document.getElementById('daySelect').value;
   if(!dayName) return;
-  if(!confirm(`Remove ${name} from ${formatVerboseDate(dayName)}'s roster?`)) return;
+  if(!why && !confirm(`Remove ${name} from ${formatVerboseDate(dayName)}'s roster?`)) return;
   
   const roster = currentPosSection === 'foh' ? fohRoster : bohRoster;
   if(roster[dayName]){
@@ -893,7 +904,7 @@ window.removeFromRoster = async function(name){
   await saveState();
   renderRoster();
   renderAllDayparts();
-  showToast(`${name} removed from roster`);
+  if(!why) showToast(`${name} removed from roster`);
 };
 
 document.getElementById('btnAddTeamMember').addEventListener('click', ()=>{

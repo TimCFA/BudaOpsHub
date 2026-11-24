@@ -403,6 +403,9 @@ function showWeeklyImportPreview(){
 
 async function confirmWeeklyImport(){
   const weekDays = weeklyImportDays();
+  // Who a leader took off a day's roster stays off when the schedule comes
+  // in again (roster-off.js): the week's records, if the server answers soon.
+  if(typeof roLoadRange === 'function' && weekDays.length) await roLoadRange(weekDays[0].date, weekDays[weekDays.length - 1].date, 4000);
   const changeCount = () => weekDays.filter(d => d.date >= today).reduce((n, d) => n + rosterDayChanges(d.date, 'foh').length + rosterDayChanges(d.date, 'boh').length, 0);
   HS_DAY_ORDER.forEach(hsDay=>{
     const wd = weekDays.find(d => d.weekday === HS_DAY_TO_WEEKDAY[hsDay]);
@@ -414,8 +417,10 @@ async function confirmWeeklyImport(){
     rosterNotePosted(dateISO, 'boh', bohRoster[dateISO]);
     // Someone logged as left stays off after their last day (the schedule can lag).
     const stay = list => (list || []).filter(p => !(p && p.name && typeof teamHasLeft === 'function' && teamHasLeft(p.name, dateISO)));
-    fohRoster[dateISO] = mergeImportedDayRoster(fohRoster[dateISO], stay(dayData.foh));
-    bohRoster[dateISO] = mergeImportedDayRoster(bohRoster[dateISO], stay(dayData.boh));
+    // And someone taken off that day's roster (called in, sent home...) stays off.
+    const kept = side => list => stay(list).filter(p => !(p && p.name && typeof roKeptOff === 'function' && roKeptOff(dateISO, side, p.name)));
+    fohRoster[dateISO] = mergeImportedDayRoster(fohRoster[dateISO], kept('foh')(dayData.foh));
+    bohRoster[dateISO] = mergeImportedDayRoster(bohRoster[dateISO], kept('boh')(dayData.boh));
     // Who has the Truck shift: the schedule's, replacing the day's (truck.js).
     const truck = stay(weeklyImportTruck[hsDay]);
     if(truck.length) truckShifts[dateISO] = truck.map(t => ({name: t.name, start: t.start, end: t.end})); else delete truckShifts[dateISO];

@@ -203,6 +203,7 @@ function hcProfileHtml(){
         <div class="field"><label for="hcpBirthday">Birthday</label><input type="date" id="hcpBirthday" value="${escapeHtml(p.birthday || '')}" max="${today}">${age !== null && age < 18 ? '<small class="hc-hint is-minor">Under 18: minor hour rules apply</small>' : ''}</div>
       </div>
       <div class="field"><label for="hcpNotes">Notes</label><textarea id="hcpNotes" rows="3" maxlength="1500" placeholder="Anything the admin team needs to know">${escapeHtml(p.notes || '')}</textarea></div>
+      ${p.isNew || typeof roPersonHtml !== 'function' ? '' : roPersonHtml(p.name)}
       ${left.length ? `<p class="hc-note">Left before: ${left.map(d => `${escapeHtml(hcTypeLabel(d.type))} ${escapeHtml(hcDate(d.lastDay))}`).join(', ')}</p>` : ''}
       ${p.by ? `<p class="hc-note">Last saved by ${escapeHtml(p.by)}${p.at ? ` · ${escapeHtml(new Date(p.at * 1000).toLocaleDateString('en-US', {month: 'short', day: 'numeric'}))}` : ''}</p>` : ''}
       <div class="hc-form-go">
