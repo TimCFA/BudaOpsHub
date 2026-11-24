@@ -348,7 +348,7 @@ const RN_TICKETS_SHOWN = 4;
 // their tickets too, as one count (Tim, Nov 18 2026); the PEA scores are a
 // Team Member's and a Trainer's.
 let rnMine = {who: '', at: 0, pea: null, tickets: null, counts: null};
-const RN_MINE_NONE = () => ({who: '', at: 0, pea: null, tickets: null, counts: null});
+const RN_MINE_NONE = () => ({who: '', at: 0, pea: null, tickets: null, counts: null, badges: null});
 function rnMineLoad(){
   if(typeof fetch !== 'function') return;
   const v = rnViewer();
@@ -361,10 +361,11 @@ function rnMineLoad(){
   rnMine.at = Date.now();
   const get = url => fetch(url, {credentials: 'same-origin', cache: 'no-store'}).then(r => (r.ok ? r.json() : null)).catch(() => null);
   // View as (Tim only, view-as.js): the person's PEA, and no tickets (the
-  // server would send his own, not theirs).
+  // server would send his own, not theirs), and no badges for the same reason.
   const as = typeof vaActive === 'function' && vaActive() ? v.name : '';
-  Promise.all([team ? get('/api/me/pea' + (as ? '?as=' + encodeURIComponent(as) : '')) : null, as ? null : get('/api/pass/state')]).then(([pea, pass]) => {
+  Promise.all([team ? get('/api/me/pea' + (as ? '?as=' + encodeURIComponent(as) : '')) : null, as ? null : get('/api/pass/state'), v.name && !as ? get('/api/me/badges') : null]).then(([pea, pass, badges]) => {
     if(rnMine.who !== who) return;
+    rnMine.badges = badges && Array.isArray(badges.new) ? badges.new : null;
     rnMine.pea = pea && Array.isArray(pea.positions) ? pea : null;
     rnMine.tickets = pass ? rnTicketsFrom(pass) : null;
     rnMine.counts = pass ? rnTicketCounts(pass) : null;
@@ -1053,6 +1054,21 @@ function rnCloseEvent(){
 let rnMoreOpen = false;   // "More about today" stays as the person left it through the minute's redraw
 const RN_ROLE_LABELS = {member: 'Team Member', trainer: 'Trainer', lead: 'Team Lead', admin: 'Admin Team', director: 'Director', manager: 'Manager', none: ''};
 
+// A badge earned in the last few days (badges.py; Tim, Nov 23 2026): one
+// line, the newest, that opens the Me page. It goes once its owner has seen
+// their badges there (me-page.js keeps when, on this phone) or after three
+// days (the server's NEW_DAYS).
+function rnBadgeRow(card){
+  const fresh = rnMine.badges || [];
+  let seen = 0;
+  try{ seen = +localStorage.getItem('hubBadgesSeen') || 0; }catch(e){ /* private mode */ }
+  const unseen = fresh.filter(b => b.at > seen);
+  if(!unseen.length) return;
+  const b = unseen[0], more = unseen.length - 1;
+  const level = b.levelName && b.levelName !== 'Earned' ? ' · ' + b.levelName : '';
+  card.rows.push(rnWith(rnRow('', `New badge: ${b.name}${level}${more ? ` · and ${more} more` : ''}`, esText('New badge'), 'mine', 'ok'), {icon: 'badge'}));
+}
+
 function renderRightNow(){
   const root = document.getElementById('rightNow');
   if(!root) return;
@@ -1062,6 +1078,7 @@ function renderRightNow(){
     day = rnDay();
     v = rnViewer();
     card = rnCardFor(v, day);
+    rnBadgeRow(card);
   }catch(err){
     console.warn('Right Now card:', err);
     root.innerHTML = '';
@@ -1134,6 +1151,7 @@ const RN_ICONS = {
   clock: rnSvg('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>', 20, 2),
   pin: rnSvg('<path d="M12 21s-6.5-5.6-6.5-10.5a6.5 6.5 0 0 1 13 0C18.5 15.4 12 21 12 21z"/><circle cx="12" cy="10.5" r="2.3"/>', 20, 2),
   check: rnSvg('<path d="M5 12.5l4.5 4.5L19 7.5"/>', 20, 2.6),
+  badge: rnSvg('<circle cx="12" cy="9.5" r="5.5"/><path d="M8.6 13.8L7 21l5-2.6 5 2.6-1.6-7.2"/>', 20, 2),
 };
 let rnEnter = true, rnSeen = null;
 function rnArrive(){ rnEnter = true; }       // navigation.js: Home was opened

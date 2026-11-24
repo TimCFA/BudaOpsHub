@@ -416,6 +416,19 @@ const ES = {
   'Birthday': 'Cumpleaños',
   'Sign out': 'Cerrar sesión',
   'Not you? Switch': '¿No eres tú? Cambiar',
+  // Badges (badges.py CATALOG; tests/test_badges.py checks every name is here)
+  'Badges': 'Insignias',
+  'New badge': 'Nueva insignia',
+  'Earlier quarters': 'Trimestres anteriores',
+  'Zone Closer': 'Cierra zonas',
+  'All Green': 'Todo en verde',
+  'Elite Ticket': 'Ticket élite',
+  'With Us': 'Con nosotros',
+  'PEA Coach': 'Entrenador PEA',
+  'Wide Net': 'Red amplia',
+  'Clean Handoff': 'Entrega impecable',
+  'On the Clock': 'A tiempo',
+  'Huddle Habit': 'Hábito de reunión',
 
   // ----- Tasks: The Pass (static/js/pass.js; the EN / ES switch on the tab) -----
   'Delegation, CFA Buda': 'Delegación, CFA Buda',

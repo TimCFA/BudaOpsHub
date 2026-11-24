@@ -3289,6 +3289,30 @@ body.mp-on{overflow:hidden;}
 .mp-foot .btn{width:auto;}
 .si-me{margin-bottom:8px;}
 
+/* ----- Me page: badges (badges.py, me-page.js; Tim, Nov 23 2026) -----
+   A tile per badge. Earned ones wear their level's medal ring (bronze,
+   silver, gold: the one place those colours mean anything); the rest are
+   faint, with a navy bar for how close the next level is. */
+.mp-badges{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;}
+.mp-badge{--medal:var(--border);display:grid;justify-items:center;align-content:start;gap:3px;padding:12px 10px 10px;border:1px solid var(--border);border-radius:14px;background:var(--cfa-light);text-align:center;}
+.mp-badge.is-bronze{--medal:#B07142;}
+.mp-badge.is-silver{--medal:#8C969E;}
+.mp-badge.is-gold{--medal:#C99A1E;}
+.mp-badge:not(.is-none){background:var(--cfa-white);border-color:var(--medal);}
+.mp-badge-ic{display:grid;place-items:center;width:48px;height:48px;margin-bottom:4px;border-radius:50%;border:3px solid var(--medal);color:var(--text-tertiary);background:var(--cfa-white);}
+.mp-badge:not(.is-none) .mp-badge-ic{color:var(--cfa-navy);box-shadow:0 0 0 3px color-mix(in srgb,var(--medal) 22%,transparent);}
+.mp-badge b{font-family:var(--font-display);font-size:15px;line-height:1.15;}
+.mp-badge b .es{display:block;font-family:var(--font-ui);font-size:11px;font-weight:500;}
+.mp-badge-lv{font:700 11px var(--font-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--text-tertiary);}
+.mp-badge:not(.is-none) .mp-badge-lv{color:var(--medal);}
+.mp-badge-what{font-size:12px;line-height:1.3;color:var(--text-secondary);}
+.mp-badge-bar{display:block;width:100%;height:5px;margin-top:4px;border-radius:999px;background:var(--border);overflow:hidden;}
+.mp-badge-bar i{display:block;height:100%;border-radius:inherit;background:var(--cfa-navy);}
+.mp-badge-to{font-size:12px;font-weight:600;color:var(--text-secondary);}
+.mp-chip.mp-past{background:var(--cfa-white);color:var(--text-primary);border:2px solid #B07142;}
+.mp-chip.mp-past.is-silver{border-color:#8C969E;}
+.mp-chip.mp-past.is-gold{border-color:#C99A1E;}
+
 /* ===== The first seconds of a load (early-paint.js; Tim, Nov 11 2026) =====
    Home and Set Ups are drawn from the saved data while the rest of the hub
    is still coming down. Until it has, they're for looking at: only the Home

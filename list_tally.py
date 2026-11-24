@@ -27,7 +27,7 @@ import huddle_api
 import timers_api
 
 KEEP_DAYS = 14                      # days of ticks and finished breaks kept in the saved sections
-TALLY_PATH = 'lists/tally'          # {date: {handoff: {lead, checked, total}}}
+TALLY_PATH = 'lists/tally'          # {date: {handoff: {lead, checked, total, closers?: [[name, zones]]}}}
 _ISO = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 _ISO_END = re.compile(r'(\d{4}-\d{2}-\d{2})$')
 HANDOFF_TOTAL = sum(huddle_api.ZONE_ITEMS.values())
@@ -99,10 +99,33 @@ def all_counted(ticks):
     return True
 
 
+def closers(marks):
+    """Who finished zones in one handoff's marks (achievement badges, Tim,
+    Nov 23 2026): [[name, zones], ...] by name. A zone counts once every item
+    in it is ticked, for each person who ticked in it (a mark carries the
+    signed-in name as `initials`, state-and-utils.js getInitials). Kept as a
+    list, not a dict, because a name can hold a '.' (a Firebase key can't)."""
+    marks = marks if isinstance(marks, dict) else {}
+    by = {}
+    for zone, total in huddle_api.ZONE_ITEMS.items():
+        items = marks.get(zone)
+        if not isinstance(items, dict) or sum(1 for v in items.values() if v) < total:
+            continue
+        names = {}
+        for v in items.values():
+            who = str(v.get('initials') or '').strip() if isinstance(v, dict) else ''
+            if who:
+                names.setdefault(re.sub(r'\s+', ' ', who).lower(), re.sub(r'\s+', ' ', who))
+        for name in names.values():
+            by[name] = by.get(name, 0) + 1
+    return [[name, by[name]] for name in sorted(by, key=str.lower)]
+
+
 def tally_day(day, ticks, assignments, setup_history, kept=None):
-    """{handoff: {lead, checked, total}} for one day, or {} when there is
-    nothing to say (no ticks and no Lead Captain on any handoff). A lead the
-    hub can no longer name keeps the one already on the record."""
+    """{handoff: {lead, checked, total, closers?}} for one day, or {} when
+    there is nothing to say (no ticks and no Lead Captain on any handoff). A
+    lead the hub can no longer name keeps the one already on the record, and
+    so do the closers of a day whose ticks are gone."""
     ticks = ticks if isinstance(ticks, dict) else {}
     kept = kept if isinstance(kept, dict) else {}
     out = {}
@@ -111,6 +134,9 @@ def tally_day(day, ticks, assignments, setup_history, kept=None):
         checked = checked_in(ticks.get(handoff))
         if lead or checked:
             out[handoff] = {'lead': lead, 'checked': checked, 'total': HANDOFF_TOTAL}
+            who = closers(ticks.get(handoff)) or (kept.get(handoff) or {}).get('closers')
+            if who:
+                out[handoff]['closers'] = who
     return out
 
 
@@ -140,6 +166,8 @@ def plan(sections, today_iso, kept_tally, keep_days=KEEP_DAYS):
     tally = {}
     days = {d for d in ticks if isinstance(d, str) and _ISO.match(d)} | _days_with_a_lead(assignments)
     for day in sorted(d for d in days if d < today_iso):
+        if day not in ticks and day in kept_tally:
+            continue                  # its ticks are trimmed: the record is all there is (Set Ups still naming its Lead Captain would count 0)
         rec = tally_day(day, ticks.get(day), assignments, history.get('setupHistory'), kept_tally.get(day))
         if rec and rec != kept_tally.get(day):
             tally[day] = rec

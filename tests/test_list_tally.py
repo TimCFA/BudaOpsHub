@@ -110,8 +110,15 @@ class Plan(unittest.TestCase):
     def test_every_finished_day_gets_its_record_and_today_none(self):
         self.assertEqual(sorted(self.plan['tally']), ['2026-09-04', '2026-11-08', '2026-11-09', '2026-11-22'])
         self.assertEqual(self.plan['tally']['2026-09-04'], {H[0]: {'lead': '', 'checked': 3, 'total': 74}})      # no name to be had: kept without one
-        self.assertEqual(self.plan['tally']['2026-11-08'][H[0]], {'lead': 'Dana Reyes', 'checked': 10, 'total': 74})
+        self.assertEqual(self.plan['tally']['2026-11-08'][H[0]], {'lead': 'Dana Reyes', 'checked': 10, 'total': 74, 'closers': [['AR', 1]]})   # the Dining Room, all ten ticked
         self.assertEqual(self.plan['tally']['2026-11-08'][H[1]], {'lead': 'Ben Cole/Dana Reyes', 'checked': 4, 'total': 74})
+
+    def test_a_trimmed_days_record_is_never_rewritten_to_nothing(self):
+        """Set Ups still holds the day's Lead Captain once its ticks are gone."""
+        dp = DP['Breakfast']
+        s = {'setups': {'posAssignments': {f'foh||2026-11-01||{dp}||{LEAD}': 'Dana Reyes'}}}
+        kept = {'2026-11-01': {H[0]: {'lead': 'Dana Reyes', 'checked': 50, 'total': 74}}}
+        self.assertEqual(list_tally.plan(s, TODAY, kept)['tally'], {})
 
     def test_only_days_before_the_fourteen_are_trimmed(self):
         self.assertEqual(self.plan['ops']['ops'], [{'o': 'del', 'p': ['zoneChecklistState', '2026-09-04']}, {'o': 'del', 'p': ['zoneChecklistState', '2026-11-08']}])

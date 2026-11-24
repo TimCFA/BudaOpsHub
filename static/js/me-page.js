@@ -9,6 +9,9 @@
 //   My stuff   tickets waiting on them (the Pass), uniform orders, the food
 //              handler permit, PTO left, a director's uniform credit, and
 //              career goals in their own words (theirs to write)
+//   Badges     what they've earned and how close the next one is (badges.py;
+//              Tim, Nov 23 2026), and on a leader's own page the badges the
+//              team earned this week, to recognise out loud
 //   Leaders    their roles and the quarter's focus (leaders.js), Team Leads and up
 // Directors and the Admin Team open anyone's from Our Team and tick the
 // steps; Team Leads see only their own. Points stay with leadership, and
@@ -24,6 +27,9 @@ let mpShown = false;
 let mpBusy = false;
 let mpGoalsEdit = false;
 let mpTickets = null;     // my tickets waiting (the Pass), own page only
+let mpBadges = null;      // the page's badges (/api/me/badges, /api/team/badges?name=); false when they couldn't load
+let mpTeamBadges = null;  // the team's badges this week, a leader's own page only
+const MP_BADGES_SEEN = 'hubBadgesSeen';   // when this device last showed its owner their badges (Home's "New badge" line)
 
 const MP_ICON_X = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 const MP_ICON_CHECK = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
@@ -47,7 +53,7 @@ function mpOpenFor(name){
   mpFor = name; mpOpen();
 }
 function mpOpen(){
-  mpShown = true; mpData = null; mpGoalsEdit = false; mpTickets = null;
+  mpShown = true; mpData = null; mpGoalsEdit = false; mpTickets = null; mpBadges = null; mpTeamBadges = null;
   mpDraw();
   mpLoad();
 }
@@ -70,6 +76,7 @@ async function mpLoad(){
       fetch(`${API_BASE}/api/pass/count`, {credentials: 'same-origin', cache: 'no-store'}).then(r => r.ok ? r.json() : null)
         .then(j => { if(j && mpShown && !mpFor){ mpTickets = j.count || 0; mpDraw(); } }).catch(() => {});
     }
+    if(d.name) mpBadgesLoad(d);
   }catch(err){
     if(typeof showToast === 'function') showToast(err.message);
     mpClose();
@@ -127,6 +134,78 @@ function mpNextHtml(d){
     ${n.complete ? `<p class="mp-note is-ok">All steps done: ${n.how === 'certify' ? 'certified pay starts the next payroll period.' : 'eligible for promotion.'}</p>` : ''}`;
 }
 
+// ----- badges (badges.py; Tim, Nov 23 2026) -----
+// The server works them out from what the hub already records; this draws
+// them. Earned ones wear their level's medal ring, the rest are faint with
+// how close the next level is. Season badges count this quarter; earlier
+// quarters' sit in a row of their own.
+const mpBadgeSvg = d => `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const MP_BADGE_ICONS = {
+  zone: mpBadgeSvg('<rect x="4" y="3.5" width="16" height="17" rx="2.5"/><path d="M8 9l2 2 4-4M8 15.5h8"/>'),
+  star: mpBadgeSvg('<path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.8z"/>'),
+  check: mpBadgeSvg('<circle cx="12" cy="12" r="8.5"/><path d="M8 12.5l3 3 5-6"/>'),
+  up: mpBadgeSvg('<path d="M4 17l5.5-5.5 3.5 3.5L20 8"/><path d="M14.5 8H20v5.5"/>'),
+  ticket: mpBadgeSvg('<path d="M4 8.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1.6a1.9 1.9 0 0 0 0 3.8v1.6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-1.6a1.9 1.9 0 0 0 0-3.8z"/><path d="M10 12l1.5 1.5L14.5 10"/>'),
+  heart: mpBadgeSvg('<path d="M12 19.5s-7.5-4.6-7.5-10A4.2 4.2 0 0 1 12 7a4.2 4.2 0 0 1 7.5 2.5c0 5.4-7.5 10-7.5 10z"/>'),
+  clipboard: mpBadgeSvg('<rect x="5" y="4.5" width="14" height="16" rx="2"/><path d="M9 4.5V3.5h6v1M8.5 10h7M8.5 13.5h7M8.5 17h4"/>'),
+  people: mpBadgeSvg('<circle cx="9" cy="8.5" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9.5" r="2.4"/><path d="M15.5 14.2A4.5 4.5 0 0 1 20.5 19"/>'),
+  flag: mpBadgeSvg('<path d="M5.5 21V4M5.5 4.5h11l-2 4 2 4h-11"/>'),
+  clock: mpBadgeSvg('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
+  chat: mpBadgeSvg('<path d="M4.5 6.5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H10l-4 3.5v-3.5h0a2 2 0 0 1-1.5-2z"/>'),
+};
+function mpBadgesLoad(d){
+  const get = url => fetch(`${API_BASE}${url}`, {credentials: 'same-origin', cache: 'no-store'}).then(r => r.ok ? r.json() : null).catch(() => null);
+  const mine = !mpFor, forName = mpFor;
+  get(mine ? '/api/me/badges' : `/api/team/badges?name=${encodeURIComponent(forName)}`).then(b => {
+    if(!mpShown || mpFor !== forName) return;
+    mpBadges = b && Array.isArray(b.badges) ? b : false;
+    if(mine && mpBadges){ try{ localStorage.setItem(MP_BADGES_SEEN, String(Date.now())); }catch(e){ /* private mode */ } }
+    mpDraw();
+  });
+  if(mine && mpIsLeader(d)) get('/api/team/badges').then(t => {
+    if(!mpShown || mpFor) return;
+    mpTeamBadges = t && Array.isArray(t.recent) ? t.recent : null;
+    mpDraw();
+  });
+}
+function mpIsLeader(d){
+  return ['lead', 'director', 'manager', 'admin'].includes(d.role) || ['lead', 'cert_lead', 'director', 'cert_director', 'executive', 'cert_executive', 'operator'].includes(d.level);
+}
+function mpBadgeTile(b){
+  const earned = b.level > 0;
+  const tier = !earned ? 'none' : b.levels.length === 1 ? 'gold' : ['bronze', 'silver', 'gold'][Math.min(b.level, 3) - 1];
+  const total = b.next || b.levels[b.levels.length - 1];
+  const unit = !b.unit ? '' : b.next === 1 ? ` ${b.unit.replace(/s$/, '')}` : ` ${b.unit}`;   // "0 of 1 position"
+  const progress = b.next === null || b.next === undefined
+    ? (b.levels.length > 1 ? 'Top level' : 'Earned')
+    : b.id === 'tenure' ? `${b.count} of ${b.next} days` : `${b.count} of ${b.next}${unit}`;
+  const pct = b.next ? Math.max(0, Math.min(1, b.count / total)) : 1;
+  return `<li class="mp-badge is-${tier}" title="${mpH(b.what)}">
+      <span class="mp-badge-ic">${MP_BADGE_ICONS[b.icon] || MP_BADGE_ICONS.star}</span>
+      <b>${mpH(b.name)}${mpEs(b.name)}</b>
+      <small class="mp-badge-lv">${earned ? mpH(b.levelName) : b.kind === 'season' ? 'This quarter' : 'Not yet'}</small>
+      <small class="mp-badge-what">${mpH(b.what)}</small>
+      ${b.next ? `<span class="mp-badge-bar" aria-hidden="true"><i style="width:${Math.round(pct * 100)}%"></i></span>` : ''}
+      <small class="mp-badge-to">${mpH(progress)}</small>
+    </li>`;
+}
+function mpBadgesHtml(){
+  if(mpBadges === null) return `<section class="mp-sec"><h3>Badges${mpEs('Badges')}</h3><p class="mp-note">Loading…${mpEs('Loading…')}</p></section>`;
+  if(mpBadges === false) return '';
+  const list = mpBadges.badges.slice().sort((a, b) => (b.level > 0) - (a.level > 0));
+  const won = list.filter(b => b.level > 0).length;
+  const team = mpTeamBadges && mpTeamBadges.length ? `<h4>The team this week</h4>
+      <ul class="mp-list mp-team-badges">${mpTeamBadges.slice(0, 12).map(r => `<li><b>${mpH(r.person)}</b><span>${mpH(r.name)}${r.levelName && r.levelName !== 'Earned' ? ` · ${mpH(r.levelName)}` : ''}</span></li>`).join('')}</ul>` : '';
+  const past = mpBadges.past && mpBadges.past.length ? `<h4>Earlier quarters${mpEs('Earlier quarters')}</h4>
+      <div class="mp-chips">${mpBadges.past.map(p => `<span class="mp-chip mp-past is-${p.level >= 3 ? 'gold' : p.level === 2 ? 'silver' : 'bronze'}">${mpH(p.name)} · ${mpH(p.levelName)} · ${mpH(p.quarterLabel)}</span>`).join('')}</div>` : '';
+  return `<section class="mp-sec mp-badges-sec">
+      <h3>Badges${mpEs('Badges')}<span>${won} earned · ${mpH(mpBadges.quarterLabel)}</span></h3>
+      <ul class="mp-badges">${list.map(mpBadgeTile).join('')}</ul>
+      ${past}
+      ${team}
+    </section>`;
+}
+
 // ----- my stuff -----
 function mpPermitHtml(d){
   if(!d.permitExpires) return `<li><b>Food handler permit${mpEs('Food handler permit')}</b><span class="mp-warn">Not on file</span></li>`;
@@ -158,7 +237,7 @@ function mpStuffHtml(d){
 
 // ----- leaders: roles and the quarter's focus (leaders.js) -----
 function mpLeaderHtml(d){
-  const leadUp = ['lead', 'director', 'manager', 'admin'].includes(d.role) || ['lead', 'cert_lead', 'director', 'cert_director', 'executive', 'cert_executive', 'operator'].includes(d.level);
+  const leadUp = mpIsLeader(d);
   if(!leadUp || typeof leaderRoster === 'undefined' || !Array.isArray(leaderRoster)) return '';
   const k = typeof dirKey === 'function' ? dirKey(d.name) : d.name.toLowerCase();
   const me = leaderRoster.find(r => r && r.name && dirKey(r.name) === k);
@@ -206,6 +285,7 @@ function mpDraw(){
           ${d.birthday ? `<li><b>Birthday${mpEs('Birthday')}</b><span>${mpH(mpMonthDay(d.birthday))}</span></li>` : ''}
         </ul>
       </section>
+      ${mpBadgesHtml()}
       ${mpWeekHtml(d.name)}
       <section class="mp-sec">
         <h3>Growing${mpEs('Growing')}</h3>

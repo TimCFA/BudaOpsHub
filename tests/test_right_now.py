@@ -835,6 +835,7 @@ class WhatsMine(unittest.TestCase):
         # The PEA scores are a Team Member's and a Trainer's; leaders read their tickets too (Nov 18 2026).
         self.assertIn("const team = ['member', 'trainer'].includes(v.role);", js)
         # View as (Tim, Nov 23 2026): the person's PEA, and no tickets.
-        self.assertIn("Promise.all([team ? get('/api/me/pea' + (as ? '?as=' + encodeURIComponent(as) : '')) : null, as ? null : get('/api/pass/state')])", js)
+        # Anyone signed in by name also asks for a badge earned lately (Nov 23 2026; tests/test_badges.py), but not while viewing as someone.
+        self.assertIn("Promise.all([team ? get('/api/me/pea' + (as ? '?as=' + encodeURIComponent(as) : '')) : null, as ? null : get('/api/pass/state'), v.name && !as ? get('/api/me/badges') : null])", js)
         self.assertIn("if(what === 'ticket' && typeof psOpenTicket === 'function') psOpenTicket(rest);", js)
         self.assertIn('window.psOpenTicket = openTicket;', read('static', 'js', 'pass.js'))
