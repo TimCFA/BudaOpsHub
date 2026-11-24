@@ -3436,6 +3436,8 @@ body.hub-warming::after{content:"Loading the rest… · Cargando…";position:fi
 .rn-card,.wt-today,.waste-today-card,.sb-card{box-shadow:var(--card-shadow);}
 /* An open daypart wears its red ring round the whole card, banner and rows together (Tim, Nov 23 2026: the ring stopped under the banner and looked chopped off). */
 #allDayparts .su-dp.is-open{box-shadow:0 0 0 2px var(--cfa-red),0 6px 18px rgba(20,23,28,0.07);}
+/* Inside the ring the card has no edges of its own, so the banner and the rows start at the same line: the banner's daypart stripe and the list's border would sit just inside the ring and look like a second, broken outline. */
+#allDayparts .su-dp.is-open .su-dp-banner,#allDayparts .su-dp.is-open .su-sheet-zone.su-sheet-list{border:0;}
 
 /* Section labels (small caps) in navy: structure is navy, so a label is
    never mistaken for a quiet note. */
