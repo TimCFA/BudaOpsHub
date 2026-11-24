@@ -81,6 +81,28 @@ class Pea(unittest.TestCase):
         self.assertEqual(self.c.get('/api/me/pea?as=Ana%20Ruiz').get_json(), {'name': None, 'positions': []})
 
 
+class ManagePinsAreNobodysOwn(unittest.TestCase):
+    # Tim, Nov 24 2026: his clock-in PIN was the director PIN too, so it
+    # signed him in as "Director" and never by name. Neither shared PIN can
+    # be set to someone's own clock-in PIN now.
+    def test_refused(self):
+        c = appmod.app.test_client()
+        with c.session_transaction() as s:
+            s.update(manager=True, director=True)
+        look, check, ref = appmod._team_pin_lookup, appmod._pin_taken, appmod.db.reference
+        appmod._team_pin_lookup = lambda pin: {'name': 'Timothy Lane', 'role': 'director', 'pinKey': 'k'} if pin == '246810' else None
+        appmod._pin_taken = lambda path, pin: False
+        from tests.test_accounts import FakeRef
+        appmod.db.reference = lambda path: FakeRef(path)
+        try:
+            for url in ('/api/director/set-pin', '/api/manager/set-pin'):
+                r = c.post(url, json={'pin': '246810'})
+                self.assertEqual(r.status_code, 400, url)
+                self.assertIn('own clock-in PIN', r.get_json()['error'])
+        finally:
+            appmod._team_pin_lookup, appmod._pin_taken, appmod.db.reference = look, check, ref
+
+
 # The page: view-as.js run in node with the globals it sets.
 RUN = r"""
 const fs = require('fs'), vm = require('vm');

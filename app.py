@@ -1846,6 +1846,8 @@ def manager_set_pin():
 
     if _pin_taken(DIRECTOR_PIN_PATH, new_pin):
         return jsonify({'error': 'That PIN can’t be used. Pick another.'}), 400
+    if _team_pin_lookup(new_pin):
+        return jsonify({'error': 'That’s someone’s own clock-in PIN. Pick another.'}), 400
 
     new_hash = generate_password_hash(new_pin)
     db.reference('secure/managerPinHash').set(new_hash)
@@ -1971,6 +1973,10 @@ def director_set_pin():
         return jsonify({'error': 'PIN must be at least 4 characters'}), 400
     if _pin_taken('secure/managerPinHash', new_pin):
         return jsonify({'error': 'The director PIN has to be different from the manager PIN.'}), 400
+    # Nobody's own clock-in PIN (Tim, Nov 24 2026: his was the director PIN
+    # too, so it signed him in as "Director", never by name).
+    if _team_pin_lookup(new_pin):
+        return jsonify({'error': 'That’s someone’s own clock-in PIN. Pick another.'}), 400
 
     new_hash = generate_password_hash(new_pin)
     db.reference(DIRECTOR_PIN_PATH).set(new_hash)
