@@ -3425,6 +3425,26 @@ body.hub-warming::after{content:"Loading the rest… · Cargando…";position:fi
   #allDayparts .su-sheet-list .su-row-note.is-out{justify-content:flex-start;}
 }
 
+/* View as (view-as.js; Tim, Nov 23 2026): Tim's button by the badge, the
+   bar while he's viewing as someone, and its sheet. Navy: it's about where
+   you are, not something that needs someone. */
+.va-btn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border:1px solid var(--border);border-radius:999px;background:var(--cfa-white);color:var(--cfa-navy);font-family:var(--font-ui);font-size:13px;font-weight:700;cursor:pointer;}
+.va-btn[hidden]{display:none;}
+.va-on .va-btn{background:var(--cfa-navy);border-color:var(--cfa-navy);color:#fff;}
+.va-bar{position:sticky;top:0;z-index:1100;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 14px;background:var(--cfa-navy);color:#fff;font-family:var(--font-ui);font-size:14px;}
+.va-bar-txt{display:inline-flex;align-items:center;gap:8px;}
+.va-bar-txt small{display:block;font-size:12px;opacity:.8;}
+.va-bar-go{display:inline-flex;gap:8px;}
+.va-bar button{min-height:36px;padding:0 12px;border-radius:999px;font-family:var(--font-ui);font-size:13px;font-weight:700;cursor:pointer;}
+.va-link{background:transparent;border:1px solid rgba(255,255,255,.6);color:#fff;}
+.va-back{background:#fff;border:1px solid #fff;color:var(--cfa-navy);}
+.va-roles{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 14px;}
+.va-role{min-height:44px;padding:0 14px;border:1px solid var(--border);border-radius:999px;background:var(--cfa-white);color:var(--text-primary);font-family:var(--font-ui);font-size:14px;font-weight:600;cursor:pointer;}
+.va-role.is-on{background:var(--text-primary);border-color:var(--text-primary);color:var(--cfa-white);}
+.va-label{display:block;margin:0 0 6px;font-weight:700;font-size:14px;}
+.va-select{width:100%;min-height:48px;padding:0 10px;border:1px solid var(--border);border-radius:12px;background:var(--cfa-white);color:var(--text-primary);font-size:16px;}
+.va-go{width:100%;min-height:48px;margin-top:14px;}
+
 /* ===== Colour system (Tim, Nov 4 2026) =====
    Three jobs for colour, kept apart so the eye sorts a page in one look:
    brand (red acts, navy sums up), status (the good / warn / bad / info

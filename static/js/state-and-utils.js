@@ -131,7 +131,8 @@ if(initialsBadgeEl){
   renderInitialsBadge();
   // Signed in as a person: their own page (me-page.js; Tim, Oct 30 2026); else the sign-in sheet.
   initialsBadgeEl.addEventListener('click', () => {
-    if(typeof siIdentity !== 'undefined' && siIdentity && siIdentity.name && typeof mpOpenMine === 'function') mpOpenMine();
+    if(typeof vaActive === 'function' && vaActive()) vaOpen();   // View as: change who, or back to me
+    else if(typeof siIdentity !== 'undefined' && siIdentity && siIdentity.name && typeof mpOpenMine === 'function') mpOpenMine();
     else if(typeof siOpen === 'function') siOpen();
   });
 }
