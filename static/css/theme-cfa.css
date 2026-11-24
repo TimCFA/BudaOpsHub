@@ -3438,6 +3438,13 @@ body.hub-warming::after{content:"Loading the rest… · Cargando…";position:fi
 #allDayparts .su-dp.is-open{box-shadow:0 0 0 2px var(--cfa-red),0 6px 18px rgba(20,23,28,0.07);}
 /* Inside the ring the card has no edges of its own, so the banner and the rows start at the same line: the banner's daypart stripe and the list's border would sit just inside the ring and look like a second, broken outline. */
 #allDayparts .su-dp.is-open .su-dp-banner,#allDayparts .su-dp.is-open .su-sheet-zone.su-sheet-list{border:0;}
+/* The day's events under an open daypart's name (Tim, Nov 23 2026: the dark block there looked unbalanced and glitchy; it was the old sky header's colour carried on under a header that is white now). On the card's own white: the promo as an amber callout, padded the same on every side, and the calendar chips beside it. */
+#allDayparts .su-dp.is-open .su-dp-nums,#allDayparts .su-dp.is-open .su-dp-events{background:transparent;margin-top:0;color:var(--text-secondary);}
+#allDayparts .su-dp.is-open .su-dp-nums{padding:0 12px 10px;}
+#allDayparts .su-dp.is-open .su-dp-nums b{color:var(--text-primary);}
+#allDayparts .su-dp.is-open .su-dp-num.is-event{display:block;padding:9px 12px;border-radius:10px;background:var(--warn-fill);color:var(--warn-ink);font-size:13.5px;line-height:1.35;}
+#allDayparts .su-dp.is-open .su-dp-events{padding:0 12px 10px;}
+#allDayparts .su-dp.is-open .su-dp-events .ev-chip{border:1px solid var(--border);}
 
 /* Section labels (small caps) in navy: structure is navy, so a label is
    never mistaken for a quiet note. */
