@@ -622,11 +622,25 @@ def _page_html():
         _PAGE_HTML[BUILD] = html
     return _PAGE_HTML[BUILD]
 
+# Each page's own address (static/js/page-links.js PL_PATHS; Tim, Nov 23
+# 2026): the same page answers every one, and the page opens the view the
+# address names. tests/test_page_links.py keeps the two lists the same.
+PAGE_PATHS = (
+    '/setups', '/lists/zones', '/lists/huddle', '/lists/timers', '/lists/food-safety',
+    '/lists/safe-count', '/prep', '/waste', '/scoreboard', '/schedule', '/tasks',
+    '/calendar', '/forms', '/team', '/roles', '/directors', '/numbers',
+    '/numbers/forecast', '/numbers/cem', '/experience/gx', '/experience/tx',
+    '/experience/lx', '/manage', '/hub',
+)
+
 @app.route('/')
 def serve_html():
     resp = Response(_page_html(), mimetype='text/html')
     resp.headers['Cache-Control'] = 'no-cache'
     return resp
+
+for _path in PAGE_PATHS:
+    app.add_url_rule(_path, 'page' + _path.replace('/', '_').replace('-', '_'), serve_html, strict_slashes=False)
 
 @app.after_request
 def _cache_stamped_static(response):

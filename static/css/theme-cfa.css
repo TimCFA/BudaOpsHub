@@ -3318,14 +3318,14 @@ body.hub-warming::after{content:"Loading the rest… · Cargando…";position:fi
 }
 
 /* ===== Bottom tab bar on touch screens (Tim, Nov 12 2026; bottom-nav.js) =====
-   Phones and every tablet get Home, Set Ups, Lists, Waste and More in thumb
-   reach; a computer (a mouse) keeps the tab row up top. Decided by touch,
+   Phones and every tablet get four places chosen for the role, then Hub,
+   in thumb reach (Nov 23 2026); a computer (a mouse) keeps the tab row up top. Decided by touch,
    not width, so a big counter tablet on its side still gets the bar.
    --bnav-h is how much of the screen's bottom the bar takes: everything
    else pinned there (the Set Ups toolbar, toasts, the update banner) sits
    above it. Pop-ups (.overlay is 50) cover the bar. */
 :root{--bnav-h:0px;}
-.bnav,.bnav-scrim{display:none;}
+.bnav{display:none;}
 @media (hover:none) and (pointer:coarse){
   :root{--bnav-h:calc(72px + env(safe-area-inset-bottom,0px));}
   .tabs-wrap{display:none;}
@@ -3350,29 +3350,43 @@ body.hub-warming::after{content:"Loading the rest… · Cargando…";position:fi
   .bnav-btn.active .bnav-lb{font-weight:700;color:var(--cfa-dark-red);}
   .bnav-dot{position:absolute;top:2px;right:10px;width:9px;height:9px;border-radius:999px;background:var(--cfa-red);border:2px solid var(--cfa-white);}
   .bnav-dot[hidden]{display:none;}
-  .bnav-btn:focus-visible,.bnav-row:focus-visible,.bnav-x:focus-visible{outline:2px solid var(--cfa-navy);outline-offset:-2px;border-radius:12px;}
+  .bnav-btn:focus-visible{outline:2px solid var(--cfa-navy);outline-offset:-2px;border-radius:12px;}
 
-  .bnav-scrim{display:flex;position:fixed;inset:0;z-index:44;align-items:flex-end;justify-content:center;background:rgba(20,18,15,.5);padding-bottom:var(--bnav-h);}
-  .bnav-scrim[hidden]{display:none;}
-  .bnav-sheet{width:100%;max-width:560px;max-height:calc(100% - 24px - env(safe-area-inset-top,0px));overflow:auto;overscroll-behavior:contain;background:var(--cfa-bg);border-radius:22px 22px 0 0;padding:6px 16px 14px;box-sizing:border-box;}
-  .bnav-sheet-head{display:flex;align-items:center;justify-content:space-between;padding:8px 2px 6px;}
-  .bnav-sheet-head h3{margin:0;font-family:var(--font-display);font-weight:700;font-size:22px;color:var(--text-primary);}
-  .bnav-x{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:999px;background:transparent;color:var(--text-primary);cursor:pointer;}
-  .bnav-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
-  .bnav-group{grid-column:1 / -1;margin:8px 2px 0;font-family:var(--font-ui);font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-secondary);}
-  .bnav-row{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;min-height:52px;padding:8px 14px;border:1px solid var(--border);border-radius:14px;background:var(--cfa-white);color:var(--text-primary);font-family:var(--font-ui);text-align:left;cursor:pointer;}
-  .bnav-row-lb{display:inline-flex;align-items:center;gap:7px;font-size:14.5px;font-weight:700;line-height:1.2;}
-  .bnav-row-es{font-family:var(--font-display);font-style:italic;font-size:12px;color:var(--text-secondary);}
-  .bnav-row.active{background:var(--text-primary);border-color:var(--text-primary);color:#F4F7FA;}
-  .bnav-row.active .bnav-row-es{color:rgba(244,247,250,0.75);}
-  .bnav-badge{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--cfa-red);color:#fff;font-size:11px;font-weight:700;display:inline-grid;place-items:center;}
-  /* The day look (Nov 23 2026): the header alone is the navy band here, the bar floats on shadow, the More sheet is the pale blue with white rows. */
+  .bnav-count{position:absolute;top:-2px;right:4px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--cfa-red);color:#fff;font-size:10.5px;font-weight:700;line-height:17px;text-align:center;border:2px solid var(--cfa-white);box-sizing:content-box;}
+  /* The day look (Nov 23 2026): the header alone is the navy band here, the bar floats on shadow. */
   :root{--band-gap:20px;}   /* the header alone is the band, so it carries the white gap below */
   /* "body" in the selector so it outweighs the band's base rule, which comes later in the file. */
   html:not([data-theme="dark"]) body .app > .hdr::before{bottom:-30px;background:linear-gradient(to bottom,var(--band) calc(100% - 34px),transparent 100%);}
   .bnav{box-shadow:0 -6px 24px rgba(20,23,28,.10);border-top-color:transparent;}
-  .bnav-sheet{background:var(--inset);}
 }
+
+/* ===== Hub (bottom-nav.js; Tim, Nov 23 2026) =====
+   Every page that isn't in the bar: what you opened lately, a search, and
+   four groups named by the job, in Home's language (small-caps labels,
+   white tiles, red only for a count waiting on you). */
+.hub{max-width:640px;margin:0 auto;}
+.hub-head{margin:4px 2px 12px;}
+.hub-title{margin:0;font-family:var(--font-display);font-weight:700;font-size:30px;line-height:1.05;color:var(--text-primary);}
+.hub-title span{display:block;font-size:14px;font-style:italic;font-weight:500;color:var(--text-secondary);}
+.hub-search{display:flex;align-items:center;gap:10px;padding:0 14px;margin-bottom:18px;border:1px solid var(--border);border-radius:14px;background:var(--cfa-white);color:var(--text-secondary);}
+.hub-search:focus-within{border-color:var(--text-primary);}
+.hub-search input{flex:1;min-width:0;height:48px;border:0;background:transparent;font-family:var(--font-ui);font-size:16px;color:var(--text-primary);outline:none;}
+.hub-grp{margin-bottom:18px;}
+.hub-h{margin:0 2px 8px;font-family:var(--font-ui);font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-secondary);}
+.hub-h i{font-family:var(--font-display);font-size:12px;letter-spacing:0;text-transform:none;font-weight:400;margin-left:4px;}
+.hub-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+.hub-tile{display:flex;align-items:center;gap:10px;min-height:56px;padding:8px 12px;border:1px solid var(--border);border-radius:14px;background:var(--cfa-white);color:var(--text-primary);font-family:var(--font-ui);text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.hub-tile,.hub-chip{box-shadow:var(--card-shadow,none);}
+.hub-tile:active{transform:scale(.98);}
+.hub-ic{flex:none;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--inset,var(--cfa-bg));color:var(--cfa-navy);}
+.hub-tx{display:flex;flex-direction:column;min-width:0;}
+.hub-lb{display:inline-flex;align-items:center;gap:6px;font-size:14.5px;font-weight:700;line-height:1.2;}
+.hub-es{font-family:var(--font-display);font-style:italic;font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hub-recent{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;}
+.hub-chip{flex:none;min-height:40px;padding:0 16px;border:1px solid var(--border);border-radius:999px;background:var(--cfa-white);color:var(--text-primary);font-family:var(--font-ui);font-size:14px;font-weight:600;cursor:pointer;}
+.hub-none{margin:8px 2px;color:var(--text-secondary);}
+.hub-tile:focus-visible,.hub-chip:focus-visible{outline:2px solid var(--cfa-navy);outline-offset:2px;}
+.bnav-badge{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--cfa-red);color:#fff;font-size:11px;font-weight:700;display:inline-grid;place-items:center;}
 
 /* ===== Set Ups and Lists: the Nov 2026 refresh (Tim, Nov 12 2026) =====
    Looks only; what a tap does and what is saved are unchanged.

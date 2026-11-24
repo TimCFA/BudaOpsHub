@@ -321,8 +321,8 @@ html[data-theme="dark"]{--cfa-white:#1D1D1D;--cfa-bg:#1D1D1D;--cfa-light:#212426
   :where(html[data-theme="dark"]) .bnav-btn.active{color:var(--ink-dark-red);}
   :where(html[data-theme="dark"]) .bnav-btn.active .bnav-ic{background:#3B2021;}
   :where(html[data-theme="dark"]) .bnav-btn.active .bnav-lb{color:var(--ink-dark-red);}
-  :where(html[data-theme="dark"]) .bnav-row.active{color:var(--cfa-bg);}
 }
+:where(html[data-theme="dark"]) .hub-ic{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) #allDayparts .su-sheet-list .su-rowwrap + .su-rowwrap{border-top:1px solid #2B2E32;}
 :where(html[data-theme="dark"]) .su-row-choose{color:var(--ink-dark-red);}
 :where(html[data-theme="dark"]) .launch-subnav[aria-label="Lists"] .launch-pill.active{color:var(--cfa-bg);}

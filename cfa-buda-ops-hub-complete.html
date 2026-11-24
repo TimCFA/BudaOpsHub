@@ -75,14 +75,14 @@
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="rolesView" data-view="roles" style="display:none">Roles <span class="sub"><i>Roles</i></span></button>
 
       <div class="tab-group full-only" data-group="oe">
-        <button type="button" class="tab-group-label" aria-haspopup="true" aria-expanded="false">OE <span class="chevron-mini">▾</span></button>
+        <button type="button" class="tab-group-label" aria-haspopup="true" aria-expanded="false">Lists <span class="chevron-mini">▾</span></button>
         <div class="tab-dropdown" role="menu">
-          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="zoneresetView" data-view="zonereset">Zone Reset & Walkthroughs <span class="sub-inline">Reinicio y Recorridos</span></button>
+          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="zoneresetView" data-view="zonereset">Zone Resets <span class="sub-inline">Reinicios</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="huddleView" data-view="huddle">Huddle <span class="sub-inline">Reunión</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="timersView" data-view="timers">Timers <span class="sub-inline">Temporizadores</span></button>
-          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="foodsafetyView" data-view="foodsafety">Food Safety Walkthrough <span class="sub-inline">Seguridad Alimentaria</span></button>
-          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="wastelogView" data-view="wastelog">Log Waste <span class="sub-inline">Desperdicio</span></button>
-          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="safecountView" data-view="safecount">Daily Safe Count <span class="sub-inline">Caja Fuerte</span></button>
+          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="foodsafetyView" data-view="foodsafety">Food Safety <span class="sub-inline">Seguridad Alimentaria</span></button>
+          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="wastelogView" data-view="wastelog">Waste <span class="sub-inline">Desperdicio</span></button>
+          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="safecountView" data-view="safecount">Safe Count <span class="sub-inline">Caja Fuerte</span></button>
         </div>
       </div>
 
@@ -957,6 +957,9 @@
     <div class="hc-page" id="headcountRoot"></div>
   </div>
 
+  <!-- Hub (bottom-nav.js; Tim, Nov 23 2026): on a phone, every page that isn't in the bar, with a search. -->
+  <div class="view" id="hubView"><div id="hubRoot" class="hub"></div></div>
+
   <div class="view" id="manageView">
     <div id="pinGate" class="pin-gate">
       <div style="font-size:14px;margin-bottom:20px;font-weight:600;">Enter PIN to manage <span style="display:block;font-size:12px;font-style:italic;color:var(--text-secondary);font-weight:400;">Ingrese PIN</span></div>
@@ -1274,6 +1277,8 @@
 <script src="/static/js/early-paint.js" defer></script>
 <!-- The bottom tab bar on touch screens (bottom-nav.js): straight after the first group, so a phone has its tabs as soon as Home shows. -->
 <script src="/static/js/bottom-nav.js" defer></script>
+<!-- Page links (page-links.js): each page has its own address, so back, reload and shared links land on it. -->
+<script src="/static/js/page-links.js" defer></script>
 <!-- The rest: the other tabs, then the managers' and directors' tools. -->
 <script src="/static/js/know-numbers.js" defer></script>
 <script src="/static/js/training-guides.js" defer></script>
