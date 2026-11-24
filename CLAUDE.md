@@ -46,20 +46,32 @@ Spanish is hidden (`esSyncSides`, the `es-off-*` classes in theme-cfa.css).
 
 `static/css/theme-cfa.css` loads after `main.css` and carries the look: Chick-fil-A
 red (#DD0031) for actions and limits, Chick-fil-A navy (#004F71) for dark "stats"
-cards, a white ground (no tan or cream; Tim, Nov 23 2026), slab-serif headings and hero numbers (Zilla Slab) with a
+cards, a soft cool grey ground (`--cfa-bg:#F2F4F7`) under white cards (no tan or cream; Tim, Nov 23 2026: pure white was too bright), slab-serif headings and hero numbers (Zilla Slab) with a
 grotesque body (Figtree); both fonts stand in for Caecilia and Apercu until the
 brand fonts are licensed (swap `--font-display` / `--font-ui`). Line icons (inline
 SVG), never emoji. New components go in the theme's conventions.
 
 ## Tab bar and header
 
-On a touch screen (phones and every tablet) the tabs are a bar at the bottom:
-Home, Set Ups, Lists, Waste and More, which lists every other tab the top row
-would show, then dark mode (`static/js/bottom-nav.js`, "Bottom tab bar" in
-theme-cfa.css; Tim, Nov 12 2026). A computer keeps the tab row at the top. It
+On a touch screen (phones and every tablet) the tabs are a bar at the bottom
+(`static/js/bottom-nav.js`, "Bottom tab bar" in theme-cfa.css; Tim, Nov 12
+2026), with four places chosen for who is holding the device, then Hub (Tim,
+Nov 23 2026, from the navigation mock-up): Team Members, Trainers and a
+signed-out phone get Home, Set Ups, Lists, Waste (their Tasks are in Hub,
+with a dot on Hub when one waits); Team Leads get Home, Set Ups, Lists,
+Tasks; directors, the Admin
+Team and the manager PIN get Home, Set Ups, Tasks, Our Team (Calendar if Our
+Team isn't theirs); a signed-out kitchen iPad (Right Now on Back) gets Home,
+Set Ups, Prep, Waste. Hub (`/hub`, "Hub" in theme-cfa.css) is a page, not a
+sheet: recent pages, a search ("Find a page"), every other page in four groups
+named by the job (Run the shift, People, Numbers, Admin), then dark mode. A
+page shows there only to those who can open it, by the same rules
+activateView keeps (`can()` in bottom-nav.js; keep the two in step). Every page
+has one name everywhere (`PAGES` in bottom-nav.js; the computer's Lists menu
+says the same). A computer keeps the tab row at the top. It
 goes by touch (`hover:none` and `pointer:coarse`), not width, so a counter
-tablet on its side still gets the bar. The bar has no navigation of its own:
-each button presses its tab in the top row. Anything else pinned to the
+tablet on its side still gets the bar. The bar opens pages the one way the
+rest of the hub does (`launchShowTab`), so it and the top row never disagree. Anything else pinned to the
 bottom of the screen sits above it with `var(--bnav-h)`; on Tasks the Pass's
 own views go back to a row at the top, so there is never a second bar. The
 header has no clock and is one row where it fits; on a phone the badge and
@@ -68,10 +80,25 @@ row.
 
 One meaning a colour (the Nov 2026 refresh): ink is "selected", red is "now"
 and "needs someone", navy is stats, green is done. On Set Ups the open
-daypart is one white card with its positions as rows inside; a spot's zone
+daypart is one white card with its positions as rows inside, and a red ring round the whole card; a spot's zone
 colour is on its number badge. Zone Resets has its own page since Nov 23 2026 (see Zone Resets). The Waste logger keeps
 its own look (Tim's call); Home got its own redesign on Nov 21 2026 (see
 Home), on the same colour meanings. Tests: `tests/test_bottom_nav.py`.
+
+## Page links
+
+Every page has its own address (Tim, Nov 23 2026): `/setups`,
+`/lists/timers`, `/tasks` and so on (`PL_PATHS` in `static/js/page-links.js`;
+app.py `PAGE_PATHS` answers each with the same page; `tests/test_page_links.py`
+keeps the two lists the same, and every view needs one). The hub is still one
+page and loads nothing more for it: the address follows `activateView`. A tap
+adds a step back can undo (pushState); a page the hub opens by itself (a
+redirect, a redraw, a sign-in moving someone on) replaces the address, so
+back never lands somewhere the person didn't choose. An address opens its
+page once every script has run; one that needs a sign-in (Directors, Huddle,
+Know the Numbers) opens once the sign-in is known, unless the person has
+moved on. Every file the page loads is referenced from the root (`/static/…`,
+`${API_BASE}/api/…`) so it works at any address; keep it that way.
 
 ## Home
 
@@ -160,9 +187,9 @@ needs no dark twin). Identity colours are the zones (`--zone-*`, one colour a
 zone on both sides of the house and in Coach) and the daypart skies (`.su-col-*`).
 Cards share `--card-shadow`; section labels in small caps are navy (`--eyebrow`).
 
-The day look (Tim, Nov 23 2026, picked from the palette options): a white floor
+The day look (Tim, Nov 23 2026, picked from the palette options): a soft cool grey floor
 and white cards that float on `--card-shadow`, a pale blue band (`--band`, navy
-ink; the deep navy was too strong) that melts into the white at its lower edge
+ink; the deep navy was too strong) that melts into the floor at its lower edge
 (no line, no rounded corners) across the
 top that is the header plus the tab row (the header alone on a touch screen),
 and a pale blue inside each card (`--inset`, `-strong`, `-faint`, `-track`,
@@ -171,7 +198,7 @@ dark is Midnight (deep navy ground, `#142238` cards; dark.css). The waste chip
 and the initials badge sit on the band as they always did. The title
 ("Ops Hub Buda", top left) is a link home: it presses the Home tab
 (navigation.js), and a new-tab click opens the front page. Never put a tan or
-cream back: ground and cards are white, tints are the cool `--inset` family.
+cream back: the ground is the cool grey, cards are white, tints are the cool `--inset` family.
 
 ## Tasks
 
@@ -314,6 +341,22 @@ leader's) and keeps it in memory only (`peaLead` in pea-ratings.js), never in
 `peaRatings`, so it can't be saved back or left on the phone. Anything Set Ups
 reads goes through `peaShown()` / `peaAliasesShown()`, not `peaRatings`
 directly. Tests: `tests/test_lead_pea.py`.
+
+## View as
+
+Tim, and only Tim, can see the hub as each level sees it (`static/js/view-as.js`,
+app.py `_may_view_as`; Tim, Nov 23 2026: "I need to know what everyone at
+every level is seeing"). Who: the owner's Google sign-in, or a director
+signed in by name on `VIEW_AS_NAMES` (default Timothy Lane: his clock-in
+PIN). A "View as" button by the badge picks Team Member, Trainer, Team Lead,
+Admin Team or Director (himself), and for the team's roles whose day (from
+the schedule). It sets `acUser`, `siIdentity` and `launchManager` and draws
+again, so a change to what a role sees needs nothing here: keep reading who's
+here from those. It's a look only: `siMayChange` says no while it's on, Manage
+closes for the team's roles, his own tickets and uniform credit stay off the
+card, and a reload is him again. The server adds only that person's PEA
+(`/api/me/pea?as=`, which his director session already holds). Tests:
+`tests/test_view_as.py`.
 
 ## Lists tally and the 14-day trim
 

@@ -59,6 +59,7 @@ function hhNoteView(view, t0){
 }
 
 function hhRole(){
+  if(typeof vaActive === 'function' && vaActive()) return 'director';   // Tim viewing as someone still counts as Tim
   const role = typeof acUser !== 'undefined' && acUser ? acUser.role : '';
   if(typeof launchManager !== 'undefined' && launchManager) return role === 'manager' ? 'manager' : 'director';
   return ['lead', 'trainer', 'member', 'admin'].includes(role) ? role : 'none';

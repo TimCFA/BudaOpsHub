@@ -8,7 +8,8 @@
 //    the Tasks tab, their own PEA scores, and the day's marketing events
 //    (Tim, Oct 28 2026: "what all they need to see"; no break or waste line).
 //    On break, the time left counts down first thing (Tim, Oct 30 2026).
-//  - Trainer: the same, plus the open spots on their side now.
+//  - Trainer: the same (the open spots on their side came off: Tim, Nov 23
+//    2026).
 //  - Team Lead: their side's shift: open spots, people on the floor with no
 //    spot, the handoff's zones, breaks coming up, waste, Food Safety.
 //  - Admin Team (Ashley, Oct 20 2026): the day's roster at a glance, FOH,
@@ -228,7 +229,9 @@ function rnShiftProgress(on, now){
 }
 
 // ----- Per role -----
-function rnPersonCard(v, day, trainer){
+// A Trainer's card is a Team Member's (Tim, Nov 23 2026: trainers don't
+// need the count of open spots on their side).
+function rnPersonCard(v, day){
   const date = day.closed ? day.next : today;
   const on = rnOnRoster(v.name, date);
   const floor = on.filter(o => RN_FLOOR.includes(o.side));
@@ -324,10 +327,6 @@ function rnPersonCard(v, day, trainer){
   }
   myZones.forEach(z => rows.push(rnRow(`${z.checked}/${z.total}`, `your zone: ${z.zone} · ${hand.title} at ${rnClock(hand.at)}`, '', `zone:${hand.name}`, z.done ? 'ok' : '')));
   rnTicketRows(day).forEach(r => rows.push(r));
-  if(trainer && entry){
-    const g = rnDaypartGaps(side, today, rnDaypartIndex(side, day.now));
-    rows.push(rnRow(String(g.open.length), `open spot${g.open.length === 1 ? '' : 's'} on ${side.toUpperCase()} for ${rnShort(g.dp.name)}`, esText('Open spots now'), g.open.length ? `spot:${side}|${g.dp.name}|${g.open[0].slot}` : `setups:${side}|${today}|${g.dp.name}`, g.open.length ? 'bad' : 'ok'));
-  }
   return {side, first, rows, team: true, title: `Hi, ${first1}`, pea: rnMine.pea && rnMine.pea.positions && rnMine.pea.positions.length ? rnMine.pea : null};
 }
 
@@ -361,7 +360,10 @@ function rnMineLoad(){
   if(rnMine.who !== who) rnMine = {...RN_MINE_NONE(), who};
   rnMine.at = Date.now();
   const get = url => fetch(url, {credentials: 'same-origin', cache: 'no-store'}).then(r => (r.ok ? r.json() : null)).catch(() => null);
-  Promise.all([team ? get('/api/me/pea') : null, get('/api/pass/state'), v.name ? get('/api/me/badges') : null]).then(([pea, pass, badges]) => {
+  // View as (Tim only, view-as.js): the person's PEA, and no tickets (the
+  // server would send his own, not theirs), and no badges for the same reason.
+  const as = typeof vaActive === 'function' && vaActive() ? v.name : '';
+  Promise.all([team ? get('/api/me/pea' + (as ? '?as=' + encodeURIComponent(as) : '')) : null, as ? null : get('/api/pass/state'), v.name && !as ? get('/api/me/badges') : null]).then(([pea, pass, badges]) => {
     if(rnMine.who !== who) return;
     rnMine.badges = badges && Array.isArray(badges.new) ? badges.new : null;
     rnMine.pea = pea && Array.isArray(pea.positions) ? pea : null;
@@ -888,8 +890,8 @@ function rnNewHireHtml(nh, boh){
 }
 
 function rnCardForRole(v, day){
-  if(v.role === 'member') return rnNewHireCard(rnPersonCard(v, day, false), v, day);
-  if(v.role === 'trainer') return rnPersonCard(v, day, true);
+  if(v.role === 'member') return rnNewHireCard(rnPersonCard(v, day), v, day);
+  if(v.role === 'trainer') return rnPersonCard(v, day);
   if(v.role === 'lead') return rnWithRoster(rnLeadCard(v, day, false), day);
   if(v.role === 'admin') return rnWithRoster(rnAdminCard(v, day), day);
   if(v.role === 'director' || v.role === 'manager') return rnWithRoster(rnLeadCard(v, day, true), day);
