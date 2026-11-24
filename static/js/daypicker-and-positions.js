@@ -367,7 +367,7 @@ function renderPosOptionList(eligible, filterText){
   const q = (filterText || '').trim().toLowerCase();
   const filtered = q ? eligible.filter(p => p.name.toLowerCase().includes(q)) : eligible;
   const others = (window.currentPosModalOthers || []).filter(p => !q || p.name.toLowerCase().includes(q));
-  const hasPea = peaRatings.rows.length > 0;
+  const hasPea = peaShown().rows.length > 0;
   let html = '';
   if(!filtered.length && !others.length){
     const empty = q ? 'No one by that name on today’s roster' : 'Nobody on the roster is free for this daypart';

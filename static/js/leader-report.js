@@ -11,10 +11,9 @@
 // it isn't credited yet.
 //
 // Per daypart:
-//   Zone Reset and Leader Transition: the handoffs that daypart's Lead
-//     Captain answers for (zoneResetDayparts' leadFrom), checked / total.
-//     Leader Transition counts from leaderTransitionHistory (kept from
-//     Oct 2026; days before it show no figure).
+//   Zone Reset: the handoffs that daypart's Lead Captain answers for
+//     (zoneResetDayparts' leadFrom), checked / total. (The Leader Transition
+//     List was a measure here until it came off the hub; Tim, Nov 23 2026.)
 //   PEAs on your dayparts: every Levelset rating timed inside the daypart.
 //   Productivity: the Know the Numbers daypart it reads (knDaypartOf):
 //     actual sales per labor hour against the goal, once both are typed.
@@ -59,12 +58,6 @@ function lrDayCounts(iso, caps){
   return iso < today && ((fohRoster[iso] && fohRoster[iso].length > 0) || Object.keys(caps[iso] || {}).length > 0);
 }
 
-// The first day Leader Transition history was kept, or null.
-function lrLtSince(){
-  const days = Object.keys(typeof leaderTransitionHistory === 'object' && leaderTransitionHistory ? leaderTransitionHistory : {}).sort();
-  return days[0] || null;
-}
-
 // Attendance from the punch reports (Points, managers only), by day:
 // {date: [{kind: 'late' | 'break' | 'out', at: minutes or null}]}. A late
 // start counts at its scheduled start, a late break when the break began,
@@ -93,7 +86,6 @@ const lrAttText = a => [a.late ? `${a.late} late start${a.late === 1 ? '' : 's'}
 function lrFacts(dates, ratings){
   const caps = lrCaptains(dates);
   const att = lrAttendance(dates);
-  const ltSince = lrLtSince();
   const counted = dates.filter(iso => lrDayCounts(iso, caps));
   const dayparts = [], days = [], unassigned = [];
   counted.forEach(iso => {
@@ -105,14 +97,6 @@ function lrFacts(dates, ratings){
       const w = knWindowOf(dp);
       const handoffs = lrHandoffsFor(dp.name);
       const zone = handoffs.length ? handoffs.reduce((a, h) => { const c = getHandoffZoneCompletion(iso, h.name); return {checked: a.checked + c.checked, total: a.total + c.total}; }, {checked: 0, total: 0}) : null;
-      let lt = null;
-      if(handoffs.length && ltSince && iso >= ltSince){
-        const rec = leaderTransitionHistory[iso] || {};
-        lt = handoffs.reduce((a, h) => {
-          const r = Array.isArray(rec[h.name]) ? rec[h.name] : [0, fohLeaderTransitionItems.length];
-          return {checked: a.checked + (+r[0] || 0), total: a.total + (+r[1] || 0)};
-        }, {checked: 0, total: 0});
-      }
       const peasOn = ratings.filter(r => r.date === iso && (m => m !== null && m >= w.start && m < w.end)(lrMin(String(r.at).slice(11)))).length;
       let prod = null;
       const kn = knDaypartOf(dp);
@@ -122,7 +106,7 @@ function lrFacts(dates, ratings){
         if(v) prod = {actual: v.actual, goal: v.plan, hit: v.actual >= v.plan};
       }
       const attendance = lrAttCount((att[iso] || []).filter(a => a.at !== null && a.at >= w.start && a.at < w.end));
-      dayparts.push({date: iso, daypart: dp.name, leads, zone, lt, peasOn, prod, attendance});
+      dayparts.push({date: iso, daypart: dp.name, leads, zone, peasOn, prod, attendance});
     });
     const fs = typeof fsTotals === 'function' ? fsTotals(typeof fsBest === 'function' ? fsBest(iso) : foodSafetyWalkthroughs[iso]) : null;
     days.push({date: iso, leads: [...dayLeads], wasteUnder: wasteDays.includes(iso), fsDone: !!(fs && fs.complete)});
@@ -137,15 +121,14 @@ function lrRaterKey(name, raters){
   return dirKey(linked || name);
 }
 
-// Each credited leader's week: {name: {dayparts, days, zone, lt, peasGiven, peasOn, prod, waste, fs}}.
+// Each credited leader's week: {name: {dayparts, days, zone, peasGiven, peasOn, prod, waste, fs}}.
 function lrRollup(facts, ratings){
   const by = {};
-  const get = n => by[n] = by[n] || {name: n, dayparts: 0, days: 0, zone: {checked: 0, total: 0}, lt: {checked: 0, total: 0}, peasGiven: 0, peasOn: 0, prod: {hit: 0, of: 0}, waste: {under: 0, of: 0}, fs: {done: 0, of: 0}, att: {late: 0, brk: 0, out: 0}, hasAtt: !!facts.attendance};
+  const get = n => by[n] = by[n] || {name: n, dayparts: 0, days: 0, zone: {checked: 0, total: 0}, peasGiven: 0, peasOn: 0, prod: {hit: 0, of: 0}, waste: {under: 0, of: 0}, fs: {done: 0, of: 0}, att: {late: 0, brk: 0, out: 0}, hasAtt: !!facts.attendance};
   facts.dayparts.forEach(f => f.leads.forEach(n => {
     const L = get(n);
     L.dayparts++;
     if(f.zone){ L.zone.checked += f.zone.checked; L.zone.total += f.zone.total; }
-    if(f.lt){ L.lt.checked += f.lt.checked; L.lt.total += f.lt.total; }
     L.peasOn += f.peasOn;
     if(f.prod){ L.prod.of++; if(f.prod.hit) L.prod.hit++; }
     if(f.attendance){ L.att.late += f.attendance.late; L.att.brk += f.attendance.brk; L.att.out += f.attendance.out; }
@@ -169,7 +152,6 @@ function lrRollup(facts, ratings){
 function lrMeasures(L){
   return [
     {key: 'zone', label: 'Zone Reset', rate: lrRate(L.zone.checked, L.zone.total), text: L.zone.total ? `${L.zone.checked}/${L.zone.total} items` : ''},
-    {key: 'lt', label: 'Leader Transition', rate: lrRate(L.lt.checked, L.lt.total), text: L.lt.total ? `${L.lt.checked}/${L.lt.total} items` : ''},
     {key: 'prod', label: 'Productivity goal', rate: lrRate(L.prod.hit, L.prod.of), text: L.prod.of ? `hit ${L.prod.hit} of ${L.prod.of}` : ''},
     {key: 'waste', label: 'Waste under limit', rate: lrRate(L.waste.under, L.waste.of), text: L.waste.of ? `${L.waste.under} of ${lrDays(L.waste.of)}` : ''},
     {key: 'fs', label: 'Food Safety Walkthrough', rate: lrRate(L.fs.done, L.fs.of), text: L.fs.of ? `${L.fs.done} of ${lrDays(L.fs.of)}` : ''},

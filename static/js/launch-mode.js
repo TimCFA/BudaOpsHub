@@ -17,14 +17,15 @@
 // (app.py PRIVATE_SECTIONS), so signing in fetches it right away, and
 // locking reloads the page to clear it from the device.
 
-const LAUNCH_VIEWS = ['home', 'positions', 'schedule', 'wastelog', 'scoreboard', 'zonereset', 'timers', 'foodsafety', 'safecount', 'prepboard', 'calendar', 'tasks', 'forms', 'manage', 'headcount', 'roles'];
+const LAUNCH_VIEWS = ['home', 'positions', 'schedule', 'wastelog', 'scoreboard', 'zonereset', 'huddle', 'timers', 'foodsafety', 'safecount', 'prepboard', 'calendar', 'tasks', 'forms', 'manage', 'headcount', 'roles'];
 // Off the simplified site (Tim, Oct 27 2026): a link to one opens Home.
 const LAUNCH_FULL_ONLY_VIEWS = ['knownumbers', 'forecast', 'cem'];
-// Zone Resets and the Leader Transition List share a view; `page` picks
-// which of its cards show (data-launch-page on the cards).
+// The Leader Transition List had a pill here (it shared Zone Resets' view)
+// until Nov 23 2026: off the hub for now, it wasn't being used (Tim).
 const LAUNCH_LISTS = [
-  {view: 'zonereset', page: 'zones', label: 'Zone Resets', sub: 'Reinicios'},
-  {view: 'zonereset', page: 'leaders', label: 'Leader Transition', sub: 'Transición'},
+  {view: 'zonereset', label: 'Zone Resets', sub: 'Reinicios'},
+  // Huddle (huddle.js; Tim, Nov 18 2026): the pre- and post-huddle, Team Leads and up.
+  {view: 'huddle', label: 'Huddle', sub: 'Reunión', leaders: true},
   // Timers (timers.js; Tim, Oct 28 2026): the counter tablet's task timers.
   {view: 'timers', label: 'Timers', sub: 'Temporizadores'},
   {view: 'foodsafety', label: 'Food Safety', sub: 'Seguridad'},
@@ -49,46 +50,38 @@ const LAUNCH_WASTE = [
 ];
 const LAUNCH_SUBNAVS = [LAUNCH_LISTS, LAUNCH_WASTE, LAUNCH_TOOLS];
 let launchManager = false;
-let launchListPage = null;   // the page a pill asked for; the tab itself opens the first
 
-// The pill row at the top of a list page, with the open one marked. The
-// view's cards for other pages hide on the simplified site (CSS).
+// The pill row at the top of a list page, with the open one marked.
 function launchSubnavRender(view){
   const group = LAUNCH_SUBNAVS.find(g => g.some(l => l.view === view && !(l.launch && !launchIsOn())));
   if(!group) return;
-  // Safe Count and the Leader Transition List aren't for Team Members or Trainers.
+  // Safe Count isn't for Team Members or Trainers.
   const hidden = l => (l.view === 'safecount' && typeof scHidden === 'function' && scHidden())
-    || (l.page === 'leaders' && typeof ltHidden === 'function' && ltHidden())
     || (l.full && launchIsOn())
     || (l.launch && !launchIsOn())
     || (l.leaders && typeof knPageShown === 'function' && !knPageShown());
-  const here = group.filter(l => l.view === view && !hidden(l));
-  if(!here.length) return;
-  const page = here.some(l => l.page === launchListPage) ? launchListPage : (here[0].page || '');
-  launchListPage = null;
+  if(!group.some(l => l.view === view && !hidden(l))) return;
   const root = document.getElementById(view + 'View');
-  if(page) root.dataset.launchPage = page; else delete root.dataset.launchPage;
   const nav = root.querySelector('[data-launch-subnav]');
   if(!nav) return;
   nav.setAttribute('aria-label', group === LAUNCH_LISTS ? 'Lists' : group === LAUNCH_WASTE ? 'Waste' : 'Tools');
   const shown = group.filter(l => !hidden(l));
-  // A device nobody signed in on: say where Leader Transition and Safe Count
-  // went, at the bottom of the page, so the list itself comes first (Tim,
-  // Oct 28 2026).
+  // A device nobody signed in on: say where Huddle and Safe Count went, at
+  // the bottom of the page, so the list itself comes first (Tim, Oct 28 2026).
   let hint = root.querySelector(':scope > .launch-signin-hint');
   const showHint = group === LAUNCH_LISTS && typeof scSignedOut === 'function' && scSignedOut();
   if(showHint && !hint){
     hint = document.createElement('p');
     hint.className = 'launch-signin-hint';
-    hint.innerHTML = `Team Leads: <button type="button" data-launch-signin>sign in with your clock-in PIN</button> for Leader Transition and Safe Count.${esLine('Leads sign in hint')}`;
+    hint.innerHTML = `Team Leads: <button type="button" data-launch-signin>sign in with your clock-in PIN</button> for Huddle and Safe Count.${esLine('Leads sign in hint')}`;
     root.appendChild(hint);
   }
   if(hint) hint.hidden = !showHint;
   // One page in the group (the team's Tools): no pill row.
   nav.hidden = shown.length < 2;
   nav.innerHTML = shown.map(l => {
-    const on = l.view === view && (l.page || '') === page;
-    return `<button type="button" class="launch-pill ${on ? 'active' : ''}" aria-current="${on ? 'page' : 'false'}" data-launch-go="${l.view}" data-launch-pick="${l.page || ''}">${l.label}<span>${l.sub}</span></button>`;
+    const on = l.view === view;
+    return `<button type="button" class="launch-pill ${on ? 'active' : ''}" aria-current="${on ? 'page' : 'false'}" data-launch-go="${l.view}">${l.label}<span>${l.sub}</span></button>`;
   }).join('');
 }
 document.addEventListener('click', e=>{
@@ -100,7 +93,7 @@ document.addEventListener('click', e=>{
     return;
   }
   const go = e.target.closest('[data-launch-go]');
-  if(go){ launchListPage = go.dataset.launchPick || null; launchShowTab(go.dataset.launchGo); window.scrollTo({top: 0}); }
+  if(go){ launchShowTab(go.dataset.launchGo); window.scrollTo({top: 0}); }
 });
 
 function launchIsOn(){ return launchMode !== false && !launchManager; }

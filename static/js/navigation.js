@@ -14,6 +14,8 @@ function activateView(view){
   if(view === 'knownumbers' && typeof knPageShown === 'function' && !knPageShown()) view = 'prepboard';
   // Our Team: directors and the Admin Team (headcount.js).
   if(view === 'headcount' && !(typeof hcAllowed === 'function' && hcAllowed())) view = 'home';
+  // Huddle: Team Leads and up, like the Safe Count (huddle.js).
+  if(view === 'huddle' && typeof scHidden === 'function' && scHidden()) view = 'zonereset';
   // Safe Count: not for Team Members or Trainers (fohoe-and-safecount.js).
   if(view === 'safecount' && typeof scHidden === 'function' && scHidden()) view = 'home';
   // An open (a tap) or a redraw of the page already showing (saved data
@@ -26,7 +28,7 @@ function activateView(view){
   if(view === 'positions') renderPositionsTab();
   if(view === 'schedule') renderTeamSchedule();
   if(view === 'wastelog'){ renderGrid(); renderTape(); }
-  if(view === 'zonereset'){ renderZoneResetView(); renderWalkthroughsPage(); }
+  if(view === 'zonereset'){ if(opened && typeof zrArrive === 'function') zrArrive(); renderZoneResetView(); renderWalkthroughsPage(); }   // zone-page.js: the cards rise in when the tab opens
   if(view === 'safecount') renderSafeCount();
   if(view === 'foodsafety'){ renderFoodSafety(); rpRenderFoodSafetyFindings(); }
   if(view === 'prepboard') renderPrepBoard();
@@ -38,13 +40,15 @@ function activateView(view){
   }
   if(view === 'tx') renderTXScoreboard();
   if(view === 'lx') renderLXScoreboard();
-  if(view === 'home') renderHomeScoreboard();
+  if(view === 'home'){ if(opened && typeof rnArrive === 'function') rnArrive(); renderHomeScoreboard(); }   // right-now.js: the card rises in when Home opens
   if(view === 'forecast') renderForecastView();
   if(view === 'cem' && typeof renderCemTrends === 'function') renderCemTrends();
   if(view === 'knownumbers' && typeof renderKnPage === 'function') renderKnPage();
   if(view === 'calendar' && typeof renderCalendarView === 'function') renderCalendarView();
+  if(view === 'calendar' && typeof dwActivate === 'function') dwActivate();   // week.js: Directors' Week
   if(view === 'tasks' && typeof psActivate === 'function') psActivate();   // pass.js
   if(view === 'timers' && typeof tmActivate === 'function') tmActivate();   // timers.js
+  if(view === 'huddle' && typeof hdActivate === 'function') hdActivate();   // huddle.js
   if(typeof tmFullSync === 'function') tmFullSync();                        // full screen is the Timers page's only
   if(view === 'directors' && typeof renderDirectorsView === 'function') renderDirectorsView();
   if(view === 'headcount'){ renderHeadcountView(); hcLoad(true); if(typeof apLoad === 'function' && hcAllowed()) apLoad(); }   // team-extras.js: levels, PTO, uniform credit

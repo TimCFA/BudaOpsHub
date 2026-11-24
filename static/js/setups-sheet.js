@@ -121,7 +121,7 @@ function suSheetNameHtml(t, brk){
 // device); nothing for spots Levelset doesn't rate.
 const SU_TIER_LABELS = {crushing: 'Crushing It', rise: 'On the Rise', notyet: 'Not Yet'};
 function suTierDotHtml(t){
-  if(!peaRatings.rows.length || !['crushing', 'rise', 'notyet', 'unrated'].includes(t.tier)) return '';
+  if(!peaShown().rows.length || !['crushing', 'rise', 'notyet', 'unrated'].includes(t.tier)) return '';
   const where = (t.positions || []).join(' / ');
   const title = t.tier === 'unrated' ? `Not rated${where ? ` on ${where}` : ''} yet`
     : `${SU_TIER_LABELS[t.tier]}${t.cell ? ` · ${t.cell.avg.toFixed(2)}` : ''}${where ? ` on ${where}` : ''}`;
@@ -129,7 +129,7 @@ function suTierDotHtml(t){
 }
 
 function suTierKeyHtml(){
-  if(!peaRatings.rows.length) return '';
+  if(!peaShown().rows.length) return '';
   return `<div class="su-tier-key" aria-hidden="true"><span><i class="su-tier-dot is-crushing"></i>Crushing It${esHtml('Crushing It')}</span><span><i class="su-tier-dot is-rise"></i>On the Rise${esHtml('On the Rise')}</span><span><i class="su-tier-dot is-notyet"></i>Not Yet${esHtml('Not Yet')}</span><span><i class="su-tier-dot is-unrated"></i>Not rated${esHtml('Not rated')}</span></div>`;
 }
 

@@ -26,6 +26,8 @@
 <link rel="stylesheet" href="/static/css/dark.css">
 <link rel="stylesheet" href="/static/css/pass.css">
 <link rel="stylesheet" href="/static/css/timers.css">
+<link rel="stylesheet" href="/static/css/huddle.css">
+<link rel="stylesheet" href="/static/css/week.css">
 <!-- Dark mode, per device (theme.js): set before the page paints so it never flashes light. -->
 <script>try{if(localStorage.getItem('cfaBudaTheme')==='dark'){document.documentElement.dataset.theme='dark';document.querySelector('meta[name="theme-color"]').content='#121418';}}catch(e){}</script>
 </head>
@@ -66,7 +68,7 @@
       <!-- Launch mode (launch-mode.js): Home plus the team's essentials, in Tim's order (Oct 30 2026):
            Home, Set Ups, Lists, Waste, Calendar, Schedule, Tasks, Forms, Manage. -->
       <!-- One tap opens Zone Resets; the other lists are pills at the top of the page (launch-mode.js). -->
-      <button type="button" class="tab launch-only" role="tab" aria-selected="false" aria-controls="zoneresetView" data-view="zonereset" data-views="zonereset timers foodsafety safecount prepboard">Lists <span class="sub"><i>Listas</i></span></button>
+      <button type="button" class="tab launch-only" role="tab" aria-selected="false" aria-controls="zoneresetView" data-view="zonereset" data-views="zonereset huddle timers foodsafety safecount prepboard">Lists <span class="sub"><i>Listas</i></span></button>
       <!-- Waste logging, with the waste scoreboard as a pill at the top of the page (launch-mode.js). -->
       <button type="button" class="tab launch-only" role="tab" aria-selected="false" aria-controls="wastelogView" data-view="wastelog" data-views="wastelog scoreboard">Waste <span class="sub"><i>Desperdicio</i></span></button>
       <!-- Roles (roles.js; Tim, Oct 27 2026): a place for each Team Lead role. Team Leads and up only (rlSyncTab). -->
@@ -76,6 +78,7 @@
         <button type="button" class="tab-group-label" aria-haspopup="true" aria-expanded="false">OE <span class="chevron-mini">▾</span></button>
         <div class="tab-dropdown" role="menu">
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="zoneresetView" data-view="zonereset">Zone Reset & Walkthroughs <span class="sub-inline">Reinicio y Recorridos</span></button>
+          <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="huddleView" data-view="huddle">Huddle <span class="sub-inline">Reunión</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="timersView" data-view="timers">Timers <span class="sub-inline">Temporizadores</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="foodsafetyView" data-view="foodsafety">Food Safety Walkthrough <span class="sub-inline">Seguridad Alimentaria</span></button>
           <button type="button" class="tab-dropdown-item" role="menuitem" aria-controls="wastelogView" data-view="wastelog">Log Waste <span class="sub-inline">Desperdicio</span></button>
@@ -99,7 +102,7 @@
       </div>
 
       <button type="button" class="tab full-only" role="tab" aria-selected="false" aria-controls="scoreboardView" data-view="scoreboard">Scoreboard <span class="sub"><i>Tableros</i></span></button>
-      <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="calendarView" data-view="calendar">Calendar <span class="sub"><i>Calendario</i></span></button>
+      <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="calendarView" data-view="calendar">Calendar <span class="sub"><i>Calendario</i></span><span class="ps-tab-badge" id="weekTabBadge" hidden></span></button>
       <!-- The team's shifts for the week (team-schedule.js; Tim, Oct 25 2026). -->
       <button type="button" class="tab" role="tab" aria-selected="false" aria-controls="scheduleView" data-view="schedule">Schedule <span class="sub"><i>Horario</i></span></button>
       <!-- Tasks: The Pass (pass_api.py, static/js/pass.js): tickets handed from a leader to one owner, said back, checked in, turned in and verified. The count is what's waiting on whoever is signed in. -->
@@ -189,6 +192,11 @@
   </div>
 
   <!-- Zone reset owner sheet: hand a zone's reset to someone (zone-reset.js zrOpenOwnerModal) -->
+  <!-- A zone's reset list (zone-page.js). Before the owner sheet, which opens over it. -->
+  <div class="overlay su-pick" id="zrZoneSheet" role="dialog" aria-modal="true" aria-labelledby="zrSheetTitle">
+    <div class="sheet su-pick-sheet zr-sheet" id="zrSheetBody"></div>
+  </div>
+
   <div class="overlay su-pick" id="zrOwnerModal" role="dialog" aria-modal="true" aria-labelledby="zrOwnerZone">
     <div class="sheet su-pick-sheet">
       <div class="su-pick-head">
@@ -447,16 +455,9 @@
 
     <!-- Right Now: under the welcome, never above it (Tim: culture first). right-now.js -->
     <section class="rn" id="rightNow" aria-label="Right now" aria-live="polite"></section>
-
-    <div style="margin-bottom:32px;">
-      <h2 class="home-section-header">Vision, Mission & Values</h2>
-      <div class="home-vmv-grid" id="homeVMVContainer"></div>
-    </div>
-
-    <div>
-      <h2 class="home-section-header">Monthly Leadership Wins</h2>
-      <div class="home-wins-grid" id="homeWinsContainer"></div>
-    </div>
+    <!-- Vision, Mission and Values and the Monthly Leadership Wins left Home (Tim, Nov 18 2026:
+         Home is one glance at your own day). Their words are still kept and edited in Manage
+         (homeData), for a page of their own later. -->
   </div>
 
   <!-- Log Waste View -->
@@ -497,6 +498,12 @@
     </div>
   </div>
 
+  <!-- Huddle: the pre-huddle and post-huddle for each daypart and the store's focus (huddle_api.py, static/js/huddle.js), for Team Leads and up; filled when the view opens (navigation.js hdActivate). -->
+  <div class="view" id="huddleView">
+    <nav class="launch-subnav launch-only" aria-label="Lists" data-launch-subnav></nav>
+    <div class="knp-page hd-page" id="huddleRoot"></div>
+  </div>
+
   <!-- Timers: the counter tablet's recurring task timers (timers_api.py, static/js/timers.js), filled when the view opens (navigation.js tmActivate). -->
   <div class="view" id="timersView">
     <nav class="launch-subnav launch-only" aria-label="Lists" data-launch-subnav></nav>
@@ -507,17 +514,10 @@
   <div class="view" id="zoneresetView">
     <nav class="launch-subnav launch-only" aria-label="Lists" data-launch-subnav></nav>
 
-    <!-- On the simplified site Zone Resets and the Leader Transition List are
-         separate pills (launch-mode.js): data-launch-page says which pill a card belongs to. -->
-    <div class="standup-card" id="zoneResetCard" data-launch-page="zones">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <h3 style="margin:0;">Zone Reset</h3>
-        <span class="zone-overall-pct" id="zoneOverallPct">0%</span>
-      </div>
-      <div class="sub" style="margin-bottom:10px;">Open a handoff, then a zone, for its reset list</div>
-      <div id="zoneButtonRow"></div>
-      <div class="zr-history-label">Last 6 days</div>
-      <div class="zone-reset-scoreboard" id="zoneResetScoreboard"></div>
+    <!-- Zone Resets (zone-page.js; Tim, Nov 23 2026): the day's five handoffs, then a
+         handoff's zones, then a zone's list on a sheet (#zrZoneSheet). Nothing opens by itself. -->
+    <div class="zr-card" id="zoneResetCard">
+      <div id="zoneButtonRow" class="zr-page"></div>
     </div>
 
     <!-- OE Walkthrough: hidden from the page for now (Tim, Sept 2026). Its
@@ -536,14 +536,9 @@
       </div>
     </div>
 
-    <div class="standup-card" id="leaderTransitionCard" data-launch-page="leaders">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-        <h3 style="margin:0;">Leader Transition List <span class="sub"><i>Lista de Transición — Líderes</i></span></h3>
-        <span class="zone-overall-pct" id="leaderTransitionBadge">0%</span>
-      </div>
-      <div class="sub" style="margin-bottom:10px;">Open a handoff and complete its checklist before handing off to the next leader</div>
-      <div id="fohLeaderTransitionChecklist"></div>
-    </div>
+    <!-- The Leader Transition List sat here until Nov 23 2026 (Tim: off the hub for now, it
+         wasn't being used; back when leaders want it). Its items and saved history are kept
+         (zone-reset.js fohLeaderTransitionItems, leaderTransitionHistory). -->
   </div>
 
   <!-- Food Safety Walkthrough View (replaces the Google Form — see food-safety.js, TIM-5) -->
@@ -922,7 +917,13 @@
   <div class="view" id="tasksView"></div>
 
   <div class="view" id="calendarView">
+    <!-- Directors' Week (week.js, week_api.py; Tim, Nov 18 2026): a director's week from their Google calendar and the team's requests for their time. The switch shows only once there is a week to see. -->
+    <div class="dw-switch" id="dwSwitch" role="tablist" aria-label="Calendar" hidden>
+      <button type="button" class="dw-seg is-on" role="tab" aria-selected="true" data-dw-page="store">Store calendar</button>
+      <button type="button" class="dw-seg" role="tab" aria-selected="false" data-dw-page="week">Directors’ Week<span class="dw-seg-n" id="dwSegBadge" hidden></span></button>
+    </div>
     <div class="cal-page" id="calendarRoot"></div>
+    <div class="dw-root" id="weekRoot" hidden></div>
   </div>
 
   <!-- Directors View: the week ahead for the director team (directors.js). PIN only. -->
@@ -1188,7 +1189,7 @@
               <input type="checkbox" id="launchModeToggle" checked>
               <span><b>On</b> — team devices see only Home, Set Ups, Waste and Lists.</span>
             </label>
-            <details class="mv-more"><summary>What this means</summary><p>While the team is getting started, a device without the manager PIN sees Home, Set Ups, Waste and Lists (Zone Resets first, then Leader Transition, Timers, Food Safety, Safe Count and the Prep Board as pills). Devices signed in here see every tab. Turn it off and everyone sees everything.</p></details>
+            <details class="mv-more"><summary>What this means</summary><p>While the team is getting started, a device without the manager PIN sees Home, Set Ups, Waste and Lists (Zone Resets first, then Huddle, Timers, Food Safety, Safe Count and the Prep Board as pills). Devices signed in here see every tab. Turn it off and everyone sees everything.</p></details>
           </div>
 <div class="standup-card" id="signInCard" style="display:none;">
             <h3>Require sign-in</h3>
@@ -1282,6 +1283,7 @@
 <script src="/static/js/waste-log.js" defer></script>
 <script src="/static/js/waste-dash.js" defer></script>
 <script src="/static/js/waste-export.js" defer></script>
+<script src="/static/js/zone-page.js" defer></script>
 <script src="/static/js/fohoe-and-safecount.js" defer></script>
 <script src="/static/js/safe-order.js" defer></script>
 <script src="/static/js/food-safety.js" defer></script>
@@ -1325,6 +1327,8 @@
 <script src="/static/js/pass-engine.js" defer></script>
 <script src="/static/js/pass.js" defer></script>
 <script src="/static/js/timers.js" defer></script>
+<script src="/static/js/huddle.js" defer></script>
+<script src="/static/js/week.js" defer></script>
 <script src="/static/js/hub-health.js" defer></script>
 </body>
 </html>

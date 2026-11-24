@@ -73,14 +73,13 @@ function pruneZoneChecklistData(){
   return pruned;
 }
 
+// The Zone Resets page's place (zone-page.js): the handoff open ('' is the
+// day's list) and the zone whose list is on the sheet. Nothing opens by
+// itself (Tim, Nov 23 2026); Home's "zone" lines set the handoff (right-now.js).
 let currentChecklistZone = '';
 let currentZoneDaypart = '';
-let zoneHandoffChosen = false;   // a handoff or zone tapped this visit; until then the page opens on the handoff happening now
 
-// Handoffs as sky banners, the same look as the Set Ups dayparts: every
-// handoff down the page (Close included, no sideways scrolling), its progress
-// and the Lead Captain answerable for it on the banner, tap to open. The page
-// opens on the handoff happening now.
+// Each handoff's sky, by its place in the day (suSkyArt).
 const ZR_HANDOFF_SKIES = ['morning', 'midday', 'afternoon', 'dusk', 'night'];
 
 function zrHandoffParts(name){
@@ -103,41 +102,6 @@ function zrHandoffLead(handoff){
   return dp ? (posAssignments['foh||' + today + '||' + dp.name + '||' + SU_LEAD_CAPTAIN] || '') : '';
 }
 
-// The handoffs in the order shown (Tim, Oct 18 2026): the one happening now
-// first, then the rest of the day, then the ones already past. Each keeps
-// its own sky (by its place in the day).
-function zrHandoffOrder(nowName){
-  const i = zoneResetDayparts.findIndex(dp => dp.name === nowName);
-  if(i < 0) return zoneResetDayparts.map((dp, n) => n);
-  return zoneResetDayparts.map((dp, n) => n).slice(i).concat(zoneResetDayparts.map((dp, n) => n).slice(0, i));
-}
-
-function zrHandoffBannersHtml(kind, current, progressFor, bodyHtml){
-  const nowName = zrCurrentHandoff();
-  return `<div class="su-dp-list zr-dp-list">${zrHandoffOrder(nowName).map(i => [zoneResetDayparts[i], i]).map(([dp, i])=>{
-    const open = dp.name === current;
-    const isNow = dp.name === nowName;
-    const {title, time} = zrHandoffParts(dp.name);
-    const {checked, total} = progressFor(dp.name);
-    const done = total > 0 && checked === total;
-    const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
-    const sky = ZR_HANDOFF_SKIES[i] || 'midday';
-    const lead = zrHandoffLead(dp);
-    const unowned = kind === 'zone' && !done && zrSetupExists(today, dp.name) ? zrUnownedZones(today, dp.name).length : 0;
-    return `<section class="su-dp su-col-${suDaypartColor(dp.leadFrom)} ${open ? 'is-open' : ''} ${done ? 'is-done' : ''} ${isNow ? 'is-now' : ''}">
-      <div class="su-dp-banner">
-        <button type="button" class="su-dp-head" data-zr-handoff="${escapeHtml(dp.name)}" aria-expanded="${open}">
-          <span class="su-dp-art">${suSkyArt(sky)}</span>
-          <span class="su-dp-name">${escapeHtml(title)}${time ? ` <span class="su-dp-time">${escapeHtml(time)}</span>` : ''}${isNow && !done ? '<span class="zr-dp-now">now</span>' : ''}${lead ? `<span class="zr-dp-lead"><span class="su-dp-k">Lead</span> ${escapeHtml(suDisplayName(lead))}</span>` : `<span class="zr-dp-lead is-none">No Lead Captain set</span>`}${unowned ? `<span class="zr-dp-unowned">${unowned} unowned</span>` : ''}</span>
-          <span class="zr-dp-progress"><span class="zr-dp-track"><span class="zr-dp-bar" style="width:${pct}%"></span></span><span class="su-dp-fill">${done ? '✓ ' : ''}${checked}/${total}</span></span>
-          <span class="su-dp-chev" aria-hidden="true">▾</span>
-        </button>
-      </div>
-      ${open ? `<div class="zr-dp-body" data-zr-kind="${kind}">${bodyHtml}</div>` : ''}
-    </section>`;
-  }).join('')}</div>`;
-}
-
 function getHandoffZoneCompletion(dateISO, daypart){
   let checked = 0, total = 0;
   ALL_ZONE_NAMES.forEach(zone=>{
@@ -148,227 +112,9 @@ function getHandoffZoneCompletion(dateISO, daypart){
   return {checked, total};
 }
 
-// Inside the open handoff, zones render as dropdown rows: tap a zone to open
-// its checklist in place (one open at a time).
-function renderZoneResetCard(){
-  const container = document.getElementById('zoneButtonRow');
-  const dayState = (zoneChecklistState[today] && zoneChecklistState[today][currentZoneDaypart]) || {};
-  const zonesHtml = currentZoneDaypart ? `<div class="zone-acc">${ALL_ZONE_NAMES.map(zone=>{
-    const {checked, total} = getZoneCompletion(today, currentZoneDaypart, zone);
-    const done = total > 0 && checked === total;
-    const open = zone === currentChecklistZone;
-    const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
-    const state = dayState[zone] || {};
-    const owners = zrZoneOwners(today, currentZoneDaypart, zone);
-    const setUp = zrSetupExists(today, currentZoneDaypart);
-    const none = setUp && !owners.all.length;
-    const ownersLine = `<div class="zr-owners">${none ? '<span class="zr-owner-none">Nobody owns this reset</span>' : owners.all.length ? owners.all.map(n => `<span class="zr-owner ${owners.added.includes(n) ? 'is-added' : ''}">${escapeHtml(suDisplayName(n))}</span>`).join('') : `<span>No ${owners.dp ? suShortDaypart(owners.dp.name) : ''} set up yet</span>`}<button type="button" class="zr-owner-hand" data-zr-hand="${escapeHtml(zone)}">${owners.all.length ? 'Hand off' : 'Pick someone'}</button></div>`;
-    const body = open ? `<div class="zone-acc-body">${ownersLine}${getZoneItems(zone).map((item, i)=>{
-      const entry = state[item];
-      const isChecked = !!entry;
-      const stamp = isChecked ? `<span style="font-size:10px;color:var(--text-tertiary);font-style:italic;margin-left:auto;white-space:nowrap;">${escapeHtml(entry.initials)} · ${formatShortTime(entry.ts)}</span>` : '';
-      return `<div class="checklist-item-elevated ${isChecked?'checked':''}" data-zone-item="${i}">
-        <input type="checkbox" ${isChecked?'checked':''}>
-        <span>${escapeHtml(item)}</span>
-        ${stamp}
-      </div>`;
-    }).join('')}</div>` : '';
-    return `
-      <div class="zone-acc-item ${open ? 'open' : ''} ${done ? 'done' : ''} ${checked && !done ? 'is-part' : ''} ${none && !done ? 'is-unowned' : ''}" data-zone="${escapeHtml(zone)}">
-        <button type="button" class="zone-acc-head" aria-expanded="${open}">
-          <span class="zone-acc-icon">${ZONE_ICONS[zone] || ''}</span>
-          <span class="zone-acc-name">${escapeHtml(zone)}${none ? '<span class="zone-acc-who is-none">No one yet · tap to pick</span>' : owners.all.length ? `<span class="zone-acc-who">${escapeHtml(owners.all.map(suDisplayName).join(', '))}</span>` : ''}</span>
-          <span class="zone-acc-track"><span class="zone-acc-fill" style="width:${pct}%"></span></span>
-          <span class="zone-acc-count">${done ? '✓ ' : ''}${checked}/${total}</span>
-          <span class="zone-acc-chevron">▾</span>
-        </button>
-        ${body}
-      </div>`;
-  }).join('')}</div>` : '';
-  container.innerHTML = zrHandoffBannersHtml('zone', currentZoneDaypart, dp => getHandoffZoneCompletion(today, dp), zonesHtml);
-
-  const overall = getOverallCompletion(today);
-  const pctEl = document.getElementById('zoneOverallPct');
-  pctEl.textContent = overall + '%';
-  pctEl.classList.toggle('high', overall >= 95);
-}
-
-document.getElementById('zoneButtonRow').addEventListener('click', async (e)=>{
-  const handoff = e.target.closest('[data-zr-handoff]');
-  if(handoff){
-    const name = handoff.dataset.zrHandoff;
-    currentZoneDaypart = currentZoneDaypart === name ? '' : name;
-    zoneHandoffChosen = true;
-    currentChecklistZone = '';
-    renderZoneResetCard();
-    const head = [...document.querySelectorAll('#zoneButtonRow [data-zr-handoff]')].find(h => h.dataset.zrHandoff === name);
-    if(currentZoneDaypart && head) head.scrollIntoView({block: 'nearest'});
-    return;
-  }
-  const itemEl = e.target.closest('.zone-acc-item');
-  if(!itemEl || !currentZoneDaypart) return;
-  const zoneName = itemEl.dataset.zone;
-
-  const hand = e.target.closest('[data-zr-hand]');
-  if(hand){
-    zrOpenOwnerModal(today, currentZoneDaypart, hand.dataset.zrHand, renderZoneResetCard);
-    return;
-  }
-  if(e.target.closest('.zone-acc-head')){
-    const opening = currentChecklistZone !== zoneName;
-    currentChecklistZone = opening ? zoneName : '';
-    zoneHandoffChosen = true;   // keep this handoff open as the clock moves on
-    renderZoneResetCard();
-    if(opening && zrSetupExists(today, currentZoneDaypart) && !zrZoneOwners(today, currentZoneDaypart, zoneName).all.length) zrOpenOwnerModal(today, currentZoneDaypart, zoneName, renderZoneResetCard);
-    return;
-  }
-
-  const row = e.target.closest('[data-zone-item]');
-  if(!row) return;
-  e.preventDefault();
-  const itemText = getZoneItems(zoneName)[parseInt(row.dataset.zoneItem, 10)];
-  if(itemText === undefined) return;
-  const daypart = currentZoneDaypart;
-  if(!zoneChecklistState[today]) zoneChecklistState[today] = {};
-  if(!zoneChecklistState[today][daypart]) zoneChecklistState[today][daypart] = {};
-  if(!zoneChecklistState[today][daypart][zoneName]) zoneChecklistState[today][daypart][zoneName] = {};
-  const bucket = zoneChecklistState[today][daypart][zoneName];
-  if(bucket[itemText]){
-    delete bucket[itemText];
-  } else {
-    const initials = getInitials();
-    if(!initials){
-      showToast('Sign in first (top right)');
-      beginEditInitials();
-      renderZoneResetCard();
-      return;
-    }
-    bucket[itemText] = {initials, ts: Date.now()};
-    zrNoteZoneDone(daypart, zoneName);
-  }
-  recomputeChecklistHistory(today);
-  renderZoneResetCard();
-  await saveState();
-});
-
-// The last tick of a zone closes it and says what's left of the handoff
-// (Tim, Oct 18 2026), so nobody scrolls past a finished list.
-function zrNoteZoneDone(daypart, zoneName){
-  const {checked, total} = getZoneCompletion(today, daypart, zoneName);
-  if(!total || checked < total) return;
-  currentChecklistZone = '';
-  const left = ALL_ZONE_NAMES.filter(z => { const c = getZoneCompletion(today, daypart, z); return c.total && c.checked < c.total; });
-  const {title} = zrHandoffParts(daypart);
-  showToast(left.length ? `${zoneName} reset ✓ · ${left.length} zone${left.length === 1 ? '' : 's'} left` : `${title}: every zone reset ✓`);
-}
-
-// ----- The owner sheet: hand a zone's reset to someone -----
-// Lists everyone on the FOH roster during the handoff's daypart, with the
-// spot they're working; a tap hands them the zone (on top of whoever holds
-// its positions). "Back to the positions only" drops the hand-offs.
-let zrOwnerCtx = null;   // {date, handoff, zone, onChange}
-
-function zrOpenOwnerModal(date, handoffName, zone, onChange){
-  zrOwnerCtx = {date, handoff: handoffName, zone, onChange};
-  zrRenderOwnerModal();
-  document.getElementById('zrOwnerModal').classList.add('active');
-}
-
-function zrCloseOwnerModal(){
-  zrOwnerCtx = null;
-  document.getElementById('zrOwnerModal').classList.remove('active');
-}
-
-function zrRenderOwnerModal(){
-  if(!zrOwnerCtx) return;
-  const {date, handoff, zone} = zrOwnerCtx;
-  const o = zrZoneOwners(date, handoff, zone);
-  const {title} = zrHandoffParts(handoff);
-  document.getElementById('zrOwnerKicker').textContent = `${title} · reset`;
-  document.getElementById('zrOwnerZone').textContent = zone;
-  const dpIndex = o.dp ? fohDayparts.findIndex(d => d.name === o.dp.name) : -1;
-  const prefix = o.dp ? 'foh||' + date + '||' + o.dp.name + '||' : '';
-  const spotOf = name => {
-    if(!o.dp) return '';
-    const lo = name.trim().toLowerCase();
-    if(suSplitNames(posAssignments[prefix + SU_LEAD_CAPTAIN]).some(n => n.toLowerCase() === lo)) return 'Lead Captain';
-    const slot = (fohPositions[o.dp.name] || []).find(sl => suSplitNames(posAssignments[prefix + sl]).some(n => n.toLowerCase() === lo));
-    return slot || 'not placed';
-  };
-  let people = [];
-  if(dpIndex !== -1){
-    const {startMin, endMin} = daypartTimeWindow(fohDayparts, dpIndex);
-    people = (fohRoster[date] || []).filter(p => rosterOverlaps(p, startMin, endMin)).map(p => p.name);
-  }
-  const have = new Set(o.all.map(n => n.toLowerCase()));
-  people = people.filter(n => !have.has(n.trim().toLowerCase())).sort((a, b) => a.localeCompare(b));
-  const note = document.getElementById('zrOwnerNote');
-  note.textContent = o.all.length
-    ? `Owned by ${o.all.map(suDisplayName).join(', ')}. Pick someone to add; the position keeps it too.`
-    : `The position that owns this reset is open${o.dp ? ` in the ${suShortDaypart(o.dp.name)} set up` : ''}. Pick someone on the clock.`;
-  note.classList.toggle('is-none', !o.all.length);
-  document.getElementById('zrOwnerOptions').innerHTML = people.length
-    ? people.map(n => `<button type="button" class="pos-option" data-zr-pick="${escapeHtml(n)}"><span class="pos-option-who"><span class="pos-option-name">${escapeHtml(n)}</span></span><span class="pos-option-tag">${escapeHtml(spotOf(n))}</span></button>`).join('')
-    : `<div class="pos-option-empty">${o.dp ? 'Nobody else on the roster is here for this handoff' : 'No roster for this day yet'}</div>`;
-  document.getElementById('zrOwnerFoot').innerHTML = o.added.length ? `<button type="button" class="su-btn-line" data-zr-unhand="1">Back to the positions only</button>` : '';
-}
-
-document.getElementById('zrOwnerModal').addEventListener('click', async (e)=>{
-  if(!zrOwnerCtx) return;
-  if(e.target === e.currentTarget || e.target.closest('#zrOwnerClose')){ zrCloseOwnerModal(); return; }
-  const pick = e.target.closest('[data-zr-pick]');
-  const unhand = e.target.closest('[data-zr-unhand]');
-  if(!pick && !unhand) return;
-  const {date, handoff, zone, onChange} = zrOwnerCtx;
-  if(pick){
-    zrHandZone(date, handoff, zone, pick.dataset.zrPick);
-    showToast(`${suDisplayName(pick.dataset.zrPick)} has ${zone}`);
-  } else {
-    zrUnhandZone(date, handoff, zone);
-  }
-  zrCloseOwnerModal();
-  if(onChange) onChange();
-  await saveState();
-});
-
-function renderZoneResetScoreboard(){
-  const container = document.getElementById('zoneResetScoreboard');
-  // Walk back from today skipping Sundays (always closed) so all 6 bars are
-  // real open days, instead of a fixed 7-calendar-day window that wastes a
-  // slot on a day the store was never open.
-  const days = [];
-  const cursor = new Date();
-  const todayIso = toLocalISODate(cursor);
-  while(days.length < 6){
-    if(cursor.getDay() !== 0){
-      const iso = toLocalISODate(cursor);
-      const pct = zoneChecklistHistory[iso] ? zoneChecklistHistory[iso].overall : null;
-      // Today is labeled "Today" and stands out, so it's clear which bar is live.
-      const isToday = iso === todayIso;
-      days.push({label: isToday ? 'Today' : cursor.toLocaleDateString('en-US', {weekday: 'short'}).slice(0, 1), pct, isToday});
-    }
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  days.reverse();
-  container.innerHTML = days.map(d=>`
-    <div class="scoreboard-day ${d.pct !== null && d.pct >= 95 ? 'star' : ''} ${d.isToday ? 'is-today' : ''}"${d.isToday ? ' aria-current="date"' : ''}>
-      ${d.pct !== null && d.pct >= 95 ? '<div class="scoreboard-star">⭐</div>' : ''}
-      <div class="scoreboard-day-bar-wrap"><div class="scoreboard-day-bar" style="height:${d.pct || 0}%"></div></div>
-      <div class="scoreboard-day-pct">${d.pct !== null ? d.pct + '%' : '—'}</div>
-      <div class="scoreboard-day-label">${d.label}</div>
-    </div>
-  `).join('');
-}
-
-function renderZoneResetView(){
-  // The page opens on the handoff happening now (Tim, Oct 18 2026); once
-  // someone taps a handoff or a zone, their choice stays.
-  if(!zoneHandoffChosen) currentZoneDaypart = zrCurrentHandoff();
-  renderZoneResetCard();
-  renderZoneResetScoreboard();
-}
-
-
+// The Zone Resets page itself (the day, a handoff's zones, a zone's list on a
+// sheet, the owner sheet, the last six days) is zone-page.js, loaded with the
+// rest: Home and Set Ups only need what's above and the owners further down.
 
 products = wasteDefaultProducts();
 
@@ -618,6 +364,10 @@ const fohOEChecklistData = [
   ]}
 ];
 
+// The Leader Transition List is off the hub for now (Tim, Nov 23 2026: it
+// wasn't being used; back when leaders want it). Its items and what was
+// saved stay, so it can come back with its history: the three values below
+// are still loaded and saved as they are (storage.js, app.py STATE_SECTIONS).
 const fohLeaderTransitionItems = [
   'Review labor vs. guest count for next daypart',
   'Update communication board',
@@ -634,9 +384,8 @@ let fohOEStreak = 0;
 let fohOEChecked = {};
 let fohOECheckedDate = null;
 let fohLeaderTransitionChecked = {};
-// The Leader Transition list resets each day, so each day's count per
-// handoff is kept here for the weekly leader report (leader-report.js):
-// {date: {handoff: [checked, total]}}, a year of it.
+// Each day's count per handoff while the list was on the hub:
+// {date: {handoff: [checked, total]}}.
 let leaderTransitionHistory = {};
 let fohLeaderTransitionDate = null;
 
