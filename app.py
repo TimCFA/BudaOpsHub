@@ -3488,6 +3488,57 @@ def team_badges():
     recent.sort(key=lambda r: -r['at'])
     return _badges_reply({'recent': recent[:40], 'quarterLabel': badges.quarter_label(badges.quarter_of(_badges_today()))})
 
+# ===== HOME: EACH PERSON'S OWN (Tim, Nov 25 2026) =====
+# What someone keeps on their Home and in what order (right-now.js rnPrefs,
+# home-edit.js): one record a person under homePrefs/<Pass id> in Firebase,
+# never a saved-state section, so it never touches /api/state/sync. Only the
+# signed-in person's own, by name; the shared PINs carry no name and keep
+# the default. The ids are the page's (RN_ITEMS); the server only checks
+# their shape, so a section added later needs nothing here.
+HOME_PREFS_PATH = 'homePrefs'
+HOME_PREF_ID = re.compile(r'^[a-z]{2,16}$')
+HOME_PREF_MAX = 40
+
+def _home_pref_ids(v):
+    if not isinstance(v, list):
+        return None
+    out = []
+    for x in v[:HOME_PREF_MAX]:
+        if isinstance(x, str) and HOME_PREF_ID.match(x) and x not in out:
+            out.append(x)
+    return out
+
+def _home_me():
+    p = _pass_me()
+    return p if p and p.get('id') != 'director' and p.get('name') else None
+
+@app.route('/api/me/home', methods=['GET', 'POST'])
+def my_home():
+    p = _home_me()
+    if not p:
+        return _badges_reply({'error': 'Sign in with your own PIN to change your Home.'}, 403)
+    ref = db.reference(f"{HOME_PREFS_PATH}/{p['id']}")
+    if request.method == 'GET':
+        try:
+            got = ref.get()
+        except Exception as e:
+            print(f'[HOME] not read: {type(e).__name__}')
+            return _badges_reply({'error': 'Couldn’t load your Home.'}, 503)
+        got = got if isinstance(got, dict) else {}
+        return _badges_reply({'order': _home_pref_ids(got.get('order')) or [], 'hidden': _home_pref_ids(got.get('hidden')) or [],
+                              'at': int(got.get('at') or 0)})
+    body = request.get_json(silent=True) or {}
+    order, hidden = _home_pref_ids(body.get('order')), _home_pref_ids(body.get('hidden'))
+    if order is None or hidden is None:
+        return _badges_reply({'error': 'That isn’t a Home layout.'}, 400)
+    rec = {'order': order, 'hidden': hidden, 'at': int(time.time() * 1000), 'name': p['name']}
+    try:
+        ref.set(rec)
+    except Exception as e:
+        print(f'[HOME] not saved: {type(e).__name__}')
+        return _badges_reply({'error': 'Couldn’t save. Try again.'}, 503)
+    return _badges_reply({'ok': True, 'order': order, 'hidden': hidden, 'at': rec['at']})
+
 # ===== START SERVER =====
 
 if __name__ == '__main__':

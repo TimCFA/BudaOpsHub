@@ -2027,6 +2027,40 @@ body.launch-mode #sbStreakGrid .streak-display{width:100%;max-width:200px;justif
 .rn-cta .es-line{font-family:var(--font-display);font-style:italic;font-size:13px;color:rgba(255,255,255,.88);}
 .rn-cta:focus-visible{outline:2px solid var(--text-primary);outline-offset:2px;}
 
+/* Edit Home (home-edit.js; Tim, Nov 25 2026): a quiet link under the card,
+   and a sheet of the person's sections, each with up / down arrows and a
+   switch. On is ink ("selected"); nothing here is red but the one button. */
+.rn-edit{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;min-height:44px;margin:2px 0 8px;padding:6px 12px;border:0;background:transparent;color:var(--cfa-navy);font-family:var(--font-ui);font-size:13.5px;font-weight:700;cursor:pointer;border-radius:12px;}
+.rn-edit .es{color:var(--text-secondary);font-weight:600;}
+.rn-edit:hover{background:var(--inset-faint);}
+.he-sheet{border-radius:22px 22px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));max-width:520px;max-height:100%;overflow-y:auto;font-family:var(--font-ui);}
+@media (min-width:600px){ .he-sheet{border-radius:22px;} }
+.he-sheet .he-title{margin:0;font-family:var(--font-display);font-weight:600;font-size:22px;line-height:1.15;color:var(--text-primary);text-transform:none;letter-spacing:0;}
+.he-sub{margin:6px 0 12px;font-size:13.5px;line-height:1.45;color:var(--text-secondary);}
+.he-sub .es{display:block;margin-top:2px;}
+.he-fixed{display:flex;align-items:center;gap:8px;margin:0 0 10px;padding:10px 12px;border-radius:12px;background:var(--inset-faint);border:1px solid var(--inset-line);font-size:13px;font-weight:600;color:var(--text-secondary);}
+.he-fixed svg{flex:none;color:var(--cfa-navy);}
+.he-list{list-style:none;margin:0 0 14px;padding:0;border:1px solid var(--inset-line);border-radius:14px;overflow:hidden;background:var(--cfa-white);}
+.he-row{display:flex;align-items:center;gap:8px;min-height:56px;padding:6px 8px 6px 14px;border-top:1px solid var(--inset-line);}
+.he-list > li:first-child{border-top:0;}
+.he-name{flex:1;min-width:0;font-size:15px;font-weight:700;line-height:1.2;color:var(--text-primary);}
+.he-name .es{display:block;font-weight:500;}
+.he-row.is-off .he-name{color:var(--text-tertiary);}
+.he-move{display:flex;gap:2px;}
+.he-arrow{width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:10px;background:var(--inset);color:var(--text-primary);cursor:pointer;}
+.he-arrow:disabled{opacity:.3;cursor:default;}
+.he-arrow:not(:disabled):hover{background:var(--inset-strong);}
+.he-switch{flex:none;position:relative;width:50px;height:30px;margin-left:4px;border:0;border-radius:999px;background:var(--inset-track);cursor:pointer;padding:0;transition:background .15s;}
+.he-switch i{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:999px;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .15s;}
+.he-switch[aria-checked="true"]{background:var(--text-primary);}
+.he-switch[aria-checked="true"] i{transform:translateX(20px);}
+.he-fold{display:flex;flex-direction:column;gap:1px;padding:10px 14px;border-top:1px solid var(--inset-line);background:var(--inset);font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--eyebrow);}
+.he-fold small{font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--text-secondary);}
+.he-done{width:100%;}
+.he-reset{display:block;margin:8px auto 0;min-height:44px;padding:6px 12px;border:0;background:transparent;font:inherit;font-size:13.5px;font-weight:700;color:var(--cfa-navy);cursor:pointer;}
+.he-reset:disabled{opacity:.4;cursor:default;}
+@media (prefers-reduced-motion: reduce){ .he-switch, .he-switch i{transition:none;} }
+
 /* A press shows; a pointer over something that opens shows too */
 .rn-row.is-go:active{background:var(--cfa-soft);}
 @media (hover:hover){

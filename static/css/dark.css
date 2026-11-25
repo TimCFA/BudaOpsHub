@@ -89,3 +89,5 @@ html[data-theme="dark"] .su-side-opt.is-on,
 html[data-theme="dark"] .su-side-opt.is-on i,
 html[data-theme="dark"] .launch-subnav[aria-label="Lists"] .launch-pill.active,
 html[data-theme="dark"] .launch-subnav[aria-label="Lists"] .launch-pill.active span{color:#121418;}
+html[data-theme="dark"] .he-switch[aria-checked="true"] i{background:#142238;}   /* Edit Home: the knob stays seen on the light "on" track */
+html[data-theme="dark"] .rn-edit,html[data-theme="dark"] .he-reset,html[data-theme="dark"] .he-fixed svg{color:var(--text-primary);}

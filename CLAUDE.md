@@ -135,6 +135,28 @@ undoing one. Home is drawn in the first seconds of a load
 (`tests/test_first_load.py`), so anything new waits for the late scripts or
 is measured first.
 
+## Edit Home
+
+Each person picks what shows on their own Home (Tim, Nov 25 2026, from the
+proposal he approved): "Edit Home" under the card (and on the Me page)
+opens a sheet of their sections, each with a switch and up / down arrows
+(no dragging on a phone) and Reset to default (`static/js/home-edit.js`;
+the model is "Each person's own Home" in right-now.js, `RN_LAYOUTS` per
+role and `rnItemOf`, which puts each line in a section by where it taps
+through to). Fixed for everyone: the greeting, the quote, the banner, a new
+hire's card, the way to sign in. A hidden line that needs someone (tone
+`bad` / `flag`) shows anyway. A director's list has a "More about today"
+line: what sits below it folds. Nothing changes for someone who never
+opens it (an empty order is the card's own order); a section added later
+shows in its default place (`rnOrderOf`). Only someone signed in by name as
+themselves (`rnMayEdit`): not the shared PINs, a signed-out device or View
+as. Kept on the phone first (`hubHomePrefs`, marked unsent) and sent to
+`/api/me/home`, one record a person under `homePrefs/<Pass id>` in Firebase,
+never a saved-state section; the server's copy wins once nothing is unsent.
+A new line on the card needs a section in `rnItemOf` and on its role's list
+(the tests check). Kitchen side carries Spanish (glossary). Tests:
+`tests/test_home_edit.py`.
+
 ## Zone Resets
 
 The Zone Resets page under Lists (`static/js/zone-page.js`, "Zone Resets: the
