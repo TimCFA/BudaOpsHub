@@ -209,6 +209,10 @@ html[data-theme="dark"]{--cfa-white:#1D1D1D;--cfa-bg:#24262A;--cfa-light:#212426
 :where(html[data-theme="dark"]) .rn-tile.is-flag .rn-tile-d{color:var(--ink-dark-red);}
 :where(html[data-theme="dark"]) .rn-new-day b{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .rn-pea-cell{border-top:4px solid rgba(41,41,41,0.4);background:rgba(29,29,29,0.1);}
+:where(html[data-theme="dark"]) .rn-edit{color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .he-fixed svg{color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .he-switch i{background:#1D1D1D;}
+:where(html[data-theme="dark"]) .he-reset{color:var(--ink-navy);}
 @media (hover:hover){
   :where(html[data-theme="dark"]) .rn-tile.is-go:hover .rn-tile-go{color:var(--ink-navy);}
   :where(html[data-theme="dark"]) .rn-hero.is-go:hover .rn-hero-go{background:rgba(29,29,29,0.32);}
