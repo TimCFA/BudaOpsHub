@@ -25,6 +25,19 @@ import json
 
 MAX_PATH_DEPTH = 24
 
+# Keys saved whole, never change by change (static/js/state-patch.js
+# STATE_WHOLE_KEYS): their lists point into each other by position
+# (peaRatings rows hold the index of a name, role and position), so two
+# pages' item-by-item changes merged into rows pointing at the wrong people
+# (Nov 2026). A change inside one (a page on older code) is dropped by app.py
+# and the page gets the section back.
+WHOLE_KEYS = ('peaRatings',)
+
+
+def inside_whole_key(op):
+    """True for a change to part of a key that is only ever saved whole."""
+    return op['p'][0] in WHOLE_KEYS and len(op['p']) > 1
+
 
 class PatchError(ValueError):
     pass

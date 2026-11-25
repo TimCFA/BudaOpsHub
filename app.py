@@ -32,7 +32,7 @@ from js_trim import trim_js
 import pea_mine
 from reports_parser import parse_report_file, ReportParseError
 import levelset_sync
-from state_patch import PatchError, _identity, apply_ops, canon, check_ops, union_merge
+from state_patch import PatchError, _identity, apply_ops, canon, check_ops, inside_whole_key, union_merge
 import setup_feed
 import briefing_feed
 
@@ -2550,6 +2550,12 @@ def state_patch():
                     allowed = [op for op in ops if _may_change(op['p'][0])]
                     if len(allowed) != len(ops):
                         dropped, ops = True, allowed
+                if any(inside_whole_key(op) for op in ops):
+                    # A page on older code merging PEA rows item by item:
+                    # dropped (it scrambles whose rating is whose), and the
+                    # page gets the section back.
+                    print('[STATE PATCH] dropped partial changes to ' + ', '.join(sorted({op['p'][0] for op in ops if inside_whole_key(op)})))
+                    dropped, ops = True, [op for op in ops if not inside_whole_key(op)]
                 if who:
                     ops = _stamp_ops(ops, entry['data'], who)
                 if dropped or patch.get('ver') != entry['ver']:

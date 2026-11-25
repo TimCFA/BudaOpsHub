@@ -24,6 +24,10 @@ COLUMNS = ['date', 'employee', 'role', 'leader', 'position',
            'c1', 'c2', 'c3', 'c4', 'c5', 'overall']
 HEADER_LABELS = ['Date', 'Employee', 'Employee Role', 'Leader', 'Position',
                  'Criteria 1', 'Criteria 2', 'Criteria 3', 'Criteria 4', 'Criteria 5', 'Overall']
+# Levelset's newer export (Nov 2026) heads two columns "Team member" and
+# "Role", and names the areas in full.
+HEADER_ALIASES = {'Team member': 'Employee', 'Team Member': 'Employee', 'Role': 'Employee Role'}
+AREA_NAMES = {'FRONT OF HOUSE': 'FOH', 'BACK OF HOUSE': 'BOH'}
 DATE_RE = re.compile(r'^\d{1,2}/\d{1,2}/\d{2}$')
 SCORE_RE = re.compile(r'^[1-3]\.\d\d$')
 
@@ -108,7 +112,8 @@ def _column_bounds(words):
     top = overall[0]['top']
     header = _phrases([w for w in words if abs(w['top'] - top) < 3])
     # Criteria numbering isn't checked: it's where a misread digit would show.
-    labels = [re.sub(r'^Criteria\s*\S*$', 'Criteria', h['text']) for h in header]
+    labels = [HEADER_ALIASES.get(h['text'], h['text']) for h in header]
+    labels = [re.sub(r'^Criteria\s*\S*$', 'Criteria', l) for l in labels]
     if labels != [re.sub(r'^Criteria \d$', 'Criteria', l) for l in HEADER_LABELS]:
         raise PeaParseError(
             "This doesn't look like a Levelset Positional Excellence Ratings report "
@@ -142,7 +147,7 @@ def _summary(words):
             out['rangeEnd'] = datetime.strptime(m.group(2), '%m/%d/%Y').strftime('%Y-%m-%d')
         m = re.match(r'^Areas:\s*(.+)$', t)
         if m:
-            out['areas'] = [a.strip().upper() for a in m.group(1).split(',') if a.strip()]
+            out['areas'] = [AREA_NAMES.get(a.strip().upper(), a.strip().upper()) for a in m.group(1).split(',') if a.strip()]
         m = re.match(r'^(\d+)\s+(\d\.\d\d)\s+[\d.]+$', t)
         if m and 'count' not in out:
             out['count'] = int(m.group(1))

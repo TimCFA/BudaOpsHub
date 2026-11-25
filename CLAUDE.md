@@ -342,6 +342,13 @@ leader's) and keeps it in memory only (`peaLead` in pea-ratings.js), never in
 reads goes through `peaShown()` / `peaAliasesShown()`, not `peaRatings`
 directly. Tests: `tests/test_lead_pea.py`.
 
+The saved ratings (`peaRatings`) always save whole, never change by change
+(`STATE_WHOLE_KEYS` in state-patch.js, `WHOLE_KEYS` in state_patch.py; Nov 24
+2026): each row points at its person, rater, role and position by their place
+in the lists beside it, and merging two phones' item-by-item changes left rows
+pointing at the wrong people. A list that points into another by position goes
+on those keys too. Tests: `tests/test_pea_whole_save.py`.
+
 ## View as
 
 Tim, and only Tim, can see the hub as each level sees it (`static/js/view-as.js`,
