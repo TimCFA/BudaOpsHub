@@ -62,7 +62,19 @@ function stateDiffList(b, m, path, ops){
   ops.push(op);
 }
 
+// Keys saved whole, never change by change: their lists point into each
+// other by position (peaRatings: each row holds the index of its person,
+// rater, role and position in the names / roles / positions lists), so
+// merging two pages' item-by-item changes left rows pointing at the wrong
+// people (Nov 2026: Hallie showed someone else's Machines and Secondary,
+// Tim showed PEAs given by him as PEAs on him). state_patch.py WHOLE_KEYS.
+const STATE_WHOLE_KEYS = ['peaRatings'];
+
 function stateDiffInto(b, m, path, ops){
+  if(path.length === 1 && STATE_WHOLE_KEYS.includes(path[0])){
+    if(stateCanon(b) !== stateCanon(m)) ops.push({o: 'set', p: path, v: m});
+    return;
+  }
   if(stateIsObj(b) && stateIsObj(m)){
     Object.keys(b).forEach(k => { if(!stateHas(m, k)) ops.push({o: 'del', p: path.concat(k)}); });
     Object.keys(m).forEach(k=>{
