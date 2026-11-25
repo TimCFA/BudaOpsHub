@@ -53,6 +53,20 @@ class NotHereYet(unittest.TestCase):
         self.assertIn("${x.coming ? 'is-coming' : ''}", sheet)
         self.assertIn("if([...document.querySelectorAll('#allDayparts [data-su-arrives]')].some(el => +el.dataset.suArrives <= mins)){ renderAllDayparts(); return; }", sheet)
 
+    def test_the_row_stripe_never_paints_over_the_amber(self):
+        """Every second "arrives" row went pale blue (Tim, Nov 25 2026): the
+        stripe came later in the stylesheet and weighed the same."""
+        import re
+        with open(os.path.join(ROOT, 'static', 'css', 'theme-cfa.css'), encoding='utf-8') as f:
+            css = re.sub(r'/\*.*?\*/', '', f.read(), flags=re.S)
+        amber = '#allDayparts .su-sheet-list .su-rowwrap.is-coming{background:var(--warn-fill);border-color:var(--warn-line);}'
+        self.assertIn(amber, css)
+        stripes = [sel.strip() for rule in re.findall(r'([^{}]+)\{[^{}]*background[^{}]*\}', css) for sel in rule.split(',')
+                   if re.search(r'\.su-rowwrap[^ ]*:nth-child\([^)]*\)[^ ]*$', sel.strip())]
+        self.assertTrue(stripes)
+        for sel in stripes:
+            self.assertIn(':not(.is-coming)', sel, sel)
+
 
 if __name__ == '__main__':
     unittest.main()
