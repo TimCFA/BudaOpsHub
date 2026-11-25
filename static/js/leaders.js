@@ -336,7 +336,7 @@ function ldTeamBar(S){
     <div class="ld-team-head"><b>${S.total}</b><span>of ${S.goals.team} PEAs · ${escapeHtml(S.quarter.label)}</span>${ldStatusChip(S.teamStatus)}</div>
     <div class="ld-bar"><i style="width:${pct.toFixed(1)}%"></i>${S.current ? `<u style="left:${mark.toFixed(1)}%" title="Today"></u>` : ''}</div>
     <p class="dir-note">${S.over ? `The quarter is closed.` : `${Math.floor(S.expected)} expected by today · ${ldPlural(S.weeksLeft, 'week')} left`}${S.leaders.length ? ` · ${S.done} of ${ldPlural(S.leaders.length, 'leader')} at ${S.goals.leader}` : ''}${Object.keys(S.byDirector).length ? ` · by director: ${escapeHtml(ldByDirectorText(S.byDirector))}` : ''}</p>
-    ${S.noDirectorMatch ? `<p class="dir-flag-text">${DIR_ICON_WARN} No rating this quarter has a director as its rater. Check the names in Manage → Settings → Directors match Levelset’s.</p>` : ''}
+    ${S.noDirectorMatch ? `<p class="dir-flag-text">${DIR_ICON_WARN} No rating this quarter has a director as its rater. Check the names in Manage → Team list match Levelset’s.</p>` : ''}
   </div>`;
 }
 
@@ -370,9 +370,9 @@ function ldOverviewHtml(){
   const S = ldScore();
   return `
     ${typeof ldiCardHtml === 'function' && ldiOpen ? ldiCardHtml() : ''}
-    <section class="dir-card"><h3>PEA scoreboard</h3><p class="dir-note">The PEAs the directors have completed on each leader: one Levelset positional rating with a director as the rater, from Manage → PEA. The goal is ${S.goals.team} a quarter across the leaders and ${S.goals.leader} on each; change either in Manage → Settings → Leaders.</p>${ldTeamBar(S)}</section>
+    <section class="dir-card"><h3>PEA scoreboard</h3><p class="dir-note">The PEAs the directors have completed on each leader: one Levelset positional rating with a director as the rater, from Manage → Levelset. The goal is ${S.goals.team} a quarter across the leaders and ${S.goals.leader} on each; change either in Manage → Levelset.</p>${ldTeamBar(S)}</section>
     ${S.leaders.length ? `<div class="ld-grid">${S.leaders.map(L => ldLeaderCard(L, S)).join('')}</div>`
-      : '<p class="dir-empty">No leaders yet. Add them in Manage → Settings → Leaders, or sync Levelset in Manage → PEA and anyone who gives a PEA shows here.</p>'}`;
+      : '<p class="dir-empty">No leaders yet. Add them in Manage → Team list, or sync Levelset in Manage → Levelset and anyone who gives a PEA shows here.</p>'}`;
 }
 
 // The week-by-week bars of the quarter.
@@ -462,7 +462,7 @@ function ldProfileHtml(){
       ${ldPillar && lsTagged.some(x => x.pillars.includes(ldPillar)) ? `<div class="ls-evidence"><h4>From Levelset · ${escapeHtml(ldPillarLabel(ldPillar))} <em class="ld-pill">Directors only</em></h4><ul class="ls-excerpts">${lsTagged.filter(x => x.pillars.includes(ldPillar)).sort((a, b) => b.date.localeCompare(a.date)).map(x => `<li class="ls-excerpt"><q>${escapeHtml(x.text)}</q><span class="ls-excerpt-meta"><small class="dir-muted">${escapeHtml(ldDateY(x.date))}${x.position ? ` · ${escapeHtml(x.position)}` : ''}${x.leader ? ` · ${escapeHtml(ldShort(x.leader))}` : ''}</small></span></li>`).join('')}</ul></div>` : ''}
       <div class="dir-two ld-wins"><div><h4>You are winning when</h4><ul>${card.win.map(w => `<li>${escapeHtml(w)}</li>`).join('')}</ul></div><div><h4>Expected actions</h4><ul>${card.actions.map(w => `<li>${escapeHtml(w)}</li>`).join('')}</ul></div></div>
       ${untagged ? `<p class="dir-note">${ldPlural(untagged, 'note')} not tagged to a pillar yet. Use “Tag” on a note.</p>` : ''}
-      ${!L.roles.length ? '<p class="dir-note">Set this leader’s PEC role in Manage → Settings → Leaders and their role card shows here too.</p>' : ''}
+      ${!L.roles.length ? '<p class="dir-note">Set this leader’s PEC role in Manage → Team list and their role card shows here too.</p>' : ''}
     </section>
     <section class="dir-card"><h3>Quarter by quarter</h3>
       <table class="ld-history"><thead><tr><th>Quarter</th><th>Director PEAs</th><th>Notes</th><th>Focus</th></tr></thead><tbody>${history.map(h => `<tr class="${h.q === ldQuarterOn() ? 'is-on' : ''}"><td><button type="button" class="ld-link" data-ld-quarter="${h.q}">${escapeHtml(h.b.label)}</button></td><td>${h.peas}${h.peas >= S.goals.leader ? ` ${LD_ICON_TROPHY}` : ''}</td><td>${h.notes}</td><td>${h.focus ? ldPlural(h.focus, 'item') : '—'}</td></tr>`).join('')}</tbody></table>

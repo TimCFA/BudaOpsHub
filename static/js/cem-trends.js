@@ -3,7 +3,7 @@
 // plain JS/DOM template rendering to match this app's pattern (no React/JSX/build step
 // anywhere else here — see trainer-trial.js) and persisted through this app's real
 // Firebase-backed saveState()/loadState(). cemEntries is the one master copy
-// of CEM (TIM-46): every import — here or through Manage → Data Uploads —
+// of CEM (TIM-46): every import — here or through Manage → Uploads —
 // also points the Guest Obsession scoreboard at the latest month logged
 // (cemSyncScoreboard in data-uploads.js).
 // Function/constant names use a CT_/ct prefix.
@@ -577,7 +577,7 @@ function ctDeltaHtml(value, benchmark){
 
 function ctRenderScoreboardTab(){
   const periods = ctPeriods();
-  if(periods.length === 0) return `<div class="ct-empty">No data yet. Upload a CEM Comparison Report in Manage → Data Uploads.</div>`;
+  if(periods.length === 0) return `<div class="ct-empty">No data yet. Upload a CEM Comparison Report in Manage → Uploads.</div>`;
   if(!cemSelPeriod || !periods.find((p) => p.periodKey === cemSelPeriod)) cemSelPeriod = periods[periods.length-1].periodKey;
   const segmentsForView = ctSegmentsForView(cemSelPeriod, cemSelView);
   if(cemSelView !== 'total' && segmentsForView.length > 0 && !segmentsForView.includes(cemSelSegment)) cemSelSegment = segmentsForView[0];
@@ -781,7 +781,7 @@ function ctRenderDataTab(){
   let html = `
     <div class="ct-import-box">
       <h3>Adding CEM data</h3>
-      <p class="ct-hint">Upload each CEM Comparison Report once in <b>Manage → Data Uploads</b> — this month to date, by Time of Day and by Day of Visit. It updates these trends and the Guest Obsession scoreboard together. Rows below can be removed if one was logged by mistake.</p>
+      <p class="ct-hint">Upload each CEM Comparison Report once in <b>Manage → Uploads</b> — this month to date, by Time of Day and by Day of Visit. It updates these trends and the Guest Obsession scoreboard together. Rows below can be removed if one was logged by mistake.</p>
     </div>
     <div class="ct-table-wrap">
       <h3>Logged data</h3>

@@ -155,7 +155,7 @@ function rlListHtml(){
     <div class="rl-head"><h2 class="rl-title">Roles</h2><p class="rl-sub">Each Team Lead role: who holds it, how it’s going this week, and what’s left to do.</p></div>
     ${mine.length ? `<h3 class="rl-h">Your role${mine.length > 1 ? 's' : ''}</h3><div class="rl-grid">${mine.map(k => rlTileHtml(k, true)).join('')}</div><h3 class="rl-h">Every role</h3>` : ''}
     <div class="rl-grid">${rest.map(k => rlTileHtml(k, false)).join('')}</div>
-    <p class="rl-hint">Who holds each role is set on the team list (Manage → Directors), each Team Lead’s focus.</p>`;
+    <p class="rl-hint">Who holds each role is set on the team list (Manage → Team list), each Team Lead’s focus.</p>`;
 }
 
 function rlRoleHtml(key){

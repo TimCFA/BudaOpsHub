@@ -1217,12 +1217,57 @@ body:not(.is-manager) .manager-only{display:none !important;}
 .pos-option.more-option{justify-content:center;font-weight:700;color:var(--cfa-navy);}
 .pos-option-hint{font-size:13px;}
 
-/* Manage (Tim, Oct 2026): one section at a time, picked by the chips, which
-   stay put while the section scrolls. */
-.manage-tabs{position:sticky;top:0;z-index:3;display:flex;gap:8px;overflow-x:auto;padding:8px 0 12px;margin:0 0 4px;background:var(--cfa-bg);scrollbar-width:none;-webkit-overflow-scrolling:touch;}
-.manage-tabs::-webkit-scrollbar{display:none;}
-.manage-tab{flex:0 0 auto;min-height:40px;padding:8px 16px;border:1px solid var(--border);border-radius:20px;background:var(--cfa-white);font-family:var(--font-ui);font-size:14px;font-weight:600;color:var(--text-primary);cursor:pointer;white-space:nowrap;}
-.manage-tab.active{background:var(--cfa-navy);border-color:var(--cfa-navy);color:#fff;}
+/* Manage in the Hub's language (Tim, Nov 24 2026; manage-and-import.js): the
+   Hub's title, its small-caps group labels and its white rows with a pale blue
+   icon tile, one row a section with a line of what's there. A phone shows the
+   list, then one section with a way back; from 960px the list stays on the
+   left and the open section's row is ink (ink is "selected"). */
+.mg-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:4px 2px 16px;}
+.mg-head .mg-lock{width:auto;margin:0;padding:8px 16px;font-size:12px;flex:none;}
+.mg-index .hub-grp{margin-bottom:18px;}
+.mg-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:auto auto;column-gap:12px;align-items:center;width:100%;min-height:60px;margin:0 0 8px;padding:10px 12px;border:1px solid var(--border);border-radius:14px;background:var(--cfa-white);box-shadow:var(--card-shadow,none);color:var(--text-primary);font-family:var(--font-ui);text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.mg-row::after{content:"";grid-column:3;grid-row:1 / span 2;width:8px;height:8px;margin-right:4px;border-right:2px solid var(--text-tertiary);border-top:2px solid var(--text-tertiary);transform:rotate(45deg);}
+.mg-row .hub-ic{grid-row:1 / span 2;}
+.mg-row:active{transform:scale(.99);}
+.mg-row:focus-visible{outline:2px solid var(--cfa-navy);outline-offset:2px;}
+.mg-lb{grid-column:2;font-size:15px;font-weight:700;line-height:1.2;}
+.mg-sub{grid-column:2;font-size:12.5px;line-height:1.3;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mg-sub.is-due{color:var(--cfa-red);font-weight:600;}
+.mg-sub.is-done{color:var(--good-ink);}
+.mg-row.active{background:var(--text-primary);border-color:var(--text-primary);color:var(--cfa-white);}
+.mg-row.active .mg-sub{color:var(--cfa-white);opacity:.8;}
+.mg-row.active .mg-sub.is-due{color:var(--cfa-white);opacity:1;}
+.mg-row.active .hub-ic{background:transparent;color:var(--cfa-white);}
+.mg-row.active::after{border-color:var(--cfa-white);}
+.mg-back{display:inline-flex;align-items:center;gap:4px;min-height:44px;margin:0 0 8px -6px;padding:0 12px 0 4px;border:0;border-radius:999px;background:transparent;color:var(--cfa-navy);font-family:var(--font-ui);font-size:15px;font-weight:700;cursor:pointer;}
+.mg-back:focus-visible{outline:2px solid var(--cfa-navy);outline-offset:2px;}
+/* A phone: the list, or one section. */
+#manageContent .mg-pane{display:none;}
+#manageContent.mg-open .mg-pane{display:block;}
+#manageContent.mg-open .mg-index,#manageContent.mg-open .mg-head{display:none;}
+@media (min-width:960px){
+  .mg-layout{display:grid;grid-template-columns:280px minmax(0,1fr);gap:24px;align-items:start;}
+  #manageContent .mg-pane{display:block;}
+  #manageContent.mg-open .mg-index,#manageContent.mg-open .mg-head{display:block;}
+  #manageContent.mg-open .mg-head{display:flex;}
+  .mg-index{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow-y:auto;padding:2px;}
+  .mg-row{min-height:52px;margin-bottom:6px;grid-template-columns:auto minmax(0,1fr);}
+  .mg-row::after{display:none;}
+  .mg-sub{white-space:normal;}
+  .mg-back{display:none;}
+}
+/* Inside a section: Home's pale blue for a field's box, the theme's fonts. */
+.mg-h4{margin:20px 0 10px;font-family:var(--font-ui);font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--eyebrow,var(--cfa-navy));}
+.mg-field{margin-bottom:12px;padding:14px;border:1px solid var(--inset-line);border-radius:14px;background:var(--inset);}
+.mg-field-lb{margin-bottom:8px;font-family:var(--font-ui);font-size:13px;font-weight:700;color:var(--text-primary);}
+.mg-field-help{margin:-4px 0 10px;font-size:12px;line-height:1.45;color:var(--text-secondary);}
+.mg-area{display:block;width:100%;box-sizing:border-box;min-height:64px;margin:0 0 8px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--cfa-white);font-family:var(--font-ui);font-size:14px;line-height:1.45;color:var(--text-primary);resize:vertical;}
+.mg-area:last-child{margin-bottom:0;}
+.mg-area:focus{outline:none;border-color:var(--text-primary);}
+.mg-win{margin-bottom:10px;}
+.mg-win:last-child{margin-bottom:0;}
+.mg-win-who{margin-bottom:6px;font-size:13px;font-weight:700;}
+.mg-win-who span{font-weight:500;color:var(--text-secondary);}
 .manage-group{display:none;border:0;background:transparent;margin:0;overflow:visible;}
 .manage-group.is-active{display:block;}
 .manage-group .manage-group-body{display:block;padding:0;background:transparent;}

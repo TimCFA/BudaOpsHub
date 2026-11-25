@@ -108,7 +108,7 @@ function renderTeamList(){
   root.innerHTML = `
     ${tlError ? `<p class="tl-error" role="alert">${escapeHtml(tlError)}</p>` : ''}
     ${loaded ? '' : '<p class="dir-empty">Loading the PIN list…</p>'}
-    ${loaded && !rows.some(r => r.kind === 'pin') ? '<p class="dir-empty">No clock-in PIN list yet: upload the store’s PIN report in Settings → Accounts and everyone shows here.</p>' : ''}
+    ${loaded && !rows.some(r => r.kind === 'pin') ? '<p class="dir-empty">No clock-in PIN list yet: upload the store’s PIN report in Manage → Settings → Accounts and everyone shows here.</p>' : ''}
     ${banner}
     <div class="tl-tools">
       <input type="search" class="tl-search" placeholder="Find someone" value="${escapeHtml(tlSearch)}" data-tl-search aria-label="Find someone">

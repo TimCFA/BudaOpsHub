@@ -403,39 +403,40 @@ async function saveTXScoreboard(quiet){
   if(!quiet) showToast('✓ TX Scoreboard Updated');
 }
 
+// Manage → Home (Tim, Nov 24 2026): what Home shows comes first; the vision,
+// mission, values and wins are off Home since Nov 18 and are kept below for a
+// page of their own later. The fields wear the theme's pale blue inset.
 function renderHomeManage(){
   const homeManageList = document.getElementById('homeManageList');
+  const area = (id, value, rows, extra) => `<textarea id="${id}" class="mg-area" rows="${rows}"${extra || ''}>${escapeHtml(value || '')}</textarea>`;
   homeManageList.innerHTML = `
-    <div style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;">
-      <div style="font-weight:600;font-size:12px;color:var(--text-primary);margin-bottom:10px;">Vision</div>
-      <textarea id="home-vision" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:'Inter';font-size:12px;resize:vertical;min-height:80px;">${escapeHtml(homeData.vision)}</textarea>
+    <div class="mg-field">
+      <div class="mg-field-lb">New hires: what to know before a shift</div>
+      <div class="mg-field-help">Shown on Home to anyone in their first 30 days, one line each: uniform, where to park, when to arrive. The Spanish shows to the kitchen's new hires.</div>
+      <textarea id="home-newhire-en" class="mg-area" rows="3" placeholder="One line each">${escapeHtml((homeData.newHire || {}).en || '')}</textarea>
+      <textarea id="home-newhire-es" class="mg-area" rows="3" lang="es" placeholder="En español, una línea cada una">${escapeHtml((homeData.newHire || {}).es || '')}</textarea>
     </div>
 
-    <div style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;">
-      <div style="font-weight:600;font-size:12px;color:var(--text-primary);margin-bottom:10px;">Mission</div>
-      <textarea id="home-mission" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:'Inter';font-size:12px;resize:vertical;min-height:80px;">${escapeHtml(homeData.mission)}</textarea>
+    <h4 class="mg-h4">Not on Home now</h4>
+    <div class="mg-field">
+      <div class="mg-field-lb">Vision</div>
+      ${area('home-vision', homeData.vision, 4)}
     </div>
-
-    <div style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;">
-      <div style="font-weight:600;font-size:12px;color:var(--text-primary);margin-bottom:10px;">Values</div>
-      <textarea id="home-values" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:'Inter';font-size:12px;resize:vertical;min-height:100px;">${escapeHtml(homeData.values)}</textarea>
+    <div class="mg-field">
+      <div class="mg-field-lb">Mission</div>
+      ${area('home-mission', homeData.mission, 4)}
     </div>
-
-    <div style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;">
-      <div style="font-weight:600;font-size:12px;color:var(--text-primary);margin-bottom:4px;">New hires: what to know before a shift</div>
-      <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Shown on Home to anyone in their first 30 days, one line each: uniform, where to park, when to arrive. The Spanish shows to the kitchen's new hires.</div>
-      <textarea id="home-newhire-en" placeholder="One line each" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:'Inter';font-size:12px;resize:vertical;min-height:80px;margin-bottom:8px;">${escapeHtml((homeData.newHire || {}).en || '')}</textarea>
-      <textarea id="home-newhire-es" lang="es" placeholder="En español, una línea cada una" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:'Inter';font-size:12px;resize:vertical;min-height:80px;">${escapeHtml((homeData.newHire || {}).es || '')}</textarea>
+    <div class="mg-field">
+      <div class="mg-field-lb">Values</div>
+      ${area('home-values', homeData.values, 5)}
     </div>
-
-    <div style="background:var(--cfa-light);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
-      <div style="font-weight:600;font-size:12px;color:var(--text-primary);margin-bottom:12px;">Monthly Leadership Wins</div>
+    <div class="mg-field">
+      <div class="mg-field-lb">Monthly Leadership Wins</div>
       ${homeData.wins.map((win, i) => `
-        <div style="background:white;padding:10px;border-radius:6px;border:1px solid var(--border);margin-bottom:8px;">
-          <div style="font-weight:600;font-size:11px;color:var(--text-secondary);margin-bottom:6px;">${escapeHtml(win.name)} (${escapeHtml(win.role)})</div>
-          <textarea id="home-win-${i}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;font-family:'Inter';font-size:11px;resize:vertical;min-height:60px;">${escapeHtml(win.content)}</textarea>
-        </div>
-      `).join('')}
+        <div class="mg-win">
+          <div class="mg-win-who">${escapeHtml(win.name)} <span>${escapeHtml(win.role)}</span></div>
+          ${area('home-win-' + i, win.content, 3)}
+        </div>`).join('')}
     </div>
   `;
 }

@@ -85,6 +85,19 @@ colour is on its number badge. Zone Resets has its own page since Nov 23 2026 (s
 its own look (Tim's call); Home got its own redesign on Nov 21 2026 (see
 Home), on the same colour meanings. Tests: `tests/test_bottom_nav.py`.
 
+## Manage
+
+Manage speaks the Hub's language (Tim, Nov 24 2026: "ensure the manage tab
+accommodates the new layout"; manage-and-import.js, "Manage in the Hub's
+language" in theme-cfa.css): its twelve sections are rows under the Hub's
+four groups (Run the shift, People, Numbers, Admin), each named as its page
+is named everywhere (`PAGES`); Team list, Levelset, Guest Obsession, TX and
+LX, Uploads, Settings and Health are Manage's own. On a phone the list is the
+first screen and a tap opens one section (`/manage#waste`, a step back
+undoes); from 960px the list stays on the left, the open row in ink. The
+Uploads row says how many reports wait today. A breadcrumb in the hub's text
+("Manage → Levelset") uses these names. Tests: `tests/test_manage_layout.py`.
+
 ## Page links
 
 Every page has its own address (Tim, Nov 23 2026): `/setups`,

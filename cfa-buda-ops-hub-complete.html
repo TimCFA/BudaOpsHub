@@ -967,36 +967,49 @@
       <button id="btnPinGo" class="btn btn-primary" style="width:auto;margin:12px auto;display:block;">Unlock <span class="sub"><i>Desbloquear</i></span></button>
     </div>
     <div id="manageContent" style="display:none;">
-      <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
-        <h2 class="sb-h2" style="margin:0;">Manage <span style="display:block;font-size:11px;font-style:italic;font-weight:400;color:var(--text-secondary);">Gestionar</span></h2>
-        <button id="btnLock" class="btn btn-ghost" style="width:auto;padding:8px 16px;margin:0;font-size:11px;">Lock <span class="sub"><i>Bloquear</i></span></button>
+      <div class="mg-head">
+        <h2 class="hub-title">Manage <span>Gestionar</span></h2>
+        <button id="btnLock" class="btn btn-ghost mg-lock">Lock <span class="sub"><i>Bloquear</i></span></button>
       </div>
 
-      <!-- One section at a time (Tim, Oct 2026): the chips pick which. They use the
-           main tabs' names, in their order (Tim, Oct 21 2026): each setting sits
-           under the tab whose page it changes; Uploads, Settings and Health are
-           Manage's own. -->
-      <nav class="manage-tabs" id="manageTabs" role="tablist" aria-label="Manage sections">
-        <button type="button" class="manage-tab" role="tab" id="manageTab-home" data-manage-go="home" aria-selected="false">Home</button>
-        <button type="button" class="manage-tab" role="tab" id="manageTab-waste" data-manage-go="waste" aria-selected="false">Waste</button>
-        <button type="button" class="manage-tab" role="tab" id="manageTab-experience" data-manage-go="experience" aria-selected="false">Experience</button>
-        <button type="button" class="manage-tab" role="tab" id="manageTab-scoreboard" data-manage-go="scoreboard" aria-selected="false">Scoreboard</button>
-        <button type="button" class="manage-tab" role="tab" id="manageTab-forecast" data-manage-go="forecast" aria-selected="false">Forecast</button>
-        <button type="button" class="manage-tab" role="tab" id="manageTab-calendar" data-manage-go="calendar" aria-selected="false">Calendar</button>
-        <button type="button" class="manage-tab" role="tab" id="manageTab-forms" data-manage-go="forms" aria-selected="false">Forms</button>
-        <button type="button" class="manage-tab" role="tab" id="manageTab-directors" data-manage-go="directors" aria-selected="false">Directors</button>
-        <button type="button" class="manage-tab" role="tab" id="manageTab-levelset" data-manage-go="levelset" aria-selected="false">Levelset</button>
-        <button type="button" class="manage-tab" role="tab" id="manageTab-uploads" data-manage-go="uploads" aria-selected="false">Uploads</button>
-        <button type="button" class="manage-tab" role="tab" id="manageTab-settings" data-manage-go="settings" aria-selected="false">Settings</button>
-        <button type="button" class="manage-tab" role="tab" id="manageTab-health" data-manage-go="health" aria-selected="false">Health</button>
+      <!-- Manage in the Hub's language (Tim, Nov 24 2026: "ensure the manage tab
+           accommodates the new layout"). The sections sit under the Hub's four
+           groups, each named as the page it changes is named everywhere (PAGES in
+           bottom-nav.js); Uploads, Settings and Health are Manage's own. On a phone
+           the list is the first screen and a tap opens one section, with a way
+           back; from 960px the list stays on the left. manage-and-import.js. -->
+      <div class="mg-layout">
+      <nav class="mg-index" id="manageTabs" aria-label="Manage sections">
+        <section class="hub-grp"><h3 class="hub-h">Run the shift</h3>
+          <button type="button" class="mg-row" id="manageTab-waste" data-manage-go="waste" data-mg-ic="wastelog"><span class="mg-lb">Waste</span><span class="mg-sub">Daily limit, export and items</span></button>
+          <button type="button" class="mg-row" id="manageTab-calendar" data-manage-go="calendar" data-mg-ic="calendar"><span class="mg-lb">Calendar</span><span class="mg-sub">Store events</span></button>
+        </section>
+        <section class="hub-grp"><h3 class="hub-h">People</h3>
+          <button type="button" class="mg-row" id="manageTab-directors" data-manage-go="directors" data-mg-ic="roles"><span class="mg-lb">Team list</span><span class="mg-sub">Everyone&rsquo;s role and the director PIN</span></button>
+          <button type="button" class="mg-row" id="manageTab-levelset" data-manage-go="levelset" data-mg-ic="tx"><span class="mg-lb">Levelset</span><span class="mg-sub">PEA goals, coverage and name matching</span></button>
+          <button type="button" class="mg-row" id="manageTab-forms" data-manage-go="forms" data-mg-ic="forms"><span class="mg-lb">Forms</span><span class="mg-sub">Your own forms and the uniform items</span></button>
+        </section>
+        <section class="hub-grp"><h3 class="hub-h">Numbers</h3>
+          <button type="button" class="mg-row" id="manageTab-forecast" data-manage-go="forecast" data-mg-ic="knownumbers"><span class="mg-lb">Know the Numbers</span><span class="mg-sub">Each day&rsquo;s actual sales and productivity</span></button>
+          <button type="button" class="mg-row" id="manageTab-experience" data-manage-go="experience" data-mg-ic="gx"><span class="mg-lb">Guest Obsession, TX and LX</span><span class="mg-sub">The scoreboards&rsquo; typed figures and EOIs</span></button>
+          <button type="button" class="mg-row" id="manageTab-scoreboard" data-manage-go="scoreboard" data-mg-ic="scoreboard"><span class="mg-lb">Scoreboard</span><span class="mg-sub">Your own scoreboards and trackers</span></button>
+        </section>
+        <section class="hub-grp"><h3 class="hub-h">Admin</h3>
+          <button type="button" class="mg-row" id="manageTab-uploads" data-manage-go="uploads" data-mg-ic="uploads"><span class="mg-lb">Uploads</span><span class="mg-sub" id="mgUploadsSub">Every report the hub runs on</span></button>
+          <button type="button" class="mg-row" id="manageTab-home" data-manage-go="home" data-mg-ic="home"><span class="mg-lb">Home</span><span class="mg-sub">What a new hire reads before a shift</span></button>
+          <button type="button" class="mg-row" id="manageTab-settings" data-manage-go="settings" data-mg-ic="manage"><span class="mg-lb">Settings</span><span class="mg-sub">Launch mode, sign-in, this device, backup</span></button>
+          <button type="button" class="mg-row" id="manageTab-health" data-manage-go="health" data-mg-ic="health"><span class="mg-lb">Health</span><span class="mg-sub">Saves, speed and what gets opened</span></button>
+        </section>
       </nav>
+      <div class="mg-pane" id="managePane">
+      <button type="button" class="mg-back" data-mg-back><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Manage</button>
 
       <!-- GROUP: Home: the Home page -->
       <section class="manage-group" data-manage-tab="home" aria-labelledby="manageTab-home">
         <div class="manage-group-body">
 <div class="standup-card">
             <h3>Home page</h3>
-            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Vision, mission, values and the monthly leadership wins.</p>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">What a new hire reads on Home before a shift. The vision, mission, values and the monthly leadership wins are kept here too, for a page of their own later; Home doesn&rsquo;t show them now.</p>
             <div id="homeManageList" style="margin-bottom:16px;"></div>
             <p class="mv-saved" data-mv-saved>Saves as you go</p>
           </div>
@@ -1053,7 +1066,7 @@
             <h3>LX Scoreboard</h3>
             <p style="font-size:12px;color:var(--text-secondary);margin:0 0 16px;">Weekly. Tap a pillar to edit it.</p>
             <div id="pillarsManageList" style="margin-bottom:20px;"></div>
-            <h4 style="font-family:'Outfit';font-weight:600;margin:20px 0 12px;font-size:13px;color:var(--text-primary);">Business Metrics</h4>
+            <h4 class="mg-h4">Business Metrics</h4>
             <div id="metricsManageList" style="margin-bottom:16px;"></div>
             <p class="mv-saved" data-mv-saved>Saves as you go</p>
           </div>
@@ -1122,7 +1135,7 @@
       <section class="manage-group" data-manage-tab="directors" aria-labelledby="manageTab-directors">
         <div class="manage-group-body">
           <div class="standup-card">
-            <h3>Our team</h3>
+            <h3>Team list</h3>
             <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px;">Everyone at Buda in one list: the directors, and everyone on the clock-in PIN list with their role. A role here is what they see when they sign in; a Team Lead's focus shows on their leader card. Saves as you go.</p>
             <div id="teamListRoot"></div>
             <div id="directorPinRoot" class="tp-dpin-root"></div>
@@ -1232,6 +1245,8 @@
           </div>
         </div>
       </section>
+      </div><!-- .mg-pane -->
+      </div><!-- .mg-layout -->
 
     </div>
 <!-- The spreadsheet reader and the PDF maker load when a file is read or made (libReady, state-and-utils.js). -->

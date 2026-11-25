@@ -1435,7 +1435,7 @@ function duTodayHtml(rows, counts, lastText){
   const done = items.filter(r => r.done).sort((a, b) => b.at - a.at);
   const doneList = done.length ? `<details class="du-today-fold" ${duTodayDoneOpen ? 'open' : ''}><summary>${left ? `${done.length} done today` : `${total} uploaded today`}</summary><ul class="du-today-list">${done.map(item).join('')}</ul></details>` : '';
   return `
-    <section class="du-today ${left ? '' : 'is-done'}" aria-live="polite">
+    <section class="du-today ${left ? '' : 'is-done'}" data-du-left="${left}" aria-live="polite">
       <div class="du-today-head">
         <span class="du-today-ring" style="--p:${pct}" aria-hidden="true">${left ? `<b>${total - left}/${total}</b>` : DU_ICON_CHEER}</span>
         <div class="du-today-t">
@@ -1486,6 +1486,7 @@ function renderDataUploads(){
       <ul class="du-list is-current">${current.map(r => duShowAll || duOpenRows.has(r.src.key) ? duRowHtml(r.src, r.st, true) : duMiniHtml(r.src, r.st)).join('')}</ul>
       <button type="button" class="du-showall" data-du-showall="${duShowAll ? 0 : 1}">${duShowAll ? 'Fold the up-to-date reports' : `Open all ${current.length} in full`}</button>
     </details>` : ''}`;
+  if(typeof mgUploadsNote === 'function') mgUploadsNote();   // Manage's Uploads row
 }
 // A tap on the day's list: that report's card, opened in full and scrolled to.
 function duGoToRow(key){

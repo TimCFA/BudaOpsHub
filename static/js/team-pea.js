@@ -271,13 +271,13 @@ function tpRatersHtml(){
   const pct = Math.min(100, R.teamGoal ? R.byRaters / R.teamGoal * 100 : 0), mark = Math.min(100, R.frac * 100);
   return `
     <section class="dir-card"><h3>Rater leaderboard</h3>
-      <p class="dir-note">Team Leads and Trainers on the PEAs they gave: a point per PEA, a point more the first time they rate each team member, and a point more the first time they rate each position. Goal ${R.goal} PEAs each a quarter (Manage → Settings → Leaders).</p>
+      <p class="dir-note">Team Leads and Trainers on the PEAs they gave: a point per PEA, a point more the first time they rate each team member, and a point more the first time they rate each position. Goal ${R.goal} PEAs each a quarter (Manage → Levelset).</p>
       <div class="ld-team is-${R.teamStatus}">
         <div class="ld-team-head"><b>${R.byRaters}</b><span>PEAs by ${ldPlural(R.raters.length, 'rater')} · ${escapeHtml(R.quarter.label)}${R.byDirectors ? ` · plus ${R.byDirectors} by directors` : ''}</span>${R.raters.length ? ldStatusChip(R.teamStatus) : ''}</div>
         <div class="ld-bar"><i style="width:${pct.toFixed(1)}%"></i>${R.current ? `<u style="left:${mark.toFixed(1)}%" title="Today"></u>` : ''}</div>
         <p class="dir-note">${R.over ? 'The quarter is closed.' : `${ldPlural(R.weeksLeft, 'week')} left`} · ${R.people} ${R.people === 1 ? 'person' : 'people'} and ${ldPlural(R.positions, 'position')} rated this quarter · ${R.done} of ${R.raters.length} at the goal${R.leader ? ` · leading: ${escapeHtml(ldShort(R.leader.name))} with ${R.leader.points} pts` : ''}</p>
       </div>
-      ${R.raters.length ? `<div class="tp-board">${R.raters.map(r => tpRaterRow(r, R)).join('')}</div>` : '<p class="dir-empty">No raters yet. Sync Levelset in Manage → PEA, or list the leaders in Manage → Settings → Leaders.</p>'}
+      ${R.raters.length ? `<div class="tp-board">${R.raters.map(r => tpRaterRow(r, R)).join('')}</div>` : '<p class="dir-empty">No raters yet. Sync Levelset in Manage → Levelset, or list the leaders in Manage → Team list.</p>'}
       ${R.directors.length ? `<h4 class="ld-month">Directors</h4><div class="tp-board is-dir">${R.directors.map(r => tpRaterRow(r, R)).join('')}</div>` : ''}
     </section>`;
 }
@@ -303,7 +303,7 @@ function tpTeamHtml(){
       <div class="ld-stats tp-stats">${stat(T.peas, `PEAs in ${T.quarter.label}`)}${stat(`${T.rated} of ${T.people.length}`, 'people rated')}${stat(`+${T.gained}${T.lost ? ` / −${T.lost}` : ''}`, 'positions green')}${stat(`${T.green} of ${T.positions}`, 'positions green now')}${stat(T.allGreen, 'all green')}${T.current ? stat(T.stale, 'due a PEA') : ''}</div>
       <div class="tp-filters"><div class="ld-chips">${[['', 'All'], ['foh', 'FOH'], ['boh', 'BOH'], ['lead', 'Leaders']].map(([k, l]) => `<button type="button" class="ld-chip" data-tp-side="${k}" aria-pressed="${tpSide === k ? 'true' : 'false'}">${l}</button>`).join('')}</div>
         <input type="search" id="tpSearch" class="tp-search" placeholder="Find a name" value="${escapeHtml(tpSearch)}" aria-label="Find a name" autocomplete="off"></div>
-      ${shown.length ? `<div class="tp-board">${shown.map(tpTeamRow).join('')}</div>` : `<p class="dir-empty">${T.people.length ? 'Nobody matches.' : 'No ratings yet. Sync Levelset in Manage → PEA.'}</p>`}
+      ${shown.length ? `<div class="tp-board">${shown.map(tpTeamRow).join('')}</div>` : `<p class="dir-empty">${T.people.length ? 'Nobody matches.' : 'No ratings yet. Sync Levelset in Manage → Levelset.'}</p>`}
     </section>`;
 }
 
@@ -413,7 +413,7 @@ function tpLsCardInner(peaName, cards){
   if(!tpDirector){
     return head + `<p class="dir-empty">${tpDirectorPinSet
       ? 'The notes leaders write on a PEA in Levelset show here for directors. Sign in with the director PIN to see them.'
-      : 'The notes leaders write on a PEA in Levelset can show here for directors. Set a director PIN in Manage → Settings → Directors first.'}</p>`;
+      : 'The notes leaders write on a PEA in Levelset can show here for directors. Set a director PIN in Manage → Team list first.'}</p>`;
   }
   const got = tpLs[dirKey(peaName)];
   if(!got) setTimeout(() => tpLoadLevelsetNotes(peaName));

@@ -199,8 +199,8 @@ function uoFormHtml(){
         <details class="uo-group" ${uoDraft.lines.some(l => l.group === g) ? 'open' : ''}>
           <summary>${escapeHtml(g)} <small>${list.length} item${list.length === 1 ? '' : 's'}</small></summary>
           <div class="uo-items">${list.map(uoItemCardHtml).join('')}</div>
-        </details>`).join('') : '<p class="uo-empty">No uniform items yet. Add them in Manage → Uniforms.</p>'}
-      <p class="uo-more">Only the items in Manage → Uniforms show here.</p>
+        </details>`).join('') : '<p class="uo-empty">No uniform items yet. Add them in Manage → Forms.</p>'}
+      <p class="uo-more">Only the items in Manage → Forms show here.</p>
       <section class="uo-cart" aria-live="polite">
         <h3>This order</h3>
         ${uoDraft.lines.length ? `<ul class="uo-lines">${uoDraft.lines.map((l, i) => `

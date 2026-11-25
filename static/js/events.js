@@ -2,7 +2,7 @@
 // The store's marketing / events calendar (Tim, Oct 2026): promos, samples,
 // community outreach, family nights and heads-ups like "No School". Its own
 // Calendar tab, drawn like the store's printed calendar, to look at only;
-// it's added to and changed in Manage → Events Calendar, behind the PIN
+// it's added to and changed in Manage → Calendar, behind the PIN
 // (Tim). Set Ups shows each event on the daypart cards it overlaps. The
 // whole team sees the Calendar tab (Tim, Oct 18 2026), all but leadership
 // meetings; the Set Ups chips still show once the PIN is entered. Saved as
@@ -97,7 +97,7 @@ function eventsOn(iso, opts){
 // line and game plan, toward Game Day, and in the forecast's unusual-day
 // rule. Month-long ones (the samples), outreach, Cow in Community, social
 // posts and heads-ups don't. A manager can tick or untick any one event
-// (kn) in Manage → Events Calendar.
+// (kn) in Manage → Calendar.
 const EVENT_KN_KINDS = ['app', 'instore', 'drivethru'];
 const EVENT_KN_MAX_DAYS = 7;
 
@@ -176,7 +176,7 @@ function eventChipHtml(ev){
 // that run several days as a bar across the week, the month's goals in the
 // first Sunday, the Pre-Checklist and the events' notes beside the grid and
 // the key under it. Tap a day for everything on it. Nothing is changed
-// here: that's Manage → Events Calendar.
+// here: that's Manage → Calendar.
 
 let calMonth = null;   // 'YYYY-MM' on screen
 let calDay = null;     // the day picked: its events under the grid
@@ -313,7 +313,7 @@ function evDayPanelHtml(){
             ${Array.isArray(ev.details) && ev.details.length ? `<details class="cal-dayp-more"><summary>More from the events page</summary><ul>${ev.details.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul></details>` : ''}
           </div>
         </li>`).join('')}</ul>` : `<p class="ev-empty">${evWeekday(calDay) === 0 ? 'Closed Sunday. ' : ''}Nothing on the calendar this day.</p>`}
-      ${evCalendarShown() ? '<p class="cal-dayp-month">To add or change events: Manage → Events Calendar.</p>' : ''}
+      ${evCalendarShown() ? '<p class="cal-dayp-month">To add or change events: Manage → Calendar.</p>' : ''}
     </section>`;
 }
 
@@ -365,7 +365,7 @@ function evShowDayPanel(){
   if(p && p.getBoundingClientRect().top > window.innerHeight - 120) p.scrollIntoView({behavior: 'smooth', block: 'start'});
 }
 
-// ----- Manage → Events Calendar: the only place events change -----
+// ----- Manage → Calendar: the only place events change -----
 
 // Clearing a month to read its calendar in again from scratch (Tim, Nov 5
 // 2026): the events that start in it go, whatever put them there. A run
@@ -513,7 +513,7 @@ document.addEventListener('click', e => {
   }
 });
 
-// Manage → Events Calendar.
+// Manage → Calendar.
 document.addEventListener('click', e => {
   const t = e.target && e.target.closest ? e.target : null;
   if(!t || !t.closest('#eventsManageRoot')) return;

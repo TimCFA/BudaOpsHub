@@ -1219,7 +1219,7 @@ function renderForecastView(){
   }
   if(!hist.length && fcTab !== 'data'){
     gate.hidden = false;
-    gate.innerHTML = `<h3>No sales history yet</h3><p>Upload the Analytics Hub <b>sales by day</b> export (Manage → Data Uploads, or the Data tab here). Every day in it joins the history, and the forecast starts from three weeks of days. Add a <b>labor by day</b> export to turn sales into labor hours.</p><button type="button" class="btn btn-primary" id="fcGoData">Go to Data</button>`;
+    gate.innerHTML = `<h3>No sales history yet</h3><p>Upload the Analytics Hub <b>sales by day</b> export (Manage → Uploads, or the Data tab here). Every day in it joins the history, and the forecast starts from three weeks of days. Add a <b>labor by day</b> export to turn sales into labor hours.</p><button type="button" class="btn btn-primary" id="fcGoData">Go to Data</button>`;
     view.querySelectorAll('.fc-panel').forEach(p => { p.innerHTML = ''; });
     document.getElementById('fcGoData').addEventListener('click', () => { fcTab = 'data'; renderForecastView(); });
     return;

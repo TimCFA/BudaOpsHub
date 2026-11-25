@@ -126,6 +126,9 @@ html[data-theme="dark"]{--cfa-white:#1D1D1D;--cfa-bg:#24262A;--cfa-light:#212426
 :where(html[data-theme="dark"]) .wx-open{color:var(--ink-red);}
 :where(html[data-theme="dark"]) .wx-total b{color:var(--ink-red);}
 :where(html[data-theme="dark"]) .pos-option.more-option{color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .mg-sub.is-due{color:var(--ink-red);}
+:where(html[data-theme="dark"]) .mg-back{color:var(--ink-navy);}
+:where(html[data-theme="dark"]) .mg-h4{color:var(--eyebrow,var(--ink-navy));}
 :where(html[data-theme="dark"]) .mv-more summary{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .du-showall,:where(html[data-theme="dark"]) .wi-more{color:var(--ink-navy);}
 :where(html[data-theme="dark"]) .uo-pane-btn.active{color:var(--ink-dark-red);}

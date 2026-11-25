@@ -295,9 +295,9 @@ function renderSetupDevelop(section, date, dp, dpIndex){
   const stale = res.signature !== suDevelopSignature(section, date, dp, dpIndex);
   const time = new Date(res.at).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'});
   const notes = [];
-  if(!r.hasPea) notes.push('Upload PEA ratings (Manage → PEA Ratings) to get development picks.');
+  if(!r.hasPea) notes.push('Upload PEA ratings (Manage → Levelset) to get development picks.');
   if(!r.trainers.length) notes.push('No Trainer on shift this daypart — pair with a Crushing It team member, or keep development light.');
-  if(r.unmatched.length) notes.push(`No PEA match for ${r.unmatched.map(escapeHtml).join(', ')} — link names in Manage → PEA Ratings → Name Matching.`);
+  if(r.unmatched.length) notes.push(`No PEA match for ${r.unmatched.map(escapeHtml).join(', ')} — link names in Manage → Levelset → Name Matching.`);
   notes.push('Tenure isn’t factored in yet — it needs hire dates from the employee list upload.');
   return `
     <div class="su-develop">
