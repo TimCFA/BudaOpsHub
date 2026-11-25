@@ -42,6 +42,7 @@
 // kitchen's side the lines carry Spanish; FOH stays English.
 
 const RN_ICON_TEAM = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c.8-3.2 3.2-5 6-5s5.2 1.8 6 5"/><path d="M16 5.2a3 3 0 0 1 0 5.6"/><path d="M17.5 14.2c1.8.6 3 2.2 3.5 4.8"/></svg>';
+const RN_ICON_EDIT = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>';
 const RN_ICON_GO = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
 
 function rnNowMins(){ const d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
@@ -1069,16 +1070,126 @@ function rnBadgeRow(card){
   card.rows.push(rnWith(rnRow('', `New badge: ${b.name}${level}${more ? ` · and ${more} more` : ''}`, esText('New badge'), 'mine', 'ok'), {icon: 'badge'}));
 }
 
+// ----- Each person's own Home (Tim, Nov 25 2026) -----
+// Under the banner, someone signed in by name can hide what they don't need
+// and put the rest in their own order (home-edit.js draws the sheet and
+// keeps it on the server under homePrefs; a copy stays on the phone so Home
+// draws at once). Fixed for everyone: the greeting, the quote, the banner, a
+// new hire's card and the way to sign in. A hidden line still shows while it
+// needs someone (red), so hiding it never means missing it. Nothing changes
+// for someone who never opens the sheet; a section added later shows, in
+// its default place. Shared devices, the shared PINs and View as keep the
+// default. Each line's section comes from where it taps through to
+// (rnItemOf); a line that fits none always shows.
+const RN_LAYOUTS = {
+  team: ['spots', 'shift', 'leading', 'zone', 'tickets', 'pea', 'badge', 'cal'],
+  lead: ['openspots', 'unplaced', 'zone', 'breaks', 'tickets', 'roster', 'badge', 'cal'],
+  admin: ['roster', 'review', 'credit', 'badge', 'cal'],
+  // "more": everything after it folds under More about today.
+  director: ['week', 'openspots', 'unplaced', 'zone', 'breaks', 'tickets', 'leaders', 'review', 'badge', 'cal', 'more', 'later', 'waste', 'foodsafety', 'roster', 'credit'],
+};
+// What the sheet calls each one (the kitchen's Spanish is in the glossary).
+const RN_ITEM_LABELS = {
+  spots: 'Your spots', shift: 'Your shift', leading: 'Who’s leading the shift', zone: 'Your zone reset',
+  tickets: 'Your tickets', pea: 'Your PEA', badge: 'New badges', cal: 'On the calendar',
+  openspots: 'Open spots', unplaced: 'On the clock with no spot', breaks: 'Breaks due', roster: 'Today’s schedule',
+  week: 'Requests for your time', leaders: 'Leaders on', review: 'Uniform credit to review', credit: 'Uniform credit',
+  later: 'Open later today', waste: 'Waste today', foodsafety: 'Food Safety walkthrough', more: 'More about today',
+};
+const RN_LEADER_LABELS = {zone: 'Zone resets', tickets: 'Tickets waiting on you'};
+const RN_DIRECTOR_LABELS = {openspots: 'Staffed now', breaks: 'Breaks left'};
+const RN_NEEDS = ['bad', 'flag'];      // a line that needs someone shows even when hidden
+const RN_PREFS_KEY = 'hubHomePrefs';    // {person: {order, hidden, at, dirty}}
+
+function rnLayoutOf(v){
+  return ['member', 'trainer'].includes(v.role) ? 'team' : v.role === 'lead' ? 'lead' : v.role === 'admin' ? 'admin' : ['director', 'manager'].includes(v.role) ? 'director' : '';
+}
+function rnItemLabel(id, layout){
+  return (layout === 'director' && RN_DIRECTOR_LABELS[id]) || (layout !== 'team' && RN_LEADER_LABELS[id]) || RN_ITEM_LABELS[id] || id;
+}
+// Only someone signed in by name, as themselves.
+function rnMayEdit(v){
+  return !!(v && v.name && rnLayoutOf(v) && !(typeof vaActive === 'function' && vaActive()));
+}
+function rnPrefKey(name){ return String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/\s+/g, ' '); }
+function rnPrefsAll(){
+  try{ const all = JSON.parse(localStorage.getItem(RN_PREFS_KEY) || '{}'); return all && typeof all === 'object' ? all : {}; }catch(e){ return {}; }
+}
+function rnPrefsFor(name){ const p = rnPrefsAll()[rnPrefKey(name)]; return p && Array.isArray(p.order) ? p : null; }
+function rnPrefsKeep(name, prefs){
+  const all = rnPrefsAll();
+  if(prefs) all[rnPrefKey(name)] = prefs; else delete all[rnPrefKey(name)];
+  try{ localStorage.setItem(RN_PREFS_KEY, JSON.stringify(all)); }catch(e){ /* private mode: this visit only */ }
+}
+// The saved order for a layout: what it no longer has drops out, and what
+// it gained since goes in after the one before it in the default.
+function rnOrderOf(saved, layout){
+  const out = (saved || []).filter((k, i, a) => layout.includes(k) && a.indexOf(k) === i);
+  layout.forEach((k, i) => {
+    if(out.includes(k)) return;
+    const before = layout.slice(0, i).reverse().find(x => out.includes(x));
+    out.splice(before ? out.indexOf(before) + 1 : 0, 0, k);
+  });
+  return out;
+}
+// Which section a line belongs to, by where it taps through to.
+function rnItemOf(r, card){
+  const g = r.go || '', t = r.text || '';
+  if(/^event:/.test(g)) return 'cal';
+  if(/^tickets?(:|$)/.test(g)) return 'tickets';
+  if(g === 'mine') return 'badge';
+  if(g === 'credit') return 'credit';
+  if(g === 'headcount') return 'review';
+  if(g === 'week') return 'week';
+  if(/^myweek:/.test(g)) return 'shift';
+  if(/^zone:/.test(g)) return 'zone';
+  if(/^breaks:/.test(g)) return 'breaks';
+  if(g === 'waste') return 'waste';
+  if(g === 'foodsafety') return 'foodsafety';
+  if(/^schedule:/.test(g)) return 'roster';
+  if(/^Leading the shift: /.test(t)) return 'leading';
+  if(/^open later today/.test(t)) return 'later';
+  if(/ with no spot/.test(t)) return 'unplaced';
+  if(/^leaders? (on|on the schedule)\b/.test(t)) return 'leaders';
+  if(/^(setups|spot):/.test(g)) return card.team ? 'spots' : 'openspots';
+  return '';
+}
+// Hide, then order: lines by their section's place, keeping their own order
+// inside it; a line of no section stays after the one before it. On a
+// director's card the place of "more" says what folds.
+function rnApplyPrefs(card, v, prefs){
+  if(!prefs || card.sideSwitch) return card;
+  const layout = RN_LAYOUTS[rnLayoutOf(v)];
+  if(!layout) return card;
+  // An empty order is the default one: lines stay as the card made them.
+  const own = prefs.order.length > 0;
+  const order = rnOrderOf(prefs.order, layout), hidden = new Set(prefs.hidden || []);
+  const at = k => order.indexOf(k), moreAt = own ? at('more') : -1;
+  let last = -1;
+  const ranked = card.rows.map((r, i) => {
+    const k = rnItemOf(r, card), n = k ? at(k) : -1;
+    if(n >= 0){ last = n; if(card.fold && moreAt >= 0) r.more = n > moreAt; }
+    return {r, k, rank: n >= 0 ? n : last + 0.5, i};
+  });
+  card.rows = ranked.filter(x => !(x.k && hidden.has(x.k) && !RN_NEEDS.includes(x.r.tone)))
+    .sort((a, b) => (own ? a.rank - b.rank : 0) || a.i - b.i).map(x => x.r);
+  if(hidden.has('pea')) card.pea = null;
+  if(own) card.order = order;
+  return card;
+}
+
 function renderRightNow(){
   const root = document.getElementById('rightNow');
   if(!root) return;
   rnMineLoad();
+  if(typeof heSync === 'function') heSync();
   let card, day, v;
   try{
     day = rnDay();
     v = rnViewer();
     card = rnCardFor(v, day);
     rnBadgeRow(card);
+    if(rnMayEdit(v)) rnApplyPrefs(card, v, rnPrefsFor(v.name));
   }catch(err){
     console.warn('Right Now card:', err);
     root.innerHTML = '';
@@ -1086,6 +1197,7 @@ function renderRightNow(){
   }
   rnGreet(v, card);
   const boh = card.side === 'boh';
+  rnShownSide = card.side;
   const dp = day.closed ? null : suDaypartsFor(card.side)[rnDaypartIndex(card.side, day.now)];
   const kicker = card.kicker ? `Next up · ${card.kicker}` : day.closed ? 'The store is closed' : day.now < day.opensAt ? `Before open · ${rnShort(dp.name)} at ${rnClock(day.opensAt)}` : `Right now · ${rnShort(dp.name)}`;
   const kickerEs = card.kicker || day.closed ? '' : esText('Right now') + ' · ' + esDaypart(dp.name);
@@ -1101,14 +1213,26 @@ function renderRightNow(){
   const sec = (key, title, body) => body ? `<section class="rn-sec rn-sec-${key}"><h3 class="rn-sec-h">${RN_SEC_ICONS[key] || ''}<span>${escapeHtml(title)}${esText(title) === title ? '' : esIn(esText(title))}</span></h3>${body}</section>` : '';
   const lines = list => list.length ? `<div class="rn-list">${list.map(r => rnLineHtml(r, es, go)).join('')}</div>` : '';
   // Two columns on a tablet or a computer: what's theirs to do, then what's around it.
-  const main = rnNewHireHtml(card.newHire, boh)
-    + sec('day', 'Your day', lines(groups.day))
-    + sec('floor', card.sideSwitch ? (boh ? 'Today' : 'Timers') : card.kicker ? 'Set Ups' : 'On the floor', (tiles.length ? `<div class="rn-tiles">${tiles.map(r => rnTileHtml(r, es, go)).join('')}</div>` : '') + lines(floorLines));
-  const side = sec('tix', 'Tickets', lines(groups.tix))
-    + rnPeaHtml(card.pea, boh)
-    + sec('cal', 'On the calendar', lines(groups.cal))
+  const parts = {
+    day: sec('day', 'Your day', lines(groups.day)),
+    floor: sec('floor', card.sideSwitch ? (boh ? 'Today' : 'Timers') : card.kicker ? 'Set Ups' : 'On the floor', (tiles.length ? `<div class="rn-tiles">${tiles.map(r => rnTileHtml(r, es, go)).join('')}</div>` : '') + lines(floorLines)),
+    tix: sec('tix', 'Tickets', lines(groups.tix)),
+    pea: rnPeaHtml(card.pea, boh),
+    cal: sec('cal', 'On the calendar', lines(groups.cal)),
+  };
+  // Someone's own order (rnApplyPrefs): the sections go by their first
+  // line's place, the first of them in the left column.
+  let flow = ['day', 'floor', 'tix', 'pea', 'cal'], lead = 2;
+  if(card.order){
+    const place = k => k === 'pea' ? card.order.indexOf('pea') : Math.min(...groups[k].map(r => { const n = card.order.indexOf(rnItemOf(r, card)); return n < 0 ? 999 : n; }), 999);
+    flow = flow.filter(k => parts[k]).sort((a, b) => place(a) - place(b));
+    lead = 1;
+  }
+  const main = rnNewHireHtml(card.newHire, boh) + flow.slice(0, lead).map(k => parts[k]).join('');
+  const side = flow.slice(lead).map(k => parts[k]).join('')
     + (groups.more.length ? `<details class="rn-more rn-sec" data-rn-more${rnMoreOpen ? ' open' : ''}><summary>More about ${escapeHtml(card.kicker || 'today')} <span>${groups.more.length}</span>${RN_ICON_GO}</summary>${lines(groups.more)}</details>` : '')
-    + groups.cta.map(r => `<button type="button" class="rn-cta" data-rn-go="${escapeHtml(r.go)}"><span class="rn-cta-main"><b>${escapeHtml(r.text)}</b>${RN_ICON_GO}</span>${es(r.es)}</button>`).join('');
+    + groups.cta.map(r => `<button type="button" class="rn-cta" data-rn-go="${escapeHtml(r.go)}"><span class="rn-cta-main"><b>${escapeHtml(r.text)}</b>${RN_ICON_GO}</span>${es(r.es)}</button>`).join('')
+    + (rnMayEdit(v) && !card.sideSwitch && typeof heOpen === 'function' ? `<button type="button" class="rn-edit" data-rn-edit>${RN_ICON_EDIT}<span>Edit Home${esIn(esText('Edit Home'))}</span></button>` : '');
   // It rises in when Home is opened or someone signs in, once the saved data
   // is in (or early-paint.js has drawn it): never on the minute's redraw.
   const who = v.role + '|' + v.name;
@@ -1153,7 +1277,7 @@ const RN_ICONS = {
   check: rnSvg('<path d="M5 12.5l4.5 4.5L19 7.5"/>', 20, 2.6),
   badge: rnSvg('<circle cx="12" cy="9.5" r="5.5"/><path d="M8.6 13.8L7 21l5-2.6 5 2.6-1.6-7.2"/>', 20, 2),
 };
-let rnEnter = true, rnSeen = null;
+let rnEnter = true, rnSeen = null, rnShownSide = 'foh';   // rnShownSide: the Edit Home sheet's Spanish follows the card
 function rnArrive(){ rnEnter = true; }       // navigation.js: Home was opened
 
 // One greeting, not two: the welcome's own line carries the name, and a new
@@ -1313,6 +1437,7 @@ document.getElementById('rightNow').addEventListener('click', e => {
   if(sw){ rnSetDeviceSide(sw.dataset.rnSide); return; }
   const ev = e.target.closest('[data-rn-ev]');
   if(ev){ rnOpenEvent(ev.dataset.rnEv, ev.dataset.rnEvDate, ev); return; }
+  if(e.target.closest('[data-rn-edit]')){ if(typeof heOpen === 'function') heOpen(); return; }
   const t = e.target.closest('[data-rn-go]');
   if(t) rnGo(t.dataset.rnGo);
 });

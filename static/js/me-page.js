@@ -305,7 +305,7 @@ function mpDraw(){
         <button type="button" class="mp-close" data-mp-close aria-label="Close">${MP_ICON_X}</button>
       </div>
       ${body}
-      ${mine ? `<div class="mp-foot"><button type="button" class="btn btn-ghost" data-mp-signout>Sign out${mpEs('Sign out')}</button><button type="button" class="mp-link" data-mp-switch>Not you? Switch${mpEs('Not you? Switch')}</button></div>` : ''}
+      ${mine ? `<div class="mp-foot"><button type="button" class="btn btn-ghost" data-mp-signout>Sign out${mpEs('Sign out')}</button><button type="button" class="mp-link" data-mp-switch>Not you? Switch${mpEs('Not you? Switch')}</button>${typeof heOpen === 'function' && typeof heMe === 'function' && heMe() ? `<button type="button" class="mp-link" data-mp-home>Edit Home${mpEs('Edit Home')}</button>` : ''}</div>` : ''}
     </div>`;
 }
 
@@ -314,6 +314,7 @@ function mpClick(e){
   const t = e.target;
   if(t.closest('[data-mp-close]')){ mpClose(); return; }
   if(t.closest('[data-mp-signout]')){ mpClose(); if(typeof acSignOut === 'function') acSignOut(); return; }
+  if(t.closest('[data-mp-home]')){ mpClose(); heOpen(); return; }
   if(t.closest('[data-mp-switch]')){ mpClose(); if(typeof siOpen === 'function') siOpen(); return; }
   if(t.closest('[data-mp-goals-edit]')){ mpGoalsEdit = true; mpDraw(); const ta = document.getElementById('mpGoals'); if(ta) ta.focus(); return; }
   if(t.closest('[data-mp-goals-cancel]')){ mpGoalsEdit = false; mpDraw(); return; }
