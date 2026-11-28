@@ -1,0 +1,33 @@
+# Runs the whole test suite on every pull request and on main, so a PR shows
+# a green check or a red X before anyone merges it (Tim, Nov 23 2026).
+# It only reads the code: no secrets, no deploy, nothing touches the live hub.
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+      - uses: actions/setup-node@v4   # some tests run the page's scripts in node
+        with:
+          node-version: '22'
+      - run: pip install -r requirements.txt
+      - name: Run the tests
+        run: python3 -m unittest discover tests

@@ -1,6 +1,6 @@
 # BudaOpsHub
 
-Ops web app for Chick-fil-A Buda (Flask + vanilla JS). Tests: `python3 -m unittest discover tests`.
+Ops web app for Chick-fil-A Buda (Flask + vanilla JS). Tests: `python3 -m unittest discover tests`. GitHub runs them on every pull request and on main (`.github/workflows/tests.yml`; Tim, Nov 23 2026), so a PR shows a green check or a red X before it's merged; don't merge on a red X.
 
 ## Leadership resources
 
@@ -354,6 +354,13 @@ leader's) and keeps it in memory only (`peaLead` in pea-ratings.js), never in
 `peaRatings`, so it can't be saved back or left on the phone. Anything Set Ups
 reads goes through `peaShown()` / `peaAliasesShown()`, not `peaRatings`
 directly. Tests: `tests/test_lead_pea.py`.
+
+The saved ratings (`peaRatings`) always save whole, never change by change
+(`STATE_WHOLE_KEYS` in state-patch.js, `WHOLE_KEYS` in state_patch.py; Nov 24
+2026): each row points at its person, rater, role and position by their place
+in the lists beside it, and merging two phones' item-by-item changes left rows
+pointing at the wrong people. A list that points into another by position goes
+on those keys too. Tests: `tests/test_pea_whole_save.py`.
 
 ## View as
 

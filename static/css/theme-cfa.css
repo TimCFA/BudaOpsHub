@@ -3685,7 +3685,10 @@ html:not([data-theme="dark"]) .app > .tabs-wrap .tabs{box-shadow:none;}
 html:not([data-theme="dark"]) .app > .tabs-wrap::before{bottom:-30px;background:linear-gradient(to bottom,var(--band) calc(100% - 34px),transparent 100%);}
 
 /* Tinted insides: the cards stay white; what sits inside them takes the pale blue. */
-.su-sheet-list .su-rowwrap:nth-child(even),#allDayparts .su-sheet-list .su-rowwrap:nth-child(even){background:var(--inset);}
+/* Every other row, except one whose person isn't here yet: that row keeps its
+   amber (Tim, Nov 25 2026: the stripe came after it in this file and, weighing
+   the same, painted every second "arrives" row pale blue). */
+.su-sheet-list .su-rowwrap:nth-child(even):not(.is-coming),#allDayparts .su-sheet-list .su-rowwrap:nth-child(even):not(.is-coming){background:var(--inset);}
 #allDayparts .su-sheet-list .su-rowwrap:nth-child(even) .su-row{background:transparent;}
 .su-dp .su-dp-lead,.day-pill,.su-strip .day-pill,.su-print-btn{background:var(--inset-strong);border-color:var(--inset-line);}
 .home-win-card:nth-child(n){background:linear-gradient(var(--inset) 0,var(--inset) 62px,var(--cfa-white) 62px);}
