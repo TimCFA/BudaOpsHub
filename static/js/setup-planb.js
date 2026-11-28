@@ -137,7 +137,7 @@ function renderSetupPlanB(section, date, dp, dpIndex){
   const stale = res.signature !== suDevelopSignature(section, date, dp, dpIndex);
   const time = new Date(res.at).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'});
   const notes = [];
-  if(!r.hasPea) notes.push('Upload PEA ratings (Manage → PEA Ratings) to get coaches and swaps.');
+  if(!r.hasPea) notes.push('Upload PEA ratings (Manage → Levelset) to get coaches and swaps.');
   if(r.hasPea && !r.trainers) notes.push('No Trainer on shift this daypart.');
   return `
     <div class="su-eval has-result ${stale ? 'is-stale' : ''}">

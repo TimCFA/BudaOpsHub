@@ -56,6 +56,7 @@ function activateView(view){
   if(view === 'roles' && typeof renderRoles === 'function') renderRoles();
   if(view === 'manage' && typeof refreshManage === 'function'){
     if(typeof manageStale !== 'undefined' && manageStale) renderManage(); else refreshManage();
+    if(opened && typeof manageArrive === 'function') manageArrive();   // the list on a phone, or the section the address names
     if(typeof acMountGoogle === 'function') acMountGoogle();   // Google's sign-in button, once Manage shows
   }
   if(typeof launchSubnavRender === 'function') launchSubnavRender(view);

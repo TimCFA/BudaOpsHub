@@ -11,7 +11,7 @@
 //   also reaches OMD and Drinks. Stretch goal: a leader in Drinks and OMD too.
 // - Rotation: leaders in a different spot each day.
 // Who is a leader: anyone the Directors → Leaders page lists (the leader list
-// in Manage → Settings → Leaders, anyone giving PEAs or rated under a lead
+// in Manage → Team list, anyone giving PEAs or rated under a lead
 // role), a HotSchedules "Team Leader" shift (roster `leader`), or a Levelset
 // role of Team Lead; Trainers come from Levelset.
 
@@ -27,7 +27,7 @@ function suRosterEntryFor(section, date, name){
 }
 
 // The leaders the Directors → Leaders page shows (leaders.js, this quarter
-// and last): the leader list in Manage → Settings → Leaders, anyone who gave
+// and last): the leader list in Manage → Team list, anyone who gave
 // a PEA or was rated under a lead role, anyone with leader notes. Without
 // leaders.js, the Manage list alone. Kept until the data behind it changes.
 let suLeaderNamesCache = {sig: null, names: []};
@@ -170,14 +170,14 @@ function suLeadCaptainSheetHtml(date, dp, dpIndex){
       <summary>Someone else on shift (${others.length})</summary>
       <div class="su-pb">${others.map(p => `
         <div class="su-pb-row">
-          <span class="su-pb-v"><b>${escapeHtml(p.name)}</b><span>Not on the leader list${p.name.toLowerCase() === current.toLowerCase() ? '' : ' · add them in Manage → Settings → Leaders'}</span></span>
+          <span class="su-pb-v"><b>${escapeHtml(p.name)}</b><span>Not on the leader list${p.name.toLowerCase() === current.toLowerCase() ? '' : ' · add them in Manage → Team list'}</span></span>
           ${p.name.toLowerCase() === current.toLowerCase() ? '<span class="su-current">Current</span>' : `<button type="button" class="su-btn-line" data-su-set-lead="${escapeHtml(p.name)}">Make Lead</button>`}
         </div>`).join('')}</div>
     </details>` : '';
   const body = `
     <p class="su-sheet-rule">${escapeHtml(rule)} Only Team Leads can be Lead Captain, and they don’t also captain a zone. They work Runner if staffing allows, otherwise Drinks 3 or FC Bagger${suIsAfternoon(dp) ? ' (Mid: DT Bagger 2)' : ''}.</p>
     ${current ? `<div class="su-note">${working ? `${escapeHtml(current)} is working ${escapeHtml(working)}.` : home ? `${escapeHtml(current)} has no working spot yet. <button type="button" class="su-btn-dark" data-su-lead-home="${escapeHtml(home.slot)}">Put on ${escapeHtml(home.slot)}</button>` : `${escapeHtml(current)} has no working spot, and Runner, Drinks 3 and FC Bagger are taken.`}</div>` : ''}
-    ${options.length ? `<div class="su-pb">${rows}</div>` : '<div class="su-note">No Team Lead is on the FOH roster for this daypart. Add them to the leader list in Manage → Settings → Leaders, or pick someone below.</div>'}
+    ${options.length ? `<div class="su-pb">${rows}</div>` : '<div class="su-note">No Team Lead is on the FOH roster for this daypart. Add them to the leader list in Manage → Team list, or pick someone below.</div>'}
     ${othersHtml}
     ${current ? `<div class="su-person-actions" style="grid-template-columns:1fr"><button type="button" class="su-btn-line" data-su-clear-lead="1">Clear Lead Captain (${escapeHtml(current)})</button></div>` : ''}`;
   return suSheetFrame(`Lead Captain · ${suShortDaypart(dp.name)}`, body);

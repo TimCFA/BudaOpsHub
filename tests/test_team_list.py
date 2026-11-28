@@ -71,7 +71,7 @@ class Wiring(unittest.TestCase):
     def test_one_list_in_directors_the_pea_material_in_levelset(self):
         directors = self.PAGE[self.PAGE.index('data-manage-tab="directors"'):self.PAGE.index('data-manage-tab="levelset"')]
         levelset = self.PAGE[self.PAGE.index('data-manage-tab="levelset"'):self.PAGE.index('data-manage-tab="uploads"')]
-        self.assertEqual(re.findall(r'<h3>([^<]+)</h3>', directors), ['Our team'])
+        self.assertEqual(re.findall(r'<h3>([^<]+)</h3>', directors), ['Team list'])   # Our Team is the people page (Nov 24 2026)
         self.assertEqual(re.findall(r'<h3>([^<]+)</h3>', levelset), ['PEA goals', 'Saved PEA Ratings', 'All-Green Tracker', 'Coverage Check',
                                                                      'Position Strength Map', 'Name Matching (HotSchedules ↔ Levelset)'])
         self.assertNotIn('directorsManageRoot', self.PAGE)

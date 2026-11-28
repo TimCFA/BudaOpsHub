@@ -100,36 +100,108 @@ checkManagerStatus();
 window.addEventListener('online', () => { if(!mgrStatusKnown) checkManagerStatus(); });
 
 // ---- One section at a time (Tim, Oct 2026) ----
-// Manage was nine stacked groups, thirty screens tall on a phone. Now the
-// chips at the top pick one section and only it shows; the device remembers
-// the last one picked.
+// Manage was nine stacked groups, thirty screens tall on a phone; then a row
+// of twelve chips. Since Nov 24 2026 it speaks the Hub's language: the
+// sections sit under the Hub's four groups as rows (index.html .mg-index).
+// On a phone the list is the first screen and a tap opens one section, a step
+// the back button undoes (/manage#waste; page-links.js keeps the path); from
+// 960px the list stays on the left and the last section picked is open
+// beside it. The device remembers the last one picked.
 const MANAGE_TAB_KEY = 'cfaBudaManageTab';
-// The chips took the main tabs' names (Tim, Oct 21 2026); a device that
-// last had an older one open lands on where its cards went.
+// The sections took the pages' names; a device that last had an older one
+// open lands on where its cards went.
 const MANAGE_TAB_RENAMED = {numbers: 'forecast', events: 'calendar', scoreboards: 'experience', talent: 'experience', pea: 'levelset', uniforms: 'forms'};
-function manageShowTab(key){
+const MG_WIDE = window.matchMedia ? window.matchMedia('(min-width: 960px)') : {matches: false};
+function mgKnown(key){
   key = MANAGE_TAB_RENAMED[key] || key;
+  return document.querySelector(`#manageContent .manage-group[data-manage-tab="${key}"]`) ? key : '';
+}
+// show: 'push' (a tap: a step back can undo), 'replace' (the hub opened it by
+// itself), or nothing (the address already says so).
+function manageShowTab(key, how){
+  key = mgKnown(key) || 'uploads';
   const groups = [...document.querySelectorAll('#manageContent .manage-group')];
-  if(!groups.some(g => g.dataset.manageTab === key)) key = 'uploads';
   groups.forEach(g => g.classList.toggle('is-active', g.dataset.manageTab === key));
   document.querySelectorAll('[data-manage-go]').forEach(b => {
     const on = b.dataset.manageGo === key;
     b.classList.toggle('active', on);
-    b.setAttribute('aria-selected', on);
+    if(on) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
   });
+  document.getElementById('manageContent').classList.add('mg-open');
   try{ localStorage.setItem(MANAGE_TAB_KEY, key); }catch(err){ /* private mode */ }
+  mgAddress('#' + key, how);
   if(key === 'forms' && typeof renderFormsManage === 'function') renderFormsManage();
+}
+// The list on its own (a phone's first screen).
+function manageShowIndex(how){
+  document.getElementById('manageContent').classList.remove('mg-open');
+  document.querySelectorAll('[data-manage-go]').forEach(b => { b.classList.remove('active'); b.removeAttribute('aria-current'); });
+  mgAddress('', how);
+}
+function mgAddress(hash, how){
+  if(!how || !window.history || !history.pushState) return;
+  // Only on Manage's own address: page-links.js moves the address to it
+  // once the page is open, and an address for another page is never touched.
+  if(!document.getElementById('manageView').classList.contains('active')) return;
+  if(typeof PL_PATHS !== 'undefined' && location.pathname.replace(/\/+$/, '') !== PL_PATHS.manage) return;
+  if(location.hash === hash) return;
+  history[how === 'push' ? 'pushState' : 'replaceState']({view: 'manage'}, '', location.pathname + location.search + hash);
 }
 function manageCurrentTab(){
   try{ return localStorage.getItem(MANAGE_TAB_KEY) || 'uploads'; }catch(err){ return 'uploads'; }
 }
+// What Manage shows as it opens: the section the address names, else on a
+// phone the list, on a computer the last section picked.
+function manageArrive(){
+  const want = mgKnown(location.hash.slice(1));
+  if(want) manageShowTab(want);
+  else if(MG_WIDE.matches) manageShowTab(manageCurrentTab(), 'replace');
+  else manageShowIndex();
+}
 document.getElementById('manageTabs').addEventListener('click', e=>{
   const b = e.target.closest('[data-manage-go]');
   if(!b) return;
-  manageShowTab(b.dataset.manageGo);
-  const top = document.getElementById('manageContent').getBoundingClientRect().top + window.scrollY - 8;
-  if(window.scrollY > top) window.scrollTo({top});
+  manageShowTab(b.dataset.manageGo, 'push');
+  if(!MG_WIDE.matches) window.scrollTo(0, 0);
+  else{
+    const top = document.getElementById('managePane').getBoundingClientRect().top + window.scrollY - 12;
+    if(window.scrollY > top) window.scrollTo({top});
+  }
 });
+// Back to the list: the step the tap added, when there is one.
+document.querySelector('[data-mg-back]').addEventListener('click', () => {
+  if(location.hash && history.state && history.state.view === 'manage') history.back();
+  else manageShowIndex('replace');
+  window.scrollTo(0, 0);
+});
+// Back and forward between the list and a section (page-links.js opens the page).
+window.addEventListener('popstate', () => {
+  if(document.getElementById('manageView').classList.contains('active')) manageArrive();
+});
+// A phone turned on its side, a window made narrower: a section stays open.
+if(MG_WIDE.addEventListener) MG_WIDE.addEventListener('change', () => {
+  if(MG_WIDE.matches && !document.getElementById('manageContent').classList.contains('mg-open')) manageShowTab(manageCurrentTab());
+});
+// The Uploads row says how many reports are waiting (data-uploads.js marks it).
+function mgUploadsNote(){
+  const sub = document.getElementById('mgUploadsSub');
+  const today = document.querySelector('#dataUploadsRoot .du-today');
+  if(!sub || !today) return;
+  const left = +today.dataset.duLeft || 0;
+  sub.textContent = left ? `${left} to upload today` : 'All caught up';
+  sub.classList.toggle('is-due', left > 0);
+  sub.classList.toggle('is-done', left === 0);
+}
+// Each row's line icon, drawn from the Hub's set (bottom-nav.js hubIcon).
+function mgIcons(){
+  document.querySelectorAll('.mg-row[data-mg-ic]').forEach(b => {
+    if(b.querySelector('.hub-ic')) return;
+    const ic = document.createElement('span');
+    ic.className = 'hub-ic';
+    ic.innerHTML = typeof hubIcon === 'function' ? hubIcon(b.dataset.mgIc, 19) : '';
+    b.prepend(ic);
+  });
+}
 
 // ---- Saves as you go (Tim, Oct 2026) ----
 // No Save buttons: each Manage form saves on its own, when a field is left
@@ -188,7 +260,9 @@ document.getElementById('targetInput').addEventListener('change', async e=>{
 let manageStale = false;   // signed in with Manage not yet drawn: it draws in full when opened
 async function renderManage(){
   manageStale = false;
-  manageShowTab(manageCurrentTab());
+  mgIcons();
+  if(document.getElementById('manageView').classList.contains('active')) manageArrive();
+  else if(MG_WIDE.matches) manageShowTab(manageCurrentTab());
   renderDataUploads();
   renderPeaManage();
   if(document.getElementById('manageContent').style.display === 'block'){ peaAutoSync(); duCheckBackup(); }

@@ -266,7 +266,7 @@ function renderSetupEvaluation(section, date, dp){
     ['crushing', 'Crushing It', c.crushing], ['rise', 'On the Rise', c.rise], ['notyet', 'Not Yet', c.notyet], ['unrated', 'Unrated', c.unrated]
   ].filter(x => x[2]).map(([k, label, n]) => `<span class="su-eval-chip su-${k}">${n} ${label}</span>`).join('');
   const notes = [];
-  if(!r.hasPea) notes.push('No PEA ratings uploaded yet (Manage → PEA Ratings), so strength can’t be scored.');
+  if(!r.hasPea) notes.push('No PEA ratings uploaded yet (Manage → Levelset), so strength can’t be scored.');
   if(c.na) notes.push(`${c.na} slot${c.na === 1 ? ' isn’t' : 's aren’t'} rated in Levelset (zones, Traffic Lane, etc.) and ${c.na === 1 ? 'is' : 'are'} left out.`);
   if(r.rotation.length && r.historyDays >= SU_ROTATION_DAYS) notes.push(`Rotation covers positions each person is rated in or has worked. (Nd) = days since they last worked it; no number = not at all in the ${r.historyDays} days of set-up history.`);
   if(r.historyDays < SU_ROTATION_DAYS) notes.push(`Rotation has ${r.historyDays} day${r.historyDays === 1 ? '' : 's'} of set-up history so far; "hasn’t worked" flags need ${SU_ROTATION_DAYS}.`);

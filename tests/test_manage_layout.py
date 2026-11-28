@@ -12,22 +12,40 @@ MANAGE = PAGE[PAGE.index('id="manageContent"'):PAGE.index('<script src=')]
 
 
 class Chips(unittest.TestCase):
-    def test_every_chip_has_a_section_and_every_section_a_chip(self):
-        chips = re.findall(r'data-manage-go="([a-z]+)"', MANAGE)
+    """Since Nov 24 2026 Manage speaks the Hub's language (Tim: "ensure the
+    manage tab accommodates the new layout"): its sections are rows under the
+    Hub's four groups, each named as its page is named everywhere."""
+    def test_every_row_has_a_section_and_every_section_a_row(self):
+        rows = re.findall(r'data-manage-go="([a-z]+)"', MANAGE)
         groups = re.findall(r'data-manage-tab="([a-z]+)"', MANAGE)
-        # The main tabs' names, in their order (Tim, Oct 21 2026), then Manage's own;
-        # Levelset (the PEA material) has its own since Oct 23 2026, and the
-        # uniform items sit in Forms with the order form.
-        self.assertEqual(chips, ['home', 'waste', 'experience', 'scoreboard', 'forecast', 'calendar', 'forms', 'directors', 'levelset', 'uploads', 'settings', 'health'])
-        self.assertEqual(groups, chips)
-        labels = re.findall(r'data-manage-go="[a-z]+" aria-selected="false">([^<]+)<', MANAGE)
-        tabs = re.findall(r'class="tab[^"]*"[^>]*data-view="[a-z]+"[^>]*>([A-Z][A-Za-z ]+?) <span', PAGE) + re.findall(r'class="tab-group-label"[^>]*>([A-Za-z]+) ', PAGE)
-        # The Forecast is a page in Tools since Oct 23 2026: its chip keeps the page's name.
-        with open(os.path.join(ROOT, 'static', 'js', 'launch-mode.js'), encoding='utf-8') as f:
-            self.assertIn("{view: 'forecast', label: 'Sales & Labor Forecast'", f.read())
-        tabs.append('Forecast')
-        self.assertEqual([l for l in labels if l not in ('Levelset', 'Uploads', 'Settings', 'Health')], ['Home', 'Waste', 'Experience', 'Scoreboard', 'Forecast', 'Calendar', 'Forms', 'Directors'])
-        self.assertTrue(set(labels) - {'Levelset', 'Uploads', 'Settings', 'Health'} <= set(tabs), (labels, tabs))
+        self.assertEqual(sorted(rows), sorted(groups))
+        self.assertEqual(len(rows), 12)
+        self.assertNotIn('manage-tabs', MANAGE)   # the row of chips is gone
+
+    def test_the_hubs_four_groups_in_its_order(self):
+        with open(os.path.join(ROOT, 'static', 'js', 'bottom-nav.js'), encoding='utf-8') as f:
+            nav = f.read()
+        hub = re.findall(r"\{key: '[a-z]+', label: '([^']+)'", nav)
+        mine = re.findall(r'<h3 class="hub-h">([^<]+)</h3>', MANAGE)
+        self.assertEqual(mine, hub)
+
+    def test_a_section_named_for_a_page_uses_the_pages_name(self):
+        with open(os.path.join(ROOT, 'static', 'js', 'bottom-nav.js'), encoding='utf-8') as f:
+            nav = f.read()
+        pages = set(re.findall(r"label: '([^']+)'", nav))
+        labels = re.findall(r'<span class="mg-lb">([^<]+)</span>', MANAGE)
+        for own in ('Team list', 'Levelset', 'Guest Obsession, TX and LX', 'Uploads', 'Settings', 'Health'):
+            labels.remove(own)
+        self.assertTrue(set(labels) <= pages, set(labels) - pages)
+
+    def test_a_phone_opens_the_list_then_a_section_back_can_undo(self):
+        with open(os.path.join(ROOT, 'static', 'js', 'manage-and-import.js'), encoding='utf-8') as f:
+            js = f.read()
+        self.assertIn("manageShowTab(b.dataset.manageGo, 'push');", js)
+        self.assertIn('data-mg-back', MANAGE)
+        self.assertIn("matchMedia('(min-width: 960px)')", js)
+        with open(os.path.join(ROOT, 'static', 'js', 'navigation.js'), encoding='utf-8') as f:
+            self.assertIn('manageArrive()', f.read())
 
     def test_older_saved_chips_land_where_their_cards_went(self):
         with open(os.path.join(ROOT, 'static', 'js', 'manage-and-import.js'), encoding='utf-8') as f:

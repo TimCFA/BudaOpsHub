@@ -683,7 +683,7 @@ function renderHeadcountView(){
       <h2 class="hc-title">Our Team</h2>
       ${hcForm ? '' : '<button type="button" class="btn btn-primary" data-hc-new>Log a departure</button>'}
     </div>
-    ${empty ? '<p class="hc-note hc-start">The count starts with the store’s PIN report: upload it in Manage → Accounts (Tim). Everyone with a clock-in PIN counts, and each new report shows who left.</p>' : hcSummaryHtml(s)}
+    ${empty ? '<p class="hc-note hc-start">The count starts with the store’s PIN report: upload it in Manage → Settings → Accounts (Tim). Everyone with a clock-in PIN counts, and each new report shows who left.</p>' : hcSummaryHtml(s)}
     ${typeof apPanelHtml === 'function' ? apPanelHtml() : ''}
     ${hcForm ? hcFormHtml() : ''}
     ${hcImport ? hcImportHtml() : ''}

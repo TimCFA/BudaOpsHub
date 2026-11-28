@@ -939,7 +939,7 @@ function pbRenderRecorded(){
             <label>Paste item name + sold count (tab-separated)${esLine('Paste item name + sold count (tab-separated)')}</label>
             <textarea data-pb-paste-area rows="5" placeholder="Salad, Cobb w/ Nuggets&#9;61.0"></textarea>
           </div>
-          <p class="pb-subline">Sales Mix report files go in Manage → Data Uploads (the date comes from the file name).${esLine('Sales Mix note')}</p>
+          <p class="pb-subline">Sales Mix report files go in Manage → Uploads (the date comes from the file name).${esLine('Sales Mix note')}</p>
           <div class="pb-panel-actions">
             <button class="btn btn-primary" style="width:auto;padding:9px 18px;" data-pb-add-day>Add this day${esLine('Add this day')}</button>
           </div>

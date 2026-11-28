@@ -506,7 +506,7 @@ function rpLxLinks(){
   if(dtIdx !== -1 && chain) links.push({index: dtIdx, kind: 'dt', title: 'From the chain ranking upload in Data Uploads'});
   const fsIdx = lxMetrics.findIndex(m => /food safety/i.test(m.name));
   const fs = String((gxData.satisfaction && gxData.satisfaction.foodSafety && gxData.satisfaction.foodSafety.value) || '').trim();
-  if(fsIdx !== -1 && fs) links.push({index: fsIdx, kind: 'fs', title: 'Follows the Food Safety score in Guest Obsession (Manage → Scoreboards)'});
+  if(fsIdx !== -1 && fs) links.push({index: fsIdx, kind: 'fs', title: 'Follows the Food Safety score in Guest Obsession (Manage → Guest Obsession, TX and LX)'});
   const osat = rpLxOsat(), osIdx = lxMetrics.findIndex(m => /osat/i.test(m.name));
   if(osIdx !== -1 && osat) links.push({index: osIdx, kind: 'osat', title: `From the CEM upload: ${osat.label}`});
   const prod = rpLxProductivity(), prIdx = lxMetrics.findIndex(m => /productivity/i.test(m.name));
